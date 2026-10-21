@@ -1,0 +1,7 @@
+-- Códigos dos critérios de prioridade cadastrados. A tradução para texto é do domínio. Não usa
+-- REQUERIMENTO.PESO_PRIORIDADE (o cadastro manual de critérios não o atualiza).
+SELECT pc.ID_TIPO_PRIORIDADE_PROCESSO AS CODIGO
+FROM   SIGA2_LICENCIAMENTO.PRIORIDADE_PROCESSO pp
+JOIN   SIGA2_LICENCIAMENTO.PRIORIDADE_PROCESSO_CRITERIO pc ON pc.ID_PRIORIDADE_PROCESSO = pp.ID
+WHERE  pp.ID_REQUERIMENTO = :idRequerimento
+ORDER  BY pc.ID_TIPO_PRIORIDADE_PROCESSO

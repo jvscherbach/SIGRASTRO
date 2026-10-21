@@ -1,0 +1,115 @@
+<button type="button" class="backlink" (click)="voltar()"><app-icone nome="left" />Voltar para a consulta</button>
+
+@if (requerimento(); as r) {
+  <section [attr.aria-label]="r.identificacao.rotulo + ' ' + r.identificacao.numero">
+    <app-quadro-topo
+      [alto]="false"
+      [sobretitulo]="r.tipoRequerimento ? r.identificacao.rotulo + ' · ' + r.tipoRequerimento : r.identificacao.rotulo"
+      [titulo]="r.identificacao.numero"
+      [descricao]="descricao()"
+    >
+      <ng-container etiquetas>
+        <app-situacao-tag [situacao]="r.situacao" />
+        @if (r.prioridade.codigo === 'PRIORITARIO') {
+          <span class="tag blue prioridade" [attr.title]="criteriosComoDica(r)"><app-icone nome="check" />{{ r.prioridade.descricao }}</span>
+        } @else {
+          <span class="tag gray prioridade">{{ r.prioridade.descricao }}</span>
+        }
+        @if (!r.identificacao.protocolado) {
+          <span class="tag amber">Não protocolado</span>
+        }
+      </ng-container>
+
+      <div class="glass-row">
+        <div class="glass">
+          <div class="glass-title"><span class="coin"><app-icone nome="building" /></span>Interessado</div>
+          <div class="kv-grid">
+            <div class="kv" style="grid-column: 1 / -1"><span>Nome</span><b>{{ r.interessado?.nome || '—' }}</b></div>
+            <div class="kv"><span>CPF/CNPJ</span><b class="num">{{ r.interessado?.cpfCnpj ? formatarCpfCnpj(r.interessado?.cpfCnpj) : '—' }}</b></div>
+          </div>
+        </div>
+
+        <div class="glass">
+          <div class="glass-title"><span class="coin"><app-icone nome="calendar" /></span>Datas e identificação</div>
+          <div class="kv-grid">
+            <div class="kv"><span>Abertura</span><b>{{ formatarData(r.abertura) }}</b></div>
+            <div class="kv"><span>Última atualização</span><b>{{ formatarData(r.atualizacao) }}</b></div>
+            @if (r.identificacao.protocolado) {
+              <div class="kv"><span>Nº do requerimento</span><b class="num">{{ r.numeroRequerimento }}</b></div>
+            }
+            <div class="kv"><span>Tipo do requerimento</span><b>{{ r.tipoRequerimento || '—' }}</b></div>
+            @if (r.prioridade.criterios.length) {
+              <div class="kv" style="grid-column: 1 / -1">
+                <span>Critérios de prioridade</span>
+                <ul class="criterios">
+                  @for (c of r.prioridade.criterios; track c.codigo) {
+                    <li><b>{{ c.descricao }}</b></li>
+                  }
+                </ul>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="glass">
+          <div class="glass-title"><span class="coin"><app-icone nome="flow" /></span>Tarefa atual</div>
+          @switch (r.tarefaAtual.estado) {
+            @case ('ATIVA') {
+              <div class="kv-grid">
+                <div class="kv" style="grid-column: 1 / -1"><span>Tarefa</span><b>{{ r.tarefaAtual.nome || '—' }}</b></div>
+                <div class="kv"><span>Desde</span><b>{{ formatarDataHora(r.tarefaAtual.desde) }}</b></div>
+                @if (r.tarefaAtual.responsavel; as responsavel) {
+                  <div class="kv responsavel"><span>Responsável</span><b>{{ textoDoResponsavel(responsavel) }}</b></div>
+                }
+              </div>
+            }
+            @case ('SEM_TAREFA') {
+              <p class="muted glass-text">Sem tarefa ativa. A instância pode estar encerrada ou o requerimento ainda não foi enviado ao fluxo.</p>
+            }
+            @default {
+              <p class="muted glass-text">Tarefa indisponível no momento. Os demais dados do requerimento não foram afetados.</p>
+            }
+          }
+        </div>
+      </div>
+    </app-quadro-topo>
+
+    <app-folha-sobreposta>
+      <section aria-label="Objeto do requerimento">
+        <div class="dash-sec-head"><h2><app-icone nome="leaf" />Objeto do requerimento</h2></div>
+        <div class="obj-grid">
+          @for (cartao of cartoesDoObjeto(); track cartao.rotulo) {
+            <div class="obj-card">
+              <span class="tile-icon"><app-icone [nome]="cartao.icone" /></span>
+              <div>
+                <span>{{ cartao.rotulo }}</span>
+                @for (linha of cartao.linhas; track $index) {
+                  <b>{{ linha }}</b>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+
+      <section class="panel" aria-label="Documentos">
+        <div class="dash-sec-head"><h2><app-icone nome="plan" />Documentos</h2></div>
+        <div class="note lime">
+          <app-icone nome="info" />
+          <span>A lista de documentos e a geração do dossiê ficam disponíveis na Sprint 2.</span>
+        </div>
+      </section>
+    </app-folha-sobreposta>
+  </section>
+} @else if (carregando()) {
+  <p class="muted" role="status">Carregando requerimento…</p>
+} @else {
+  <section class="panel" aria-label="Requerimento indisponível">
+    <div class="empty">
+      <span class="tile-icon"><app-icone nome="alert" /></span>
+      <h3>Não foi possível abrir o requerimento</h3>
+      <p role="alert">{{ erro() }}</p>
+      <p style="margin-top: 14px"><a class="btn" routerLink="/consulta">Voltar para a consulta</a></p>
+    </div>
+  </section>
+}

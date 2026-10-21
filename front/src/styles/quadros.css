@@ -43,3 +43,33 @@
 .empty{text-align:center;padding:42px 15px;color:var(--muted)}
 .empty h3{color:var(--ink);margin-bottom:6px}
 .empty .tile-icon{margin:0 auto 12px}
+
+/* busca, atalhos e cartões de objeto (consulta e detalhe) */
+.search-card{max-width:760px;margin-top:auto}
+/* Altura reservada para o alerta da busca: erro, 404, 403, 503 ou falha de rede não fazem o quadro do topo crescer. */
+.search-feedback{min-height:56px}
+.search-feedback .alert{margin-top:14px}
+.seg{display:inline-flex;border:1px solid #cfdcc7;background:#fff;border-radius:9px;padding:3px;gap:3px}
+.seg button{border-radius:6px;background:transparent;color:var(--muted);font-size:12px;padding:7px 14px;font-weight:600}
+.seg button.on{background:var(--forest);color:#fff}
+.tile-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.tile{display:grid;grid-template-columns:46px minmax(0,1fr);gap:12px;align-items:start;text-align:left;background:#fff;border:1px solid var(--line);border-radius:13px;padding:15px;color:var(--ink);box-shadow:0 2px 8px #10260a08;transition:transform .15s,border-color .15s}
+.tile:hover{border-color:#b6d0a6;transform:translateY(-1px)}
+.tile b{font-size:13px;display:block;font-weight:650}
+.tile small{display:block;color:var(--muted);font-size:11px;margin-top:4px}
+.tile .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+/* objeto */
+.obj-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.obj-card{border:1px solid var(--line);border-radius:13px;padding:14px 15px;display:flex;gap:12px;align-items:flex-start;box-shadow:0 2px 8px #10260a08}
+.obj-card .tile-icon{width:40px;height:40px}
+.obj-card .tile-icon .icon{width:20px;height:20px}
+.obj-card div>span{font-size:11px;color:var(--muted);display:block}
+.obj-card{align-items:center}
+.obj-card b{font-size:13px;font-weight:650;display:block;line-height:1.35;margin-top:2px}
+.obj-card b+b{margin-top:4px}
+.kv .criterios{list-style:none;margin:2px 0 0;padding:0;display:grid;gap:2px}
+
+/* paginação da lista de resultados */
+.pager{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.pager .row{gap:8px}
+.glass-text{font-size:13px}

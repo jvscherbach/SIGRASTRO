@@ -1,0 +1,147 @@
+<section aria-label="Consulta">
+  <app-quadro-topo
+    titulo="Localize o requerimento. Monte o dossiê."
+    descricao="Consulte um requerimento ou processo do SIGA Licenciamento, veja a situação e a tarefa atual e escolha os documentos que entram na vista."
+  >
+    <form class="glass search-card" (submit)="consultar($event)" novalidate>
+      <div class="glass-title"><span class="coin"><app-icone nome="search" /></span>Informe um ou mais critérios de pesquisa</div>
+      <div class="field-grid">
+        <div class="field full">
+          <label for="consulta-numero">Pesquisar por</label>
+          <div class="row wrap">
+            <div class="seg" role="radiogroup" aria-label="Tipo de pesquisa">
+              <button type="button" role="radio" [attr.aria-checked]="tipo() === 'REQUERIMENTO'" [class.on]="tipo() === 'REQUERIMENTO'" (click)="escolherTipo('REQUERIMENTO')">Requerimento</button>
+              <button type="button" role="radio" [attr.aria-checked]="tipo() === 'PROCESSO'" [class.on]="tipo() === 'PROCESSO'" (click)="escolherTipo('PROCESSO')">Processo</button>
+            </div>
+            <div class="input-icon" style="flex: 1; min-width: 200px">
+              <app-icone nome="plan" />
+              <input
+                id="consulta-numero"
+                inputmode="numeric"
+                [placeholder]="'Número do ' + rotuloDoTipo() + ' (ex.: ' + exemploDoNumero() + ')'"
+                [value]="numero()"
+                (input)="digitarNumero($event)"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="consulta-cpf-cnpj">CPF/CNPJ do interessado</label>
+          <input id="consulta-cpf-cnpj" inputmode="numeric" placeholder="000.000.000-00 ou 00.000.000/0000-00" [value]="cpfCnpj()" (input)="digitarCpfCnpj($event)" />
+        </div>
+        <div class="field">
+          <label for="consulta-nome">Nome do interessado</label>
+          <input id="consulta-nome" placeholder="Parte do nome" [value]="nome()" (input)="digitarNome($event)" />
+        </div>
+      </div>
+      @if (restrito()) {
+        <p class="hint" style="margin-top: 12px">
+          <app-icone nome="info" /> Seu perfil consulta apenas processos e requerimentos em que você é o interessado.
+        </p>
+      }
+      <div class="form-actions">
+        <button class="btn primary" type="submit" [disabled]="carregando()"><app-icone nome="search" />Consultar</button>
+        <button class="btn" type="button" (click)="limpar()">Limpar</button>
+      </div>
+      <!-- Espaço reservado para o alerta: mensagens de erro não mudam a altura do quadro do topo (docs/08). -->
+      <div class="search-feedback">
+        @if (erro()) {
+          <div class="alert" role="alert"><app-icone nome="alert" /><span>{{ erro() }}</span></div>
+        }
+      </div>
+    </form>
+  </app-quadro-topo>
+
+  <app-folha-sobreposta>
+    @if (resultado(); as pagina) {
+      <section aria-label="Resultados da consulta">
+        <div class="dash-sec-head">
+          <div>
+            <h2><app-icone nome="search" />Resultados da consulta</h2>
+            <p>{{ pagina.totalElementos }} resultado(s). Selecione um para abrir.</p>
+          </div>
+          <button type="button" class="link-btn" (click)="fecharResultados()"><app-icone nome="close" />Fechar resultados</button>
+        </div>
+        @if (processoRepetido()) {
+          <div class="note amber processo-repetido" role="status" style="margin-bottom: 12px">
+            <app-icone nome="info" /><span>Este número de processo está associado a mais de um requerimento.</span>
+          </div>
+        }
+        @if (pagina.conteudo.length) {
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Número</th>
+                  <th>Interessado</th>
+                  <th>Tipo de processo</th>
+                  <th>Situação</th>
+                  <th>Abertura</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of pagina.conteudo; track r.id) {
+                  <tr>
+                    <td class="nowrap">
+                      <b>{{ r.identificacao.numero }}</b>
+                      <span class="cell-sub">{{ r.identificacao.protocolado ? 'Processo' : 'Requerimento · não protocolado' }}</span>
+                    </td>
+                    <td>
+                      {{ nomeDe(r.interessado) }}
+                      <span class="cell-sub">{{ formatarCpfCnpj(r.interessado?.cpfCnpj) }}</span>
+                    </td>
+                    <td>{{ r.tipoProcesso || '—' }}</td>
+                    <td><app-situacao-tag [situacao]="r.situacao" /></td>
+                    <td class="nowrap">{{ formatarData(r.abertura) }}</td>
+                    <td style="text-align: right">
+                      <button type="button" class="btn sm" (click)="abrir(r.id)">Abrir<app-icone nome="arrow" /></button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (pagina.totalPaginas > 1) {
+            <nav class="pager" aria-label="Paginação dos resultados">
+              <span>Página {{ paginaExibida() }} de {{ pagina.totalPaginas }}</span>
+              <span class="row">
+                <button type="button" class="btn sm" [disabled]="carregando() || pagina.pagina === 0" (click)="irParaPagina(pagina.pagina - 1)">Anterior</button>
+                <button type="button" class="btn sm" [disabled]="carregando() || pagina.pagina + 1 >= pagina.totalPaginas" (click)="irParaPagina(pagina.pagina + 1)">Próxima</button>
+              </span>
+            </nav>
+          }
+        } @else {
+          <div class="empty">
+            <span class="tile-icon"><app-icone nome="search" /></span>
+            <h3>Nenhum resultado encontrado</h3>
+            <p>Revise os critérios informados.</p>
+          </div>
+        }
+      </section>
+    } @else if (recentes().length) {
+      <section aria-label="Consultados recentemente">
+        <div class="dash-sec-head">
+          <div>
+            <h2><app-icone nome="clock" />Consultados recentemente</h2>
+            <p>Atalhos para o que você abriu neste navegador.</p>
+          </div>
+        </div>
+        <div class="tile-grid">
+          @for (recente of recentes(); track recente.id) {
+            <button type="button" class="tile" (click)="abrir(recente.id)">
+              <span class="tile-icon"><app-icone nome="license" /></span>
+              <span><b>{{ recente.rotulo }}</b></span>
+            </button>
+          }
+        </div>
+      </section>
+    } @else {
+      <div class="empty">
+        <span class="tile-icon"><app-icone nome="search" /></span>
+        <h3>Informe um critério para começar</h3>
+        <p>Busque pelo número do requerimento ou do processo, pelo CPF/CNPJ ou pelo nome do interessado.</p>
+      </div>
+    }
+  </app-folha-sobreposta>
+</section>

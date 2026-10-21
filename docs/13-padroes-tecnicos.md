@@ -4,7 +4,7 @@ SIGA Vistas é um serviço externo ao SIGA Licenciamento que consulta requerimen
 
 Pontos que moldam todas as regras abaixo:
 
-- **O banco do SIGA não é nosso.** O serviço só **lê** o Oracle do SIGA (`SIGA2_LICENCIAMENTO`, `SIGA2_CAMUNDA`, `SIGA2_OUTORGA`). Nunca grava, nunca cria objeto, nunca roda migration lá (D14).
+- **O banco do SIGA não é nosso.** O serviço só **lê** o Oracle do SIGA (`SIGA2_LICENCIAMENTO`, `SIGA2_CAMUNDA`, `SIGA2_OUTORGA`, `SIGA2_ARRECADACAO`). Nunca grava, nunca cria objeto, nunca roda migration lá (D14).
 - **Schema próprio só na versão definitiva.** No protótipo não há banco próprio: usuários, perfis, auditoria, parâmetros e fila ficam em memória (D09). Na versão definitiva, um schema próprio **Oracle** guarda esses dados, versionado por Flyway: desenvolvimento em **Oracle Database 23 Free** (container), com compatibilidade obrigatória com **Oracle 19c**, que é o ambiente final se o projeto for aprovado.
 - **Público atual: interno.** O acesso de interessados externos (perfil Operador como interessado, RN07) é regra futura e muda autenticação e exposição.
 
@@ -20,7 +20,7 @@ Pontos que moldam todas as regras abaixo:
 | Conversão | LibreOffice headless via JODConverter |
 | HTTP de saída | `RestClient` |
 | Front-end | Angular, servido por nginx |
-| Execução | Docker Compose; pools de conexão pequenos na fase inicial; homologação/produção ainda não definidos (alvo provável: Kubernetes do SIGA) |
+| Execução | Docker Compose 2.24 ou mais novo; pools de conexão pequenos na fase inicial; homologação/produção ainda não definidos (alvo provável: Kubernetes do SIGA) |
 
 ## Módulos e quem é dono de cada funcionalidade
 
@@ -71,7 +71,7 @@ O dono é o módulo que define o **significado de negócio**. Ex.: "quais docume
 - [`padroes/tipos-dados.md`](padroes/tipos-dados.md) — tipos por natureza do dado, com exemplos do Vistas.
 - [`padroes/normalizacao.md`](padroes/normalizacao.md) — 3FN e o caso do "retrato" gravado na auditoria.
 - [`padroes/indexacao.md`](padroes/indexacao.md) — índices de FK e dos filtros reais de auditoria e fila.
-- [`padroes/documentacao.md`](padroes/documentacao.md) — `COMMENT ON`, dicionário de dados, colunas do SIGA consumidas.
+- [`padroes/documentacao.md`](padroes/documentacao.md) — `COMMENT ON`, dicionário de dados em HTML e MER em `docs/database/` (obrigatórios a cada migration), colunas do SIGA consumidas.
 - [`padroes/mer.md`](padroes/mer.md) — MER abstrato e mapeado, referências lógicas ao SIGA.
 - [`padroes/seguranca-privilegios.md`](padroes/seguranca-privilegios.md) — usuário de leitura do SIGA, owner e usuário de aplicação do schema próprio.
 - [`padroes/connection-pooling.md`](padroes/connection-pooling.md) — dois pools HikariCP e a relação com `DOSSIE_THREADS`.

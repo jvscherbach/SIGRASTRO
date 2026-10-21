@@ -1,6 +1,8 @@
 import { Routes } from '@angular/router';
 
 import { autenticadoGuard, perfilGuard, visitanteGuard } from './core/guards';
+import { ConsultaComponent } from './features/consulta/consulta.component';
+import { DetalheComponent } from './features/detalhe/detalhe.component';
 import { EmConstrucaoComponent } from './features/em-construcao/em-construcao.component';
 import { LoginComponent } from './features/login/login.component';
 import { ShellComponent } from './layout/shell.component';
@@ -15,15 +17,15 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', redirectTo: 'consulta' },
       {
         path: 'consulta',
-        component: EmConstrucaoComponent,
+        component: ConsultaComponent,
         title: 'Consulta · SIGA Vistas',
-        data: {
-          crumb: ['Consulta'],
-          titulo: 'Localize o requerimento. Monte o dossiê.',
-          descricao:
-            'Consulte um requerimento ou processo do SIGA Licenciamento, veja a situação e a tarefa atual e escolha os documentos que entram na vista.',
-          sprint: 'Sprint 1',
-        },
+        data: { crumb: ['Consulta'] },
+      },
+      {
+        path: 'consulta/requerimentos/:id',
+        component: DetalheComponent,
+        title: 'Requerimento · SIGA Vistas',
+        data: { crumb: ['Consulta'] },
       },
       {
         path: 'dossies',

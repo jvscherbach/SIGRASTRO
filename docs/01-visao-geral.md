@@ -46,7 +46,8 @@ O protótipo serve de base para apresentar a solução e solicitar acesso ao Pan
 - Geração do dossiê em PDF único, em ordem cronológica, com capa e sumário.
 - Conversão de planilhas, documentos de texto e imagens para PDF.
 - Pré-visualização do dossiê antes do download.
-- Dossiê de requerimento não protocolado e de processo. No SIGA, cada processo nasce de um único requerimento (relação 1:1); a consulta pode ser feita por qualquer um dos dois números.
+- Dossiê de requerimento não protocolado e de processo. A consulta pode ser feita por qualquer um dos dois números. O número do requerimento é único; o número de processo pode se repetir em mais de um requerimento (1:N, dado real do SIGA), e nesse caso a consulta lista todos para o usuário escolher.
+- Tarefa atual do fluxo com o nome do responsável, visível só para Gestor e Administrador (nunca o CPF do servidor).
 - Documentos pessoais vindos do SCORP. DAR do Arrecadação, se a forma de obtenção for confirmada.
 - Login simulado com três perfis: Operador (só processos em que é o interessado), Gestor (todos os processos e sigilosos) e Administrador (irrestrito).
 - Auditoria dividida em documentos e acessos, com eventos mantidos apenas em memória.

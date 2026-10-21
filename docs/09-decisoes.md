@@ -130,3 +130,51 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 
 **Decisão:** os pacotes de integração levam o nome do sistema (`integration.scorp`, `integration.siga`, `integration.licenciamento`). *(Substitui `integration.pessoal`.)* Na lista de documentos do usuário a origem continua exibida como "Pessoal".
 **Motivo:** fica intuitivo localizar o código de cada sistema.
+
+## D24 — Vínculo com o interessado (RN07) aplicado já na S1, na consulta
+
+**Contexto:** a S1 é a primeira sprint com dado real do SIGA; deixar a restrição do Operador para a S4 exporia qualquer processo a qualquer usuário.
+**Decisão:** o back-end aplica a RN07 desde a S1. A decisão de restringir é do domínio (`acesso`: `RestricaoDeInteressado`), e o filtro vai **dentro do SQL** (parâmetro na própria consulta de lista e de contagem), nunca sobre a lista já lida. Busca por número ou detalhe de outro interessado: 403 `NAO_INTERESSADO`. Usuário restrito sem CPF/CNPJ não enxerga nada.
+**Motivo:** total e paginação corretos e nenhum dado de outro interessado trafegando. A S4 mantém o restante (sigilo, geometrias, SCORP, tela "Dossiês gerados").
+
+## D25 — A busca sempre devolve uma página
+
+**Decisão:** `GET /api/busca` devolve sempre `PageResponse`; a busca só por número de requerimento devolve página com 1 item, e a só por número de processo devolve todos os requerimentos daquele número (D31); 404 se não existir. O front abre o detalhe direto quando há um único resultado.
+**Motivo:** um contrato só para a tela de consulta, sem duas formas de resposta na mesma rota.
+
+## D26 — A `api` sobe sem o SIGA; `minimum-idle: 0`; o SIGA não entra no health
+
+**Decisão:** sem `SIGA_DB_URL` (ausente ou vazia) ou com o SIGA inacessível, a `api` inicia normalmente e as consultas respondem 503 `SIGA_INDISPONIVEL`. O pool do SIGA usa `minimum-idle: 0` e `initialization-fail-timeout: -1`, e o banco do SIGA não faz parte de `/actuator/health`.
+**Motivo:** a indisponibilidade de um sistema externo não pode derrubar o serviço nem o front (que depende do health da `api`), e o pool não deve segurar sessões do SIGA sem uso nem reconectar em segundo plano.
+
+## D27 — Conexão e leitura reais do SIGA são homologadas manualmente
+
+**Decisão:** o desenvolvimento nunca se conecta ao banco real do SIGA. O código é provado com portas falsas e com um Oracle 23 Free local (Testcontainers, recorte do modelo em `src/test`). A validação com dados reais segue o roteiro `docs/homologacao/S1-roteiro-homologacao.md`, executado pelo responsável do projeto.
+**Motivo:** credenciais e acesso ao SIGA não passam por automação. **Limite:** os testes de integração provam o SQL no 23 Free, não no 19c.
+
+## D28 — Dicionário de dados em HTML e MER em `docs/database/`
+
+**Decisão:** a partir da primeira migration do schema próprio, toda entrega que alterar o banco atualiza `docs/database/` com o dicionário de dados em HTML e o MER (mapeado e conceitual), gerados a partir do Oracle local por script em `scripts/database/`. Detalhes em [`padroes/documentacao.md`](padroes/documentacao.md).
+**Motivo:** o responsável pelo banco precisa de informação fiel e atualizada sobre o schema; gerar a partir do banco evita documentação desatualizada.
+
+## D29 — Atividade da outorga lida de `SIGA2_ARRECADACAO.ATIVIDADE`
+
+**Contexto:** a tela do SIGA busca a descrição da atividade de cada par finalidade/atividade pela API da Arrecadação.
+**Decisão:** o SIGA Vistas lê a descrição direto da tabela `SIGA2_ARRECADACAO.ATIVIDADE` (por `FINALIDADE_ATIVIDADE.ID_ATIVIDADE_ARRECADACAO`), com `LEFT JOIN`: sem linha, a atividade aparece como "—".
+**Motivo:** o texto é o mesmo (conferido no processo 6023/2025, atividade 4054), a leitura fica no mesmo datasource somente leitura e o `integration.arrecadacao` continua desativado.
+
+## D30 — Prioridade de atendimento pelos critérios, não pelo `PESO_PRIORIDADE`
+
+**Decisão:** a prioridade é binária e vem de `PRIORIDADE_PROCESSO_CRITERIO`: pelo menos um critério é "Atendimento prioritário"; nenhum, "Atendimento normal". O SQL devolve só os códigos; a tradução para texto (enum do SIGA, código desconhecido como "Critério N") fica no domínio (`PrioridadeAtendimento`, `CriterioPrioridade`).
+**Motivo:** o cadastro manual de critérios no SIGA não atualiza `REQUERIMENTO.PESO_PRIORIDADE`, que por isso não é confiável.
+
+## D31 — Número de processo tratado como 1:N; só a `REQUERIMENTO` importa
+
+**Contexto:** `REQUERIMENTO.NUMERO_PROCESSO` não tem constraint nem índice, e o SIGA não impede repetição (havia um caso, `445/2022`, em 21/10/2026).
+**Decisão:** a busca por número de processo devolve a página com todos os requerimentos daquele número (ordem: abertura decrescente e id). Com 1 resultado o front abre o detalhe; com mais, lista para o usuário escolher e mostra um aviso. A chave é sempre `REQUERIMENTO.ID`. A busca por número de requerimento continua exata. Nenhuma consulta lê a tabela `PROCESSO` (histórico do que foi protocolado), e não se filtra por `PROCESSO.ORIGEM`. RN07: a restrição do interessado vai no SQL; se o número existe só para outros interessados, 403 `NAO_INTERESSADO`.
+**Motivo:** o dado real admite repetição; escolher um dos requerimentos sozinho esconderia o outro.
+
+## D32 — Responsável pela tarefa: nome resolvido no SQL, visível só para Gestor e Administrador
+
+**Decisão:** `ASSIGNEE_` guarda o CPF do servidor. O nome é resolvido **no próprio SQL** da tarefa atual: `SERVIDOR` (versão mais recente por CPF) e, se não houver, `PESSOA`. Só tenta resolver quando o valor tem 11 dígitos; a conversão de `NVARCHAR2` fica do lado de `ASSIGNEE_` (`TO_CHAR`), para não impedir índice nas tabelas de nome. O adapter devolve só a situação (`ATRIBUIDO`, `NAO_ATRIBUIDA`, `NAO_IDENTIFICADO`) e o nome: o CPF nunca sai do SQL. O caso de uso remove o responsável para quem não pode vê-lo (`Perfil.podeVerResponsavelTarefa()`, RN12): o Operador recebe `tarefaAtual` sem o campo `responsavel`.
+**Motivo:** o CPF do servidor é dado pessoal e não serve ao usuário; o SIGA não tem regra própria de visibilidade, e o Operador (interessado) não precisa saber quem analisa o processo.

@@ -15,7 +15,7 @@ function usuario(perfil: Perfil): Usuario {
     perfil,
     perfilDescricao: perfil,
     cpfCnpj: null,
-    permissoes: { verSigilosos: false, verAuditoriaAcessos: false, acessarConfiguracoes: false, restritoAoInteressado: false },
+    permissoes: { verSigilosos: false, verAuditoriaAcessos: false, acessarConfiguracoes: false, restritoAoInteressado: false, verResponsavelTarefa: false },
   };
 }
 

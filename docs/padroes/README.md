@@ -16,7 +16,7 @@ Resumo e índice em [../13-padroes-tecnicos.md](../13-padroes-tecnicos.md). Este
 | [tipos-dados.md](tipos-dados.md) | Tipos de coluna |
 | [normalizacao.md](normalizacao.md) | 3FN e retratos da auditoria |
 | [indexacao.md](indexacao.md) | Índices |
-| [documentacao.md](documentacao.md) | Comentários e dicionário de dados |
+| [documentacao.md](documentacao.md) | Comentários, dicionário de dados em HTML e MER em `docs/database/` |
 | [mer.md](mer.md) | MER abstrato e mapeado |
 | [seguranca-privilegios.md](seguranca-privilegios.md) | Usuários e privilégios de banco |
 | [connection-pooling.md](connection-pooling.md) | Pools HikariCP |

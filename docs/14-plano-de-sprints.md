@@ -50,18 +50,60 @@ Aceite:
 
 ## S1 — Consulta
 
+**Status:** implementada, testada e **homologada com dados reais** pelo responsável em 20 e 21/10/2026 (ver "Validação da S1" abaixo). Os campos do P01 apareciam como "—" e foram ligados na S1.1.
+
 **Objetivo:** ler o SIGA de verdade.
 
 Entregas:
 - Datasource `siga` somente leitura (pool 2, `ReadTimeout`).
-- `integration.siga`: consultas de requerimento, processo (1:1), interessado, objeto (objetivo/finalidade/atividade/tipo), prioridade e tarefa atual.
+- `integration.siga`: consultas de requerimento, processo, interessado e tarefa atual (objeto e prioridade entraram na S1.1; o número de processo passou a 1:N na S1.1).
 - Módulo `consulta`: busca por número de requerimento, de processo, CPF/CNPJ e nome; número do processo com prioridade na identificação (RN04).
 - Front: telas de consulta e de detalhe (quadros com dados, datas e tarefa atual), sem a lista de documentos ainda.
 - Tradução das situações do SIGA (Apêndice A do [04](04-modelo-de-dados.md)).
+- **Antecipado da S4:** vínculo do Operador com o interessado (RN07) aplicado na consulta, no SQL (D24). A S4 mantém sigilo, geometrias, SCORP, "Dossiês gerados" e a validação completa da matriz de perfis.
+- A `api` sobe e responde 503 `SIGA_INDISPONIVEL` sem o SIGA configurado (D26); roteiro de homologação em [`homologacao/S1-roteiro-homologacao.md`](homologacao/S1-roteiro-homologacao.md) (D27).
 
 Aceite:
 - Busca por requerimento, processo e interessado funcionando contra o SIGA, com os dados batendo com a tela atual do SIGA para 3 processos.
 - Erros 400/404/503 no formato ProblemDetail.
+
+### Validação da S1
+
+**Executada pelo responsável em 20 e 21/10/2026**, com o roteiro [`homologacao/S1-roteiro-homologacao.md`](homologacao/S1-roteiro-homologacao.md). O desenvolvimento não se conectou ao SIGA real.
+
+| Processo | Situação no SIGA | Resultado no SIGA Vistas | Bate? |
+|---|---|---|---|
+| 3331/2025 | Concluído, sem tarefa ativa | Identificação, situação, datas, interessado e tipo corretos; "Sem tarefa ativa" | Sim |
+| 10468/2026 | Tarefa "Realizar Análise do Processo" desde 20/10/2026 12:14, com responsável | Tarefa, data e hora corretas (sem deslocamento de fuso); o responsável aparecia como CPF, corrigido na S1.1 | Sim, com ajuste |
+| 18933/2026 | Não protocolado; tarefa "Conferir documentos apresentados", sem responsável | Identificação por número de requerimento, "não protocolado", tarefa correta, "Não atribuída" | Sim |
+
+Observações: os campos do P01 apareciam como "—" (ligados na S1.1). A conexão real, o teste de fumaça e a configuração do Docker foram validados. Problemas de ambiente encontrados e resolvidos: nome curto do host do banco não resolvido dentro do container (usar FQDN ou IP no `.env.local`) e containers sem portas quando o `compose.local.yaml` não é passado (registrados nos problemas comuns do `README.md`).
+
+## S1.1 — Ajustes da consulta com o mapeamento P01
+
+**Status:** implementada e testada com portas falsas, `MockMvc` e Oracle 23 Free local (Testcontainers): `./mvnw clean verify` com 181 testes, 0 falhas, só os 2 de fumaça pulados; Compose verificado sem as variáveis do SIGA (health `UP`, 503 `SIGA_INDISPONIVEL`, os três perfis entram). **A validação com dados reais está pendente de homologação manual** (ver "Validação da S1.1"). O prompt da S1.1 foi recebido pela conversa e não está em `docs/prompts/`.
+
+Entregas:
+- Mapeamento P01 registrado em [04](04-modelo-de-dados.md#mapeamento-de-objeto-e-prioridade-p01) e ligado no SQL: `objetivos-outorga.sql`, `finalidades-atividades-outorga.sql`, `objeto-licenciamento.sql`, `prioridade.sql` e tipo do requerimento nas consultas por id e por número (porta `ObjetoEPrioridadeDoRequerimento`, adapter `ObjetoEPrioridadeDoSigaJdbc`).
+- Domínio: `ObjetoDoRequerimento` (listas independentes), `TipoOutorga`, `PrioridadeAtendimento` e `CriterioPrioridade` (D30), `ResponsavelTarefa`.
+- Responsável pela tarefa: nome resolvido em `tarefa-atual.sql` (`SERVIDOR`, depois `PESSOA`), situação `ATRIBUIDO`/`NAO_ATRIBUIDA`/`NAO_IDENTIFICADO`, CPF nunca sai do SQL; visível só para Gestor e Administrador (`Perfil.podeVerResponsavelTarefa()`, `permissoes.verResponsavelTarefa`, RN12, D32).
+- Busca por CPF/CNPJ por comparação direta (`p.CPF_CNPJ = :digitos`), inclusive na restrição do interessado.
+- Número de processo 1:N (D31): a busca devolve todos os requerimentos do número, com RN07 no SQL (403 se nenhum é do Operador); `requerimento-por-processo.sql` removido; nenhuma consulta lê `PROCESSO`.
+- API: `objeto`, `prioridade`, `tipoRequerimento` e `tarefaAtual.responsavel` condicional ([07](07-api.md)).
+- Front: chip de prioridade com critérios, tipo do requerimento, cartões do objeto, linha "Responsável" só quando vem na resposta, lista e aviso para processo repetido, quadro do topo com altura estável ([08](08-telas.md)).
+- Roteiro [`homologacao/S1.1-roteiro-homologacao.md`](homologacao/S1.1-roteiro-homologacao.md).
+
+Aceite:
+- Processo 6023/2025 (outorga) com objeto igual ao do SIGA; um de licenciamento e um com critério de prioridade conferidos; 10468/2026 com o nome do responsável para Gestor e Admin e sem ele para o Operador; 445/2022 listando 2 requerimentos.
+- Busca por CPF/CNPJ com os mesmos totais da S1.
+
+### Validação da S1.1
+
+**PENDENTE: homologação manual pelo responsável.** Roteiro, script de grants, consultas de conferência e tabelas de comparação: [`homologacao/S1.1-roteiro-homologacao.md`](homologacao/S1.1-roteiro-homologacao.md). Registrar o resultado aqui e abrir pendência em [10](10-pendencias-e-riscos.md) para o que não bater.
+
+| Processo | Campo | SIGA | SIGA Vistas | Bate? |
+|---|---|---|---|---|
+| _a preencher_ | | | | |
 
 ## S2 — Documentos e dossiê em PDF
 
@@ -99,7 +141,7 @@ Aceite:
 **Objetivo:** aplicar as regras de perfil e fechar o fluxo do usuário.
 
 Entregas:
-- Módulo `acesso` em memória: Operador (só como interessado, RN07), Gestor (todos e sigilosos), Administrador (irrestrito); regras validadas no back-end (RNF10).
+- Módulo `acesso` em memória: Operador (só como interessado, RN07), Gestor (todos e sigilosos), Administrador (irrestrito); regras validadas no back-end (RNF10). **A RN07 na consulta já foi entregue na S1 (D24);** aqui entram o restante da matriz (sigilo na lista, no modal e na geração) e a validação por `MockMvc` de toda ela.
 - Sigilo na lista, no modal e na geração; mensagens `NAO_INTERESSADO` e `DOCUMENTO_SIGILOSO`.
 - Geometrias (SHP/KML/KMZ) em seção própria com "Baixar geometrias" (RN10).
 - `integration.scorp`: documentos pessoais na lista (falha do SCORP não impede a listagem).
@@ -141,10 +183,11 @@ Aceite: os critérios de validação do [01](01-visao-geral.md) atendidos e docu
 ## Definição de pronto (vale para todas as sprints)
 
 - Código segue [13 — Padrões técnicos](13-padroes-tecnicos.md); `ArchitectureTest` verde.
-- `./mvnw clean verify`, build e testes do Angular passando; `docker compose ... config` válido; `git diff --check` limpo.
+- `./mvnw clean verify`, build e testes do Angular passando (reportar quantos testes de integração com Testcontainers rodaram e quantos foram pulados); `docker compose ... config` válido; `git diff --check` limpo.
 - Testes da sprint escritos (unitários de domínio, `MockMvc` dos endpoints novos, integração dos adapters tocados).
 - Nenhuma credencial, token ou URL institucional no repositório.
-- Documentação em `docs/` atualizada quando a sprint mudar uma regra, endpoint ou decisão.
+- Documentação em `docs/` atualizada **durante** a sprint quando ela mudar uma regra, endpoint ou decisão.
+- Quando houver migration do schema próprio: `docs/database/` (dicionário de dados em HTML e MER) regenerado na mesma entrega.
 - Demonstração da sprint feita com dados reais (a partir da S1).
 
 ## Riscos para o cronograma

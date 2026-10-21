@@ -1,11 +1,11 @@
-import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpClient, HttpContext, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 
 import { ToastService } from '../shared/toast.service';
 import { AuthService } from './auth.service';
-import { correlacaoInterceptor, erroInterceptor, tokenInterceptor } from './interceptors';
+import { SEM_TOAST, correlacaoInterceptor, erroInterceptor, tokenInterceptor } from './interceptors';
 
 describe('interceptors', () => {
   let http: HttpClient;
@@ -102,6 +102,23 @@ describe('interceptors', () => {
       expect(toast.erro).not.toHaveBeenCalled();
       expect(auth.limparSessao).not.toHaveBeenCalled();
       expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('SEM_TOAST: a tela mostra o erro, então o toast não é repetido', () => {
+      let status: number | undefined;
+      http.get('/api/x', { context: new HttpContext().set(SEM_TOAST, true) }).subscribe({ error: (e) => (status = e.status) });
+      controller.expectOne('/api/x').flush({ errorCode: 'SIGA_INDISPONIVEL' }, { status: 503, statusText: 'x' });
+
+      expect(status).toBe(503);
+      expect(toast.erro).not.toHaveBeenCalled();
+    });
+
+    it('SEM_TOAST não impede o tratamento do 401 (sessão expirada)', () => {
+      http.get('/api/x', { context: new HttpContext().set(SEM_TOAST, true) }).subscribe({ error: () => undefined });
+      controller.expectOne('/api/x').flush({ errorCode: 'NAO_AUTENTICADO' }, { status: 401, statusText: 'x' });
+
+      expect(auth.limparSessao).toHaveBeenCalledOnce();
+      expect(router.navigate).toHaveBeenCalledWith(['/login']);
     });
 
     it('repassa o erro original a quem chamou', () => {

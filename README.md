@@ -2,7 +2,7 @@
 
 O **SIGA Vistas** (nome provisório) é um serviço externo ao SIGA Licenciamento. Ele consulta requerimentos e processos, lista os documentos de cada um e gera um **dossiê em PDF**, com os documentos escolhidos em ordem cronológica.
 
-Hoje o projeto é um **protótipo de validação**: o objetivo é provar que os problemas da "Vista do Processo" atual têm solução (processos que não geram a vista e planilhas que ficam fora do PDF). Esta é a **Sprint 0 (Fundação)**: o esqueleto sobe e o login simulado funciona, mas as telas de consulta, dossiês, auditoria e configurações ainda mostram a página "em construção". Toda a documentação está em [docs/README.md](docs/README.md).
+Hoje o projeto é um **protótipo de validação**: o objetivo é provar que os problemas da "Vista do Processo" atual têm solução (processos que não geram a vista e planilhas que ficam fora do PDF). Estão prontas a **Sprint 0 (Fundação)** e a **Sprint 1 (Consulta)**: o login simulado funciona e é possível buscar um requerimento ou processo e ver os dados e a tarefa atual (a leitura real do SIGA depende da conexão descrita na seção "Conectar ao banco do SIGA"). Dossiês, auditoria e configurações ainda mostram a página "em construção". Toda a documentação está em [docs/README.md](docs/README.md).
 
 ## Estrutura do repositório
 
@@ -15,12 +15,14 @@ Hoje o projeto é um **protótipo de validação**: o objetivo é provar que os 
 | `compose.yaml` | Configuração comum dos serviços `api` e `front` no Docker. |
 | `compose.local.yaml` | Configuração do seu computador: portas e volume dos dossiês. |
 | `.env.local.example` | Modelo do arquivo de variáveis `.env.local` (que não vai para o Git). |
+| `docs/homologacao/` | Roteiros para conferir a conexão e os dados reais do SIGA (feitos pelo responsável). |
 
 ## Pré-requisitos
 
 Para o **caminho recomendado (Docker)** você só precisa do Docker:
 
 - **Docker Desktop 4.27 ou mais novo** (Windows e macOS), ou **Docker Engine 25 + Docker Compose v2.24 ou mais novo** (Linux). A versão mínima do Compose é 2.24 porque o arquivo `compose.local.yaml` usa `env_file` opcional.
+- Para subir só com o login e a tela de consulta, **não é preciso** acesso ao SIGA. Para ler dados reais, veja "Conectar ao banco do SIGA".
 
 Para **rodar sem Docker** (só para quem vai desenvolver) você também precisa de:
 
@@ -64,7 +66,7 @@ PowerShell:
 Copy-Item .env.local.example .env.local
 ```
 
-O `.env.local` guarda as configurações do seu computador e **não é enviado para o Git**. **Nesta sprint nenhuma variável precisa ser preenchida** para o login funcionar. A partir da Sprint 1 será preciso preencher as variáveis do banco do SIGA (`SIGA_DB_*`).
+O `.env.local` guarda as configurações do seu computador e **não é enviado para o Git**. **Nenhuma variável precisa ser preenchida** para o sistema subir e o login funcionar. Para a consulta mostrar dados reais é preciso preencher as variáveis do banco do SIGA (`SIGA_DB_*`); veja "Conectar ao banco do SIGA" mais abaixo.
 
 ### 3. Suba o sistema
 
@@ -110,6 +112,13 @@ Na tela de login, clique em um dos perfis (entra com um clique) ou digite usuár
 
 Essa senha é só para demonstração e só vale no perfil `local`. Para trocar, defina `VISTAS_DEMO_SENHA` no `.env.local` e rode o passo 3 de novo (o clique rápido da tela de login deixa de funcionar; digite usuário e senha).
 
+Depois de entrar, abra **Consulta**. Sem o banco do SIGA configurado, qualquer busca mostra "O banco do SIGA está indisponível no momento." (é o esperado, veja a próxima seção). Com a conexão configurada, a tela de consulta funciona assim:
+
+- escolha **Requerimento** ou **Processo** e digite o número no formato `N/AAAA` (ex.: `3331/2025`); se houver um único resultado, o detalhe abre direto;
+- ou informe o **CPF/CNPJ** e/ou parte do **nome** do interessado (mínimo 3 letras) para ver uma lista com paginação;
+- o perfil **Operador** só enxerga processos em que ele é o interessado (o CPF/CNPJ do usuário de demonstração é fictício, então ele não verá dados reais);
+- as consultas que você abriu aparecem em "Consultados recentemente".
+
 Se você digitar na barra de endereço uma página que o seu perfil não usa (por exemplo `http://localhost:8080/configuracoes` como Operador), o sistema avisa e volta para a Consulta.
 
 ### 7. Pare o sistema
@@ -127,6 +136,26 @@ Repita o passo 3 (o `--build` reconstrói só o que mudou):
 ```bash
 docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml up -d --build
 ```
+
+## Conectar ao banco do SIGA
+
+A consulta lê o banco Oracle do SIGA **somente para leitura**. O sistema funciona sem essa conexão (login, menu e telas abrem), mas toda busca responde **"O banco do SIGA está indisponível no momento"** (erro `503`, `SIGA_INDISPONIVEL`). Isso é proposital: a falta do SIGA não derruba o sistema nem o `health`.
+
+1. Peça ao DBA do SIGA o usuário de leitura (`VISTAS_LEITURA_SIGA`), a URL do Oracle e a liberação de rede entre o seu computador e o banco. O pedido está detalhado no roteiro de homologação.
+2. Abra o `.env.local` e preencha **só os valores**, mantendo os nomes:
+
+```
+SIGA_DB_URL=jdbc:oracle:thin:@//HOST:PORTA/SERVICO
+SIGA_DB_USER=...
+SIGA_DB_PASSWORD=...
+```
+
+3. Suba de novo (passo 3 do Tutorial 1) e confira `http://localhost:8081/actuator/health` (deve ficar `UP`).
+4. Na tela de consulta, busque um requerimento que você conheça e compare com a tela atual do SIGA.
+
+Se a senha estiver errada, o endereço não responder ou a rede estiver fechada, o sistema continua de pé e a consulta mostra o aviso de indisponibilidade em poucos segundos; corrija o `.env.local` e suba de novo. **Nunca** coloque a senha em outro arquivo nem a envie por e-mail ou chat.
+
+Toda a conferência da conexão e dos dados reais (usuário de leitura, rede, tipos das colunas, comparação com 3 processos, teste de fumaça) está em [docs/homologacao/S1-roteiro-homologacao.md](docs/homologacao/S1-roteiro-homologacao.md). Ela é feita por quem tem acesso ao SIGA.
 
 ## Tutorial 2 — Rodar sem Docker (desenvolvimento)
 
@@ -198,6 +227,10 @@ npm test -- --watch=false
 
 Resultado esperado: tudo verde (`BUILD SUCCESS` no back-end e `passed` no front).
 
+Os testes de integração do banco usam um Oracle de teste dentro do Docker (Testcontainers). **Sem Docker, eles são pulados** e o `./mvnw clean verify` ainda passa; com Docker, o primeiro teste leva alguns minutos para baixar a imagem e iniciar o Oracle.
+
+Existe também um teste de fumaça contra o SIGA real, que **não roda sozinho**: ele só é usado pelo responsável na homologação (veja o roteiro).
+
 ## Problemas comuns
 
 | Sintoma | O que fazer |
@@ -210,11 +243,15 @@ Resultado esperado: tudo verde (`BUILD SUCCESS` no back-end e `passed` no front)
 | **`env file ... .env.local not found`** | Você não fez o passo 2 do Tutorial 1. Copie o `.env.local.example` para `.env.local`. |
 | **`unknown field "required"`** ou erro no `env_file` | Seu Docker Compose é anterior à 2.24. Atualize o Docker Desktop (veja os pré-requisitos). |
 | **A tela volta para o login sozinha** | A sessão do protótipo vale 8 horas e fica só na aba do navegador. Se a API foi reiniciada ou a sessão expirou, o sistema avisa "sua sessão expirou" e volta ao login: entre de novo. |
+| **A consulta diz "O banco do SIGA está indisponível no momento"** | O `.env.local` não tem as variáveis `SIGA_DB_*`, a senha/URL está errada ou a rede não alcança o Oracle. Veja "Conectar ao banco do SIGA". O resto do sistema continua funcionando. |
+| **SIGA indisponível só dentro do container, mas o host do banco responde no seu computador** | O container não resolve o nome curto do host do banco (ex.: `oracle-siga`). Em `SIGA_DB_URL` no `.env.local`, use o nome completo (FQDN, ex.: `oracle-siga.dominio.interno`) ou o IP, e suba de novo. |
+| **Os containers sobem, mas `localhost:8080` e `localhost:8081` não abrem** (`docker compose ps` não mostra portas) | Faltou o `-f compose.local.yaml`, que é quem publica as portas. Use sempre `docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml ...`. |
 | **No Tutorial 2, o front mostra erro ao entrar / "não foi possível conectar"** | A API não está no ar na porta 8081. Confira o terminal da API e o `curl` do passo 1. |
 | **Windows: `mvnw.cmd` diz que `JAVA_HOME` não está definido** | Instale o JDK 21 e defina a variável `JAVA_HOME` com a pasta dele; abra um terminal novo e confira com `java -version`. |
 
 ## Links
 
 - [Plano de sprints](docs/14-plano-de-sprints.md)
+- [Roteiro de homologação da S1](docs/homologacao/S1-roteiro-homologacao.md)
 - [Padrões técnicos](docs/13-padroes-tecnicos.md)
 - [Protótipo navegável](docs/prototipo/siga-vistas-prototipo.html) (abra no navegador; é a referência visual)

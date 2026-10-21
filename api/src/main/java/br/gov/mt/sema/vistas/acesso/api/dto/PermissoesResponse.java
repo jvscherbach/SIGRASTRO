@@ -4,5 +4,6 @@ public record PermissoesResponse(
         boolean verSigilosos,
         boolean verAuditoriaAcessos,
         boolean acessarConfiguracoes,
-        boolean restritoAoInteressado) {
+        boolean restritoAoInteressado,
+        boolean verResponsavelTarefa) {
 }

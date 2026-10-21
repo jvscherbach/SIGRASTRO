@@ -6,11 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SIGA Vistas (nome provisório) é um serviço externo ao SIGA Licenciamento que gera o **dossiê em PDF** de um requerimento/processo, com os documentos selecionados em ordem cronológica. Está na fase de **protótipo de validação**: o objetivo é provar que os problemas da "Vista do Processo" atual têm solução (processos que não geram vista e planilhas fora do PDF).
 
-Por enquanto o repositório só tem documentação (`docs/`) e a skill `vistas-banco` (`.claude/skills/`). Os diretórios `api/` (Spring Boot) e `front/` (Angular) são criados pelo plano de sprints em `docs/14-plano-de-sprints.md`. Cada sprint é implementado a partir de um prompt `.md`.
+O repositório tem a documentação (`docs/`), a skill `vistas-banco` (`.claude/skills/`) e o código: `api/` (Spring Boot, Java 21) e `front/` (Angular 21), que sobem no Docker Compose. A **S0 (fundação)**, a **S1 (consulta, com login simulado dos três perfis e leitura do SIGA)**, já homologada com dados reais, e a **S1.1 (objeto, prioridade e tipo do requerimento pelo mapeamento P01, nome do responsável só para Gestor e Administrador, busca direta por CPF/CNPJ e número de processo 1:N)** estão concluídas; a validação da S1.1 com dados reais está pendente de homologação manual (`docs/homologacao/S1.1-roteiro-homologacao.md`). O plano e o estado de cada sprint ficam em `docs/14-plano-de-sprints.md`; cada sprint é implementada a partir de um prompt `.md` (`docs/prompts/`). **Atualize `docs/` durante a sprint, não só no fim.**
 
 **Carregue a skill `vistas-banco` antes de qualquer trabalho de código ou banco.** Ela contém os padrões detalhados.
 
-## Comandos (depois que `api/` e `front/` existirem)
+## Comandos
 
 ```bash
 ./mvnw -Dtest=ArchitectureTest test            # ArchUnit; rodar antes de terminar qualquer tarefa (não precisa de Docker)
@@ -24,6 +24,7 @@ git diff --check
 ```
 
 - Nunca rode `docker compose down -v`.
+- Nunca se conecte ao banco real do SIGA: a conexão e a leitura reais são homologadas pelo responsável (D27). Os testes de integração usam Oracle 23 Free via Testcontainers (pulados sem Docker).
 - Não faça commit nem push. A revisão é feita por `git diff`, e o commit fica com o responsável pelo projeto.
 
 ## Arquitetura
@@ -43,7 +44,7 @@ Entre módulos, a comunicação acontece só por caso de uso ou porta publicada 
 
 ### Regras duras
 
-- **O banco do SIGA (`SIGA2_LICENCIAMENTO`, `SIGA2_CAMUNDA`, `SIGA2_OUTORGA`) é somente leitura.** Não grave nada, não crie objetos e não rode migrations nele. A leitura é feita por `NamedParameterJdbcTemplate` (sem JPA) com datasource `read-only`.
+- **O banco do SIGA (`SIGA2_LICENCIAMENTO`, `SIGA2_CAMUNDA`, `SIGA2_OUTORGA`, `SIGA2_ARRECADACAO`) é somente leitura.** Não grave nada, não crie objetos e não rode migrations nele. A leitura é feita por `NamedParameterJdbcTemplate` (sem JPA) com datasource `read-only`.
 - **Só `integration.siga` escreve SQL contra o SIGA** (consultas em `resources/sql/siga/`). Os módulos de negócio declaram portas e recebem objetos internos.
 - **Protótipo sem schema próprio:** usuários, auditoria, configurações e fila ficam em adapters `infrastructure/memoria/`. Não crie entidades, migrations ou tabelas "de preparação" antes da versão definitiva.
 - **Versão definitiva:** schema próprio em Oracle (23 Free no desenvolvimento) com **compatibilidade obrigatória com 19c**. Usa JPA + Flyway com `ddl-auto=validate`. Nomes de objetos ficam em português e MAIÚSCULO; o arquivo de migration é `V<n>__<ingles_snake_case>.sql`. Não use recursos exclusivos do 23c, como `BOOLEAN` em tabela ou `IF NOT EXISTS`.

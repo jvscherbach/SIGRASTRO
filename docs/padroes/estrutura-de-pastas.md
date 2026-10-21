@@ -7,7 +7,7 @@ Regra geral: **só existe a pasta que o código da fase atual usa**. Nada de ár
 ```
 siga-vistas/
 ├── .claude/skills/vistas-banco/   # skill com estes padrões (SKILL.md + references/)
-├── docs/                          # documentação do projeto (inclui padroes/ e prototipo/)
+├── docs/                          # documentação do projeto (padroes/, prototipo/, prompts/, homologacao/ e, depois, database/)
 ├── api/                           # back-end Spring Boot (serviço `api` do Compose)
 ├── front/                         # front-end Angular (serviço `front` do Compose)
 ├── compose.yaml                   # configurações comuns de api e front
@@ -89,6 +89,7 @@ Regras:
 
 - `consulta` e `documento` não têm `infrastructure/`: quem implementa suas portas são os pacotes `integration.*`.
 - `dto/` de `integration.*` é interno ao pacote; nunca aparece em módulo de negócio.
+- A configuração do datasource do SIGA fica em `integration/siga/` (só ele pode usar `javax.sql` e Spring JDBC). Testes de integração dele usam Testcontainers com o recorte do SIGA em `src/test/resources/sql/siga/`.
 - Testes espelham os pacotes de `main`. Fixtures só em `src/test`.
 
 ## Front-end (`front/`)
@@ -128,6 +129,8 @@ Regras:
 | Migrations Flyway | `api/src/main/resources/db/migration/` | idem |
 | Persistência JPA | `<modulo>/infrastructure/persistence/{entity,repository,mapper}/` | idem, substituindo `memoria/` |
 | `integration/arrecadacao/` | `api/.../integration/` | quando a obtenção das taxas for confirmada |
+| Dicionário de dados (HTML) e MER | `docs/database/` (`dicionario-de-dados.html`, `mer.html`, `mer.mmd`, `mer-conceitual.mmd`, `complementos.yaml`, `README.md`) | a partir da primeira migration; atualizado a cada migration |
+| Script de geração do dicionário e do MER | `scripts/database/` | idem |
 | Overrides de homologação/produção | `compose.homolog.yaml`, `compose.prod.yaml` ou manifests do orquestrador | quando a infraestrutura for definida |
 | `.env.homolog.example`, `.env.prod.example` | raiz | idem |
 

@@ -23,6 +23,8 @@
 | 503 | `SIGA_INDISPONIVEL` | Banco do SIGA indisponível |
 | 500 | `ERRO_INTERNO` | Demais erros |
 
+`405` (método não permitido) e `415` (tipo de conteúdo não suportado) usam o `errorCode` `PARAMETRO_INVALIDO` com o status HTTP correspondente (decisão da S0, até haver código próprio). Erro de validação traz a lista `campos` (`campo` + `mensagem`); parâmetro inválido apontado pelo domínio (`ParametroInvalidoException` com campo) também.
+
 A falha de um documento durante a geração **não** é erro HTTP da requisição de geração (que é assíncrona): fica no status `FALHA` do pedido, com `erro` (documento e motivo).
 
 ## Correlação
@@ -34,7 +36,7 @@ A falha de um documento durante a geração **não** é erro HTTP da requisiçã
 
 ## Paginação
 
-Contrato público `PageResponse<T>` (`PageResponse.from(page)`); nunca expor `Page<T>`. Usado em busca por interessado e na auditoria.
+Contrato público `PageResponse<T>` (`conteudo`, `pagina` a partir de 0, `tamanho`, `totalElementos`, `totalPaginas`), criado por `PageResponse.of(...)` (sem Spring Data no protótipo; `from(page)` só entra com o Spring Data). Nunca expor `Page<T>`. Usado em busca por interessado e na auditoria.
 
 ## OpenAPI (springdoc)
 
