@@ -5,6 +5,7 @@ import { filter } from 'rxjs';
 
 import { AuthService } from '../core/auth.service';
 import { IconeComponent } from '../shared/icone.component';
+import { TrilhaService } from '../shared/trilha.service';
 import { menuDoPerfil } from './menu';
 
 @Component({
@@ -33,17 +34,19 @@ export class ShellComponent {
   protected readonly menuMobileAberto = signal(false);
   protected readonly menuUsuarioAberto = signal(false);
   protected readonly auditoriaAberta = signal(true);
-  protected readonly trilha = signal<string[]>([]);
+  private readonly complemento = inject(TrilhaService).complemento;
+  private readonly trilhaDaRota = signal<string[]>([]);
+  protected readonly trilha = computed(() => this.complemento() ?? this.trilhaDaRota());
 
   constructor() {
-    this.trilha.set(trilhaDa(this.router.routerState.snapshot.root));
+    this.trilhaDaRota.set(trilhaDa(this.router.routerState.snapshot.root));
     this.router.events
       .pipe(
         filter((evento) => evento instanceof NavigationEnd),
         takeUntilDestroyed(inject(DestroyRef)),
       )
       .subscribe(() => {
-        this.trilha.set(trilhaDa(this.router.routerState.snapshot.root));
+        this.trilhaDaRota.set(trilhaDa(this.router.routerState.snapshot.root));
         this.menuMobileAberto.set(false);
       });
   }

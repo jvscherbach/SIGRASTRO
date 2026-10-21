@@ -8,7 +8,7 @@
 |---|---|
 | RF01 | Consultar por tipo (Requerimento ou Processo) e número no formato `N/AAAA`. |
 | RF02 | Consultar por CPF/CNPJ do interessado e/ou por nome do interessado (busca parcial), retornando uma lista de resultados para escolha. |
-| RF03 | Cada processo nasce de um único requerimento (relação 1:1). A consulta por número de processo abre o requerimento correspondente. |
+| RF03 | A consulta por número de requerimento é exata (1 resultado). A consulta por número de processo trata o resultado como 1:N: o SIGA não impede que o mesmo `NUMERO_PROCESSO` apareça em mais de um requerimento. Com 1 resultado, abre o detalhe; com mais de 1, lista todos para o usuário escolher. A chave é sempre o requerimento. |
 | RF04 | Exibir os dados do requerimento: prioridade de atendimento, tipo de requerimento, nº do processo (ou do requerimento, se não protocolado), situação, data de abertura, interessado, CPF/CNPJ, tipo de processo, última atualização, objetivos, finalidades e atividades. |
 | RF05 | Exibir a tarefa atual do fluxo (nome da tarefa, data de criação e responsável) ou indicar que não há tarefa ativa. |
 
@@ -85,7 +85,7 @@
 | RN01 | **Vigente**: registro sem data de fim (`DATA_FIM IS NULL`) e com chave diferente de `"0"`. **Substituído**: registro com `DATA_FIM` preenchida. **Indisponível**: chave `"0"` ou arquivo inexistente. |
 | RN02 | Documentos de doença grave (`PESSOA_DOCUMENTO_DOENCA_GRAVE`) nunca são listados. |
 | RN03 | Data para ordem cronológica, em ordem de preferência: data de assinatura (quando houver), data do documento na tabela de origem, data de cadastro no repositório de arquivos. Documentos sem data vão ao final. Empate desempata por origem e id. |
-| RN04 | Processo e requerimento têm relação 1:1. O requerimento vira processo após o pagamento da taxa e a conclusão do protocolo. Quando há processo, a identificação exibida (topo da tela, atalhos, resultados, capa e nome do dossiê) é sempre o número do processo; o número do requerimento só aparece enquanto ele não foi protocolado. |
+| RN04 | O requerimento vira processo após o pagamento da taxa e a conclusão do protocolo. Quando há processo, a identificação exibida (topo da tela, atalhos, resultados, capa e nome do dossiê) é sempre o número do processo; o número do requerimento só aparece enquanto ele não foi protocolado. |
 | RN05 | Documentos presentes em mais de uma tabela com a mesma chave aparecem uma única vez. |
 | RN06 | A sinalização de sigilo considera todas as variações de coluna (`SIGILOSO`, `SIGILO`, `IND_SIGILOSO`). Na dúvida, o documento é tratado como sigiloso. |
 | RN07 | Vínculo: o processo é do interessado. O Operador só acessa processos e requerimentos em que o CPF/CNPJ do seu usuário é o do interessado (`PESSOA.CPF_CNPJ` de `REQUERIMENTO.ID_PESSOA`). Gestor e Administrador acessam todos. |
@@ -93,3 +93,4 @@
 | RN09 | Dossiê completo ou nenhum: falha em qualquer documento selecionado interrompe a geração (RF14). |
 | RN10 | Geometrias (SHP, KML, KMZ) não entram no dossiê: ficam numa seção própria do detalhe, com download à parte ("Baixar geometrias"), registrado na auditoria. |
 | RN11 | Arquivos compactados (ZIP, RAR, 7Z) são desconsiderados: não aparecem na lista nem entram no dossiê. |
+| RN12 | Responsável pela tarefa atual: só o **nome** do servidor é exibido, e só para Gestor e Administrador. O Operador não recebe o campo (a API o omite). O CPF do servidor nunca sai na API nem na tela. Sem responsável: "Não atribuída"; sem nome encontrado ou valor em outro formato: "Responsável não identificado". |

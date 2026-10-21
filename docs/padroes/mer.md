@@ -16,7 +16,7 @@ Nomes de `nomenclatura.md`, tipos de `tipos-dados.md`. Agrupar visualmente por m
 
 ## Como desenhar
 
-Mermaid `erDiagram` para o mapeado; Graphviz/DOT para o abstrato. Gerar como código, versionado em `docs/`, atualizado a cada migration.
+O MER mapeado fica em `docs/database/mer.mmd` (Mermaid `erDiagram`), renderizado em `docs/database/mer.html`; o abstrato, em `docs/database/mer-conceitual.mmd`. Todos são gerados como código, versionados e atualizados na mesma entrega de cada migration (ver `documentacao.md`).
 
 ## Checklist
 

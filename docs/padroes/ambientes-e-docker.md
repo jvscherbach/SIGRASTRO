@@ -26,6 +26,9 @@ O banco do SIGA **nunca** entra no Compose: é sempre externo, acessado por rede
 |---|---|
 | `SIGA_DB_URL`, `SIGA_DB_USER`, `SIGA_DB_PASSWORD` | Leitura do banco do SIGA |
 | `SIGA_DB_POOL_MAX` | Tamanho máximo do pool de leitura do SIGA (padrão 2 na fase inicial) |
+| `SIGA_DB_CONN_TIMEOUT_MS`, `SIGA_DB_READ_TIMEOUT_MS`, `SIGA_DB_MAX_LIFETIME_MS` | Timeout de conexão (5000), de leitura do driver (30000) e vida máxima da conexão (1500000), em ms |
+| `VISTAS_DEMO_SENHA` | Senha única dos usuários de demonstração; o padrão (`vistas-demo`) só existe no perfil `local` |
+| `VISTAS_DOSSIE_DIRETORIO` | Diretório temporário dos dossiês (padrão `/var/tmp/vistas`) |
 | `VISTAS_DB_POOL_MAX` | Tamanho máximo do pool do schema próprio (padrão 3 na fase inicial) |
 | `AGENDAMENTO_ENABLED` | Liga as tarefas agendadas (padrão `true`) |
 | `VISTAS_DB_URL`, `VISTAS_DB_USER`, `VISTAS_DB_PASSWORD` | Schema próprio (definitivo) |
@@ -34,6 +37,10 @@ O banco do SIGA **nunca** entra no Compose: é sempre externo, acessado por rede
 | `SCORP_API_URL` | API do SCORP (documentos pessoais) |
 | `DOSSIE_TTL_MINUTOS`, `DOSSIE_THREADS`, `DOWNLOAD_TIMEOUT_SEGUNDOS`, `CONVERSAO_TIMEOUT_SEGUNDOS` | Valores iniciais; na versão definitiva podem ser sobrescritos pela tela de configurações |
 | `OPENAPI_ENABLED` | OpenAPI fora do ambiente local |
+
+## Sem o SIGA configurado
+
+`SIGA_DB_URL` ausente ou vazia **não impede a `api` de subir**: `/actuator/health` fica `UP`, o login e o front funcionam e qualquer consulta ao SIGA responde `503 SIGA_INDISPONIVEL`. O mesmo vale se o SIGA estiver inacessível. O `.env.local` é opcional (`env_file` com `required: false`), o que exige **Docker Compose 2.24 ou mais novo**.
 
 ## Cuidados
 

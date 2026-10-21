@@ -1,4 +1,4 @@
-import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
+import { HttpContextToken, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
@@ -8,6 +8,9 @@ import { AuthService } from './auth.service';
 import { mensagemDoErro } from './mensagens-erro';
 
 const URL_LOGIN = '/api/auth/login';
+
+/** A tela mostra o erro no próprio corpo da página; o interceptor não repete a mensagem em toast. */
+export const SEM_TOAST = new HttpContextToken<boolean>(() => false);
 
 const ehApi = (url: string) => url.startsWith('/api/');
 
@@ -44,7 +47,7 @@ export const erroInterceptor: HttpInterceptorFn = (req, next) => {
         auth.limparSessao();
         toast.erro(mensagemDoErro(erro));
         void router.navigate(['/login']);
-      } else if (!loginRecusado) {
+      } else if (!loginRecusado && !req.context.get(SEM_TOAST)) {
         toast.erro(mensagemDoErro(erro));
       }
       return throwError(() => erro);

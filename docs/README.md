@@ -25,6 +25,10 @@ Serviço externo ao SIGA Licenciamento que gera o **dossiê em PDF** de um reque
 | [11 — Auditoria](11-auditoria.md) | Auditoria de documentos e de acessos, eventos e modelo lógico |
 | [12 — Configurações](12-configuracoes.md) | Perfis, usuários e parâmetros administráveis do serviço |
 | [13 — Padrões técnicos](13-padroes-tecnicos.md) | Arquitetura de código, módulos, persistência, banco, erros HTTP e verificação (detalhes em [`padroes/`](padroes/)) |
+| [14 — Plano de sprints](14-plano-de-sprints.md) | Sprints do protótipo, entregas, aceite e validações |
+| [Homologação da S1](homologacao/S1-roteiro-homologacao.md) | Roteiro manual de conexão e leitura reais do SIGA |
+| [Homologação da S1.1](homologacao/S1.1-roteiro-homologacao.md) | Roteiro manual de objeto, prioridade, responsável, processo 1:N e quadro do topo |
+| [Prompts das sprints](prompts/) | Prompt de cada sprint para o Claude Code |
 
 ## Fontes
 

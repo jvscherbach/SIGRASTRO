@@ -11,7 +11,7 @@ import { IconeComponent } from './icone.component';
   imports: [IconeComponent],
   styles: `:host { display: block; }`,
   template: `
-    <div class="dash-hero tall">
+    <div class="dash-hero" [class.tall]="alto()">
       <div class="dash-scene" aria-hidden="true" [innerHTML]="cena()"></div>
       <div class="dash-hero-inner">
         <div class="dash-hero-top">
@@ -32,6 +32,8 @@ export class QuadroTopoComponent {
   readonly sobretitulo = input('Vistas do Processo');
   readonly titulo = input.required<string>();
   readonly descricao = input('');
+  /** Quadro alto (consulta, telas em construção) ou compacto (detalhe, que traz cartões de vidro). */
+  readonly alto = input(true);
 
   private readonly sanitizer = inject(DomSanitizer);
 

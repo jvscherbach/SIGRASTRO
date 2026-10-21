@@ -14,6 +14,7 @@ class PerfilTest {
         assertThat(perfil.podeVerSigilosos()).isFalse();
         assertThat(perfil.podeVerAuditoriaAcessos()).isFalse();
         assertThat(perfil.podeAcessarConfiguracoes()).isFalse();
+        assertThat(perfil.podeVerResponsavelTarefa()).isFalse();
     }
 
     @Test
@@ -24,6 +25,7 @@ class PerfilTest {
         assertThat(perfil.podeVerSigilosos()).isTrue();
         assertThat(perfil.podeVerAuditoriaAcessos()).isFalse();
         assertThat(perfil.podeAcessarConfiguracoes()).isFalse();
+        assertThat(perfil.podeVerResponsavelTarefa()).isTrue();
     }
 
     @Test
@@ -34,5 +36,6 @@ class PerfilTest {
         assertThat(perfil.podeVerSigilosos()).isTrue();
         assertThat(perfil.podeVerAuditoriaAcessos()).isTrue();
         assertThat(perfil.podeAcessarConfiguracoes()).isTrue();
+        assertThat(perfil.podeVerResponsavelTarefa()).isTrue();
     }
 }

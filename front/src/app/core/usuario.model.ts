@@ -5,6 +5,7 @@ export interface Permissoes {
   verAuditoriaAcessos: boolean;
   acessarConfiguracoes: boolean;
   restritoAoInteressado: boolean;
+  verResponsavelTarefa: boolean;
 }
 
 export interface Usuario {

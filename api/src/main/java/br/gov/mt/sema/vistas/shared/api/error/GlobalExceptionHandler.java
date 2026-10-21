@@ -2,6 +2,7 @@ package br.gov.mt.sema.vistas.shared.api.error;
 
 import java.util.List;
 
+import br.gov.mt.sema.vistas.shared.application.exception.ParametroInvalidoException;
 import br.gov.mt.sema.vistas.shared.application.exception.VistasException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -36,6 +37,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(VistasException.class)
     ResponseEntity<Object> aoFalharNegocio(VistasException ex, HttpServletRequest request) {
+        if (ex instanceof ParametroInvalidoException parametro && parametro.campo() != null) {
+            return resposta(invalido(ex.getMessage(), request.getRequestURI(),
+                    List.of(new CampoInvalido(parametro.campo(), ex.getMessage()))));
+        }
         return resposta(ProblemDetails.criar(ex.errorCode(), ex.getMessage(), request));
     }
 

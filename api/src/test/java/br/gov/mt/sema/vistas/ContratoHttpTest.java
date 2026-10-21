@@ -42,6 +42,7 @@ class ContratoHttpTest {
                 .andExpect(jsonPath("$.usuario.perfil").value("OPERADOR"))
                 .andExpect(jsonPath("$.usuario.cpfCnpj").value("12.345.678/0001-90"))
                 .andExpect(jsonPath("$.usuario.permissoes.restritoAoInteressado").value(true))
+                .andExpect(jsonPath("$.usuario.permissoes.verResponsavelTarefa").value(false))
                 .andExpect(header().exists("X-Correlation-Id"));
     }
 
@@ -109,7 +110,8 @@ class ContratoHttpTest {
                 .andExpect(header().string("X-Correlation-Id", "teste-123"))
                 .andExpect(jsonPath("$.login").value("admin.demo"))
                 .andExpect(jsonPath("$.perfil").value("ADMIN"))
-                .andExpect(jsonPath("$.permissoes.acessarConfiguracoes").value(true));
+                .andExpect(jsonPath("$.permissoes.acessarConfiguracoes").value(true))
+                .andExpect(jsonPath("$.permissoes.verResponsavelTarefa").value(true));
     }
 
     @Test

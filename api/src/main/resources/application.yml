@@ -1,6 +1,12 @@
 spring:
   application:
     name: siga-vistas-api
+  autoconfigure:
+    # Os datasources são configurados pelo projeto (siga agora; vistas na versão definitiva).
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
   jackson:
     time-zone: America/Cuiaba
   task:
@@ -13,6 +19,10 @@ server:
   shutdown: graceful
 
 management:
+  health:
+    # O SIGA fora do ar não pode deixar a api unhealthy.
+    db:
+      enabled: false
   endpoints:
     web:
       exposure:
@@ -33,6 +43,17 @@ logging:
     level: "%5p [%X{correlationId:-}]"
 
 vistas:
+  datasource:
+    siga:
+      # Vazia = SIGA não configurado: a api sobe e as consultas respondem 503 SIGA_INDISPONIVEL.
+      url: ${SIGA_DB_URL:}
+      username: ${SIGA_DB_USER:}
+      password: ${SIGA_DB_PASSWORD:}
+      hikari:
+        maximum-pool-size: ${SIGA_DB_POOL_MAX:2}
+        connection-timeout: ${SIGA_DB_CONN_TIMEOUT_MS:5000}
+        max-lifetime: ${SIGA_DB_MAX_LIFETIME_MS:1500000}
+        read-timeout: ${SIGA_DB_READ_TIMEOUT_MS:30000}
   # Senha única dos usuários de demonstração. Vazia = login desabilitado; o valor padrão só existe no perfil local.
   demo:
     senha: ${VISTAS_DEMO_SENHA:}

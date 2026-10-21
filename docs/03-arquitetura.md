@@ -23,7 +23,7 @@ O front-end conversa apenas com o back-end. O back-end concentra o acesso ao ban
 
 | Camada | Tecnologia |
 |---|---|
-| Front-end | Angular, seguindo o protótipo navegável (sem starter) |
+| Front-end | Angular 21 (standalone, sem zone.js; Node 22 LTS, mínimo 22.12 — a imagem usa 22.23.3), seguindo o protótipo navegável (sem starter) |
 | Back-end | Java 21, Spring Boot 3 |
 | Leitura do SIGA | `NamedParameterJdbcTemplate` (JDBC), driver Oracle `ojdbc11`, datasource somente leitura |
 | Schema próprio (definitivo) | Oracle (23 Free no desenvolvimento, compatível com 19c, ambiente final); Spring Data JPA + Flyway, `ddl-auto=validate` |
@@ -73,15 +73,19 @@ A árvore de pastas do repositório, do back-end e do front-end está em [`padro
 
 O Oracle e as APIs do SIGA são acessados a partir da máquina onde o Docker roda. É preciso que essa máquina tenha rede até eles.
 
+Sem `SIGA_DB_URL` (ausente ou vazia) ou com o SIGA inacessível, a `api` sobe normalmente (`/actuator/health` = `UP`, sem o banco do SIGA no health) e as consultas respondem `503 SIGA_INDISPONIVEL`. Requer Docker Compose 2.24 ou mais novo (`env_file` opcional).
+
 ## Configuração (`.env`)
 
-O arquivo `.env` não é versionado. O repositório traz um `.env.example` só com os nomes.
+O arquivo `.env.local` não é versionado e é opcional na Sprint 0 e 1 (a `api` sobe sem ele). O repositório traz um `.env.local.example` só com os nomes e placeholders neutros.
 
 | Variável | Descrição |
 |---|---|
 | `SIGA_DB_URL` | URL JDBC do Oracle do SIGA |
 | `SIGA_DB_USER` / `SIGA_DB_PASSWORD` | Usuário somente leitura (`VISTAS_LEITURA_SIGA`) |
 | `SIGA_DB_POOL_MAX` | Tamanho máximo do pool de leitura (padrão 2 na fase inicial) |
+| `SIGA_DB_CONN_TIMEOUT_MS` / `SIGA_DB_READ_TIMEOUT_MS` / `SIGA_DB_MAX_LIFETIME_MS` | Timeout de conexão (5000), de leitura do driver (30000) e vida máxima da conexão (1500000), em ms |
+| `VISTAS_DEMO_SENHA` | Senha única dos usuários de demonstração (padrão `vistas-demo` só no perfil `local`) |
 | `VISTAS_DB_POOL_MAX` | Tamanho máximo do pool do schema próprio (padrão 3 na fase inicial) |
 | `AGENDAMENTO_ENABLED` | Liga as tarefas agendadas (padrão `true`) |
 | `VISTAS_DB_URL` / `VISTAS_DB_USER` / `VISTAS_DB_PASSWORD` | Schema próprio (somente na versão definitiva) |

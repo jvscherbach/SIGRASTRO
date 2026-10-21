@@ -10,6 +10,7 @@ public record UsuarioResponse(String login, String nome, Perfil perfil, String p
         Perfil perfil = usuario.perfil();
         return new UsuarioResponse(usuario.login(), usuario.nome(), perfil, perfil.rotulo(), usuario.cpfCnpj(),
                 new PermissoesResponse(perfil.podeVerSigilosos(), perfil.podeVerAuditoriaAcessos(),
-                        perfil.podeAcessarConfiguracoes(), perfil.restritoAoInteressado()));
+                        perfil.podeAcessarConfiguracoes(), perfil.restritoAoInteressado(),
+                        perfil.podeVerResponsavelTarefa()));
     }
 }
