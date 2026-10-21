@@ -1,0 +1,56 @@
+<section class="login">
+  <div class="login-art">
+    <div class="scene" aria-hidden="true" [innerHTML]="cena()"></div>
+    <a class="brand" href="/login"><img src="assets/img/logo-sema.png" alt="" /><b>SIGA VISTAS</b></a>
+    <h1>Todo o processo em um só documento.</h1>
+    <p>Consulte o requerimento ou o processo, escolha os documentos e gere o dossiê em PDF, em ordem cronológica.</p>
+    <img class="wm" src="assets/img/brasao-mt.png" alt="" aria-hidden="true" />
+  </div>
+
+  <div class="login-form">
+    <div class="login-card">
+      <span class="eyebrow">Acesso simulado</span>
+      <h2 style="margin-top: 6px">Entrar no protótipo</h2>
+      <p class="muted" style="font-size: 13px; margin-top: 6px">
+        Nesta versão não há autenticação real. Entre com um usuário de demonstração ou escolha um dos perfis abaixo.
+      </p>
+
+      <form [formGroup]="formulario" (ngSubmit)="entrar()" novalidate style="margin-top: 16px; display: grid; gap: 12px">
+        <div class="field">
+          <label for="login-usuario">Usuário</label>
+          <input id="login-usuario" formControlName="usuario" autocomplete="username" autocapitalize="none" />
+        </div>
+        <div class="field">
+          <label for="login-senha">Senha</label>
+          <input id="login-senha" type="password" formControlName="senha" autocomplete="current-password" />
+        </div>
+        @if (erro()) {
+          <div class="alert" role="alert" style="margin-top: 0">
+            <app-icone nome="alert" /><span>{{ erro() }}</span>
+          </div>
+        }
+        <button class="btn primary" type="submit" [disabled]="entrando()"><app-icone nome="arrow" />Entrar</button>
+      </form>
+
+      <div class="or">perfis de demonstração</div>
+      <div class="demo-users">
+        @for (demo of usuariosDemo; track demo.login) {
+          <button type="button" class="demo-user" [disabled]="entrando()" (click)="entrarComoDemo(demo)">
+            <span class="avatar">{{ demo.iniciais }}</span>
+            <span style="flex: 1"
+              ><b>{{ demo.nome }}</b
+              ><small>{{ demo.descricao }}</small></span
+            >
+            <app-icone nome="arrow" />
+          </button>
+        }
+      </div>
+
+      <div class="note amber" style="margin-top: 18px">
+        <app-icone nome="info" /><span
+          >Na versão definitiva, o acesso será feito com credencial institucional; o perfil define o que cada usuário pode ver.</span
+        >
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,9 @@
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+vistas:
+  demo:
+    senha: ${VISTAS_DEMO_SENHA:vistas-demo}

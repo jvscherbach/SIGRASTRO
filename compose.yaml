@@ -1,0 +1,22 @@
+name: siga-vistas
+
+services:
+  api:
+    build:
+      context: ./api
+    restart: unless-stopped
+    networks:
+      - interna
+
+  front:
+    build:
+      context: ./front
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - interna
+
+networks:
+  interna: {}

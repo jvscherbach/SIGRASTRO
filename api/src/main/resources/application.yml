@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: siga-vistas-api
+  jackson:
+    time-zone: America/Cuiaba
+  task:
+    scheduling:
+      pool:
+        size: 1
+
+server:
+  port: 8080
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    enabled: ${OPENAPI_ENABLED:false}
+  swagger-ui:
+    enabled: ${OPENAPI_ENABLED:false}
+
+logging:
+  pattern:
+    level: "%5p [%X{correlationId:-}]"
+
+vistas:
+  # Senha única dos usuários de demonstração. Vazia = login desabilitado; o valor padrão só existe no perfil local.
+  demo:
+    senha: ${VISTAS_DEMO_SENHA:}
+  sessao:
+    duracao: PT8H
+  dossie:
+    diretorio: ${VISTAS_DOSSIE_DIRETORIO:/var/tmp/vistas}

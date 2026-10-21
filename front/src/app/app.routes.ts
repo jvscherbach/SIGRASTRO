@@ -1,0 +1,79 @@
+import { Routes } from '@angular/router';
+
+import { autenticadoGuard, perfilGuard, visitanteGuard } from './core/guards';
+import { EmConstrucaoComponent } from './features/em-construcao/em-construcao.component';
+import { LoginComponent } from './features/login/login.component';
+import { ShellComponent } from './layout/shell.component';
+
+export const routes: Routes = [
+  { path: 'login', component: LoginComponent, canActivate: [visitanteGuard], title: 'Entrar · SIGA Vistas' },
+  {
+    path: '',
+    component: ShellComponent,
+    canActivate: [autenticadoGuard],
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'consulta' },
+      {
+        path: 'consulta',
+        component: EmConstrucaoComponent,
+        title: 'Consulta · SIGA Vistas',
+        data: {
+          crumb: ['Consulta'],
+          titulo: 'Localize o requerimento. Monte o dossiê.',
+          descricao:
+            'Consulte um requerimento ou processo do SIGA Licenciamento, veja a situação e a tarefa atual e escolha os documentos que entram na vista.',
+          sprint: 'Sprint 1',
+        },
+      },
+      {
+        path: 'dossies',
+        component: EmConstrucaoComponent,
+        title: 'Dossiês gerados · SIGA Vistas',
+        data: {
+          crumb: ['Dossiês gerados'],
+          titulo: 'Dossiês gerados',
+          descricao: 'Acompanhe os dossiês em geração, pré-visualize e baixe o PDF antes que ele expire.',
+          sprint: 'Sprint 4',
+        },
+      },
+      {
+        path: 'auditoria/documentos',
+        component: EmConstrucaoComponent,
+        title: 'Auditoria de documentos · SIGA Vistas',
+        data: {
+          crumb: ['Auditoria', 'Documentos'],
+          titulo: 'Auditoria de documentos',
+          descricao: 'Consultas, visualizações, dossiês, falhas e downloads de documentos.',
+          sprint: 'Sprint 5',
+        },
+      },
+      {
+        path: 'auditoria/acessos',
+        component: EmConstrucaoComponent,
+        canActivate: [perfilGuard],
+        title: 'Auditoria de acessos · SIGA Vistas',
+        data: {
+          perfis: ['ADMIN'],
+          crumb: ['Auditoria', 'Acessos'],
+          titulo: 'Auditoria de acessos',
+          descricao: 'Entradas, trocas de perfil e alterações de usuários e de configuração.',
+          sprint: 'Sprint 5',
+        },
+      },
+      {
+        path: 'configuracoes',
+        component: EmConstrucaoComponent,
+        canActivate: [perfilGuard],
+        title: 'Configurações · SIGA Vistas',
+        data: {
+          perfis: ['ADMIN'],
+          crumb: ['Configurações'],
+          titulo: 'Configurações',
+          descricao: 'Usuários e perfis, parâmetros do dossiê, conversão, conexões e retenção da auditoria.',
+          sprint: 'Sprint 5',
+        },
+      },
+    ],
+  },
+  { path: '**', redirectTo: '' },
+];

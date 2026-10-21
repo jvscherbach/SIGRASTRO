@@ -1,0 +1,19 @@
+services:
+  api:
+    # .env.local é opcional para a S0; a partir da S1 ele traz o acesso ao banco do SIGA.
+    env_file:
+      - path: .env.local
+        required: false
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+    ports:
+      - "8081:8080"
+    volumes:
+      - dossies-tmp:/var/tmp/vistas
+
+  front:
+    ports:
+      - "8080:80"
+
+volumes:
+  dossies-tmp: {}

@@ -1,0 +1,24 @@
+/* Tela de login */
+/* login */
+.login{min-height:100vh;display:grid;grid-template-columns:1.1fr 1fr;background:#fff}
+.login-art{position:relative;background:var(--sidebar);color:#fff;overflow:hidden;padding:44px;display:flex;flex-direction:column}
+.login-art .scene{position:absolute;inset:0}
+.login-art .scene svg{width:100%;height:100%}
+.login-art:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,38,10,.15) 0%,rgba(16,38,10,0) 30%,rgba(16,38,10,.55) 62%,rgba(16,38,10,.92) 100%)}
+.login-art>*{position:relative;z-index:1}
+.login-art .brand{padding:0;height:auto}
+.login-art h1{font-size:40px;line-height:1.1;letter-spacing:-1px;margin-top:auto;max-width:460px}
+.login-art p{color:#cfe2c3;margin-top:12px;max-width:440px;font-size:15px}
+.login-art .wm{position:absolute;right:-30px;bottom:-30px;width:300px;opacity:.08;filter:grayscale(1) brightness(1.6);z-index:1}
+.login-form{display:flex;align-items:center;justify-content:center;padding:40px 24px;background:var(--bg)}
+.login-card{width:min(400px,100%);background:#fff;border:1px solid var(--line);border-radius:18px;padding:28px;box-shadow:0 10px 30px #10260a10}
+.login-card h2{font-size:22px}
+.demo-users{display:grid;gap:8px;margin-top:6px}
+.demo-user{display:flex;gap:12px;align-items:center;text-align:left;background:var(--soft-2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;color:var(--ink)}
+.demo-user:hover{background:var(--soft);border-color:#c6dcb7}
+.demo-user .avatar{border-color:#bcd3ad;color:var(--forest);background:#fff}
+.demo-user b{font-size:13px;display:block}
+.demo-user small{font-size:11px;color:var(--muted)}
+.or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:11px;margin:18px 0}
+.or:before,.or:after{content:"";flex:1;height:1px;background:var(--line)}
+

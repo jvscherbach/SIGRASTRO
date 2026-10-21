@@ -1,0 +1,8 @@
+/* Tokens do protótipo (docs/prototipo/siga-vistas-prototipo.html). Tema claro apenas. */
+:root{
+  --black:#020203;--forest:#183509;--olive:#548b0a;--lime:#79d900;--mint:#d3f8d3;
+  --green:#1f420c;--green-h:#2b5a10;--ink:#141d0f;--sidebar:#10260a;--side-hover:#1b3a10;--side-active:#24491a;
+  --muted:#626d5c;--bg:#f3f6f0;--line:#e1e8dc;--soft:#eef8ea;--soft-2:#f7faf4;
+  --amber:#7a5414;--amber-bg:#fbf4e4;--red:#a33131;--red-bg:#fdf0ef;--blue:#2f5f82;--blue-bg:#eef4f9;
+  --radius:16px;--side:260px
+}

@@ -1,0 +1,45 @@
+/* Padrão de quadros sobrepostos (painel) */
+/* ===== padrão de quadros sobrepostos (painel) ===== */
+.backlink{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;background:transparent;margin-bottom:14px;padding:0}
+.backlink:hover{color:var(--green)}
+.dash-hero{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:#efe2cb}
+.dash-hero.tall{min-height:390px}
+.dash-scene{position:absolute;inset:0}
+.dash-scene svg{width:100%;height:100%;display:block}
+.dash-hero:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(248,252,245,.97) 0%,rgba(248,252,245,.9) 36%,rgba(248,252,245,.35) 62%,rgba(248,252,245,0) 82%);pointer-events:none}
+.dash-hero-inner{position:relative;z-index:1;padding:32px 36px 62px;display:flex;flex-direction:column;gap:22px}
+.dash-hero.tall .dash-hero-inner{min-height:390px}
+.dash-hero-top{display:flex;justify-content:space-between;gap:24px;align-items:flex-start}
+.dash-headline h1{font-size:38px;line-height:1.12;letter-spacing:-1.1px;color:var(--forest);font-weight:750}
+.dash-headline p{font-size:15px;color:#3e5236;margin-top:10px;max-width:560px;line-height:1.5}
+.dash-headline .tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}
+.dash-pill{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.95);border-radius:11px;padding:0 13px;height:42px;color:var(--forest);box-shadow:0 4px 14px #10260a14;font-size:12px;font-weight:600;white-space:nowrap}
+.dash-pill .icon{width:17px;height:17px}
+.glass{background:rgba(255,255,255,.86);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.95);border-radius:16px;padding:20px 24px 22px;box-shadow:0 10px 30px #10260a17}
+.glass-title{display:flex;align-items:center;gap:10px;font-weight:650;font-size:14px;margin-bottom:16px}
+.coin{width:30px;height:30px;border-radius:50%;background:#e1f5cb;color:#3c6a09;display:grid;place-items:center;flex-shrink:0}
+.coin .icon{width:17px;height:17px}
+.glass-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:auto}
+.glass-row .glass{padding:18px 20px}
+.kv{display:grid;gap:2px;min-width:0}
+.kv span{font-size:11px;color:var(--muted)}
+.kv b{font-size:14px;font-weight:650;overflow-wrap:anywhere}
+.kv b.num{white-space:nowrap;overflow-wrap:normal}
+.kv-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px}
+.dash-place{position:absolute;right:22px;bottom:42px;color:#fff;font-size:11px;display:flex;gap:5px;align-items:center;z-index:1;background:rgba(16,38,10,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);padding:3px 9px;border-radius:7px}
+.dash-place .icon{width:14px;height:14px}
+.dash-sheet{position:relative;z-index:2;margin:-30px 12px 0;background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px 22px 24px;box-shadow:0 -6px 24px #10260a10;display:grid;gap:26px}
+.dash-sheet>*{min-width:0}
+.dash-sec-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.dash-sec-head h2{display:flex;align-items:center;gap:10px}
+.dash-sec-head h2 .icon{color:var(--olive);width:23px;height:23px}
+.dash-sec-head p{font-size:12px;color:var(--muted);margin-top:3px}
+.panel{border:1px solid var(--line);border-radius:14px;padding:20px 22px;background:#fff}
+
+
+/* ícone circular e estado vazio */
+.tile-icon{width:46px;height:46px;border-radius:50%;display:grid!important;place-items:center;flex-shrink:0;background:#e3f7cd;color:#3d6c09}
+.tile-icon .icon{width:23px;height:23px}
+.empty{text-align:center;padding:42px 15px;color:var(--muted)}
+.empty h3{color:var(--ink);margin-bottom:6px}
+.empty .tile-icon{margin:0 auto 12px}

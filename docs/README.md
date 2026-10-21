@@ -1,0 +1,36 @@
+# Vistas do Processo — Protótipo
+
+Serviço externo ao SIGA Licenciamento que gera o **dossiê em PDF** de um requerimento ou processo, reunindo os documentos selecionados em ordem cronológica.
+
+> Nome do projeto provisório.
+
+## Status
+
+**Protótipo de validação.** O objetivo é comprovar que os problemas atuais da funcionalidade "Vista do Processo" do SIGA têm solução. Com essa comprovação em mãos, a ideia será apresentada e serão solicitados os acessos necessários para a versão definitiva.
+
+## Índice
+
+| Documento | Conteúdo |
+|---|---|
+| [01 — Visão geral](01-visao-geral.md) | Contexto, problema, objetivo, escopo e critérios de validação |
+| [02 — Requisitos](02-requisitos.md) | Requisitos funcionais, não funcionais e regras de negócio |
+| [03 — Arquitetura](03-arquitetura.md) | Componentes, stack, execução em Docker e configuração |
+| [04 — Modelo de dados](04-modelo-de-dados.md) | Tabelas lidas no Oracle, regras de vigência e consultas de referência |
+| [05 — Integrações](05-integracoes.md) | API do Licenciamento, Camunda, SCORP e Arrecadação |
+| [06 — Geração do dossiê](06-geracao-do-dossie.md) | Pipeline de montagem do PDF, conversões e tratamento de falhas |
+| [07 — API do protótipo](07-api.md) | Endpoints expostos pelo back-end |
+| [08 — Telas](08-telas.md) | Informações exibidas e comportamento das telas |
+| [09 — Decisões](09-decisoes.md) | Registro das decisões técnicas e seus motivos |
+| [10 — Pendências e riscos](10-pendencias-e-riscos.md) | Pontos em aberto, riscos e itens da versão definitiva |
+| [11 — Auditoria](11-auditoria.md) | Auditoria de documentos e de acessos, eventos e modelo lógico |
+| [12 — Configurações](12-configuracoes.md) | Perfis, usuários e parâmetros administráveis do serviço |
+| [13 — Padrões técnicos](13-padroes-tecnicos.md) | Arquitetura de código, módulos, persistência, banco, erros HTTP e verificação (detalhes em [`padroes/`](padroes/)) |
+
+## Fontes
+
+Os documentos se baseiam em duas análises somente leitura feitas no código:
+
+- repositório do SIGA Licenciamento (implementação atual da Vista do Processo, modelo de dados, Camunda e arquivos);
+- repositório `sema-web-core` (autenticação e cliente Pandora).
+
+Itens marcados **NÃO CONFIRMADO** dependem de verificação no banco ou em repositórios não analisados.

@@ -1,0 +1,32 @@
+# Ambiente local
+.env.local
+.env.*
+!.env.*.example
+
+# Java / Maven
+api/target/
+*.class
+*.jar
+!api/.mvn/wrapper/maven-wrapper.jar
+*.log
+hs_err_pid*
+
+# Node / Angular
+front/node_modules/
+front/dist/
+front/.angular/
+front/coverage/
+npm-debug.log*
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+*.swp
+
+# Sistema operacional
+.DS_Store
+Thumbs.db

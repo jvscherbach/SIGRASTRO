@@ -1,0 +1,32 @@
+import { HttpErrorResponse } from '@angular/common/http';
+
+import { ProblemDetail } from './usuario.model';
+
+const POR_CODIGO: Record<string, string> = {
+  PARAMETRO_INVALIDO: 'Verifique os dados informados e tente novamente.',
+  NAO_AUTENTICADO: 'Sua sessão expirou ou é inválida. Entre novamente.',
+  PERFIL_SEM_PERMISSAO: 'Seu perfil não tem permissão para esta função.',
+  DOCUMENTO_SIGILOSO: 'Este documento é sigiloso e não está disponível para o seu perfil.',
+  NAO_INTERESSADO: 'Você não é o interessado deste processo ou requerimento.',
+  NAO_ENCONTRADO: 'O item solicitado não foi encontrado.',
+  DOSSIE_SEM_ARQUIVO: 'Não há arquivo: a geração do dossiê foi interrompida.',
+  DOSSIE_EXPIRADO: 'O dossiê expirou. Gere-o novamente.',
+  CREDENCIAL_ARQUIVOS_RECUSADA: 'A credencial de acesso aos arquivos foi recusada. Capture um novo token.',
+  SIGA_INDISPONIVEL: 'O banco do SIGA está indisponível no momento. Tente novamente em instantes.',
+  ERRO_INTERNO: 'Ocorreu um erro inesperado.',
+};
+
+const SEM_CONEXAO = 'Não foi possível conectar ao servidor. Verifique a conexão e tente novamente.';
+const GENERICA = 'Não foi possível concluir a operação.';
+
+/** Mensagem amigável a partir do errorCode do ProblemDetail; nunca exibe o detail técnico cru. */
+export function mensagemDoErro(erro: HttpErrorResponse): string {
+  if (erro.status === 0) {
+    return SEM_CONEXAO;
+  }
+  const problema = erro.error as ProblemDetail | null;
+  const codigo = problema?.errorCode;
+  const mensagem = (codigo && POR_CODIGO[codigo]) || (erro.status >= 500 ? POR_CODIGO['ERRO_INTERNO'] : GENERICA);
+  const suporte = erro.status >= 500 && problema?.correlationId ? ` Código de suporte: ${problema.correlationId}.` : '';
+  return mensagem + suporte;
+}
