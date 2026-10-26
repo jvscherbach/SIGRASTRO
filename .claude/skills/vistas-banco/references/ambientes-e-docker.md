@@ -41,7 +41,7 @@ O banco do SIGA **nunca** entra no Compose: é sempre externo, acessado por rede
 | `DOSSIE_SUMARIO` / `DOSSIE_MARCADORES` / `DOSSIE_NUMERACAO` | Sumário, marcadores e numeração de páginas (padrão ligados) |
 | `vistas.documentos.origens.<origem>` | `true`/`false` por origem de documento (as seis origens da Vista ligadas por padrão, S2.1) |
 | `SCORP_API_URL` | API do SCORP (documentos pessoais) |
-| `DOSSIE_TTL_MINUTOS`, `DOSSIE_THREADS`, `DOWNLOAD_TIMEOUT_SEGUNDOS`, `CONVERSAO_TIMEOUT_SEGUNDOS` | Valores iniciais; na versão definitiva podem ser sobrescritos pela tela de configurações |
+| `DOSSIE_TTL_MINUTOS`, `DOSSIE_THREADS`, `DOWNLOAD_TIMEOUT_SEGUNDOS`, `DOWNLOAD_TOTAL_MAXIMO_SEGUNDOS`, `DOSSIE_ESPACO_MINIMO_MB`, `CONVERSAO_TIMEOUT_SEGUNDOS` | Valores iniciais; na versão definitiva podem ser sobrescritos pela tela de configurações |
 | `OPENAPI_ENABLED` | OpenAPI fora do ambiente local |
 
 ## Sem o SIGA configurado

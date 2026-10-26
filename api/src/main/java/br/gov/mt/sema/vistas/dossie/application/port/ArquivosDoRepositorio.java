@@ -9,5 +9,6 @@ import java.nio.file.Path;
  */
 public interface ArquivosDoRepositorio {
 
-    void baixar(String chave, Path destino);
+    /** @return quantos pedidos foram feitos ao repositório (1 sem nova tentativa) */
+    int baixar(String chave, Path destino);
 }

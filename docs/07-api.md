@@ -210,14 +210,15 @@ Resposta do `GET /dossies/{id}`:
   "paginas": null,
   "expiraEm": "2026-10-19T18:30:00",
   "itens": [
-    { "origem": "DOCUMENTO_PROCESSO", "id": "804328", "titulo": "RG e CPF", "situacao": "OK" },
-    { "origem": "COMPLEMENTACAO", "id": "900118", "titulo": "Resposta da complementação", "situacao": "OBTENDO" }
+    { "origem": "DOCUMENTO_PROCESSO", "id": "804328", "titulo": "RG e CPF", "situacao": "OK", "tentativas": 2 },
+    { "origem": "COMPLEMENTACAO", "id": "900118", "titulo": "Resposta da complementação", "situacao": "OBTENDO", "tentativas": 0 }
   ]
 }
 ```
 
 - `status`: `PENDENTE`, `PROCESSANDO`, `CONCLUIDO`, `FALHA`, `CANCELADO` ou `EXPIRADO`.
 - `itens[].situacao` (RF16): `AGUARDANDO`, `OBTENDO`, `OK` ou `FALHA`. A ordem é a cronológica (RN03).
+- `itens[].tentativas` (S2.2): pedidos feitos à API de arquivos para o item (0 = nenhum ainda; mais de 1 = houve nova tentativa automática, docs/05). Não traz chave nem URL.
 - `paginas`: total de páginas do PDF final (só em `CONCLUIDO`). `expiraEm`: horário de Cuiabá, sem fuso.
 - `GET /dossies/{id}/arquivo`: 409 `DOSSIE_SEM_ARQUIVO` se não há arquivo (em andamento, falha, cancelado); 410 `DOSSIE_EXPIRADO` se expirou ou já foi baixado; 400 se `disposicao` for outra.
 
@@ -233,7 +234,7 @@ Quando a API de arquivos recusa a credencial (401/403), a geração inteira é i
 "erro": { "origem": "DOCUMENTO_PROCESSO", "id": "804328", "titulo": "RG e CPF", "motivo": "Token da API de arquivos expirado ou recusado: capture um novo token.", "codigo": "CREDENCIAL_ARQUIVOS_RECUSADA" }
 ```
 
-Motivos possíveis: tempo limite excedido ao obter o arquivo; arquivo não encontrado no repositório; repositório de arquivos indisponível; API de arquivos não configurada; o documento está protegido por senha; o arquivo está corrompido; o arquivo não tem páginas; o arquivo não é um PDF válido.
+Motivos possíveis: tempo limite excedido ao obter o arquivo; tempo total máximo excedido ao obter o arquivo; espaço em disco insuficiente; arquivo não encontrado no repositório; repositório de arquivos indisponível; API de arquivos não configurada; o documento está protegido por senha; o arquivo está corrompido; o arquivo não tem páginas; o arquivo não é um PDF válido.
 
 Para tentar de novo, o cliente envia um novo `POST /dossies` (com ou sem o documento que falhou). **Auditoria** é da S5: nenhum evento é registrado na S2.
 

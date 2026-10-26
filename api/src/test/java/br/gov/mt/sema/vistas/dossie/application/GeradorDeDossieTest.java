@@ -9,10 +9,12 @@ import java.time.LocalDateTime;
 import java.util.stream.Stream;
 
 import br.gov.mt.sema.vistas.dossie.application.Fakes.Arquivos;
+import br.gov.mt.sema.vistas.dossie.application.Fakes.Espaco;
 import br.gov.mt.sema.vistas.dossie.application.Fakes.Montador;
 import br.gov.mt.sema.vistas.dossie.application.Fakes.Parametros;
 import br.gov.mt.sema.vistas.dossie.application.Fakes.RelogioControlado;
 import br.gov.mt.sema.vistas.dossie.application.Fakes.Validador;
+import br.gov.mt.sema.vistas.dossie.application.port.FalhaNoDocumentoException;
 import br.gov.mt.sema.vistas.dossie.domain.ErroDoDossie;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
 import br.gov.mt.sema.vistas.dossie.domain.SituacaoItem;
@@ -31,6 +33,7 @@ class GeradorDeDossieTest {
     private Arquivos arquivos;
     private Montador montador;
     private Parametros parametros;
+    private Espaco espaco;
     private RelogioControlado relogio;
     private GeradorDeDossie gerador;
 
@@ -39,8 +42,9 @@ class GeradorDeDossieTest {
         arquivos = new Arquivos();
         montador = new Montador();
         parametros = new Parametros(pasta);
+        espaco = new Espaco();
         relogio = new RelogioControlado();
-        gerador = new GeradorDeDossie(arquivos, new Validador(), montador, parametros, relogio);
+        gerador = new GeradorDeDossie(arquivos, new Validador(), montador, parametros, espaco, relogio);
     }
 
     private PedidoDeDossie pedidoDeTres() {
@@ -71,6 +75,58 @@ class GeradorDeDossieTest {
         assertThat(pedido.arquivo()).exists().hasFileName("dossie.pdf");
         assertThat(arquivosNaPasta()).as("só o PDF final permanece").isEqualTo(1);
         assertThat(pedido.tamanhoBytes()).isEqualTo(Files.size(pedido.arquivo()));
+    }
+
+    @Test
+    void tentativasInformadasPeloRepositorioFicamNoItem() {
+        PedidoDeDossie pedido = pedidoDeTres();
+        arquivos.tentativas.put("K2", 3);
+
+        gerador.processar(pedido);
+
+        assertThat(pedido.itens()).extracting(i -> i.tentativas()).containsExactly(1, 3, 1);
+    }
+
+    @Test
+    void tentativasDaFalhaFicamNoItemQueFalhou() {
+        PedidoDeDossie pedido = pedidoDeTres();
+        arquivos.comportamentos.put("K2", destino -> {
+            throw new FalhaNoDocumentoException("tempo limite excedido ao obter o arquivo", 3);
+        });
+
+        gerador.processar(pedido);
+
+        assertThat(pedido.itens().get(1).tentativas()).isEqualTo(3);
+        assertThat(pedido.itens().get(1).situacao()).isEqualTo(SituacaoItem.FALHA);
+    }
+
+    @Test
+    void espacoInsuficienteFalhaODocumentoSemBaixarEApagaOsTemporarios() throws IOException {
+        PedidoDeDossie pedido = pedidoDeTres();
+        parametros.espacoMinimoMb = 2048;
+        espaco.livre = 2048L * 1024 * 1024 - 1;
+
+        gerador.processar(pedido);
+
+        assertThat(pedido.status()).isEqualTo(StatusDossie.FALHA);
+        assertThat(pedido.erro().motivo()).isEqualTo("espaço em disco insuficiente");
+        assertThat(pedido.erro().id()).isEqualTo("1");
+        assertThat(pedido.itens().get(0).tentativas()).isZero();
+        assertThat(arquivos.baixadas).isEmpty();
+        assertThat(espaco.consultas).containsExactly(pasta.resolve(pedido.id()));
+        assertThat(pasta.resolve(pedido.id())).doesNotExist();
+        assertThat(arquivosNaPasta()).isZero();
+    }
+
+    @Test
+    void espacoConferidoAntesDeCadaDownload() {
+        PedidoDeDossie pedido = pedidoDeTres();
+        espaco.livre = 2048L * 1024 * 1024;
+
+        gerador.processar(pedido);
+
+        assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
+        assertThat(espaco.consultas).hasSize(3);
     }
 
     @Test
@@ -216,7 +272,7 @@ class GeradorDeDossieTest {
         };
         PedidoDeDossie pedido = pedidoDeTres();
 
-        new GeradorDeDossie(arquivos, new Validador(), capturador, parametros, relogio).processar(pedido);
+        new GeradorDeDossie(arquivos, new Validador(), capturador, parametros, espaco, relogio).processar(pedido);
 
         assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
     }
@@ -234,7 +290,7 @@ class GeradorDeDossieTest {
             }
         };
 
-        new GeradorDeDossie(arquivos, new Validador(), cancelador, parametros, relogio).processar(pedido);
+        new GeradorDeDossie(arquivos, new Validador(), cancelador, parametros, espaco, relogio).processar(pedido);
 
         assertThat(pedido.status()).isEqualTo(StatusDossie.CANCELADO);
         assertThat(pedido.arquivo()).isNull();

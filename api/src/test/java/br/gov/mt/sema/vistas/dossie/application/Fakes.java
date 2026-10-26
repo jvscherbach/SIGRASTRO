@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import br.gov.mt.sema.vistas.dossie.application.port.ArquivosDoRepositorio;
+import br.gov.mt.sema.vistas.dossie.application.port.EspacoEmDisco;
 import br.gov.mt.sema.vistas.dossie.application.port.FalhaNoDocumentoException;
 import br.gov.mt.sema.vistas.dossie.application.port.FilaDeGeracao;
 import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie;
@@ -65,6 +66,7 @@ final class Fakes {
         boolean sumario = true;
         boolean marcadores = true;
         boolean numeracao = true;
+        long espacoMinimoMb = 2048;
         final Path diretorio;
 
         Parametros(Path diretorio) {
@@ -79,6 +81,16 @@ final class Fakes {
         @Override
         public int threads() {
             return threads;
+        }
+
+        @Override
+        public int downloadTotalMaximoSegundos() {
+            return 900;
+        }
+
+        @Override
+        public long espacoMinimoMb() {
+            return espacoMinimoMb;
         }
 
         @Override
@@ -136,12 +148,15 @@ final class Fakes {
         final List<String> baixadas = new ArrayList<>();
         final Map<String, Consumer<Path>> comportamentos = new HashMap<>();
         Consumer<String> aoBaixar = chave -> { };
+        /** Tentativas que o repositório informa por chave (padrão: 1). */
+        final Map<String, Integer> tentativas = new HashMap<>();
 
         @Override
-        public void baixar(String chave, Path destino) {
+        public int baixar(String chave, Path destino) {
             baixadas.add(chave);
             aoBaixar.accept(chave);
             comportamentos.getOrDefault(chave, Arquivos::paginas1).accept(destino);
+            return tentativas.getOrDefault(chave, 1);
         }
 
         static void paginas1(Path destino) {
@@ -156,6 +171,18 @@ final class Fakes {
             return destino -> {
                 throw new FalhaNoDocumentoException(motivo);
             };
+        }
+    }
+
+    /** Espaço livre controlado pelo teste (padrão: muito espaço); guarda os diretórios consultados. */
+    static final class Espaco implements EspacoEmDisco {
+        long livre = Long.MAX_VALUE;
+        final List<Path> consultas = new ArrayList<>();
+
+        @Override
+        public long livreEmBytes(Path diretorio) {
+            consultas.add(diretorio);
+            return livre;
         }
     }
 

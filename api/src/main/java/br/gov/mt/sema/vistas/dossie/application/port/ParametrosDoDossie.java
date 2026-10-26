@@ -13,7 +13,14 @@ public interface ParametrosDoDossie {
     /** Gerações simultâneas. */
     int threads();
 
+    /** Tempo máximo de inatividade na leitura do arquivo (sem receber bytes), em segundos. */
     int downloadTimeoutSegundos();
+
+    /** Teto total para obter um documento, somando as novas tentativas, em segundos. */
+    int downloadTotalMaximoSegundos();
+
+    /** Espaço livre mínimo no diretório do pedido antes de cada download, em MB. */
+    long espacoMinimoMb();
 
     boolean sumario();
 

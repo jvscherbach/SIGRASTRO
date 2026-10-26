@@ -18,14 +18,21 @@ Variáveis (todas no `.env.local`, nunca versionado; `.env.local.example` só tr
 | `LICENCIAMENTO_API_TOKEN` | Token capturado (sem o prefixo `Bearer`) |
 | `LICENCIAMENTO_API_AUTH_MODE` | `bearer` (padrão; vazio também vale como bearer) ou `cookie` |
 | `LICENCIAMENTO_API_COOKIE_NAME` | Nome do cookie, no modo `cookie` |
-| `DOWNLOAD_TIMEOUT_SEGUNDOS` | Tempo limite de conexão e de leitura (sem receber bytes), por arquivo (padrão 60) |
+| `DOWNLOAD_TIMEOUT_SEGUNDOS` | Tempo máximo de **inatividade** da leitura (sem receber bytes), inclusive no meio do corpo (padrão 120; até a S2.1 era 60 e valia também para a conexão) |
+| `DOWNLOAD_TOTAL_MAXIMO_SEGUNDOS` | Teto **total** para obter um documento, somando as novas tentativas (padrão 900) |
+| `DOSSIE_ESPACO_MINIMO_MB` | Espaço livre mínimo no volume do diretório do pedido, conferido antes de cada download (padrão 2048; `0` desliga) |
 
-Comportamento (S2):
+A conexão tem tempo limite fixo de 10 s.
+
+Comportamento (S2; tempos, novas tentativas e disco na S2.2):
 
 - chave `"0"` (ou nula/vazia) **nunca é requisitada**: o documento é indisponível;
-- **401 e 403** interrompem toda a geração: o pedido fica `FALHA` com `erro.codigo = CREDENCIAL_ARQUIVOS_RECUSADA` e a mensagem "Token da API de arquivos expirado ou recusado: capture um novo token." (nunca o valor do token); `CREDENCIAL_ARQUIVOS_RECUSADA` (502) é o código HTTP equivalente;
-- **404**, **5xx**, tempo limite e conexão recusada falham **só aquele documento** ("arquivo não encontrado no repositório", "repositório de arquivos indisponível", "tempo limite excedido ao obter o arquivo"), o que interrompe o dossiê (RN09);
-- o binário é gravado direto em arquivo temporário (streaming, RNF03), nunca em memória, e o temporário é apagado em qualquer falha;
+- **401 e 403** interrompem toda a geração, **sem nova tentativa**: o pedido fica `FALHA` com `erro.codigo = CREDENCIAL_ARQUIVOS_RECUSADA` e a mensagem "Token da API de arquivos expirado ou recusado: capture um novo token." (nunca o valor do token); `CREDENCIAL_ARQUIVOS_RECUSADA` (502) é o código HTTP equivalente;
+- **novas tentativas automáticas** (até 2 extras, com espera de 2 s e de 5 s) para **tempo limite de inatividade**, **503** e **queda ou recusa de conexão**. **404**, **401** e **403** nunca são repetidos; outros 5xx e demais status também não. Uma nova tentativa que não caiba no teto total não é feita. O número de pedidos feitos fica no item do pedido (`tentativas` no andamento, docs/07), sem chave nem URL; cada nova tentativa gera um log `INFO` só com o motivo;
+- **teto total**: conferido a cada bloco gravado; estourado, o documento falha ("tempo total máximo excedido ao obter o arquivo") sem nova tentativa. Um corpo parado é cortado antes pela inatividade, então o tempo real fica no máximo em teto + inatividade;
+- **disco**: antes de cada download o gerador compara o espaço livre do diretório do pedido com `DOSSIE_ESPACO_MINIMO_MB`; abaixo dele o documento falha com "espaço em disco insuficiente", sem chamar a API;
+- **404**, **5xx**, tempo limite, conexão recusada e disco insuficiente falham **só aquele documento** ("arquivo não encontrado no repositório", "repositório de arquivos indisponível", "tempo limite excedido ao obter o arquivo", "tempo total máximo excedido ao obter o arquivo", "espaço em disco insuficiente"), o que interrompe o dossiê (RN09);
+- o binário é gravado direto em arquivo temporário (streaming em blocos de 64 KB, RNF03), nunca em memória, e o temporário é apagado em qualquer falha, inclusive entre uma tentativa e a seguinte;
 - o tipo real é conferido pela assinatura `%PDF-` do arquivo (o `Content-Type` do repositório não basta): conteúdo que não é PDF falha o documento ("o arquivo não é um PDF válido");
 - **nenhuma resposta ou log traz URL institucional, token ou chave** (testado).
 

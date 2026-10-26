@@ -61,6 +61,8 @@ export interface ItemAndamento {
   id: string;
   titulo: string;
   situacao: SituacaoItemDossie;
+  /** Pedidos feitos à API de arquivos (S2.2; mais de 1 = houve nova tentativa). */
+  tentativas?: number;
 }
 
 export interface AndamentoDossie {

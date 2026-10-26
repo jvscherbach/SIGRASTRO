@@ -15,7 +15,7 @@ class ArquivosNaoConfigurados implements ArquivosDoRepositorio {
     static final String MOTIVO = "API de arquivos não configurada";
 
     @Override
-    public void baixar(String chave, Path destino) {
-        throw new FalhaNoDocumentoException(MOTIVO);
+    public int baixar(String chave, Path destino) {
+        throw new FalhaNoDocumentoException(MOTIVO, 0);
     }
 }

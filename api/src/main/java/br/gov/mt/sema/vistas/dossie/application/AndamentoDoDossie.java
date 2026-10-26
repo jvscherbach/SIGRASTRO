@@ -12,12 +12,12 @@ import br.gov.mt.sema.vistas.dossie.domain.StatusDossie;
 public record AndamentoDoDossie(String id, StatusDossie status, int total, int processados, ErroDoDossie erro,
         Integer paginas, LocalDateTime expiraEm, List<Item> itens) {
 
-    public record Item(String origem, String id, String titulo, SituacaoItem situacao) {
+    public record Item(String origem, String id, String titulo, SituacaoItem situacao, int tentativas) {
     }
 
     static AndamentoDoDossie de(PedidoDeDossie pedido) {
         return new AndamentoDoDossie(pedido.id(), pedido.status(), pedido.itens().size(), pedido.processados(),
                 pedido.erro(), pedido.paginas(), pedido.expiraEm(),
-                pedido.itens().stream().map(i -> new Item(i.origem(), i.id(), i.titulo(), i.situacao())).toList());
+                pedido.itens().stream().map(i -> new Item(i.origem(), i.id(), i.titulo(), i.situacao(), i.tentativas())).toList());
     }
 }

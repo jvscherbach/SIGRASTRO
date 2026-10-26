@@ -35,7 +35,8 @@ class ArquivosFumacaTest {
     void baixaUmArquivoRealEConfereAAssinaturaDePdf() throws IOException {
         ArquivosDoLicenciamentoHttp adapter = new ArquivosDoLicenciamentoHttp(System.getenv("LICENCIAMENTO_API_URL"),
                 System.getenv("LICENCIAMENTO_API_TOKEN"), System.getenv("LICENCIAMENTO_API_AUTH_MODE"),
-                System.getenv("LICENCIAMENTO_API_COOKIE_NAME"), () -> Duration.ofSeconds(60));
+                System.getenv("LICENCIAMENTO_API_COOKIE_NAME"), () -> new LimitesDeDownload(LimitesDeDownload.CONEXAO_PADRAO,
+                Duration.ofSeconds(120), Duration.ofSeconds(900)), d -> Thread.sleep(d.toMillis()));
         Path destino = pasta.resolve("fumaca.pdf");
 
         adapter.baixar(System.getenv("ARQUIVOS_SMOKE_CHAVE"), destino);

@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import br.gov.mt.sema.vistas.dossie.application.port.ArquivosDoRepositorio;
+import br.gov.mt.sema.vistas.dossie.application.port.EspacoEmDisco;
 import br.gov.mt.sema.vistas.dossie.application.port.FalhaNoDocumentoException;
 import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie.DocumentoParaMontagem;
@@ -35,19 +36,22 @@ public class GeradorDeDossie {
 
     private static final Logger log = LoggerFactory.getLogger(GeradorDeDossie.class);
     private static final String ARQUIVO_FINAL = "dossie.pdf";
+    static final String ESPACO_INSUFICIENTE = "espaço em disco insuficiente";
 
     private final ArquivosDoRepositorio arquivos;
     private final ValidadorDePdf validador;
     private final MontadorDoDossie montador;
     private final ParametrosDoDossie parametros;
+    private final EspacoEmDisco espaco;
     private final Clock relogio;
 
     public GeradorDeDossie(ArquivosDoRepositorio arquivos, ValidadorDePdf validador, MontadorDoDossie montador,
-            ParametrosDoDossie parametros, Clock relogio) {
+            ParametrosDoDossie parametros, EspacoEmDisco espaco, Clock relogio) {
         this.arquivos = arquivos;
         this.validador = validador;
         this.montador = montador;
         this.parametros = parametros;
+        this.espaco = espaco;
         this.relogio = relogio;
     }
 
@@ -70,7 +74,13 @@ public class GeradorDeDossie {
                 emAndamento = item;
                 item.situacao(SituacaoItem.OBTENDO);
                 Path arquivo = pasta.resolve(String.format("%04d.pdf", ++numero));
-                arquivos.baixar(item.chaveDoArquivo(), arquivo);
+                exigirEspacoLivre(pasta);
+                try {
+                    item.tentativas(arquivos.baixar(item.chaveDoArquivo(), arquivo));
+                } catch (FalhaNoDocumentoException e) {
+                    item.tentativas(e.tentativas());
+                    throw e;
+                }
                 item.paginas(validador.validar(arquivo));
                 item.situacao(SituacaoItem.OK);
                 pedido.documentoProcessado();
@@ -107,6 +117,14 @@ public class GeradorDeDossie {
             if (!entregue) {
                 ArquivosTemporarios.apagarPasta(pasta);
             }
+        }
+    }
+
+    /** Antes de cada download: sem o mínimo de espaço livre no volume do pedido, o documento falha (docs/05). */
+    private void exigirEspacoLivre(Path pasta) {
+        long minimo = parametros.espacoMinimoMb() * 1024L * 1024L;
+        if (minimo > 0 && espaco.livreEmBytes(pasta) < minimo) {
+            throw new FalhaNoDocumentoException(ESPACO_INSUFICIENTE, 0);
         }
     }
 

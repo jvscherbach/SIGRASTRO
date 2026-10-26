@@ -16,6 +16,7 @@ public final class ItemDoPedido {
     private final String chave;
     private volatile SituacaoItem situacao = SituacaoItem.AGUARDANDO;
     private volatile int paginas;
+    private volatile int tentativas;
 
     public ItemDoPedido(String origem, String origemDescricao, String id, String titulo, LocalDateTime data,
             String chave) {
@@ -66,6 +67,15 @@ public final class ItemDoPedido {
 
     public void paginas(int paginas) {
         this.paginas = paginas;
+    }
+
+    /** Pedidos feitos ao repositório de arquivos para este item (0 = nenhum; mais de 1 = houve nova tentativa). */
+    public int tentativas() {
+        return tentativas;
+    }
+
+    public void tentativas(int tentativas) {
+        this.tentativas = tentativas;
     }
 
     @Override

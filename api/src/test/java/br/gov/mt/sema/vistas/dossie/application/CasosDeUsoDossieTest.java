@@ -96,7 +96,7 @@ class CasosDeUsoDossieTest {
         arquivos = new Arquivos();
         parametros = new Parametros(pasta);
         relogio = new RelogioControlado();
-        GeradorDeDossie gerador = new GeradorDeDossie(arquivos, new Validador(), new Montador(), parametros, relogio);
+        GeradorDeDossie gerador = new GeradorDeDossie(arquivos, new Validador(), new Montador(), parametros, d -> Long.MAX_VALUE, relogio);
         localizar = new LocalizarPedido(repositorio, atual, relogio);
         criar = new CriarDossie(requerimentos, selecao, atual, repositorio, fila, gerador, parametros, relogio);
         obterArquivo = new ObterArquivoDoDossie(localizar);

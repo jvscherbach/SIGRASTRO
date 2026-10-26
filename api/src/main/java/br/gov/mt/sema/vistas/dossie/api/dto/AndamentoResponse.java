@@ -14,7 +14,7 @@ public record AndamentoResponse(String id, String status, int total, int process
     public record ErroResponse(String origem, String id, String titulo, String motivo, String codigo) {
     }
 
-    public record ItemResponse(String origem, String id, String titulo, String situacao) {
+    public record ItemResponse(String origem, String id, String titulo, String situacao, int tentativas) {
     }
 
     public static AndamentoResponse de(AndamentoDoDossie a) {
@@ -23,6 +23,6 @@ public record AndamentoResponse(String id, String status, int total, int process
                         a.erro().codigo());
         return new AndamentoResponse(a.id(), a.status().name(), a.total(), a.processados(), erro, a.paginas(),
                 a.expiraEm(), a.itens().stream()
-                        .map(i -> new ItemResponse(i.origem(), i.id(), i.titulo(), i.situacao().name())).toList());
+                        .map(i -> new ItemResponse(i.origem(), i.id(), i.titulo(), i.situacao().name(), i.tentativas())).toList());
     }
 }

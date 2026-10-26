@@ -61,7 +61,7 @@ class SistemasExternosForaDoArHttpTest {
 
     @Nested
     @SpringBootTest(properties = {"vistas.demo.senha=senha-de-teste", "vistas.datasource.siga.url=", "vistas.arquivos.url=",
-            "vistas.dossie.diretorio=${java.io.tmpdir}/vistas-teste-externos"})
+            "vistas.dossie.diretorio=${java.io.tmpdir}/vistas-teste-externos", "vistas.dossie.espaco-minimo-mb=0"})
     @AutoConfigureMockMvc
     class TudoVazio extends Base {
         @Test
@@ -81,7 +81,7 @@ class SistemasExternosForaDoArHttpTest {
 
     @Nested
     @SpringBootTest(properties = {"vistas.demo.senha=senha-de-teste", "vistas.datasource.siga.url=", "vistas.arquivos.url=",
-            "vistas.arquivos.token=", "vistas.dossie.diretorio=${java.io.tmpdir}/vistas-teste-externos"})
+            "vistas.arquivos.token=", "vistas.dossie.diretorio=${java.io.tmpdir}/vistas-teste-externos", "vistas.dossie.espaco-minimo-mb=0"})
     @AutoConfigureMockMvc
     class SoAApiDeArquivosVazia extends Base {
 

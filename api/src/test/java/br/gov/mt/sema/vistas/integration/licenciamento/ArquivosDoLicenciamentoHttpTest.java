@@ -13,7 +13,9 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import br.gov.mt.sema.vistas.dossie.application.port.FalhaNoDocumentoException;
 import br.gov.mt.sema.vistas.shared.application.exception.CredencialArquivosRecusadaException;
@@ -68,8 +70,23 @@ class ArquivosDoLicenciamentoHttpTest {
         });
     }
 
-    private ArquivosDoLicenciamentoHttp adapter(String modo, Duration limite) {
-        return new ArquivosDoLicenciamentoHttp(url(), TOKEN, modo, "SESSAO", () -> limite);
+    /** Esperas entre tentativas pedidas pelo adapter (o teste não espera de verdade). */
+    private final List<Duration> esperas = new CopyOnWriteArrayList<>();
+
+    private static Supplier<LimitesDeDownload> limites(long segundos) {
+        return limites(Duration.ofSeconds(segundos), Duration.ofMinutes(5));
+    }
+
+    private static Supplier<LimitesDeDownload> limites(Duration inatividade, Duration total) {
+        return () -> new LimitesDeDownload(Duration.ofSeconds(5), inatividade, total);
+    }
+
+    private ArquivosDoLicenciamentoHttp adapter(String modo, Duration inatividade) {
+        return adapter(modo, inatividade, Duration.ofMinutes(5));
+    }
+
+    private ArquivosDoLicenciamentoHttp adapter(String modo, Duration inatividade, Duration total) {
+        return new ArquivosDoLicenciamentoHttp(url(), TOKEN, modo, "SESSAO", limites(inatividade, total), esperas::add);
     }
 
     private static byte[] bytes(String texto) {
@@ -141,7 +158,7 @@ class ArquivosDoLicenciamentoHttpTest {
     @Test
     void tokenVazioNaoEnviaCabecalhoEORepositorioRecusa() {
         rota(troca -> troca.responder(401, new byte[0]));
-        ArquivosDoLicenciamentoHttp semToken = new ArquivosDoLicenciamentoHttp(url(), "", "bearer", "", () -> Duration.ofSeconds(5));
+        ArquivosDoLicenciamentoHttp semToken = new ArquivosDoLicenciamentoHttp(url(), "", "bearer", "", limites(5), esperas::add);
 
         assertThatThrownBy(() -> semToken.baixar(CHAVE, pasta.resolve("a.pdf")))
                 .isInstanceOf(CredencialArquivosRecusadaException.class);
@@ -232,11 +249,146 @@ class ArquivosDoLicenciamentoHttpTest {
             portaFechada = socket.getLocalPort();
         }
         ArquivosDoLicenciamentoHttp fora = new ArquivosDoLicenciamentoHttp("http://127.0.0.1:" + portaFechada, TOKEN,
-                "bearer", "", () -> Duration.ofSeconds(2));
+                "bearer", "", limites(2), esperas::add);
 
         assertThatThrownBy(() -> fora.baixar(CHAVE, pasta.resolve("a.pdf")))
                 .isInstanceOf(FalhaNoDocumentoException.class).hasMessage("repositório de arquivos indisponível")
                 .satisfies(e -> assertThat(e.getMessage()).doesNotContain("127.0.0.1"));
+    }
+
+    // --- novas tentativas e teto total (S2.2)
+
+    @Test
+    void respostaLentaQuePassaDoTempoDeInatividadeTentaTresVezesEApagaOTemporario() {
+        rota(troca -> {
+            OutputStream saida = troca.iniciarEmPartes(200);
+            saida.write(new byte[4096]);
+            saida.flush();
+            dormir(1500);
+        });
+        Path destino = pasta.resolve("lento.pdf");
+
+        assertThatThrownBy(() -> adapter("bearer", Duration.ofMillis(300)).baixar(CHAVE, destino))
+                .isInstanceOf(FalhaNoDocumentoException.class).hasMessage("tempo limite excedido ao obter o arquivo")
+                .satisfies(e -> assertThat(((FalhaNoDocumentoException) e).tentativas()).isEqualTo(3));
+        assertThat(pedidos).hasSize(3);
+        assertThat(esperas).containsExactly(Duration.ofSeconds(2), Duration.ofSeconds(5));
+        assertThat(destino).doesNotExist();
+    }
+
+    @Test
+    void status503SeguidoDe200FazUmaNovaTentativaEInformaDuasTentativas() throws IOException {
+        AtomicInteger chamadas = new AtomicInteger();
+        rota(troca -> {
+            if (chamadas.incrementAndGet() == 1) {
+                troca.responder(503, new byte[0]);
+            } else {
+                troca.responder(200, bytes("%PDF-1.4 depois"));
+            }
+        });
+        Path destino = pasta.resolve("a.pdf");
+
+        int tentativas = adapter("bearer", Duration.ofSeconds(5)).baixar(CHAVE, destino);
+
+        assertThat(tentativas).isEqualTo(2);
+        assertThat(pedidos).hasSize(2);
+        assertThat(esperas).containsExactly(Duration.ofSeconds(2));
+        assertThat(Files.readString(destino)).isEqualTo("%PDF-1.4 depois");
+    }
+
+    @Test
+    void semFalhaUmaTentativaSoESemEspera() throws IOException {
+        rota(troca -> troca.responder(200, bytes("x")));
+
+        assertThat(adapter("bearer", Duration.ofSeconds(5)).baixar(CHAVE, pasta.resolve("a.pdf"))).isEqualTo(1);
+        assertThat(esperas).isEmpty();
+    }
+
+    @Test
+    void status404NaoGanhaNovaTentativa() {
+        rota(troca -> troca.responder(404, new byte[0]));
+        Path destino = pasta.resolve("a.pdf");
+
+        assertThatThrownBy(() -> adapter("bearer", Duration.ofSeconds(5)).baixar(CHAVE, destino))
+                .isInstanceOf(FalhaNoDocumentoException.class)
+                .satisfies(e -> assertThat(((FalhaNoDocumentoException) e).tentativas()).isEqualTo(1));
+        assertThat(pedidos).hasSize(1);
+        assertThat(esperas).isEmpty();
+        assertThat(destino).doesNotExist();
+    }
+
+    @Test
+    void status401E403NaoGanhamNovaTentativa() {
+        for (int status : new int[] {401, 403}) {
+            pedidos.clear();
+            rota(troca -> troca.responder(status, new byte[0]));
+
+            assertThatThrownBy(() -> adapter("bearer", Duration.ofSeconds(5)).baixar(CHAVE, pasta.resolve("a.pdf")))
+                    .isInstanceOf(CredencialArquivosRecusadaException.class);
+            assertThat(pedidos).hasSize(1);
+        }
+        assertThat(esperas).isEmpty();
+    }
+
+    @Test
+    void status500NaoGanhaNovaTentativaSo503() {
+        rota(troca -> troca.responder(500, new byte[0]));
+
+        assertThatThrownBy(() -> adapter("bearer", Duration.ofSeconds(5)).baixar(CHAVE, pasta.resolve("a.pdf")))
+                .isInstanceOf(FalhaNoDocumentoException.class).hasMessage("repositório de arquivos indisponível");
+        assertThat(pedidos).hasSize(1);
+    }
+
+    @Test
+    void quedaDeConexaoGanhaNovasTentativas() throws IOException {
+        int portaFechada;
+        try (ServerSocket socket = new ServerSocket(0, 0, InetAddress.getLoopbackAddress())) {
+            portaFechada = socket.getLocalPort();
+        }
+        ArquivosDoLicenciamentoHttp fora = new ArquivosDoLicenciamentoHttp("http://127.0.0.1:" + portaFechada, TOKEN,
+                "bearer", "", limites(2), esperas::add);
+
+        assertThatThrownBy(() -> fora.baixar(CHAVE, pasta.resolve("a.pdf")))
+                .isInstanceOf(FalhaNoDocumentoException.class)
+                .satisfies(e -> assertThat(((FalhaNoDocumentoException) e).tentativas()).isEqualTo(3));
+        assertThat(esperas).hasSize(2);
+    }
+
+    @Test
+    void tetoTotalInterrompeCorpoQueNuncaParaDeChegarSemNovaTentativa() {
+        rota(troca -> {
+            try (OutputStream saida = troca.iniciarEmPartes(200)) {
+                for (int i = 0; i < 40; i++) {
+                    saida.write(new byte[1024]);
+                    saida.flush();
+                    dormir(100);
+                }
+            }
+        });
+        Path destino = pasta.resolve("eterno.pdf");
+
+        assertThatThrownBy(() -> adapter("bearer", Duration.ofSeconds(2), Duration.ofMillis(600)).baixar(CHAVE, destino))
+                .isInstanceOf(FalhaNoDocumentoException.class).hasMessage("tempo total máximo excedido ao obter o arquivo");
+        assertThat(pedidos).hasSize(1);
+        assertThat(esperas).isEmpty();
+        assertThat(destino).doesNotExist();
+    }
+
+    @Test
+    void novaTentativaQueNaoCabeNoTetoTotalNaoEFeita() {
+        rota(troca -> troca.responder(503, new byte[0]));
+
+        assertThatThrownBy(() -> adapter("bearer", Duration.ofSeconds(5), Duration.ofSeconds(1)).baixar(CHAVE, pasta.resolve("a.pdf")))
+                .isInstanceOf(FalhaNoDocumentoException.class).hasMessage("repositório de arquivos indisponível")
+                .satisfies(e -> assertThat(((FalhaNoDocumentoException) e).tentativas()).isEqualTo(1));
+        assertThat(pedidos).hasSize(1);
+        assertThat(esperas).isEmpty();
+    }
+
+    @Test
+    void chaveInvalidaInformaZeroTentativas() {
+        assertThatThrownBy(() -> adapter("bearer", Duration.ofSeconds(5)).baixar("0", pasta.resolve("a.pdf")))
+                .satisfies(e -> assertThat(((FalhaNoDocumentoException) e).tentativas()).isZero());
     }
 
     // --- chave e URL
@@ -265,7 +417,7 @@ class ArquivosDoLicenciamentoHttpTest {
     void barraFinalNaUrlBaseNaoDuplicaOCaminho() throws IOException {
         rota(troca -> troca.responder(200, bytes("x")));
         ArquivosDoLicenciamentoHttp comBarra = new ArquivosDoLicenciamentoHttp(url() + "//", TOKEN, "bearer", "",
-                () -> Duration.ofSeconds(5));
+                limites(5), esperas::add);
 
         comBarra.baixar("K1", pasta.resolve("a.pdf"));
 

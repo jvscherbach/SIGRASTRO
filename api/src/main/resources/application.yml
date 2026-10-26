@@ -63,7 +63,9 @@ vistas:
     diretorio: ${VISTAS_DOSSIE_DIRETORIO:/var/tmp/vistas}
     ttl-minutos: ${DOSSIE_TTL_MINUTOS:30}
     threads: ${DOSSIE_THREADS:2}
-    download-timeout-segundos: ${DOWNLOAD_TIMEOUT_SEGUNDOS:60}
+    download-timeout-segundos: ${DOWNLOAD_TIMEOUT_SEGUNDOS:120}
+    download-total-maximo-segundos: ${DOWNLOAD_TOTAL_MAXIMO_SEGUNDOS:900}
+    espaco-minimo-mb: ${DOSSIE_ESPACO_MINIMO_MB:2048}
     sumario: ${DOSSIE_SUMARIO:true}
     marcadores: ${DOSSIE_MARCADORES:true}
     numeracao: ${DOSSIE_NUMERACAO:true}
