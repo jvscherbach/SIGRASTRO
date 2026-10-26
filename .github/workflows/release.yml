@@ -1,0 +1,115 @@
+name: Release
+
+# Publica as imagens no GHCR só em tag de versão (ou execução manual sobre uma tag). Não há deploy.
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+# Nada por padrão: cada job declara o que precisa.
+permissions: {}
+
+jobs:
+  # Execução manual numa branch não publica: a ref precisa ser uma tag vX.Y.Z (com pré-release opcional).
+  validar-ref:
+    name: validar-ref
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Conferir se a ref é uma tag de versão
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [[ ! "$REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::A publicação exige uma tag vX.Y.Z; ref recebida: $REF"
+            exit 1
+          fi
+
+  # Pré-requisito: o mesmo CI dos pull requests, verde para o commit da tag. Nenhum secret é repassado.
+  ci:
+    name: ci
+    needs: validar-ref
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+
+  publicar:
+    name: publicar (${{ matrix.componente }})
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        componente: [api, front]
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      # O nome da imagem no GHCR precisa ser minúsculo.
+      - name: Nome da imagem
+        id: nome
+        env:
+          COMPONENTE: ${{ matrix.componente }}
+        run: echo "imagem=ghcr.io/${GITHUB_REPOSITORY,,}/${COMPONENTE}" >> "$GITHUB_OUTPUT"
+
+      # Tags vX.Y.Z, X.Y e sha-<curto>; nunca latest (latest=false desliga o padrão "auto").
+      - name: Tags e rótulos
+        id: meta
+        uses: docker/metadata-action@v5.7.0
+        with:
+          images: ${{ steps.nome.outputs.imagem }}
+          flavor: |
+            latest=false
+          tags: |
+            type=semver,pattern=v{{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-,format=short
+
+      - uses: docker/setup-buildx-action@v3.10.0
+
+      # Só o GITHUB_TOKEN do próprio job, com packages: write; nenhum PAT.
+      - name: Login no GHCR
+        uses: docker/login-action@v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Sem build-args: nenhuma credencial entra na imagem.
+      - name: Construir e publicar
+        id: build
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: ${{ matrix.componente }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.componente }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.componente }}
+          provenance: mode=max
+          sbom: true
+
+      - name: Resumo
+        env:
+          COMPONENTE: ${{ matrix.componente }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          {
+            echo "### Imagem \`${COMPONENTE}\` publicada"
+            echo
+            echo "Digest: \`${DIGEST}\`"
+            echo
+            echo "Tags:"
+            while IFS= read -r tag; do
+              [ -n "$tag" ] && echo "- \`${tag}\`"
+            done <<< "$TAGS"
+          } >> "$GITHUB_STEP_SUMMARY"
