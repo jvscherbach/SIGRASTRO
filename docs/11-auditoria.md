@@ -20,7 +20,7 @@ Registro de quem consultou, visualizou, gerou e baixou dossiês, com destaque pa
 | `CONSULTA` | Consulta | Abertura do detalhe de um processo ou requerimento | Número consultado |
 | `VISUALIZACAO` | Visualização | Abertura de um documento no modal | Documento visualizado e sigilo |
 | `DOSSIE` | Dossiê gerado | Pedido de geração do dossiê | Quantidade de documentos, quantos sigilosos, lista completa e nome do arquivo |
-| `FALHA` | Falha na geração | Geração interrompida por falha em um documento | Documento e motivo |
+| `FALHA` | Falha na geração | Geração com falha em documento (desde a S2.2, o pedido fica aguardando decisão; cada tentativa com falha gera um evento) | Documento e motivo |
 | `DOWNLOAD` | Download | Download do PDF do dossiê | Nome do arquivo |
 
 O evento `DOSSIE` é registrado quando a geração termina com sucesso; uma tentativa interrompida gera `FALHA`.

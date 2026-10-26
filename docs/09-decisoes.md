@@ -209,7 +209,7 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 
 ## D38 — Geração: documentos em sequência, `DOSSIE_THREADS` gerações simultâneas
 
-**Decisão:** dentro de um pedido os arquivos são obtidos um a um, na ordem cronológica; o executor limitado a `DOSSIE_THREADS` (padrão 2) roda pedidos diferentes ao mesmo tempo, então o total de downloads simultâneos nunca passa desse número. A primeira falha interrompe e descarta tudo (RN09). Os PDFs são abertos com cache em arquivos temporários (PDFBox 3) e ficam abertos até o PDF final ser salvo, porque o PDFBox compartilha objetos entre origem e destino.
+**Decisão:** dentro de um pedido os arquivos são obtidos um a um, na ordem cronológica; o executor limitado a `DOSSIE_THREADS` (padrão 2) roda pedidos diferentes ao mesmo tempo, então o total de downloads simultâneos nunca passa desse número. A primeira falha interrompe e descarta tudo (RN09). **Desde a S2.2 (D48):** a sequência continua, mas as falhas são coletadas e a obtenção segue até o fim; só a credencial recusada para na hora. Os PDFs são abertos com cache em arquivos temporários (PDFBox 3) e ficam abertos até o PDF final ser salvo, porque o PDFBox compartilha objetos entre origem e destino.
 **Motivo:** a regra "completo ou nenhum" fica determinística (os seguintes nunca são processados) e a memória é limitada. Se o tempo de geração pesar, a S3 avalia obter em paralelo dentro do pedido.
 
 ## D39 — Pedidos em memória: o registro sobrevive um pouco ao vencimento
