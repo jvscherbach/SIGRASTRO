@@ -298,6 +298,7 @@ class CasosDeUsoDossieTest {
         obterArquivo.concluirDownload(pedido.id());
 
         assertThat(caminho).doesNotExist();
+        assertThat(pasta.resolve(pedido.id())).as("o diretório do pedido some com o download").doesNotExist();
         assertThat(pedido.status()).isEqualTo(StatusDossie.EXPIRADO);
         assertThatThrownBy(() -> obterArquivo.executar(pedido.id())).isInstanceOf(DossieExpiradoException.class);
     }
@@ -639,6 +640,18 @@ class CasosDeUsoDossieTest {
         assertThat(pedido.status()).isEqualTo(StatusDossie.CANCELADO);
         assertThat(arquivos.baixadas).isEmpty();
         assertThat(pasta.resolve(pedido.id())).doesNotExist();
+    }
+
+    @Test
+    void aoConcluirSoOPdfFinalFicaNoDiretorioMesmoDepoisDeUmaContinuacao() throws IOException {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+        arquivos.comportamentos.clear();
+
+        continuar.executar(pedido.id(), "TENTAR_NOVAMENTE");
+
+        try (var arquivosDoPedido = Files.list(pasta.resolve(pedido.id()))) {
+            assertThat(arquivosDoPedido.map(p -> p.getFileName().toString())).containsExactly("dossie.pdf");
+        }
     }
 
     @Test

@@ -37,7 +37,8 @@ import org.slf4j.LoggerFactory;
  * Uma montagem de dossiê com PDFBox 3 (uma instância por geração: as fontes não são compartilhadas entre threads) (docs/06). Páginas dos documentos entram por {@code importPage} (tamanho, rotação,
  * anotações e links preservados; nada é forçado para A4, RNF06). Tudo vive em arquivos temporários: os documentos de
  * origem são abertos com cache em disco e ficam abertos até o PDF final ser salvo (o PDFBox compartilha os objetos
- * entre origem e destino), mas só um dossiê por thread de geração.
+ * entre origem e destino), mas só um dossiê por thread de geração. Medido com 20 PDFs de ~48 MB: pico de heap de
+ * ~130 MB, inclusive com -Xmx256m, sem precisar montar em lotes (docs/10, R26; DesempenhoDaMontagemTest).
  *
  * Capa e sumário são páginas A4 desenhadas aqui; o sumário tem paginação própria (linhas fixas por página), então a
  * página inicial de cada documento é determinística e conhecida antes de importar qualquer página.
