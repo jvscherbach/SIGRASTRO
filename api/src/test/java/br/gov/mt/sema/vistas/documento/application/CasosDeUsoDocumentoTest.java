@@ -205,6 +205,33 @@ class CasosDeUsoDocumentoTest {
         assertThat(escolhidos.get(0).chaveDoArquivo()).isEqualTo("K1");
     }
 
+    // --- inventário para a seção "Documentos não incluídos" (S2.2)
+
+    @Test
+    void inventarioDoOperadorTrazOsNaoSelecionadosComMotivoESigilosoMascarado() {
+        SelecaoParaDossie selecao = selecionar.executarComInventario(101, List.of(ref("DOCUMENTO_PROCESSO", "1")));
+
+        assertThat(selecao.escolhidos()).extracting(Documento::id).containsExactly("1");
+        assertThat(selecao.listados()).isEqualTo(5);
+        assertThat(selecao.naoSelecionados()).extracting(n -> n.documento().id() + ":" + n.motivo() + ":" + n.titulo())
+                .containsExactly("5:NAO_SELECIONADO:Antigo", "2:INDISPONIVEL:Perdido", "3:NAO_PDF:Planilha",
+                        "4:SIGILOSO:Documento sigiloso");
+    }
+
+    @Test
+    void inventarioDoGestorNaoMascaraOSigilosoNemOTrataComoBloqueado() {
+        comoGestor();
+
+        SelecaoParaDossie selecao = selecionar.executarComInventario(101, List.of(ref("DOCUMENTO_PROCESSO", "1")));
+
+        assertThat(selecao.naoSelecionados()).filteredOn(n -> n.documento().id().equals("4")).singleElement()
+                .satisfies(n -> {
+                    assertThat(n.titulo()).isEqualTo("Laudo reservado");
+                    assertThat(n.motivo()).isEqualTo(SelecaoParaDossie.Motivo.NAO_SELECIONADO);
+                });
+        assertThat(selecao.escolhidos().size() + selecao.naoSelecionados().size()).isEqualTo(selecao.listados());
+    }
+
     // --- ordem cronológica do servidor (RN03, S2.2)
 
     private List<ReferenciaDeDocumento> refs(String... origemEId) {

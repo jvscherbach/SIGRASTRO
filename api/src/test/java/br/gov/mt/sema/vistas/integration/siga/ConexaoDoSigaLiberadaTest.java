@@ -101,7 +101,7 @@ class ConexaoDoSigaLiberadaTest {
             conexoesAtivasVistasNoDownload.put("validacao-" + arquivo.getFileName(), dataSource.getHikariPoolMXBean().getActiveConnections());
             return 1;
         };
-        MontadorDoDossie montador = (capa, docs, opcoes, destino) -> {
+        MontadorDoDossie montador = (capa, docs, inventario, opcoes, destino) -> {
             conexoesAtivasVistasNoDownload.put("montagem", dataSource.getHikariPoolMXBean().getActiveConnections());
             gravar(destino, "dossie");
             return docs.size() + 1;

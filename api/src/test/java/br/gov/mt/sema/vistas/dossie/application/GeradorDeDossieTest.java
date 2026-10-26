@@ -281,9 +281,9 @@ class GeradorDeDossieTest {
         Montador capturador = new Montador() {
             @Override
             public int montar(br.gov.mt.sema.vistas.dossie.domain.DadosDaCapa capa, java.util.List<DocumentoParaMontagem> documentos,
-                    OpcoesDeMontagem opcoes, Path destino) {
+                    Inventario inventario, OpcoesDeMontagem opcoes, Path destino) {
                 assertThat(opcoes).isEqualTo(new OpcoesDeMontagem(false, true, false));
-                return super.montar(capa, documentos, opcoes, destino);
+                return super.montar(capa, documentos, inventario, opcoes, destino);
             }
         };
         PedidoDeDossie pedido = pedidoDeTres();
@@ -299,8 +299,8 @@ class GeradorDeDossieTest {
         Montador cancelador = new Montador() {
             @Override
             public int montar(br.gov.mt.sema.vistas.dossie.domain.DadosDaCapa capa, java.util.List<DocumentoParaMontagem> documentos,
-                    OpcoesDeMontagem opcoes, Path destino) {
-                int paginas = super.montar(capa, documentos, opcoes, destino);
+                    Inventario inventario, OpcoesDeMontagem opcoes, Path destino) {
+                int paginas = super.montar(capa, documentos, inventario, opcoes, destino);
                 pedido.cancelar();
                 return paginas;
             }

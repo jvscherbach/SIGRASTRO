@@ -171,7 +171,7 @@ Resposta de `GET /requerimentos/{id}/documentos`:
 |---|---|---|
 | `POST` | `/dossies` | Cria um pedido de geração. Retorna `202` com `{ "id": "..." }` (UUID aleatório). |
 | `GET` | `/dossies/{id}` | Andamento do pedido. |
-| `GET` | `/dossies/{id}/arquivo?disposicao=inline\|attachment` | PDF final. `inline` para pré-visualização (o arquivo continua), `attachment` para download (**o arquivo é apagado ao fim do download**, RNF05). `Content-Disposition` com o nome do RF18: `dossie-processo-<numero>-<ano>.pdf` (protocolado) ou `dossie-requerimento-<numero>-<ano>.pdf`. |
+| `GET` | `/dossies/{id}/arquivo?disposicao=inline|attachment` | PDF final (capa com "N documentos incluídos de M listados" e, logo após o sumário, a seção "Documentos não incluídos" com o motivo de cada um; S2.2, docs/06).\|attachment` | PDF final. `inline` para pré-visualização (o arquivo continua), `attachment` para download (**o arquivo é apagado ao fim do download**, RNF05). `Content-Disposition` com o nome do RF18: `dossie-processo-<numero>-<ano>.pdf` (protocolado) ou `dossie-requerimento-<numero>-<ano>.pdf`. |
 | `POST` | `/dossies/{id}/continuacao` | Decide um pedido em `PENDENTE_DECISAO` (S2.2): `{ "acao": "TENTAR_NOVAMENTE" }` refaz **só** os documentos com problema; `{ "acao": "REMOVER_E_CONTINUAR" }` os marca `REMOVIDO` e monta com os já obtidos. Nada já obtido é baixado de novo. `202`; `409 DOSSIE_SEM_DECISAO_PENDENTE` fora de `PENDENTE_DECISAO`; `400 PARAMETRO_INVALIDO` para ação desconhecida ou `REMOVER_E_CONTINUAR` sem nenhum documento obtido. Substitui os "novos `POST`" da S2. |
 | `DELETE` | `/dossies/{id}` | Cancela o pedido em qualquer situação não terminal e apaga o diretório do pedido (documentos já obtidos e PDF final); idempotente, 204. |
 
@@ -219,7 +219,7 @@ Resposta do `GET /dossies/{id}`:
 ```
 
 - `status` (S2.2): `AGUARDANDO` (na fila), `OBTENDO`, `PENDENTE_DECISAO` (há documentos com problema; nada é entregue até a decisão), `MONTANDO`, `CONCLUIDO`, `CANCELADO` ou `EXPIRADO`. Não existe mais `FALHA` como estado final. O front para o polling em `CONCLUIDO`, `PENDENTE_DECISAO`, `CANCELADO` e `EXPIRADO`.
-- `itens[].situacao` (RF16): `AGUARDANDO`, `OBTENDO`, `OK`, `FALHA` ou `REMOVIDO`. A ordem é a cronológica (RN03). `itens[].motivo` só aparece em `FALHA`.
+- `itens[].situacao` (RF16): `AGUARDANDO`, `OBTENDO`, `OK`, `FALHA` ou `REMOVIDO`. A ordem é a cronológica (RN03). `itens[].motivo` aparece em `FALHA` e continua no item `REMOVIDO` (é o motivo que o PDF registra em "Documentos não incluídos", docs/06).
 - `processados`: itens resolvidos (`OK` ou `REMOVIDO`). **Não volta a zero** numa continuação: os já obtidos continuam contando.
 - `falhas` (S2.2): a lista completa dos itens em `FALHA` (`origem`, `id`, `titulo`, `motivo`), que a decisão vai refazer ou remover.
 - `erro`: motivo **geral**, só quando não é de um documento: credencial recusada (com `codigo`) ou falha na montagem. Falha de documento fica em `falhas`.

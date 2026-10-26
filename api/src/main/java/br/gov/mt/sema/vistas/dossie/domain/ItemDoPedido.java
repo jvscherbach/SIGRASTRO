@@ -18,9 +18,17 @@ public final class ItemDoPedido {
     private volatile int paginas;
     private volatile int tentativas;
     private volatile String motivo;
+    private final int posicao;
 
     public ItemDoPedido(String origem, String origemDescricao, String id, String titulo, LocalDateTime data,
             String chave) {
+        this(origem, origemDescricao, id, titulo, data, chave, 0);
+    }
+
+    /** @param posicao posição na lista cronológica do requerimento (ordena a seção "Documentos não incluídos") */
+    public ItemDoPedido(String origem, String origemDescricao, String id, String titulo, LocalDateTime data,
+            String chave, int posicao) {
+        this.posicao = posicao;
         this.origem = origem;
         this.origemDescricao = origemDescricao;
         this.id = id;
@@ -49,6 +57,10 @@ public final class ItemDoPedido {
         return data;
     }
 
+    public int posicao() {
+        return posicao;
+    }
+
     /** Interna: nunca vai para DTO, log nem resposta (RNF09). */
     public String chaveDoArquivo() {
         return chave;
@@ -60,12 +72,13 @@ public final class ItemDoPedido {
 
     public void situacao(SituacaoItem nova) {
         this.situacao = nova;
-        if (nova != SituacaoItem.FALHA) {
+        // REMOVIDO guarda o motivo da falha: a seção "Documentos não incluídos" o mostra.
+        if (nova != SituacaoItem.FALHA && nova != SituacaoItem.REMOVIDO) {
             this.motivo = null;
         }
     }
 
-    /** Motivo da falha (só em FALHA); nunca traz chave, URL ou token. */
+    /** Motivo da falha (em FALHA; mantido em REMOVIDO); nunca traz chave, URL ou token. */
     public String motivo() {
         return motivo;
     }

@@ -12,7 +12,8 @@ import org.springframework.stereotype.Component;
 class MontadorPdfBox implements MontadorDoDossie {
 
     @Override
-    public int montar(DadosDaCapa capa, List<DocumentoParaMontagem> documentos, OpcoesDeMontagem opcoes, Path destino) {
-        return new MontagemPdfBox().montar(capa, documentos, opcoes, destino);
+    public int montar(DadosDaCapa capa, List<DocumentoParaMontagem> documentos, Inventario inventario,
+            OpcoesDeMontagem opcoes, Path destino) {
+        return new MontagemPdfBox().montar(capa, documentos, inventario, opcoes, destino);
     }
 }

@@ -14,7 +14,7 @@ Pedido (documentos selecionados)
   │      d. validar o PDF (abre? tem senha? tem páginas?)
   │      e. em caso de falha → registra a falha do documento e segue (S2.2; ver abaixo)
   ├─ 4. Com falhas: PENDENTE_DECISAO (nada é entregue até a decisão); sem falhas: capa
-  ├─ 5. Montagem: capa + sumário + documentos, na ordem
+  ├─ 5. Montagem: capa + sumário + "Documentos não incluídos" (S2.2) + documentos, na ordem
   ├─ 6. Marcadores (bookmarks) e numeração de páginas
   └─ 7. Arquivo final disponível para pré-visualização e download
 ```
@@ -65,7 +65,23 @@ A validação visual será feita com as planilhas reais dos processos de teste.
 - Dados: interessado, CPF/CNPJ, tipo de processo, situação, data de abertura, objetivos e atividades.
 - No dossiê por processo: lista dos requerimentos incluídos.
 - Data e hora de geração e usuário (simulado) que gerou.
-- Quantidade de documentos incluídos.
+- Quantidade de documentos: "N documentos incluídos de M listados" (S2.2). M é o total da lista que o usuário viu ao gerar (depois da consolidação, sem compactados nem geometrias; para o Operador, inclui os sigilosos mascarados). M − N é exatamente o que aparece em "Documentos não incluídos".
+
+## Documentos não incluídos (S2.2)
+
+Logo após o sumário (ou após a capa, com o sumário desligado), a seção "Documentos não incluídos" lista cada documento da lista que não entrou no PDF, na mesma ordem cronológica do sumário, com data (ou "sem data"), título, origem, id e motivo:
+
+| Motivo no PDF | Quando |
+|---|---|
+| removido pelo usuário após falha: *motivo* | o usuário escolheu "Remover e continuar" (docs/07); sem falha registrada (não chegou a ser obtido): "removido pelo usuário (não obtido)" |
+| não selecionado pelo usuário | selecionável, mas desmarcado na tabela |
+| indisponível (chave do arquivo inválida) | chave nula, vazia ou `"0"` (RN01) |
+| não é PDF: aguardando conversão | extensão conhecida que não é PDF (S3) |
+| sigiloso: o perfil de quem gerou não tem acesso | sigiloso para o Operador; o título sai mascarado ("Documento sigiloso") |
+
+- A seção é **omitida** quando não há nada fora; tem **marcador** próprio ("Documentos não incluídos") e é **obrigatória** (não depende de `DOSSIE_SUMARIO`).
+- **Paginação determinística:** 22 documentos por página (duas linhas cada: dados e motivo); o número de páginas é conhecido antes de importar qualquer documento, então a página inicial de cada documento no sumário e os marcadores continuam exatos (capa = 1, sumário, seção, documentos).
+- O que fica fora é decidido no servidor: o `POST /dossies` guarda no pedido o instantâneo dos não selecionados (com o motivo) e o total listado; os removidos na decisão entram na montagem. Nenhuma chave de arquivo vai para a seção.
 
 ## Sumário
 
@@ -109,7 +125,7 @@ AGUARDANDO → OBTENDO ─┬─ sem falhas ─→ MONTANDO → CONCLUIDO
 
 Geometrias e arquivos compactados não fazem parte da seleção do dossiê, portanto não geram falha.
 
-Não há relatório de geração ao final do dossiê.
+Não há relatório de geração ao final do dossiê; o que ficou de fora está na seção "Documentos não incluídos", no início (S2.2).
 
 ## Numeração de páginas
 

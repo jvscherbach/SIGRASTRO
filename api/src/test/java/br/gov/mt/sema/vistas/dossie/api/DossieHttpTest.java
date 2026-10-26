@@ -171,7 +171,8 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
                 .andExpect(jsonPath("$.status").value("CONCLUIDO"))
                 .andExpect(jsonPath("$.total").value(2))
                 .andExpect(jsonPath("$.processados").value(2))
-                .andExpect(jsonPath("$.paginas").value(4)) // capa + sumário + 2 páginas de documento
+                // capa + sumário + "Documentos não incluídos" (4 dos 6 listados ficaram fora) + 2 páginas de documento
+                .andExpect(jsonPath("$.paginas").value(5))
                 .andExpect(jsonPath("$.erro").doesNotExist())
                 .andExpect(jsonPath("$.expiraEm", not(emptyOrNullString())))
                 .andExpect(jsonPath("$.itens", hasSize(2)))
@@ -403,6 +404,26 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
         // inline não consome o arquivo: pode ser lido de novo
         mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void pdfDoOperadorRegistraOsNaoIncluidosComMotivoSemRevelarOSigilosoNemChaves() throws Exception {
+        String id = idDe(criar("operador.demo", 101, "DOCUMENTO_PROCESSO", "804328").andExpect(status().isAccepted()));
+
+        byte[] pdf = mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("operador.demo")))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+
+        try (org.apache.pdfbox.pdmodel.PDDocument documento = org.apache.pdfbox.Loader.loadPDF(pdf)) {
+            String texto = new org.apache.pdfbox.text.PDFTextStripper().getText(documento);
+            assertThat(texto).contains("1 documento incluído de 6 listados", "Documentos não incluídos",
+                    "não selecionado pelo usuário", "indisponível (chave do arquivo inválida)",
+                    "não é PDF: aguardando conversão", "sigiloso: o perfil de quem gerou não tem acesso",
+                    "Documento sigiloso", "Antigo", "oficio.pdf", "Planilha", "Perdido");
+            assertThat(texto).doesNotContain("Laudo reservado", "laudo-reservado");
+            for (String segredo : SEGREDOS) {
+                assertThat(texto).doesNotContain(segredo);
+            }
+        }
     }
 
     @Test

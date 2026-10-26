@@ -200,13 +200,16 @@ final class Fakes {
 
     static class Montador implements MontadorDoDossie {
         final List<List<String>> titulosMontados = new ArrayList<>();
+        final List<Inventario> inventarios = new ArrayList<>();
         RuntimeException falha;
 
         @Override
-        public int montar(DadosDaCapa capa, List<DocumentoParaMontagem> documentos, OpcoesDeMontagem opcoes, Path destino) {
+        public int montar(DadosDaCapa capa, List<DocumentoParaMontagem> documentos, Inventario inventario,
+                OpcoesDeMontagem opcoes, Path destino) {
             if (falha != null) {
                 throw falha;
             }
+            inventarios.add(inventario);
             titulosMontados.add(documentos.stream().map(DocumentoParaMontagem::titulo).toList());
             gravar(destino, "DOSSIE " + capa.titulo());
             return 1 + documentos.stream().mapToInt(DocumentoParaMontagem::paginas).sum();

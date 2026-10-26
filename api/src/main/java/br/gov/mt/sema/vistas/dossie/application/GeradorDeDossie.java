@@ -154,6 +154,7 @@ public class GeradorDeDossie {
         Path finalizado = pasta.resolve(ARQUIVO_FINAL);
         try {
             int paginas = montador.montar(pedido.capa(), paraMontar,
+                    new MontadorDoDossie.Inventario(pedido.listados(), pedido.naoIncluidos()),
                     new OpcoesDeMontagem(parametros.sumario(), parametros.marcadores(), parametros.numeracao()),
                     finalizado);
             if (!pedido.concluir(finalizado, paginas, Files.size(finalizado), validade())) {

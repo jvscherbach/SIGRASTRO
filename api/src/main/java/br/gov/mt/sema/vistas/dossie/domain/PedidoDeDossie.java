@@ -2,6 +2,8 @@ package br.gov.mt.sema.vistas.dossie.domain;
 
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -28,6 +30,8 @@ public final class PedidoDeDossie {
     private final DadosDaCapa capa;
     private final List<ItemDoPedido> itens;
     private final LocalDateTime criadoEm;
+    private final List<DocumentoNaoIncluido> naoSelecionados;
+    private final int listados;
 
     private StatusDossie status = StatusDossie.AGUARDANDO;
     private ErroDoDossie erro;
@@ -39,7 +43,18 @@ public final class PedidoDeDossie {
 
     public PedidoDeDossie(String id, String login, long idRequerimento, DadosDaCapa capa, List<ItemDoPedido> itens,
             LocalDateTime criadoEm, LocalDateTime expiraEm) {
+        this(id, login, idRequerimento, capa, itens, List.of(), itens.size(), criadoEm, expiraEm);
+    }
+
+    /**
+     * @param naoSelecionados documentos da lista que ficaram fora da seleção, com o motivo (S2.2)
+     * @param listados        total da lista que o usuário viu (incluídos + não selecionados)
+     */
+    public PedidoDeDossie(String id, String login, long idRequerimento, DadosDaCapa capa, List<ItemDoPedido> itens,
+            List<DocumentoNaoIncluido> naoSelecionados, int listados, LocalDateTime criadoEm, LocalDateTime expiraEm) {
         this.id = id;
+        this.naoSelecionados = List.copyOf(naoSelecionados);
+        this.listados = listados;
         this.login = login;
         this.idRequerimento = idRequerimento;
         this.capa = capa;
@@ -70,6 +85,26 @@ public final class PedidoDeDossie {
 
     public LocalDateTime criadoEm() {
         return criadoEm;
+    }
+
+    /** Total da lista que o usuário viu ao gerar (capa: "N documentos incluídos de M listados"). */
+    public int listados() {
+        return listados;
+    }
+
+    /**
+     * Tudo o que não entra no PDF, na ordem da lista: os não selecionados na criação e os itens REMOVIDO na decisão.
+     */
+    public List<DocumentoNaoIncluido> naoIncluidos() {
+        List<DocumentoNaoIncluido> todos = new ArrayList<>(naoSelecionados);
+        for (ItemDoPedido item : itens) {
+            if (item.situacao() == SituacaoItem.REMOVIDO) {
+                todos.add(new DocumentoNaoIncluido(item.posicao(), item.origemDescricao(), item.id(), item.titulo(),
+                        item.data(), DocumentoNaoIncluido.removido(item.motivo())));
+            }
+        }
+        todos.sort(Comparator.comparingInt(DocumentoNaoIncluido::posicao));
+        return todos;
     }
 
     public synchronized StatusDossie status() {
