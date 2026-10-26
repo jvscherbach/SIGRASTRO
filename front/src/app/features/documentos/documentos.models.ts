@@ -95,6 +95,10 @@ export interface AndamentoDossie {
   /** Itens em FALHA (S2.2). */
   falhas: FalhaDossie[];
   paginas: number | null;
+  /** Só em CONCLUIDO. */
+  tamanhoBytes?: number | null;
+  /** Acima de DOSSIE_BLOB_MAX_MB: download direto por ticket, sem Blob nem pré-visualização (S2.2, D49). */
+  entregaPorTicket?: boolean;
   expiraEm: string | null;
   itens: ItemAndamento[];
 }

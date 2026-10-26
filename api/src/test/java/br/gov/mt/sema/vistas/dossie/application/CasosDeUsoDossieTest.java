@@ -43,6 +43,7 @@ import br.gov.mt.sema.vistas.dossie.application.Fakes.Montador;
 import br.gov.mt.sema.vistas.dossie.application.Fakes.Parametros;
 import br.gov.mt.sema.vistas.dossie.application.Fakes.RelogioControlado;
 import br.gov.mt.sema.vistas.dossie.application.Fakes.Repositorio;
+import br.gov.mt.sema.vistas.dossie.application.Fakes.Tickets;
 import br.gov.mt.sema.vistas.dossie.application.Fakes.Validador;
 import br.gov.mt.sema.vistas.dossie.domain.DocumentoNaoIncluido;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
@@ -55,6 +56,7 @@ import br.gov.mt.sema.vistas.shared.application.exception.DossieSemDecisaoPenden
 import br.gov.mt.sema.vistas.shared.application.exception.NaoInteressadoException;
 import br.gov.mt.sema.vistas.shared.application.exception.ParametroInvalidoException;
 import br.gov.mt.sema.vistas.shared.application.exception.RecursoNaoEncontradoException;
+import br.gov.mt.sema.vistas.shared.application.exception.TicketInvalidoException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -81,6 +83,8 @@ class CasosDeUsoDossieTest {
     private ConsultarDossie consultar;
     private LimparDossies limpar;
     private ContinuarDossie continuar;
+    private Tickets tickets;
+    private EmitirTicketDeDownload emitirTicket;
     private Montador montador;
 
     @BeforeEach
@@ -89,6 +93,9 @@ class CasosDeUsoDossieTest {
         UsuarioAtual atual = new UsuarioAtual() {
             @Override
             public Usuario obter() {
+                if (usuario == null) {
+                    throw new br.gov.mt.sema.vistas.shared.application.exception.NaoAutenticadoException("sem sessão");
+                }
                 return usuario;
             }
 
@@ -106,10 +113,12 @@ class CasosDeUsoDossieTest {
         GeradorDeDossie gerador = new GeradorDeDossie(arquivos, new Validador(), montador, parametros, d -> Long.MAX_VALUE, relogio);
         localizar = new LocalizarPedido(repositorio, atual, parametros, relogio);
         criar = new CriarDossie(requerimentos, selecao, atual, repositorio, fila, gerador, parametros, relogio);
-        obterArquivo = new ObterArquivoDoDossie(localizar, parametros);
+        tickets = new Tickets();
+        obterArquivo = new ObterArquivoDoDossie(localizar, parametros, tickets, atual, relogio);
+        emitirTicket = new EmitirTicketDeDownload(obterArquivo, tickets, atual, relogio);
         cancelar = new CancelarDossie(localizar, parametros);
         continuar = new ContinuarDossie(localizar, fila, gerador, parametros, relogio);
-        consultar = new ConsultarDossie(localizar);
+        consultar = new ConsultarDossie(localizar, parametros);
         limpar = new LimparDossies(repositorio, parametros, relogio);
 
         Requerimento requerimento = new Requerimento(101, "3331/2025", "2825/2025", "Requerimento de Outorga",
@@ -313,6 +322,130 @@ class CasosDeUsoDossieTest {
 
         assertThat(caminho).doesNotExist();
         assertThat(consultar.executar(pedido.id()).status()).isEqualTo(StatusDossie.EXPIRADO);
+    }
+
+    // --- ticket de download (S2.2, D49)
+
+    @Test
+    void ticketTem256BitsAleatoriosEOServidorGuardaSoOResumo() {
+        PedidoDeDossie pedido = criarPedido();
+
+        EmitirTicketDeDownload.TicketEmitido emitido = emitirTicket.executar(pedido.id());
+        EmitirTicketDeDownload.TicketEmitido outro = emitirTicket.executar(pedido.id());
+
+        assertThat(java.util.Base64.getUrlDecoder().decode(emitido.ticket())).hasSize(32);
+        assertThat(emitido.ticket()).isNotEqualTo(outro.ticket());
+        assertThat(emitido.expiraEm()).isEqualTo(LocalDateTime.now(relogio).plusSeconds(60));
+        assertThat(tickets.guardados).hasSize(2).doesNotContainKey(emitido.ticket())
+                .containsKey(br.gov.mt.sema.vistas.dossie.domain.TicketDeDownload.resumo(emitido.ticket()));
+        assertThat(tickets.guardados.values()).allSatisfy(t -> {
+            assertThat(t.idPedido()).isEqualTo(pedido.id());
+            assertThat(t.login()).isEqualTo("gestor.demo");
+        });
+        assertThat(emitido.toString()).doesNotContain(emitido.ticket());
+    }
+
+    @Test
+    void ticketValeUmaVezSoMesmoSemUsuarioNaRequisicao() {
+        PedidoDeDossie pedido = criarPedido();
+        String ticket = emitirTicket.executar(pedido.id()).ticket();
+        usuario = null;
+
+        assertThat(obterArquivo.executarPorTicket(pedido.id(), ticket).caminho()).exists();
+        assertThatThrownBy(() -> obterArquivo.executarPorTicket(pedido.id(), ticket))
+                .isInstanceOf(TicketInvalidoException.class);
+    }
+
+    @Test
+    void ticketVencidoEhInvalido() {
+        PedidoDeDossie pedido = criarPedido();
+        String ticket = emitirTicket.executar(pedido.id()).ticket();
+        relogio.avancarSegundos(59);
+        String outro = emitirTicket.executar(pedido.id()).ticket();
+        relogio.avancarSegundos(1);
+
+        assertThatThrownBy(() -> obterArquivo.executarPorTicket(pedido.id(), ticket))
+                .isInstanceOf(TicketInvalidoException.class);
+        assertThat(obterArquivo.executarPorTicket(pedido.id(), outro)).isNotNull();
+    }
+
+    @Test
+    void ticketDeOutroPedidoEhInvalidoEFicaConsumido() {
+        PedidoDeDossie primeiro = criarPedido();
+        PedidoDeDossie segundo = criarPedido();
+        String ticket = emitirTicket.executar(primeiro.id()).ticket();
+
+        assertThatThrownBy(() -> obterArquivo.executarPorTicket(segundo.id(), ticket))
+                .isInstanceOf(TicketInvalidoException.class);
+        assertThatThrownBy(() -> obterArquivo.executarPorTicket(primeiro.id(), ticket))
+                .isInstanceOf(TicketInvalidoException.class);
+    }
+
+    @Test
+    void ticketApresentadoPorOutroUsuarioAutenticadoEhInvalido() {
+        PedidoDeDossie pedido = criarPedido();
+        String ticket = emitirTicket.executar(pedido.id()).ticket();
+        usuario = new Usuario("admin.demo", "Admin", Perfil.ADMIN, null, true);
+
+        assertThatThrownBy(() -> obterArquivo.executarPorTicket(pedido.id(), ticket))
+                .isInstanceOf(TicketInvalidoException.class);
+    }
+
+    @Test
+    void ticketInexistenteOuVazioEhInvalido() {
+        PedidoDeDossie pedido = criarPedido();
+
+        for (String ticket : new String[] {"nao-existe", "", null}) {
+            assertThatThrownBy(() -> obterArquivo.executarPorTicket(pedido.id(), ticket))
+                    .isInstanceOf(TicketInvalidoException.class);
+        }
+    }
+
+    @Test
+    void ticketSoSaiComArquivoEParaQuemAcessaOPedido() {
+        fila.adiar = true;
+        String emAndamento = criar.executar(101, refs());
+        assertThatThrownBy(() -> emitirTicket.executar(emAndamento)).isInstanceOf(DossieSemArquivoException.class);
+
+        fila.adiar = false;
+        PedidoDeDossie doGestor = criarPedido();
+        usuario = new Usuario("outro.operador", "Outro", Perfil.OPERADOR, "98.765.432/0001-10", true);
+        assertThatThrownBy(() -> emitirTicket.executar(doGestor.id())).isInstanceOf(RecursoNaoEncontradoException.class);
+        assertThat(tickets.guardados).isEmpty();
+    }
+
+    @Test
+    void downloadPorTicketConcluidoApagaODiretorioEDepoisEh410() {
+        PedidoDeDossie pedido = criarPedido();
+        String ticket = emitirTicket.executar(pedido.id()).ticket();
+        usuario = null;
+
+        ObterArquivoDoDossie.ArquivoDoDossie arquivo = obterArquivo.executarPorTicket(pedido.id(), ticket);
+        obterArquivo.concluirDownload(arquivo);
+
+        assertThat(pasta.resolve(pedido.id())).doesNotExist();
+        usuario = new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true);
+        assertThatThrownBy(() -> emitirTicket.executar(pedido.id())).isInstanceOf(DossieExpiradoException.class);
+    }
+
+    @Test
+    void andamentoIndicaEntregaPorTicketAcimaDoLimite() {
+        PedidoDeDossie pedido = criarPedido();
+        assertThat(consultar.executar(pedido.id()).entregaPorTicket()).isFalse();
+        assertThat(consultar.executar(pedido.id()).tamanhoBytes()).isEqualTo(pedido.tamanhoBytes());
+
+        parametros.blobMaxMb = 0;
+
+        assertThat(consultar.executar(pedido.id()).entregaPorTicket()).isTrue();
+    }
+
+    @Test
+    void andamentoSemArquivoNaoTemTamanhoNemTicket() {
+        fila.adiar = true;
+        String id = criar.executar(101, refs());
+
+        assertThat(consultar.executar(id).tamanhoBytes()).isNull();
+        assertThat(consultar.executar(id).entregaPorTicket()).isFalse();
     }
 
     // --- cancelamento

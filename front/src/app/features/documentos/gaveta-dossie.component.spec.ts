@@ -64,6 +64,8 @@ describe('GavetaDossieComponent', () => {
     arquivo: ReturnType<typeof vi.fn>;
     cancelar: ReturnType<typeof vi.fn>;
     continuar: ReturnType<typeof vi.fn>;
+    ticket: ReturnType<typeof vi.fn>;
+    urlDeDownloadDireto: ReturnType<typeof vi.fn>;
   };
   let fixture: ComponentFixture<GavetaDossieComponent>;
   let raiz: HTMLElement;
@@ -105,6 +107,10 @@ describe('GavetaDossieComponent', () => {
       arquivo: vi.fn(),
       cancelar: vi.fn(() => of(undefined)),
       continuar: vi.fn(() => of(undefined)),
+      ticket: vi.fn(),
+      urlDeDownloadDireto: vi.fn(
+        (id: string, ticket: string) => `/api/dossies/${id}/arquivo?disposicao=attachment&ticket=${ticket}`,
+      ),
     };
     URL.createObjectURL = vi.fn(() => 'blob:http://localhost/previa-1');
     URL.revokeObjectURL = vi.fn();
@@ -353,6 +359,59 @@ describe('GavetaDossieComponent', () => {
       expect(texto()).toContain('O dossiê expirou. Gere-o novamente.');
       expect(texto()).toContain('Dossiê expirado');
       expect(botao('Gerar novamente')).toBeTruthy();
+    });
+  });
+
+  describe('dossiê grande (acima de DOSSIE_BLOB_MAX_MB, D49)', () => {
+    const GRANDE = { ...CONCLUIDO, tamanhoBytes: 400 * 1024 * 1024, entregaPorTicket: true };
+
+    beforeEach(() => {
+      api.andamento.mockReturnValue(of(GRANDE));
+      api.ticket.mockReturnValue(of({ ticket: 'TICKET-DE-TESTE', expiraEm: '2026-10-21T11:01:00' }));
+    });
+
+    it('sem pré-visualização e com aviso do tamanho', () => {
+      abrir();
+
+      expect(botao('Pré-visualizar')).toBeUndefined();
+      expect(botao('Baixar PDF')).toBeTruthy();
+      expect(texto()).toContain('Dossiê grande (400 MB): a pré-visualização fica desligada');
+    });
+
+    it('"Baixar PDF" pede um ticket e entrega a URL ao navegador, sem Blob', () => {
+      const urls: string[] = [];
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+        urls.push(this.getAttribute('href')!);
+      });
+      abrir();
+
+      botao('Baixar PDF')!.click();
+      fixture.detectChanges();
+
+      expect(api.ticket).toHaveBeenCalledWith('pedido-1');
+      expect(api.arquivo).not.toHaveBeenCalled();
+      expect(URL.createObjectURL).not.toHaveBeenCalled();
+      expect(urls).toEqual(['/api/dossies/pedido-1/arquivo?disposicao=attachment&ticket=TICKET-DE-TESTE']);
+      expect(texto()).toContain('Download entregue ao navegador');
+      expect(botao('Gerar novamente')).toBeTruthy();
+    });
+
+    it('ticket recusado (410) mostra que expirou', () => {
+      api.ticket.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 410, error: { errorCode: 'DOSSIE_EXPIRADO' } })));
+      abrir();
+
+      botao('Baixar PDF')!.click();
+      fixture.detectChanges();
+
+      expect(texto()).toContain('Dossiê expirado');
+    });
+
+    it('abaixo do limite continua por Blob, com pré-visualização', () => {
+      api.andamento.mockReturnValue(of({ ...CONCLUIDO, tamanhoBytes: 1024, entregaPorTicket: false }));
+      abrir();
+
+      expect(botao('Pré-visualizar')).toBeTruthy();
+      expect(texto()).not.toContain('Dossiê grande');
     });
   });
 

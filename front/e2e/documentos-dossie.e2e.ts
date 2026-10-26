@@ -318,3 +318,52 @@ test('pedido expirado à espera de decisão oferece gerar de novo', async ({ pag
   await expect(page.locator('.d-head h2')).toHaveText('Dossiê expirado');
   await expect(page.getByRole('button', { name: 'Gerar novamente' })).toBeVisible();
 });
+
+// --- dossiê grande (S2.2, D49): download direto por ticket, sem Blob nem pré-visualização
+
+test('dossiê grande: sem pré-visualização; o navegador baixa pela URL do ticket, sem o token de sessão', async ({ page }) => {
+  const pedidosDoArquivo: { url: string; autorizacao: string | undefined }[] = [];
+  await page.addInitScript(() => sessionStorage.setItem('vistas.token', 'token-de-teste'));
+  await page.route('**/api/**', async (route: Route) => {
+    const url = new URL(route.request().url());
+    const caminho = url.pathname;
+    const metodo = route.request().method();
+    if (caminho === '/api/auth/me') return route.fulfill({ json: GESTOR });
+    if (caminho === '/api/requerimentos/101') return route.fulfill({ json: REQUERIMENTO });
+    if (caminho === '/api/requerimentos/101/documentos') return route.fulfill({ json: DOCUMENTOS });
+    if (caminho === '/api/dossies' && metodo === 'POST') return route.fulfill({ status: 202, json: { id: 'pedido-1' } });
+    if (caminho === '/api/dossies/pedido-1/arquivo/ticket' && metodo === 'POST') {
+      return route.fulfill({ json: { ticket: 'TICKET-DE-TESTE', expiraEm: '2099-01-01T00:01:00' } });
+    }
+    if (caminho === '/api/dossies/pedido-1' && metodo === 'GET') {
+      return route.fulfill({
+        json: { ...andamento('CONCLUIDO', ['OK', 'OK', 'OK']), tamanhoBytes: 400 * 1024 * 1024, entregaPorTicket: true },
+      });
+    }
+    if (caminho === '/api/dossies/pedido-1/arquivo') {
+      pedidosDoArquivo.push({ url: url.search, autorizacao: route.request().headers()['authorization'] });
+      return route.fulfill({
+        status: 200,
+        body: PDF_MINIMO,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': "attachment; filename*=UTF-8''dossie-processo-2825-2025.pdf",
+        },
+      });
+    }
+    return route.fulfill({ status: 404, json: { status: 404, errorCode: 'NAO_ENCONTRADO' } });
+  });
+
+  await abrirGaveta(page);
+  await expect(page.locator('.d-head h2')).toHaveText('Dossiê pronto');
+  await expect(page.locator('.gaveta-grande')).toContainText('Dossiê grande (400 MB)');
+  await expect(page.getByRole('button', { name: 'Pré-visualizar' })).toHaveCount(0);
+
+  const baixando = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Baixar PDF' }).click();
+  const download = await baixando;
+
+  expect(download.suggestedFilename()).toBe('dossie-processo-2825-2025.pdf');
+  expect(pedidosDoArquivo).toEqual([{ url: '?disposicao=attachment&ticket=TICKET-DE-TESTE', autorizacao: undefined }]);
+  await expect(page.locator('.d-body')).toContainText('Download entregue ao navegador');
+});

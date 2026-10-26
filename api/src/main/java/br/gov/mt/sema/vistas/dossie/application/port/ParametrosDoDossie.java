@@ -22,6 +22,11 @@ public interface ParametrosDoDossie {
     /** Espaço livre mínimo no diretório do pedido antes de cada download, em MB. */
     long espacoMinimoMb();
 
+    /** Acima deste tamanho (MB) o front baixa por ticket, em streaming, sem Blob nem pré-visualização (D49). */
+    default long blobMaxMb() {
+        return 150;
+    }
+
     boolean sumario();
 
     boolean marcadores();

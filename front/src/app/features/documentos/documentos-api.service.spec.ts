@@ -51,6 +51,21 @@ describe('serviços de documentos e dossiê', () => {
     req.flush(null);
   });
 
+  it('pede o ticket do download direto por POST e monta a URL só com o ticket, nunca com o token de sessão', () => {
+    const api = TestBed.inject(DossiesApiService);
+    let recebido: { ticket: string } | undefined;
+    api.ticket('a/b').subscribe((t) => (recebido = t));
+
+    const req = http.expectOne('/api/dossies/a%2Fb/arquivo/ticket');
+    expect(req.request.method).toBe('POST');
+    req.flush({ ticket: 'TICKET-DE-TESTE', expiraEm: '2026-10-26T10:01:00' });
+    expect(recebido?.ticket).toBe('TICKET-DE-TESTE');
+
+    const url = api.urlDeDownloadDireto('a/b', 'T+1/=');
+    expect(url).toBe('/api/dossies/a%2Fb/arquivo?disposicao=attachment&ticket=T%2B1%2F%3D');
+    expect(url).not.toContain('TOKEN-DE-SESSAO');
+  });
+
   it('busca o PDF como Blob, com o token no cabeçalho e nunca na URL', () => {
     TestBed.inject(DossiesApiService).arquivo('abc', 'inline').subscribe();
 

@@ -38,6 +38,19 @@ public class LocalizarPedido {
         PedidoDeDossie pedido = pedidos.buscar(id == null ? "" : id)
                 .filter(p -> p.login().equals(usuario.login()) || !usuario.perfil().restritoAoInteressado())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Dossiê não encontrado."));
+        return expirarSeVenceu(pedido);
+    }
+
+    /**
+     * Sem usuário na requisição: só para quem já provou o acesso de outro jeito (ticket de download, D49), que foi
+     * emitido depois de {@link #executar}.
+     */
+    PedidoDeDossie semUsuario(String id) {
+        return expirarSeVenceu(pedidos.buscar(id == null ? "" : id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Dossiê não encontrado.")));
+    }
+
+    private PedidoDeDossie expirarSeVenceu(PedidoDeDossie pedido) {
         if (pedido.venceu(LocalDateTime.now(relogio))) {
             if (pedido.expirar()) {
                 ArquivosTemporarios.apagarPasta(ArquivosTemporarios.pastaDo(parametros, pedido));

@@ -172,6 +172,8 @@ Resposta de `GET /requerimentos/{id}/documentos`:
 | `POST` | `/dossies` | Cria um pedido de geração. Retorna `202` com `{ "id": "..." }` (UUID aleatório). |
 | `GET` | `/dossies/{id}` | Andamento do pedido. |
 | `GET` | `/dossies/{id}/arquivo?disposicao=inline|attachment` | PDF final (capa com "N documentos incluídos de M listados" e, logo após o sumário, a seção "Documentos não incluídos" com o motivo de cada um; S2.2, docs/06).\|attachment` | PDF final. `inline` para pré-visualização (o arquivo continua), `attachment` para download (**o arquivo é apagado ao fim do download**, RNF05). `Content-Disposition` com o nome do RF18: `dossie-processo-<numero>-<ano>.pdf` (protocolado) ou `dossie-requerimento-<numero>-<ano>.pdf`. |
+| `POST` | `/dossies/{id}/arquivo/ticket` | Dossiê grande (S2.2, D49): devolve `{ "ticket": "...", "expiraEm": "..." }`, com 256 bits aleatórios (base64url), de **uso único**, válido por **60 s** e preso ao pedido e ao usuário. Não é o token de sessão; o servidor guarda só o resumo SHA-256; nunca vai para log. Mesmas regras do arquivo: 404 sem acesso, 409 sem arquivo, 410 expirado. `Cache-Control: no-store`. |
+| `GET` | `/dossies/{id}/arquivo?disposicao=attachment&ticket=...` | Download direto pelo navegador, em streaming e **sem cabeçalho de sessão** (o filtro de autenticação deixa passar só esta rota com `ticket`). Ticket inexistente, já usado, vencido, de outro pedido ou apresentado com a sessão de outro usuário: `403 TICKET_INVALIDO` (o ticket é consumido na primeira tentativa). `inline` com ticket: 400. Ao fim do download completo, o arquivo e o diretório do pedido são apagados (como no `attachment` comum). Resposta com `Referrer-Policy: no-referrer`; o nginx não registra essa rota no log de acesso e não a bufferiza. |
 | `POST` | `/dossies/{id}/continuacao` | Decide um pedido em `PENDENTE_DECISAO` (S2.2): `{ "acao": "TENTAR_NOVAMENTE" }` refaz **só** os documentos com problema; `{ "acao": "REMOVER_E_CONTINUAR" }` os marca `REMOVIDO` e monta com os já obtidos. Nada já obtido é baixado de novo. `202`; `409 DOSSIE_SEM_DECISAO_PENDENTE` fora de `PENDENTE_DECISAO`; `400 PARAMETRO_INVALIDO` para ação desconhecida ou `REMOVER_E_CONTINUAR` sem nenhum documento obtido. Substitui os "novos `POST`" da S2. |
 | `DELETE` | `/dossies/{id}` | Cancela o pedido em qualquer situação não terminal e apaga o diretório do pedido (documentos já obtidos e PDF final); idempotente, 204. |
 
@@ -226,6 +228,7 @@ Resposta do `GET /dossies/{id}`:
 - `expiraEm` (S2.2): conta desde a **última atividade** (criação, cada documento processado, decisão, conclusão), inclusive enquanto o pedido espera a decisão.
 - `itens[].tentativas` (S2.2): pedidos feitos à API de arquivos para o item (0 = nenhum ainda; mais de 1 = houve nova tentativa automática, docs/05). Não traz chave nem URL.
 - `paginas`: total de páginas do PDF final (só em `CONCLUIDO`). `expiraEm`: horário de Cuiabá, sem fuso.
+- `tamanhoBytes` e `entregaPorTicket` (S2.2, só em `CONCLUIDO`): o tamanho do PDF final e se ele passa de `DOSSIE_BLOB_MAX_MB` (padrão 150). Abaixo do limite, o front baixa e pré-visualiza por `Blob`; acima, a pré-visualização some (com aviso) e o download usa o ticket (D49).
 - `GET /dossies/{id}/arquivo`: 409 `DOSSIE_SEM_ARQUIVO` se não há arquivo (em andamento, aguardando decisão, cancelado); 410 `DOSSIE_EXPIRADO` se expirou ou já foi baixado; 400 se `disposicao` for outra.
 
 Em `PENDENTE_DECISAO` por falha de documento, `falhas` traz cada documento e o motivo, e `GET /dossies/{id}/arquivo` retorna 409 (não há arquivo):
@@ -303,6 +306,7 @@ Todo erro segue `ProblemDetail` com `errorCode` estável e `correlationId` (head
 | 409 | `DOSSIE_SEM_ARQUIVO` | Arquivo inexistente: o pedido aguarda decisão, foi cancelado ou ainda está em andamento |
 | 409 | `DOSSIE_SEM_DECISAO_PENDENTE` | Continuação pedida para um dossiê que não está em `PENDENTE_DECISAO` (S2.2) |
 | 410 | `DOSSIE_EXPIRADO` | Dossiê expirado ou já baixado (o arquivo foi apagado) |
+| 403 | `TICKET_INVALIDO` | Ticket de download inexistente, já usado, vencido, de outro pedido ou de outro usuário (D49) |
 | 502 | `CREDENCIAL_ARQUIVOS_RECUSADA` | API de arquivos recusou a credencial (na geração assíncrona vira `erro.codigo` do pedido) |
 | 503 | `SIGA_INDISPONIVEL` | Banco do SIGA indisponível |
 | 500 | `ERRO_INTERNO` | Demais erros |

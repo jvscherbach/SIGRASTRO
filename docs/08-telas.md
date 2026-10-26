@@ -120,6 +120,7 @@ Comportamento:
 - Ao concluir:
   - **Pré-visualizar**: o PDF é buscado pelo `HttpClient` (o token vai no cabeçalho, **nunca na URL**), vira `Blob` e abre numa moldura sobre a gaveta por URL de objeto, revogada ao fechar;
   - **Baixar PDF**: também por `Blob`, com o nome do `Content-Disposition` (`dossie-processo-N-AAAA.pdf` ou `dossie-requerimento-N-AAAA.pdf`, RF18); o servidor apaga o arquivo ao fim do download, então a gaveta passa a "Arquivo baixado" e oferece **Gerar novamente**;
+  - **dossiê grande** (acima de `DOSSIE_BLOB_MAX_MB`, S2.2, D49): sem **Pré-visualizar**, com o aviso "Dossiê grande (N MB): a pré-visualização fica desligada e o download vai direto pelo navegador"; **Baixar PDF** pede um ticket de uso único e o navegador baixa em streaming; a gaveta passa a "Download entregue ao navegador";
   - indicação do horário de expiração e do **tempo restante** (calculado pelo relógio de Cuiabá, qualquer que seja o fuso do navegador); ao zerar, a gaveta mostra "Dossiê expirado".
 - Pedido **aguardando decisão** (S2.2, `PENDENTE_DECISAO`): a gaveta lista **cada documento com problema e o motivo**, informa quantos já foram obtidos e que não serão baixados de novo, e que nada é entregue sem a decisão. Botões (N = itens não resolvidos: em falha e, com a credencial recusada, também os ainda não tentados):
   - **Tentar novamente os N com problema** (`POST /dossies/{id}/continuacao` com `TENTAR_NOVAMENTE`; não cria outro pedido);

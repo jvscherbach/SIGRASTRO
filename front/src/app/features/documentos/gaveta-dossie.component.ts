@@ -15,7 +15,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
 
 import { mensagemDoErro } from '../../core/mensagens-erro';
-import { baixarBlob, nomeDoContentDisposition } from '../../shared/arquivo-local';
+import { baixarBlob, baixarDireto, nomeDoContentDisposition } from '../../shared/arquivo-local';
 import { agoraEmCuiaba, formatarDataHora, minutosAte } from '../../shared/formato';
 import { IconeComponent } from '../../shared/icone.component';
 import { DossiesApiService } from './documentos-api.service';
@@ -68,6 +68,8 @@ export class GavetaDossieComponent implements OnInit {
   protected readonly mensagemDeToken = MENSAGEM_DE_TOKEN;
   protected readonly ocupado = signal(false);
   protected readonly baixado = signal(false);
+  /** O download foi entregue ao navegador (dossiê grande): o término não é visto daqui. */
+  protected readonly baixadoDireto = signal(false);
   protected readonly vencido = signal(false);
   protected readonly previa = signal<{ url: string; seguro: SafeResourceUrl } | null>(null);
   protected readonly agora = signal(agoraEmCuiaba());
@@ -109,6 +111,9 @@ export class GavetaDossieComponent implements OnInit {
   protected readonly podeRemover = computed(() => this.comProblema() > 0 && this.obtidos() > 0);
   protected readonly rotuloTentar = computed(() => rotuloDaDecisao('Tentar novamente', this.comProblema(), ''));
   protected readonly rotuloRemover = computed(() => rotuloDaDecisao('Remover', this.comProblema(), ' e gerar'));
+  /** Acima de DOSSIE_BLOB_MAX_MB: sem pré-visualização, download direto por ticket (D49). */
+  protected readonly entregaPorTicket = computed(() => !!this.andamento()?.entregaPorTicket);
+  protected readonly tamanhoEmMb = computed(() => Math.round((this.andamento()?.tamanhoBytes ?? 0) / (1024 * 1024)));
   protected readonly expiraAs = computed(() => formatarDataHora(this.andamento()?.expiraEm));
   protected readonly minutosRestantes = computed(() => {
     this.agora();
@@ -134,6 +139,7 @@ export class GavetaDossieComponent implements OnInit {
     this.andamento.set(null);
     this.mensagemDeErro.set('');
     this.baixado.set(false);
+    this.baixadoDireto.set(false);
     this.vencido.set(false);
     this.descartarPrevia();
     this.pedidoCriado.set(false);
@@ -318,6 +324,10 @@ export class GavetaDossieComponent implements OnInit {
     if (!this.pedido) {
       return;
     }
+    if (this.entregaPorTicket()) {
+      this.baixarDireto(this.pedido);
+      return;
+    }
     this.ocupado.set(true);
     this.acao = this.api.arquivo(this.pedido, 'attachment').subscribe({
       next: (resposta) => {
@@ -327,6 +337,24 @@ export class GavetaDossieComponent implements OnInit {
         // O servidor apaga o arquivo ao fim do download (RNF05): nova pré-visualização ou novo download exigem gerar de novo.
         this.baixado.set(true);
         this.descartarPrevia();
+      },
+      error: (erro: unknown) => this.falhaDeArquivo(erro),
+    });
+  }
+
+  /**
+   * Dossiê grande (D49): pede um ticket de uso único e deixa o navegador baixar em streaming, sem Blob. O servidor
+   * apaga o arquivo quando o download termina por inteiro.
+   */
+  private baixarDireto(pedido: string): void {
+    this.ocupado.set(true);
+    this.acao?.unsubscribe();
+    this.acao = this.api.ticket(pedido).subscribe({
+      next: ({ ticket }) => {
+        this.ocupado.set(false);
+        baixarDireto(this.api.urlDeDownloadDireto(pedido, ticket));
+        this.baixadoDireto.set(true);
+        this.baixado.set(true);
       },
       error: (erro: unknown) => this.falhaDeArquivo(erro),
     });

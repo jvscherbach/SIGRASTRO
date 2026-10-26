@@ -20,6 +20,7 @@
 | 409 | `DOSSIE_SEM_ARQUIVO` | Download de dossiê sem arquivo (aguarda decisão, cancelado ou em andamento; RN09) |
 | 409 | `DOSSIE_SEM_DECISAO_PENDENTE` | Continuação de dossiê que não está em `PENDENTE_DECISAO` (S2.2) |
 | 410 | `DOSSIE_EXPIRADO` | Dossiê expirado |
+| 403 | `TICKET_INVALIDO` | Ticket de download direto inválido, usado, vencido, de outro pedido ou usuário (S2.2) |
 | 502 | `CREDENCIAL_ARQUIVOS_RECUSADA` | API de arquivos recusou a credencial (token expirado) |
 | 503 | `SIGA_INDISPONIVEL` | Banco do SIGA indisponível |
 | 500 | `ERRO_INTERNO` | Demais erros |

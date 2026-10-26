@@ -25,10 +25,12 @@ import br.gov.mt.sema.vistas.dossie.application.port.FilaDeGeracao;
 import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.RepositorioDePedidos;
+import br.gov.mt.sema.vistas.dossie.application.port.TicketsDeDownload;
 import br.gov.mt.sema.vistas.dossie.application.port.ValidadorDePdf;
 import br.gov.mt.sema.vistas.dossie.domain.DadosDaCapa;
 import br.gov.mt.sema.vistas.dossie.domain.ItemDoPedido;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
+import br.gov.mt.sema.vistas.dossie.domain.TicketDeDownload;
 
 /** Portas falsas dos testes do dossiê. Os "PDFs" são texto: o que importa aqui é o fluxo, não o PDF. */
 final class Fakes {
@@ -42,6 +44,10 @@ final class Fakes {
 
         void avancarMinutos(long minutos) {
             agora = agora.plusSeconds(minutos * 60);
+        }
+
+        void avancarSegundos(long segundos) {
+            agora = agora.plusSeconds(segundos);
         }
 
         @Override
@@ -67,6 +73,7 @@ final class Fakes {
         boolean marcadores = true;
         boolean numeracao = true;
         long espacoMinimoMb = 2048;
+        long blobMaxMb = 150;
         final Path diretorio;
 
         Parametros(Path diretorio) {
@@ -96,6 +103,11 @@ final class Fakes {
         @Override
         public int downloadTimeoutSegundos() {
             return 60;
+        }
+
+        @Override
+        public long blobMaxMb() {
+            return blobMaxMb;
         }
 
         @Override
@@ -171,6 +183,28 @@ final class Fakes {
             return destino -> {
                 throw new FalhaNoDocumentoException(motivo);
             };
+        }
+    }
+
+    /** Tickets de download em memória, como o adapter (uso único por {@code remove}). */
+    static final class Tickets implements TicketsDeDownload {
+        final Map<String, TicketDeDownload> guardados = new ConcurrentHashMap<>();
+
+        @Override
+        public void guardar(String resumo, TicketDeDownload ticket) {
+            guardados.put(resumo, ticket);
+        }
+
+        @Override
+        public Optional<TicketDeDownload> consumir(String resumo) {
+            return Optional.ofNullable(resumo == null ? null : guardados.remove(resumo));
+        }
+
+        @Override
+        public int descartarVencidos(LocalDateTime agora) {
+            int antes = guardados.size();
+            guardados.values().removeIf(t -> t.venceu(agora));
+            return antes - guardados.size();
         }
     }
 

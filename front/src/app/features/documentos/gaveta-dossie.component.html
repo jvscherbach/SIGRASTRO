@@ -71,12 +71,23 @@
         </div>
 
         @if (status() === 'CONCLUIDO' && !vencido()) {
-          @if (baixado()) {
+          @if (baixadoDireto()) {
+            <div class="note lime gaveta-nota" style="margin-top: 12px">
+              <app-icone nome="download" />
+              <span>Download entregue ao navegador. Quando ele terminar, o arquivo é descartado do servidor: para baixar outra vez, gere o dossiê de novo.</span>
+            </div>
+          } @else if (baixado()) {
             <div class="note lime gaveta-nota" style="margin-top: 12px">
               <app-icone nome="download" />
               <span>Arquivo baixado. Ele foi descartado do servidor: gere o dossiê de novo para baixar outra vez.</span>
             </div>
           } @else {
+            @if (entregaPorTicket()) {
+              <div class="note amber gaveta-nota gaveta-grande" style="margin-top: 12px">
+                <app-icone nome="info" />
+                <span>Dossiê grande ({{ tamanhoEmMb() }} MB): a pré-visualização fica desligada e o download vai direto pelo navegador.</span>
+              </div>
+            }
             <div class="note lime gaveta-nota" style="margin-top: 12px">
               <app-icone nome="clock" />
               <span>
@@ -138,7 +149,9 @@
       } @else if (status() === 'CONCLUIDO' && !vencido() && !baixado()) {
         <button type="button" class="btn quiet" (click)="fechar.emit()">Fechar</button>
         <div class="row">
-          <button type="button" class="btn" [disabled]="ocupado()" (click)="previsualizar()"><app-icone nome="eye" />Pré-visualizar</button>
+          @if (!entregaPorTicket()) {
+            <button type="button" class="btn" [disabled]="ocupado()" (click)="previsualizar()"><app-icone nome="eye" />Pré-visualizar</button>
+          }
           <button type="button" class="btn primary" [disabled]="ocupado()" (click)="baixar()"><app-icone nome="download" />Baixar PDF</button>
         </div>
       } @else if (emAndamento()) {

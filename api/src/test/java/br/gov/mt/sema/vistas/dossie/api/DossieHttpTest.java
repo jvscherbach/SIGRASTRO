@@ -426,6 +426,106 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
         }
     }
 
+    // --- ticket de download (S2.2, D49)
+
+    private String emitirTicket(String usuario, String id) throws Exception {
+        String resposta = mvc.perform(post("/api/dossies/" + id + "/arquivo/ticket").header("Authorization", bearer(usuario)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.ticket").isString())
+                .andExpect(jsonPath("$.expiraEm").isString())
+                .andReturn().getResponse().getContentAsString();
+        return json.readTree(resposta).get("ticket").asText();
+    }
+
+    @Test
+    void ticketBaixaSemCabecalhoDeSessaoUmaVezSoEDepoisOArquivoSome() throws Exception {
+        String id = criarComSucesso("gestor.demo");
+        String ticket = emitirTicket("gestor.demo", id);
+
+        MvcResult resultado = mvc.perform(get("/api/dossies/" + id + "/arquivo")
+                        .param("disposicao", "attachment").param("ticket", ticket))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                .andExpect(header().string("Content-Disposition", startsWith("attachment")))
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("Referrer-Policy", "no-referrer"))
+                .andReturn();
+        byte[] pdf = resultado.getResponse().getContentAsByteArray();
+        assertThat(new String(pdf, 0, 5, StandardCharsets.ISO_8859_1)).isEqualTo("%PDF-");
+        assertThat(resultado.getResponse().getContentLength()).isEqualTo(pdf.length);
+
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").param("disposicao", "attachment").param("ticket", ticket))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("TICKET_INVALIDO"));
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
+                .andExpect(status().isGone());
+    }
+
+    @Test
+    void ticketDeOutroPedidoOuInventadoEh403ESemTicketContinuaExigindoSessao() throws Exception {
+        String primeiro = criarComSucesso("gestor.demo");
+        String segundo = criarComSucesso("gestor.demo");
+        String ticket = emitirTicket("gestor.demo", primeiro);
+
+        mvc.perform(get("/api/dossies/" + segundo + "/arquivo").param("disposicao", "attachment").param("ticket", ticket))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.errorCode").value("TICKET_INVALIDO"));
+        mvc.perform(get("/api/dossies/" + primeiro + "/arquivo").param("disposicao", "attachment").param("ticket", "inventado"))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/dossies/" + primeiro + "/arquivo").param("disposicao", "attachment"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void ticketApresentadoComASessaoDeOutroUsuarioEh403() throws Exception {
+        String id = criarComSucesso("gestor.demo");
+        String ticket = emitirTicket("gestor.demo", id);
+
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("admin.demo"))
+                        .param("disposicao", "attachment").param("ticket", ticket))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.errorCode").value("TICKET_INVALIDO"));
+    }
+
+    @Test
+    void ticketSoServeParaAttachment() throws Exception {
+        String id = criarComSucesso("gestor.demo");
+        String ticket = emitirTicket("gestor.demo", id);
+
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").param("disposicao", "inline").param("ticket", ticket))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void operadorNaoEmiteTicketDePedidoAlheio() throws Exception {
+        String id = criarComSucesso("gestor.demo");
+
+        mvc.perform(post("/api/dossies/" + id + "/arquivo/ticket").header("Authorization", bearer("operador.demo")))
+                .andExpect(status().isNotFound());
+        mvc.perform(post("/api/dossies/" + id + "/arquivo/ticket"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void oTicketSoApareceNaRespostaDoProprioPost() throws Exception {
+        String id = criarComSucesso("gestor.demo");
+        String ticket = emitirTicket("gestor.demo", id);
+
+        String andamento = mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+                .andExpect(jsonPath("$.entregaPorTicket").value(false))
+                .andExpect(jsonPath("$.tamanhoBytes").isNumber())
+                .andReturn().getResponse().getContentAsString();
+        MvcResult arquivo = mvc.perform(get("/api/dossies/" + id + "/arquivo").param("disposicao", "attachment")
+                .param("ticket", ticket)).andReturn();
+        String repetido = mvc.perform(get("/api/dossies/" + id + "/arquivo").param("disposicao", "attachment")
+                .param("ticket", ticket)).andReturn().getResponse().getContentAsString();
+
+        assertThat(andamento).doesNotContain(ticket);
+        assertThat(repetido).doesNotContain(ticket);
+        assertThat(new String(arquivo.getResponse().getContentAsByteArray(), StandardCharsets.ISO_8859_1)).doesNotContain(ticket);
+        arquivo.getResponse().getHeaderNames().forEach(nome ->
+                assertThat(arquivo.getResponse().getHeader(nome)).doesNotContain(ticket));
+    }
+
     @Test
     void arquivoAttachmentBaixaUmaVezEDepoisEh410() throws Exception {
         String id = criarComSucesso("gestor.demo");
