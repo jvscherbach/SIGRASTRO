@@ -281,3 +281,10 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 **Decisão:** o front roda como o usuário `nginx` da própria imagem base. O `nginx.conf` passa a ouvir na **8080** (porta acima de 1024 dispensa privilégio), o Dockerfile dá ao usuário só o cache/temporários (`/var/cache/nginx`) e o PID, e o `HEALTHCHECK` usa a 8080. No Compose local o mapeamento passa de `8080:80` para `8080:8080` (o endereço no navegador não muda).
 **Motivo:** menor privilégio sem trocar a imagem base (a `nginx-unprivileged` seria outra fonte a acompanhar) e sem depender de o runtime liberar portas baixas para usuário comum.
 **Consequência:** o futuro manifesto de implantação (Kubernetes ou outro, P15) aponta para a porta 8080 do front. Conferido com a imagem construída: processos como `nginx` (uid 101), `healthy` e `GET /` 200.
+
+## D51 — Pipeline só valida e publica imagens; deploy depende do servidor da SEMA (CI)
+
+**Contexto:** o ambiente de execução (P15) ainda não existe.
+**Decisão:** o GitHub Actions valida (`api`, `front`, `e2e`, `docker`, `compose`), analisa (CodeQL, Dependabot) e publica imagens no GHCR só em tag `vX.Y.Z`, sem `latest`. Não há deploy nem credencial de sistema externo na pipeline.
+**Motivo:** não fixar uma forma de implantação antes de o servidor existir, e manter os segredos do SIGA fora de qualquer serviço de CI.
+**Consequência:** o deploy automatizado será um prompt futuro, depois da definição do ambiente (P26). A seção "Integração contínua" de [13](13-padroes-tecnicos.md) descreve os workflows.

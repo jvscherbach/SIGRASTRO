@@ -90,6 +90,43 @@ O dono é o módulo que define o **significado de negócio**. Ex.: "quais docume
 - **`@playwright/test`** (devDependency do `front`, versão fixa, D35): testes e2e com API simulada; fora das imagens de produção, `npm audit` em 0.
 - **`org.apache.pdfbox:pdfbox`** (produção, `api`), prevista desde a S0 como stack do PDF.
 
+## Integração contínua
+
+A pipeline roda no GitHub Actions (`.github/`). **Ela só valida e publica imagens: não há deploy** (D51). Nenhuma credencial do SIGA, da API de arquivos ou do SCORP entra nela, nem como secret; o único secret usado é o `GITHUB_TOKEN`, no login do GHCR. As variáveis que ativam os testes de fumaça (`SIGA_SMOKE`, `ARQUIVOS_SMOKE`) não são definidas, então esses testes ficam pulados.
+
+| Arquivo | Quando roda | O que faz |
+|---|---|---|
+| `workflows/ci.yml` | Pull request, push na `main` e chamado pelo `release.yml` | Cinco jobs: `api` (`./mvnw -B clean verify`, com Testcontainers no Docker do runner), `front` (build, testes e `npm audit`), `e2e` (Playwright com API simulada, depois do `front`), `docker` (constrói as duas imagens, sem push e sem login) e `compose` (`config --services`, sem subir nada). Os relatórios de teste só são guardados em caso de falha, por 7 dias |
+| `workflows/release.yml` | Tag `vX.Y.Z` ou execução manual sobre uma tag | Confere a ref, roda o `ci.yml` e publica `api` e `front` no GHCR (`ghcr.io/<dono>/<repositório>/api` e `/front`) com as tags `vX.Y.Z`, `X.Y` e `sha-<curto>`. **Nunca `latest`.** Build sem cache, com `provenance` e `sbom`. Não publica a cada merge |
+| `workflows/codeql.yml` | Pull request, push na `main` e toda segunda-feira | Análise estática (CodeQL) de `java-kotlin` e `javascript-typescript` |
+| `dependabot.yml` | Semanal | Atualizações de `maven`, `npm`, `github-actions` e `docker`, agrupando minor e patch (máx. 5 PRs por ecossistema) |
+
+**Checks obrigatórios na `main`:** `api`, `front`, `e2e`, `docker` e `compose`. Os nomes dos jobs são estáveis de propósito. O `npm audit` bloqueante cobre só as dependências de produção; a auditoria completa (com as de desenvolvimento) é informativa (P25).
+
+**Segurança dos workflows:** permissões mínimas por workflow e por job (`packages: write` só no job de publicação); actions só de `actions/*`, `docker/*` e `github/*`, fixadas pelo hash do commit com a versão em comentário; `actions/checkout` sem credencial persistida; sem `pull_request_target`; nenhuma entrada controlável por terceiros dentro de `run:`. A `api` e o `front` rodam sem root nas imagens (D50).
+
+**O que não está na pipeline:** deploy (aguarda o ambiente de execução, P15 e P26), testes de fumaça contra o SIGA ou a API de arquivos reais (homologação do responsável, D27) e qualquer credencial.
+
+**Como publicar uma versão:** no GitHub, **Releases → Draft a new release → Choose a tag**, digite `vX.Y.Z` (por exemplo `v0.1.0`), escolha **Create new tag on publish**, com o alvo na `main`, e publique. A tag dispara o `release.yml`. Em **Actions → Release** acompanhe os jobs; em **Packages** (página do repositório) conferem-se as imagens e as tags. Pré-releases (`v0.1.0-rc.1`) são aceitas e não geram a tag `X.Y`.
+
+### Configuração no GitHub (passo a passo, feita pelo responsável)
+
+Faça depois do primeiro push, quando os workflows já tiverem rodado ao menos uma vez (os checks só aparecem na lista depois disso).
+
+1. **Actions permitidas e permissões do token.** Settings → Actions → General.
+   - Em *Actions permissions*, escolha **Allow select actions and reusable workflows**, marque *Allow actions created by GitHub* e acrescente `docker/*` na lista de permitidas.
+   - Em *Workflow permissions*, escolha **Read repository contents and packages permissions** (somente leitura por padrão). Cada job que precisa de mais declara no próprio arquivo.
+2. **Proteção da `main`.** Settings → Branches → Add branch ruleset (ou *Add rule*) para `main`:
+   - exigir *pull request* antes de integrar, com ao menos 1 aprovação;
+   - exigir *status checks* e marcar `api`, `front`, `e2e`, `docker` e `compose`;
+   - exigir que a branch esteja atualizada antes de integrar e bloquear *force push*.
+3. **Segurança do código.** Settings → Code security:
+   - ligar **Dependabot alerts** e **Dependabot security updates**;
+   - ligar **Secret scanning** e **Push protection**, se disponíveis no plano;
+   - o **CodeQL** já roda pelo workflow; se o repositório for privado, a gravação dos resultados exige o GitHub Code Security.
+4. **Visibilidade do pacote no GHCR.** O pacote nasce **privado** na primeira publicação. Em Packages (perfil ou organização) abra `siga-vistas/api` e `siga-vistas/front` → Package settings: confira *Manage Actions access* (o repositório com permissão de escrita) e só mude a visibilidade para pública se o responsável decidir (R27).
+5. **Criar uma versão e conferir as imagens.** Veja "Como publicar uma versão" acima. Depois: Actions → Release deve ficar verde (`validar-ref`, `ci`, `publicar (api)` e `publicar (front)`); o resumo de cada job lista as tags e o digest; em Packages devem aparecer `vX.Y.Z`, `X.Y` e `sha-<curto>`, e **nenhuma** `latest`.
+
 ## Verificação sem sistemas externos
 
 Toda subida de verificação usa `compose.yaml` + `compose.local.yaml` + **`compose.verificacao.yaml`**, que esvazia as variáveis externas, e confirma as variáveis vazias dentro do container (D34; [`padroes/ambientes-e-docker.md`](padroes/ambientes-e-docker.md)).
