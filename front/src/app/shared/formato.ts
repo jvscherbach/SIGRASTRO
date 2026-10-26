@@ -60,3 +60,21 @@ export function tomDaSituacao(codigo: string): 'lime' | 'gray' | 'amber' | 'red'
   if (codigo.startsWith('AGUARDANDO') || codigo === 'ENCAMINHADO_PARA_ARRECADACAO') return 'amber';
   return 'gray';
 }
+
+/**
+ * Relógio de parede de Cuiabá como Date "local". A API manda datas sem fuso (horário de Cuiabá), e o navegador as
+ * lê como relógio local; para calcular "quanto falta" as duas pontas precisam estar no mesmo relógio, qualquer que
+ * seja o fuso do navegador.
+ */
+export function agoraEmCuiaba(): Date {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Cuiaba' }));
+}
+
+/** Minutos até a data da API (relógio de Cuiabá); nunca negativo. */
+export function minutosAte(iso: string | null | undefined): number | null {
+  const alvo = iso ? new Date(iso) : null;
+  if (!alvo || Number.isNaN(alvo.getTime())) {
+    return null;
+  }
+  return Math.max(0, Math.ceil((alvo.getTime() - agoraEmCuiaba().getTime()) / 60000));
+}

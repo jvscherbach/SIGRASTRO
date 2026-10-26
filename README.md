@@ -2,7 +2,7 @@
 
 O **SIGA Vistas** (nome provisório) é um serviço externo ao SIGA Licenciamento. Ele consulta requerimentos e processos, lista os documentos de cada um e gera um **dossiê em PDF**, com os documentos escolhidos em ordem cronológica.
 
-Hoje o projeto é um **protótipo de validação**: o objetivo é provar que os problemas da "Vista do Processo" atual têm solução (processos que não geram a vista e planilhas que ficam fora do PDF). Estão prontas a **Sprint 0 (Fundação)** e a **Sprint 1 (Consulta)**: o login simulado funciona e é possível buscar um requerimento ou processo e ver os dados e a tarefa atual (a leitura real do SIGA depende da conexão descrita na seção "Conectar ao banco do SIGA"). Dossiês, auditoria e configurações ainda mostram a página "em construção". Toda a documentação está em [docs/README.md](docs/README.md).
+Hoje o projeto é um **protótipo de validação**: o objetivo é provar que os problemas da "Vista do Processo" atual têm solução (processos que não geram a vista e planilhas que ficam fora do PDF). Estão prontas a **Sprint 0 (Fundação)**, a **Sprint 1 (Consulta)** e a **Sprint 2 (Documentos e dossiê em PDF)**: o login simulado funciona, é possível buscar um requerimento ou processo, ver os dados e a tarefa atual, **listar todos os documentos e gerar o dossiê em PDF dos documentos em PDF selecionados** (a leitura real do SIGA e dos arquivos depende da configuração descrita em "Conectar ao banco do SIGA" e "Gerar um dossiê"). Conversão de planilhas, textos e imagens (S3), a tela "Dossiês gerados" (S4), auditoria e configurações (S5) ainda mostram a página "em construção" ou estão por vir. Toda a documentação está em [docs/README.md](docs/README.md).
 
 ## Estrutura do repositório
 
@@ -14,8 +14,10 @@ Hoje o projeto é um **protótipo de validação**: o objetivo é provar que os 
 | `.claude/` | Skill com os padrões técnicos usados no desenvolvimento assistido. |
 | `compose.yaml` | Configuração comum dos serviços `api` e `front` no Docker. |
 | `compose.local.yaml` | Configuração do seu computador: portas e volume dos dossiês. |
+| `compose.verificacao.yaml` | Esvazia, na `api`, tudo que leva a sistemas externos (SIGA, API de arquivos, SCORP). **Obrigatório em toda verificação feita pelo desenvolvimento** (veja "Verificação sem sistemas externos"). |
 | `.env.local.example` | Modelo do arquivo de variáveis `.env.local` (que não vai para o Git). |
-| `docs/homologacao/` | Roteiros para conferir a conexão e os dados reais do SIGA (feitos pelo responsável). |
+| `docs/homologacao/` | Roteiros para conferir a conexão e os dados reais do SIGA e dos arquivos (feitos pelo responsável). |
+| `docs/casos-de-teste.md` | Processos de teste (que falham hoje e com planilhas) e o resultado de cada dossiê. Preenchido pelo responsável. |
 
 ## Pré-requisitos
 
@@ -39,6 +41,24 @@ node -v
 ```
 
 Se algum comando responder "não é reconhecido" ou "command not found", aquele programa não está instalado.
+
+## Verificação sem sistemas externos (leia antes de subir pelo desenvolvimento)
+
+O `.env.local` do responsável pode ter acesso ao banco do SIGA, à API de arquivos e ao SCORP **reais**. Qualquer subida feita só para **verificar o código** (por uma pessoa ou por uma ferramenta de desenvolvimento assistido) usa **três** arquivos, o último esvazia no container tudo que leva a esses sistemas:
+
+```bash
+docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml -f compose.verificacao.yaml up -d --build
+```
+
+Antes de qualquer chamada, confirme **dentro do container** (sem imprimir valores) que cada variável está vazia; a saída tem de ser `vazia` em todas:
+
+```bash
+for v in SIGA_DB_URL SIGA_DB_USER SIGA_DB_PASSWORD LICENCIAMENTO_API_URL LICENCIAMENTO_API_TOKEN LICENCIAMENTO_API_COOKIE_NAME SCORP_API_URL; do
+  docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml -f compose.verificacao.yaml exec -T api sh -c "[ -z \"\$$v\" ] && echo $v: vazia || echo $v: PREENCHIDA"
+done
+```
+
+Se alguma vier `PREENCHIDA`: pare, derrube os containers (**sem `-v`**) e não faça nenhuma chamada. Nunca abra nem imprima o `.env.local`. **Os usos reais** (o seu, com o SIGA e o token) seguem o Tutorial 1, sem o terceiro arquivo.
 
 ## Tutorial 1 — Subir tudo com Docker (recomendado)
 
@@ -157,6 +177,37 @@ Se a senha estiver errada, o endereço não responder ou a rede estiver fechada,
 
 Toda a conferência da conexão e dos dados reais (usuário de leitura, rede, tipos das colunas, comparação com 3 processos, teste de fumaça) está em [docs/homologacao/S1-roteiro-homologacao.md](docs/homologacao/S1-roteiro-homologacao.md). Ela é feita por quem tem acesso ao SIGA.
 
+## Gerar um dossiê (S2)
+
+Com o banco do SIGA configurado (seção anterior) **e** a API de arquivos configurada, abra um requerimento e use a seção **Documentos**.
+
+### Configurar a API de arquivos e o token
+
+1. No `.env.local`, preencha **só os valores** (cada linha começa na coluna 1, **sem espaço antes do nome**):
+
+```
+LICENCIAMENTO_API_URL=https://HOST_DA_API_DE_ARQUIVOS
+LICENCIAMENTO_API_TOKEN=O_TOKEN_CAPTURADO
+# Modo padrão: Authorization: Bearer. Se o SIGA usa cookie, troque:
+# LICENCIAMENTO_API_AUTH_MODE=cookie
+# LICENCIAMENTO_API_COOKIE_NAME=NOME_DO_COOKIE
+```
+
+2. Como capturar o token (procedimento completo no passo 4 de [docs/homologacao/S2-roteiro-homologacao.md](docs/homologacao/S2-roteiro-homologacao.md)): entre no SIGA Licenciamento, abra a Vista de um processo, abra o DevTools do navegador (aba **Network**), visualize um documento e copie o valor do cabeçalho `Authorization` (sem a palavra `Bearer`).
+3. **Os acessos ficam registrados no nome de quem capturou o token.** Use só na sua máquina e nunca versione nem envie o token.
+4. Suba de novo (passo 3 do Tutorial 1). O token **expira**; quando isso acontecer, a geração mostra "Token da API de arquivos expirado ou recusado. Capture um novo token": capture outro, troque no `.env.local` e suba de novo.
+
+Sem `LICENCIAMENTO_API_URL` a lista de documentos funciona normalmente e a geração falha com o motivo "API de arquivos não configurada".
+
+### Usar a lista de documentos e gerar
+
+1. Na **Consulta**, abra um requerimento ou processo. Abaixo do objeto aparece a seção **Documentos**, com todos os documentos de todas as origens, em ordem cronológica.
+2. Os **PDFs vigentes já vêm marcados**. Documentos que não são PDF (planilhas, textos, imagens) aparecem bloqueados, com "conversão disponível em breve" (entram na próxima etapa); indisponíveis ficam esmaecidos; os sigilosos aparecem mascarados para o Operador.
+3. Use a **busca**, o **filtro de origem** e a **ordenação** (clique em Documento, Origem ou Data). "Seleção padrão" volta à pré-seleção; "Limpar seleção" desmarca tudo; a caixa do cabeçalho marca os documentos listados.
+4. Clique em **Gerar dossiê**. A gaveta mostra o progresso e a situação de cada documento. Pode fechá-la: a geração continua no servidor.
+5. Ao concluir, **Pré-visualizar** abre o PDF sem baixar e **Baixar PDF** salva o arquivo (`dossie-processo-N-AAAA.pdf`). O arquivo é apagado do servidor depois do download ou em 30 minutos.
+6. Se algum documento falhar, **nenhum arquivo é gerado** (o dossiê é completo ou não existe): a gaveta diz qual documento e por quê, e oferece **Tentar novamente** ou **Remover documento e gerar**.
+
 ## Tutorial 2 — Rodar sem Docker (desenvolvimento)
 
 Use este caminho para desenvolver. **Pare o Tutorial 1 antes** (`down`), porque os dois usam a porta 8081.
@@ -229,7 +280,15 @@ Resultado esperado: tudo verde (`BUILD SUCCESS` no back-end e `passed` no front)
 
 Os testes de integração do banco usam um Oracle de teste dentro do Docker (Testcontainers). **Sem Docker, eles são pulados** e o `./mvnw clean verify` ainda passa; com Docker, o primeiro teste leva alguns minutos para baixar a imagem e iniciar o Oracle.
 
-Existe também um teste de fumaça contra o SIGA real, que **não roda sozinho**: ele só é usado pelo responsável na homologação (veja o roteiro).
+Existem também testes de fumaça contra o SIGA real e contra a API de arquivos real, que **não rodam sozinhos**: só o responsável os usa na homologação (veja os roteiros, em `docs/homologacao/`).
+
+Testes e2e do front (só desenvolvimento, **usam a API simulada**: nenhum sistema real é tocado). Medem a altura do quadro do topo em cada estado e o fluxo de documentos e dossiê num Chromium de verdade. Na primeira vez, instale o navegador:
+
+```bash
+cd front
+npx playwright install chromium
+npm run e2e
+```
 
 ## Problemas comuns
 
@@ -247,11 +306,18 @@ Existe também um teste de fumaça contra o SIGA real, que **não roda sozinho**
 | **SIGA indisponível só dentro do container, mas o host do banco responde no seu computador** | O container não resolve o nome curto do host do banco (ex.: `oracle-siga`). Em `SIGA_DB_URL` no `.env.local`, use o nome completo (FQDN, ex.: `oracle-siga.dominio.interno`) ou o IP, e suba de novo. |
 | **Os containers sobem, mas `localhost:8080` e `localhost:8081` não abrem** (`docker compose ps` não mostra portas) | Faltou o `-f compose.local.yaml`, que é quem publica as portas. Use sempre `docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml ...`. |
 | **No Tutorial 2, o front mostra erro ao entrar / "não foi possível conectar"** | A API não está no ar na porta 8081. Confira o terminal da API e o `curl` do passo 1. |
+| **Uma variável do `.env.local` "não vale" / o container parece ignorar o que você preencheu** | **Linhas do `.env.local` não podem começar com espaço** (nem ter espaço em volta do `=`). Uma linha com espaço no início não é lida como você espera. Confira abrindo o arquivo no seu editor, nunca imprimindo-o. |
+| **A geração do dossiê falha com "API de arquivos não configurada"** | `LICENCIAMENTO_API_URL` está ausente ou vazia no `.env.local` (ou você subiu com o `compose.verificacao.yaml`, que a esvazia de propósito). Veja "Gerar um dossiê". |
+| **"Token da API de arquivos expirado ou recusado"** | O token expirou ou foi capturado para outro ambiente. Capture outro (passo 4 do roteiro da S2), troque no `.env.local` e suba de novo. |
+| **O dossiê "expirou" ao tentar baixar** | O arquivo vale 30 minutos (`DOSSIE_TTL_MINUTOS`) e é apagado depois do download. Gere de novo. |
+| **`npm run e2e` diz que falta o navegador** | Rode `npx playwright install chromium` na pasta `front`. |
 | **Windows: `mvnw.cmd` diz que `JAVA_HOME` não está definido** | Instale o JDK 21 e defina a variável `JAVA_HOME` com a pasta dele; abra um terminal novo e confira com `java -version`. |
 
 ## Links
 
 - [Plano de sprints](docs/14-plano-de-sprints.md)
 - [Roteiro de homologação da S1](docs/homologacao/S1-roteiro-homologacao.md)
+- [Roteiro de homologação da S2](docs/homologacao/S2-roteiro-homologacao.md)
+- [Casos de teste](docs/casos-de-teste.md)
 - [Padrões técnicos](docs/13-padroes-tecnicos.md)
 - [Protótipo navegável](docs/prototipo/siga-vistas-prototipo.html) (abra no navegador; é a referência visual)

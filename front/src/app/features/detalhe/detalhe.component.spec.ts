@@ -2,10 +2,11 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { NEVER, of, throwError } from 'rxjs';
 
 import { AuthService } from '../../core/auth.service';
 import { TrilhaService } from '../../shared/trilha.service';
+import { DocumentosApiService } from '../documentos/documentos-api.service';
 import { DetalheApiService } from './detalhe-api.service';
 import { DetalheComponent } from './detalhe.component';
 import { Objeto, Prioridade, Requerimento, TarefaAtual } from './detalhe.models';
@@ -34,6 +35,7 @@ function requerimento(sobre: Partial<Requerimento> = {}): Requerimento {
 
 describe('DetalheComponent', () => {
   let api: { obter: ReturnType<typeof vi.fn> };
+  let documentosApi: { listar: ReturnType<typeof vi.fn> };
 
   function criar(id = '101'): { fixture: ComponentFixture<DetalheComponent>; raiz: HTMLElement } {
     TestBed.configureTestingModule({
@@ -41,6 +43,7 @@ describe('DetalheComponent', () => {
       providers: [
         provideRouter([]),
         { provide: DetalheApiService, useValue: api },
+        { provide: DocumentosApiService, useValue: documentosApi },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => id } } } },
         { provide: AuthService, useValue: { usuario: signal({ login: 'u.demo' }) } },
       ],
@@ -55,6 +58,7 @@ describe('DetalheComponent', () => {
   beforeEach(() => {
     localStorage.clear();
     api = { obter: vi.fn() };
+    documentosApi = { listar: vi.fn(() => NEVER) };
   });
 
   afterEach(() => localStorage.clear());
@@ -87,7 +91,9 @@ describe('DetalheComponent', () => {
       const { fixture } = criar();
 
       expect(TestBed.inject(TrilhaService).complemento()).toEqual(['Consulta', 'Processo 2825/2025']);
-      expect(JSON.parse(localStorage.getItem('vistas.recentes.u.demo')!)).toEqual([{ id: 101, rotulo: 'Processo 2825/2025' }]);
+      expect(JSON.parse(localStorage.getItem('vistas.recentes.u.demo')!)).toEqual([
+        { id: 101, rotulo: 'Processo 2825/2025', numeroRequerimento: '3331/2025', situacao: 'Em análise' },
+      ]);
       fixture.destroy();
       expect(TestBed.inject(TrilhaService).complemento()).toBeNull();
     });
@@ -121,32 +127,13 @@ describe('DetalheComponent', () => {
       expect(raiz.querySelector('.tag.blue')).toBeNull();
     });
 
-    const cartoes = (raiz: HTMLElement) =>
-      Array.from(raiz.querySelectorAll('.obj-card')).map((c) => ({
-        rotulo: c.querySelector('span:not(.tile-icon)')!.textContent,
-        linhas: Array.from(c.querySelectorAll('b')).map((b) => b.textContent),
-      }));
-
-    it('sem objeto: Objetivos, Finalidade | Atividade e Atividade com traço; sem o bloco Tipo | Objetivo', () => {
-      api.obter.mockReturnValue(of(requerimento()));
-
-      expect(cartoes(criar().raiz)).toEqual([
-        { rotulo: 'Objetivos', linhas: ['—'] },
-        { rotulo: 'Finalidade | Atividade', linhas: ['—'] },
-        { rotulo: 'Atividade', linhas: ['—'] },
-      ]);
-    });
-
-    it('outorga: objetivos, pares finalidade | atividade e o bloco Tipo | Objetivo com a descrição do tipo', () => {
+    it('mostra o objeto do requerimento em cartões (detalhes no spec do componente)', () => {
       api.obter.mockReturnValue(
         of(
           requerimento({
             objeto: {
               objetivos: ['Consumo humano', 'Irrigação'],
-              finalidadesAtividades: [
-                { finalidade: 'Abastecimento público', atividade: 'Captação para abastecimento' },
-                { finalidade: 'Agricultura', atividade: null },
-              ],
+              finalidadesAtividades: [{ finalidade: 'Abastecimento público', atividade: 'Captação' }],
               tiposObjetivo: [
                 { tipo: 'SUBTERRANEA', tipoDescricao: 'Subterrânea', objetivo: 'Consumo humano' },
                 { tipo: 'SUPERFICIAL', tipoDescricao: 'Superficial', objetivo: 'Irrigação' },
@@ -156,34 +143,21 @@ describe('DetalheComponent', () => {
           }),
         ),
       );
+      const { raiz } = criar();
 
-      expect(cartoes(criar().raiz)).toEqual([
-        { rotulo: 'Objetivos', linhas: ['Consumo humano', 'Irrigação'] },
-        { rotulo: 'Finalidade | Atividade', linhas: ['Abastecimento público | Captação para abastecimento', 'Agricultura | —'] },
-        { rotulo: 'Tipo | Objetivo', linhas: ['Subterrânea | Consumo humano', 'Superficial | Irrigação'] },
-        { rotulo: 'Atividade', linhas: ['—'] },
+      expect(Array.from(raiz.querySelectorAll('.objeto-card')).map((c) => c.getAttribute('aria-label'))).toEqual([
+        'Objetivos',
+        'Finalidade e atividade',
       ]);
+      expect(texto(raiz)).toContain('SubterrâneaConsumo humano');
     });
 
-    it('licenciamento: objetivos e atividade com o grupo, sem o bloco Tipo | Objetivo', () => {
-      api.obter.mockReturnValue(
-        of(
-          requerimento({
-            objeto: {
-              objetivos: ['Licença prévia'],
-              finalidadesAtividades: [],
-              tiposObjetivo: [],
-              atividadeLicenciamento: { grupo: 'Mineração', atividade: 'Extração de areia' },
-            },
-          }),
-        ),
-      );
+    it('sem nenhum dado de objeto: um aviso único, sem cartões com traço', () => {
+      api.obter.mockReturnValue(of(requerimento()));
+      const { raiz } = criar();
 
-      expect(cartoes(criar().raiz)).toEqual([
-        { rotulo: 'Objetivos', linhas: ['Licença prévia'] },
-        { rotulo: 'Finalidade | Atividade', linhas: ['—'] },
-        { rotulo: 'Atividade', linhas: ['Mineração · Extração de areia'] },
-      ]);
+      expect(raiz.querySelectorAll('.objeto-card').length).toBe(0);
+      expect(texto(raiz)).toContain('Sem objeto cadastrado para este requerimento');
     });
   });
 
@@ -225,12 +199,13 @@ describe('DetalheComponent', () => {
       ]);
     });
 
-    it('não lista documentos: só o aviso da Sprint 2', () => {
-      api.obter.mockReturnValue(of(requerimento()));
+    it('a seção de documentos pede a lista do requerimento aberto', () => {
+      api.obter.mockReturnValue(of(requerimento({ id: 101 })));
       const { raiz } = criar();
 
-      expect(raiz.querySelector('table')).toBeNull();
-      expect(texto(raiz)).toContain('ficam disponíveis na Sprint 2');
+      expect(raiz.querySelector('app-documentos-secao')).not.toBeNull();
+      expect(documentosApi.listar).toHaveBeenCalledWith(101);
+      expect(texto(raiz)).not.toContain('Sprint 2');
     });
   });
 

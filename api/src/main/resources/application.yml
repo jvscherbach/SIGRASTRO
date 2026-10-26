@@ -61,3 +61,29 @@ vistas:
     duracao: PT8H
   dossie:
     diretorio: ${VISTAS_DOSSIE_DIRETORIO:/var/tmp/vistas}
+    ttl-minutos: ${DOSSIE_TTL_MINUTOS:30}
+    threads: ${DOSSIE_THREADS:2}
+    download-timeout-segundos: ${DOWNLOAD_TIMEOUT_SEGUNDOS:60}
+    sumario: ${DOSSIE_SUMARIO:true}
+    marcadores: ${DOSSIE_MARCADORES:true}
+    numeracao: ${DOSSIE_NUMERACAO:true}
+  # API de arquivos do Licenciamento. URL vazia = não configurada: a geração falha com esse motivo, a listagem não.
+  arquivos:
+    url: ${LICENCIAMENTO_API_URL:}
+    token: ${LICENCIAMENTO_API_TOKEN:}
+    # bearer (padrão) ou cookie; vazio também vale como bearer.
+    auth-mode: ${LICENCIAMENTO_API_AUTH_MODE:bearer}
+    cookie-name: ${LICENCIAMENTO_API_COOKIE_NAME:}
+  # Origens de documento ligadas: as seis da seção "Arquivos do Processo" da Vista do SIGA (S2.1).
+  documentos:
+    origens:
+      documento_processo: true
+      documento_requerimento: true
+      complementacao: true
+      imovel: true
+      representante_legal: true
+      responsavel_tecnico: true
+  agendamento:
+    enabled: ${AGENDAMENTO_ENABLED:true}
+    limpeza-dossie: PT5M
+    limpeza-orfaos: PT1H

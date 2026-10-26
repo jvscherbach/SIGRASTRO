@@ -1,0 +1,18 @@
+package br.gov.mt.sema.vistas.dossie.infrastructure.pdf;
+
+import java.nio.file.Path;
+import java.util.List;
+
+import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie;
+import br.gov.mt.sema.vistas.dossie.domain.DadosDaCapa;
+import org.springframework.stereotype.Component;
+
+/** Cada geração usa uma {@link MontagemPdfBox} própria: as fontes do PDFBox não são compartilhadas entre threads. */
+@Component
+class MontadorPdfBox implements MontadorDoDossie {
+
+    @Override
+    public int montar(DadosDaCapa capa, List<DocumentoParaMontagem> documentos, OpcoesDeMontagem opcoes, Path destino) {
+        return new MontagemPdfBox().montar(capa, documentos, opcoes, destino);
+    }
+}

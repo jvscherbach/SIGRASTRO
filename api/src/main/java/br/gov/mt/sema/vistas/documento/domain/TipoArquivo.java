@@ -1,0 +1,50 @@
+package br.gov.mt.sema.vistas.documento.domain;
+
+import java.util.Locale;
+import java.util.Set;
+
+/**
+ * Tipo do arquivo pela extensão do nome (os metadados reais só são conhecidos ao obter o arquivo). Sem extensão ou
+ * com extensão não reconhecida o tipo é {@link #DESCONHECIDO}: o documento aparece e é conferido ao gerar o dossiê.
+ */
+public enum TipoArquivo {
+
+    PDF(Set.of("pdf")),
+    PLANILHA(Set.of("xls", "xlsx", "ods")),
+    TEXTO(Set.of("doc", "docx", "odt", "rtf", "html", "txt")),
+    IMAGEM(Set.of("png", "jpg", "jpeg")),
+    GEOMETRIA(Set.of("shp", "kml", "kmz")),
+    COMPACTADO(Set.of("zip", "rar", "7z")),
+    DESCONHECIDO(Set.of());
+
+    private final Set<String> extensoes;
+
+    TipoArquivo(Set<String> extensoes) {
+        this.extensoes = extensoes;
+    }
+
+    public static TipoArquivo daExtensao(String extensao) {
+        if (extensao == null) {
+            return DESCONHECIDO;
+        }
+        for (TipoArquivo tipo : values()) {
+            if (tipo.extensoes.contains(extensao)) {
+                return tipo;
+            }
+        }
+        return DESCONHECIDO;
+    }
+
+    /** Extensão em minúsculas, sem o ponto; vazia quando o nome não tem extensão. */
+    public static String extensaoDe(String nomeArquivo) {
+        if (nomeArquivo == null) {
+            return "";
+        }
+        String nome = nomeArquivo.trim();
+        int ponto = nome.lastIndexOf('.');
+        if (ponto < 0 || ponto == nome.length() - 1) {
+            return "";
+        }
+        return nome.substring(ponto + 1).toLowerCase(Locale.ROOT);
+    }
+}

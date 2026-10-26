@@ -77,28 +77,10 @@
     <app-folha-sobreposta>
       <section aria-label="Objeto do requerimento">
         <div class="dash-sec-head"><h2><app-icone nome="leaf" />Objeto do requerimento</h2></div>
-        <div class="obj-grid">
-          @for (cartao of cartoesDoObjeto(); track cartao.rotulo) {
-            <div class="obj-card">
-              <span class="tile-icon"><app-icone [nome]="cartao.icone" /></span>
-              <div>
-                <span>{{ cartao.rotulo }}</span>
-                @for (linha of cartao.linhas; track $index) {
-                  <b>{{ linha }}</b>
-                }
-              </div>
-            </div>
-          }
-        </div>
+        <app-objeto-do-requerimento [objeto]="r.objeto" />
       </section>
 
-      <section class="panel" aria-label="Documentos">
-        <div class="dash-sec-head"><h2><app-icone nome="plan" />Documentos</h2></div>
-        <div class="note lime">
-          <app-icone nome="info" />
-          <span>A lista de documentos e a geração do dossiê ficam disponíveis na Sprint 2.</span>
-        </div>
-      </section>
+      <app-documentos-secao [idRequerimento]="r.id" />
     </app-folha-sobreposta>
   </section>
 } @else if (carregando()) {

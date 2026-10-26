@@ -1,0 +1,98 @@
+import { DocumentoItem, ReferenciaDocumento } from './documentos.models';
+
+export type CampoDeOrdem = 'titulo' | 'origem' | 'data';
+export interface Ordem {
+  campo: CampoDeOrdem;
+  direcao: 1 | -1;
+}
+
+/** Ordem inicial: data crescente (a mesma do dossiê, RN03). */
+export const ORDEM_PADRAO: Ordem = { campo: 'data', direcao: 1 };
+
+export const chaveDe = (d: Pick<DocumentoItem, 'origem' | 'id'>): string => `${d.origem}:${d.id}`;
+
+export const referenciaDe = (d: Pick<DocumentoItem, 'origem' | 'id'>): ReferenciaDocumento => ({ origem: d.origem, id: d.id });
+
+/** Sem acento e sem diferenciar maiúsculas: "relatorio" encontra "Relatório". */
+export function normalizar(texto: string | null | undefined): string {
+  return (texto ?? '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .trim();
+}
+
+/** Busca por título, id e nome do arquivo, mais o filtro de origem. Documento sigiloso mascarado só casa pelo id. */
+export function filtrar(itens: DocumentoItem[], busca: string, origem: string): DocumentoItem[] {
+  const termo = normalizar(busca);
+  return itens.filter((d) => {
+    if (origem && d.origem !== origem) {
+      return false;
+    }
+    return !termo || [d.titulo, d.id, d.nomeArquivo].some((campo) => normalizar(campo).includes(termo));
+  });
+}
+
+/** Documento e origem por texto (pt-BR); data cronológica, sem data sempre ao final; desempate pelo id numérico. */
+export function ordenar(itens: DocumentoItem[], ordem: Ordem): DocumentoItem[] {
+  const texto = (a: string | null, b: string | null) => normalizar(a).localeCompare(normalizar(b), 'pt-BR');
+  const id = (a: DocumentoItem, b: DocumentoItem) => a.id.length - b.id.length || a.id.localeCompare(b.id);
+  return [...itens].sort((a, b) => {
+    let c: number;
+    if (ordem.campo === 'data') {
+      if (!a.data && !b.data) {
+        c = 0;
+      } else if (!a.data) {
+        return 1;
+      } else if (!b.data) {
+        return -1;
+      } else {
+        c = a.data.localeCompare(b.data);
+      }
+    } else if (ordem.campo === 'origem') {
+      c = texto(a.origemDescricao, b.origemDescricao);
+    } else {
+      c = texto(a.titulo, b.titulo);
+    }
+    return c * ordem.direcao || id(a, b);
+  });
+}
+
+export const selecionavel = (d: DocumentoItem): boolean => d.bloqueio === null;
+
+/** Pré-seleção definida pelo domínio: PDF vigente, sem bloqueio. */
+export const selecaoPadrao = (itens: DocumentoItem[]): Set<string> =>
+  new Set(itens.filter((d) => d.selecionavelPorPadrao).map(chaveDe));
+
+export function rotuloDoBloqueio(d: DocumentoItem): string | null {
+  switch (d.bloqueio) {
+    case 'INDISPONIVEL':
+      return 'arquivo indisponível';
+    case 'SIGILOSO':
+      return 'documento sigiloso';
+    case 'NAO_PDF':
+      return 'conversão disponível em breve';
+    default:
+      return null;
+  }
+}
+
+/** Classe do selo de extensão (mesmas cores do protótipo). */
+export function classeDaExtensao(d: DocumentoItem): string {
+  switch (d.tipoArquivo) {
+    case 'PDF':
+      return 'pdf';
+    case 'PLANILHA':
+      return 'xls';
+    case 'TEXTO':
+      return 'doc';
+    case 'IMAGEM':
+      return 'img';
+    case 'COMPACTADO':
+      return 'zip';
+    case 'GEOMETRIA':
+      return 'geo';
+    default:
+      return 'off';
+  }
+}

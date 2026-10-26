@@ -37,6 +37,7 @@ import br.gov.mt.sema.vistas.consulta.domain.ResponsavelTarefa;
 import br.gov.mt.sema.vistas.consulta.domain.Requerimento;
 import br.gov.mt.sema.vistas.consulta.domain.Situacao;
 import br.gov.mt.sema.vistas.consulta.domain.TarefaAtual;
+import br.gov.mt.sema.vistas.documento.application.port.DocumentosDoRequerimento;
 import br.gov.mt.sema.vistas.shared.application.exception.SigaIndisponivelException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -71,6 +72,10 @@ class ConsultaHttpTest {
 
     @MockitoBean
     ObjetoEPrioridadeDoRequerimento objetoEPrioridade;
+
+    // SigaNaoConfigurado implementa também a porta de documentos; trocar as outras três deixaria esta sem bean.
+    @MockitoBean
+    DocumentosDoRequerimento documentos;
 
     @BeforeEach
     void limpar() {

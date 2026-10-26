@@ -39,6 +39,8 @@ Códigos: `OPERADOR`, `OPERADOR_SIGILO`, `ADMIN`. Na versão definitiva, a ident
 
 Origem desligada some da lista de documentos e não entra no dossiê. A regra de ordem cronológica é fixa (RN03) e só é exibida.
 
+**No protótipo (S2)** os parâmetros vêm de variáveis de ambiente, atrás da porta `ParametrosDoDossie` (a S5 troca a implementação pela tela): `DOSSIE_TTL_MINUTOS` (30), `DOSSIE_THREADS` (2), `DOSSIE_SUMARIO`, `DOSSIE_MARCADORES` e `DOSSIE_NUMERACAO` (ligados), `DOWNLOAD_TIMEOUT_SEGUNDOS` (60) e `VISTAS_DOSSIE_DIRETORIO`. As origens são ligadas por `vistas.documentos.origens.<origem>` (`true`/`false`; `EXTRATO_PUBLICACAO` vem desligada, P04).
+
 ### Conversão
 
 | Parâmetro | Padrão |

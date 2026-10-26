@@ -24,35 +24,58 @@ Observações:
 
 ## Documentos
 
-| Origem | Tabela | Chave do arquivo | Data | Vínculo com o requerimento | Vigência | Sigilo |
-|---|---|---|---|---|---|---|
-| `DOCUMENTO_PROCESSO` | `DOCUMENTO_PROCESSO` | `CHAVE` | `DATA_CRIACAO` | `ID_REQUERIMENTO` | `DATA_FIM`, chave `"0"` | `SIGILOSO` |
-| `DOCUMENTO_REQUERIMENTO` | `DOCUMENTO_REQUERIMENTO` | `CHAVE` | `DATA_UPLOAD` | `ID_REQUERIMENTO` | `DATA_FIM` | `SIGILOSO` |
-| `COMPLEMENTACAO` | `COMPLEMENTACAO_ITEM_ARQUIVO` | `CHAVE_PANDORA` | `DATA_INICIO` | `COMPLEMENTACAO_ITEM` → `COMPLEMENTACAO.ID_REQUERIMENTO` | `DATA_FIM` | `SIGILOSO` |
-| `IMOVEL` | `DOCUMENTO_IMOVEL` | `CHAVE` | `DATA_INICIO` | `IMOVEL.ID_REQUERIMENTO` | `DATA_FIM` | `SIGILOSO` |
-| `REPRESENTANTE_LEGAL` | `REQ_REP_LEGAL_DOCUMENTO` | `CHAVE` | `DATA_INICIO` | `REQUERIMENTO_REPRESENTANTE_LEGAL.ID_REQUERIMENTO` | `DATA_FIM` | `SIGILO` |
-| `RESPONSAVEL_TECNICO` | `REQ_RESP_TECNICO_DOCUMENTO` | `CHAVE` | `DATA_INICIO` | `REQUERIMENTO_RESPONSAVEL_TECNICO.ID_REQUERIMENTO` | `DATA_FIM` | `SIGILO` |
-| `PARECER_ANEXO` | `PARECER_TECNICO_ANEXO` | `CHAVE_PANDORA` | `DATA_CRIACAO` | `PARECER_TECNICO.ID_REQUERIMENTO` | `DATA_EXCLUSAO` | — |
-| `JUNTADA` | `JUNTADA_PROCESSO` | `CHAVE` | `DATA_CADASTRO` | `ID_REQUERIMENTO_PRINCIPAL` | — | `IND_SIGILOSO` |
-| `TITULACAO` | `TITULACAO_DOCUMENTO` | `CHAVE` | `DATA_CRIACAO` | `ID_REQUERIMENTO` | — | — |
-| `PRORROGACAO` | `PRORROG_PRAZO_COMPLEM_ANEXO` | `CHAVE` | `DATA_INICIO` | `COMPLEMENTACAO.ID_REQUERIMENTO` | — | — |
-| `EXTRATO_PUBLICACAO` | `EXTRATO_PUBLICACAO` | `CHAVE` | `DATA_CRIACAO` | **NÃO CONFIRMADO** | `DATA_FIM` | — |
-| `SCORP` | API do SCORP | `chave` | `dataInicio` | `PESSOA.ID_CORPORATIVO` (interessado, representantes, responsáveis técnicos) | `dataFim` | — |
-| `DAR` | Arrecadação | **NÃO CONFIRMADO** | — | — | — | — |
+**S2.1:** a lista é a da seção "Arquivos do Processo" da Vista do SIGA: **seis tabelas**, com as colunas confirmadas no banco. Nenhuma origem entra sem prova de que a Vista a lista. A S2 tinha assumido colunas por padrão de nome e ampliado as origens por suposição (o teste de fumaça falhou com `ORA-00904: "A"."NOME_ARQUIVO"` em `COMPLEMENTACAO_ITEM_ARQUIVO`).
 
-As seis primeiras origens são as que a Vista atual exibe. As demais são origens não exibidas hoje. Antes de incluí-las, é preciso confirmar no banco se já possuem linha correspondente em `DOCUMENTO_PROCESSO` (mesma chave). Se possuírem, a deduplicação (RN05) resolve.
+**Uma consulta por origem**, cada uma em `resources/sql/siga/documentos/<origem>.sql` (D33), com parâmetro nomeado `:idRequerimento`, sem `SELECT *`, compatível com 19c e **sem filtro de vigência, de grupo ou de chave** (a Vista não filtra). Todas devolvem as mesmas colunas:
 
-Auxiliares:
+`ORIGEM, ID, ID_REQUERIMENTO, CHAVE, TITULO, NOME_ARQUIVO, TIPO, DATA_DOC, DATA_FIM, SIGILO`
 
-- `DOCUMENTO_PROCESSO_SIGNATARIO` (`ID_DOCUMENTO_PROCESSO`, `DATA_ASSINATURA`, `DATA_FIM`): data de assinatura usada na ordem cronológica.
-- `SIGA2_OUTORGA.TITULO_LEGADO_ANEXO`: referencia `DOCUMENTO_PROCESSO`; já coberto pela primeira origem.
-- `GRUPO_DOCUMENTO` (`DOCUMENTO_PROCESSO`) e `TIPO` (demais) guardam nomes de enum. A descrição para exibição é mapeada no back-end.
+A situação é calculada pelo domínio (RN01). A chave única do documento é **`(ORIGEM, ID)`**: `ID` isolado repete entre origens; no contrato HTTP `origem` e `id` seguem separados.
 
-**Excluída sempre:** `PESSOA_DOCUMENTO_DOENCA_GRAVE` (RN02).
+| Origem (código) | Arquivo `.sql` | Tabelas e junção a partir de `REQUERIMENTO.ID` | Chave do arquivo | Título / nome | Data | Vigência | Sigilo (`NUMBER` 0/1) |
+|---|---|---|---|---|---|---|---|
+| `DOCUMENTO_PROCESSO` | `documento-processo` | `DOCUMENTO_PROCESSO.ID_REQUERIMENTO` | `CHAVE` | `TITULO` / `NOME_ARQUIVO` | `DATA_CRIACAO` | `DATA_FIM` | `SIGILOSO` |
+| `DOCUMENTO_REQUERIMENTO` | `documento-requerimento` | `DOCUMENTO_REQUERIMENTO.ID_REQUERIMENTO` | `CHAVE` | `TITULO` / `NOME_ARQUIVO` | `DATA_UPLOAD` | `DATA_FIM` | `SIGILOSO` |
+| `COMPLEMENTACAO` | `complementacao` | `COMPLEMENTACAO.ID_REQUERIMENTO` → `COMPLEMENTACAO_ITEM.ID_COMPLEMENTACAO` → `COMPLEMENTACAO_ITEM_ARQUIVO.ID_COMPLEMENTACAO_ITEM` (inclui arquivos de resposta, `ID_COMP_ITEM_RESPOSTA` preenchido) | `CHAVE_PANDORA` | `TITULO` nos dois (não existe `NOME_ARQUIVO`) | `DATA_INICIO` | `DATA_FIM` | `SIGILOSO` |
+| `IMOVEL` | `imovel` | `IMOVEL.ID_REQUERIMENTO` (**a confirmar no dicionário**) → `DOCUMENTO_IMOVEL.ID_IMOVEL` (todos os imóveis) | `CHAVE` | `TITULO` / `NOME_ARQUIVO` | `DATA_INICIO` | `DATA_FIM` | `SIGILOSO` |
+| `REPRESENTANTE_LEGAL` | `representante-legal` | `REQUERIMENTO_REPRESENTANTE_LEGAL.ID_REQUERIMENTO` → `REQ_REP_LEGAL_DOCUMENTO.ID_REQUERIMENTO_REP_LEGAL` | `CHAVE` | `NOME_ARQUIVO` nos dois | `DATA_INICIO` | `DATA_FIM` | `SIGILO` |
+| `RESPONSAVEL_TECNICO` | `responsavel-tecnico` | `REQUERIMENTO_RESPONSAVEL_TECNICO.ID_REQUERIMENTO` → `REQ_RESP_TECNICO_DOCUMENTO.ID_REQUERIMENTO_RESP_TECNICO` (não filtra `HABILITADO`, como a Vista) | `CHAVE` | `NOME_ARQUIVO` nos dois | `DATA_INICIO` | `DATA_FIM` | `SIGILO` |
+| `SCORP` | S4 (desligado) | API do SCORP (documentos pessoais) | `chave` | — | `dataInicio` | `dataFim` | — |
+| `DAR` | desativada | Arrecadação | **NÃO CONFIRMADO** | — | — | — | — |
 
-**Sem chave armazenada:** a cópia do requerimento em PDF só existe se houver `DOCUMENTO_PROCESSO` com `GRUPO_DOCUMENTO = 'COPIA_PROCESSO'`. O protótipo usa a última cópia salva e não tenta regenerar.
+Colunas auxiliares usadas: `DOCUMENTO_PROCESSO.GRUPO_DOCUMENTO` (tipo), `DOCUMENTO_REQUERIMENTO.TIPO`, `REQ_REP_LEGAL_DOCUMENTO.TIPO`, `REQ_RESP_TECNICO_DOCUMENTO.TIPO` e, na complementação, `RESPOSTA` ou `ITEM` pela presença de `ID_COMP_ITEM_RESPOSTA`. Todas as colunas acima foram confirmadas no banco, **exceto `IMOVEL.ID_REQUERIMENTO`**, que a Vista usa mas ainda não foi conferida no dicionário (passo do [roteiro da S2](homologacao/S2-roteiro-homologacao.md)). `SIGILOSO` e `SIGILO` são `NUMBER(1)` com valores só 0 e 1, conferido no SIGA em 22/10/2026 (P05 resolvida)).
 
-**Metadados ausentes no banco:** tipo MIME, extensão real e tamanho só são conhecidos ao obter o arquivo (cabeçalhos `Content-Type` e `Content-Length`). A extensão do `NOME_ARQUIVO` serve de indicação prévia.
+**Escopo:** só o requerimento (D31); nada por `ID_PROCESSO`. O PDF do parecer, os títulos e o arquivo da juntada já entram via `DOCUMENTO_PROCESSO` (grupos `PARECER_TECNICO`, `EMISSAO_*`, `JUNTADA_DE_PROCESSO`).
+
+### Origens não listadas pela Vista (avaliar após a homologação)
+
+Removidas na S2.1 (SQL, mapeamento, propriedades, testes e grants). Só voltam com prova de que a Vista as lista ou com decisão do responsável (P04):
+
+| Tabela | Observação |
+|---|---|
+| `PARECER_TECNICO_ANEXO` | anexos do parecer (via `PARECER_TECNICO`) |
+| `PRORROG_PRAZO_COMPLEM_ANEXO` | anexo do pedido de prorrogação da complementação |
+| `TITULACAO_DOCUMENTO` | documento da titulação |
+| `JUNTADA_PROCESSO` | a chave dela **difere** da chave do `DOCUMENTO_PROCESSO` correspondente (não deduplicaria) |
+| `EXTRATO_PUBLICACAO` | colunas conferidas em 22/10/2026 (`ID`, `CHAVE`, `DATA_CRIACAO`, `DATA_FIM`, `DATA_LIMITE`, `NUMERO`, `ID_SERVIDOR`, `TIPO_TITULO`; a única chave estrangeira é `SERVIDOR`, **sem `ID_REQUERIMENTO`**); liga-se por `EXTRATO_EMISSAO_TITULO` → `EMISSAO_TITULO` → `REQUERIMENTO_TITULACAO`; **um extrato serve vários requerimentos** |
+| `PESSOA_DOCUMENTO_DOENCA_GRAVE` | **nunca** (RN02): nenhuma consulta a lê |
+
+**Sem chave armazenada:** a cópia do requerimento em PDF só existe se houver `DOCUMENTO_PROCESSO` com `GRUPO_DOCUMENTO = 'COPIA_PROCESSO'`. O protótipo usa a última cópia salva e não tenta regenerar. `SIGA2_OUTORGA.TITULO_LEGADO_ANEXO` referencia `DOCUMENTO_PROCESSO`, já coberto (não é lida). A Vista não usa a data de assinatura: `DOCUMENTO_PROCESSO_SIGNATARIO` **deixou de ser lida**.
+
+**Metadados ausentes no banco:** tipo MIME, extensão real e tamanho só são conhecidos ao obter o arquivo. A extensão do `NOME_ARQUIVO` (ou do `TITULO`, na complementação) é a indicação prévia; ao baixar, o dossiê confere a assinatura `%PDF-`.
+
+**Regras do domínio (`documento.domain`):**
+
+- *Título exibido:* `TITULO`; senão `NOME_ARQUIVO`; senão `"<descrição da origem> <id>"`. `NOME_ARQUIVO` nulo ou em branco (imóvel, documento do processo) nunca derruba a listagem.
+- *Data:* a da própria origem (tabela acima); a regra "maior data de assinatura" foi removida. `DATA_DOC` nula não derruba nada: o documento vai ao final (RN03).
+- *Situação (RN01):* `INDISPONIVEL` se a chave for nula, vazia ou `"0"` (precedência); `SUBSTITUIDO` se `DATA_FIM` estiver preenchida; senão `VIGENTE`. A Vista exibe esses documentos com a data em "Sem efeito"; o SIGA Vistas também os lista.
+- *Sigilo (RN06):* as seis colunas são `NUMBER` (0/1); normalização tolerante e "na dúvida, sigiloso": número diferente de 0 e `S`, `SIM`, `Y`, `YES`, `T`, `TRUE`, `1` são sigilosos; nulo, 0 e `N`, `NAO`, `NÃO`, `NO`, `F`, `FALSE`, `0` não são; qualquer outro valor não nulo é sigiloso (R18). **Divergência consciente da Vista:** em representante legal e responsável técnico o SIGA Vistas usa a coluna real `SIGILO`, **mesmo que a Vista do SIGA a ignore e mostre sempre "Não"**; a nossa regra é mais restritiva, de propósito (D43, `docs/09`).
+- *Deduplicação (RN05):* mesma chave válida (diferente de `"0"`) em mais de uma origem aparece uma vez; vence a primeira origem na ordem da tabela acima. **Divergência da Vista**, que não deduplica: aqui a deduplicação evita repetir páginas no dossiê. Os documentos de representante legal e responsável técnico não duplicam por construção do SQL (uma linha por documento).
+- *Ordem (RN03):* data crescente; sem data ao final; empate por origem (ordem da tabela) e id (numérico).
+- *Tipo de arquivo pela extensão:* PDF; PLANILHA (xls, xlsx, ods); TEXTO (doc, docx, odt, rtf, html, txt); IMAGEM (png, jpg, jpeg); GEOMETRIA (shp, kml, kmz); COMPACTADO (zip, rar, 7z). **Sem extensão ou extensão não reconhecida: `DESCONHECIDO`** (o antigo `OUTRO` deixou de existir). **Compactados nunca aparecem (RN11); geometrias ficam classificadas mas fora da lista até a S4 (RN10).**
+- *Bloqueio:* `INDISPONIVEL` > `SIGILOSO` (sem perfil) > `NAO_PDF`. `DESCONHECIDO` **não** recebe `NAO_PDF`: é selecionável (se vigente, chave válida e acessível pelo perfil).
+- *Pré-seleção:* a Vista não pré-seleciona nada; o SIGA Vistas mantém a pré-seleção de **PDF vigente, sem bloqueio** como conveniência. `DESCONHECIDO` fica fora dela.
+- *Tipo desconhecido ao baixar:* o validador do dossiê confere a assinatura `%PDF-`. Se for PDF, segue normal; se não, falha **do documento** com "o arquivo não é um PDF (tipo detectado: X); a conversão chega na próxima etapa" e vale a RN09. O mesmo vale para documento marcado como PDF cujo conteúdo não é PDF. O tipo detectado vem dos primeiros bytes; o `Content-Type` do repositório não chega à porta de arquivos e não é usado (não é confiável, RNF09).
 
 ## Camunda
 
@@ -97,27 +120,11 @@ Sem linhas significa que a instância está encerrada ou parada em gateway/event
 
 ### Documentos
 
-Um `UNION ALL` com uma parte por origem, cada uma retornando:
-
-`ORIGEM, ID, ID_REQUERIMENTO, CHAVE, TITULO, NOME_ARQUIVO, TIPO, DATA_DOC, DATA_FIM, SIGILO`
-
-A consulta **não filtra** vigência: todos os registros são listados, e a situação é calculada pela RN01. Exemplo da primeira parte:
-
-```sql
-SELECT 'DOCUMENTO_PROCESSO' AS ORIGEM, dp.ID, dp.ID_REQUERIMENTO, dp.CHAVE, dp.TITULO,
-       dp.NOME_ARQUIVO, dp.GRUPO_DOCUMENTO AS TIPO,
-       COALESCE((SELECT MAX(s.DATA_ASSINATURA)
-                 FROM SIGA2_LICENCIAMENTO.DOCUMENTO_PROCESSO_SIGNATARIO s
-                 WHERE s.ID_DOCUMENTO_PROCESSO = dp.ID AND s.DATA_FIM IS NULL),
-                dp.DATA_CRIACAO) AS DATA_DOC,
-       dp.DATA_FIM, dp.SIGILOSO AS SIGILO
-FROM   SIGA2_LICENCIAMENTO.DOCUMENTO_PROCESSO dp
-WHERE  dp.ID_REQUERIMENTO = :idRequerimento
-```
+Ver a seção "Documentos" no início deste documento: uma consulta por origem, em arquivo próprio (D33), nas seis origens da Vista (S2.1). O modelo das demais é `documento-processo.sql`.
 
 ## Leitura implementada na S1 e na S1.1 (inventário)
 
-Tudo que o `integration.siga` lê hoje. É a base da lista de grants do usuário de leitura e dos roteiros de homologação ([`S1`](homologacao/S1-roteiro-homologacao.md), [`S1.1`](homologacao/S1.1-roteiro-homologacao.md)). Os nomes da S1.1 vêm da seção P01; **os tipos das colunas ainda não foram conferidos no banco real** (o recorte de teste usa hipóteses). Nenhuma consulta lê a tabela `PROCESSO`.
+Tudo que o `integration.siga` lê hoje. É a base da lista de grants do usuário de leitura e dos roteiros de homologação ([`S1`](homologacao/S1-roteiro-homologacao.md), [`S1.1`](homologacao/S1.1-roteiro-homologacao.md)). Os nomes da S1.1 vêm da seção P01; **os tipos das colunas foram conferidos pelo responsável em 21/10/2026**: `ACT_RU_TASK.ASSIGNEE_` é `NVARCHAR2(510)`, `PESSOA.CPF_CNPJ` é `VARCHAR2(20)` e `SERVIDOR.CPF` é `VARCHAR2(11)` (o recorte de teste usa hipóteses para as demais). Nenhuma consulta lê a tabela `PROCESSO`.
 
 | Arquivo (`resources/sql/siga/`) | Tabelas | Colunas lidas |
 |---|---|---|
@@ -134,7 +141,7 @@ Tudo que o `integration.siga` lê hoje. É a base da lista de grants do usuário
 | idem | `SIGA2_CAMUNDA.ACT_RE_PROCDEF` | `ID_`, `NAME_` |
 | idem | `SIGA2_LICENCIAMENTO.SERVIDOR`, `PESSOA` | `SERVIDOR.ID`, `CPF`, `NOME`, `DATA_ATUALIZACAO`; `PESSOA.ID`, `CPF_CNPJ`, `NOME` |
 
-As três colunas de ligação marcadas como **NÃO CONFIRMADO** não constam da seção P01 (que nomeia a cadeia de junção, mas não a coluna de chave estrangeira). Foram usados os nomes do padrão do SIGA (`ID_<TABELA>`); a conferência em `ALL_TAB_COLUMNS` está no roteiro da S1.1.
+As três colunas de ligação foram **confirmadas em `ALL_TAB_COLUMNS`** pelo responsável em 21/10/2026 (`FINALIDADE_ATIVIDADE.ID_FINALIDADE`, `OBJETIVO_REQUERIMENTO_OUTORGA.ID_OBJETIVO_OUTORGA`, `REQUERIMENTO_FINALIDADE_ATIVIDADE.ID_FINALIDADE_ATIVIDADE`). Índices: existem `IDX_PRIORIDADE_PROC_REQ` (`PRIORIDADE_PROCESSO.ID_REQUERIMENTO`) e as chaves únicas de `REQUERIMENTO_LICENCIAMENTO.ID_REQUERIMENTO` e `REQUERIMENTO_OUTORGA.ID_REQUERIMENTO`; **não** há índice em `PESSOA.CPF_CNPJ`, `SERVIDOR.CPF` e `REQUERIMENTO_FINALIDADE_ATIVIDADE.ID_REQUERIMENTO` (R17).
 
 Comportamento das consultas:
 
@@ -227,6 +234,8 @@ Somente `CREATE SESSION` e `SELECT` em (na versão definitiva, preferir views `V
 - `SIGA2_OUTORGA`: `REQUERIMENTO_OUTORGA`, `OBJETIVO_REQUERIMENTO_OUTORGA`, `OBJETIVO_OUTORGA`, `REQUERIMENTO_FINALIDADE_ATIVIDADE`, `FINALIDADE_ATIVIDADE`, `FINALIDADE` (e `TITULO_LEGADO_ANEXO` na S2, se for preciso).
 - `SIGA2_ARRECADACAO`: `ATIVIDADE`.
 - `SIGA2_CAMUNDA`: `ACT_RU_EXECUTION`, `ACT_RU_TASK`, `ACT_RE_PROCDEF`, `ACT_HI_PROCINST`, `ACT_HI_TASKINST`.
+
+**Grants da S2.1:** `SELECT` nas 11 tabelas lidas pelas seis origens, no script do [roteiro da S2](homologacao/S2-roteiro-homologacao.md): `DOCUMENTO_PROCESSO`, `DOCUMENTO_REQUERIMENTO`, `COMPLEMENTACAO`, `COMPLEMENTACAO_ITEM`, `COMPLEMENTACAO_ITEM_ARQUIVO`, `IMOVEL`, `DOCUMENTO_IMOVEL`, `REQUERIMENTO_REPRESENTANTE_LEGAL`, `REQ_REP_LEGAL_DOCUMENTO`, `REQUERIMENTO_RESPONSAVEL_TECNICO`, `REQ_RESP_TECNICO_DOCUMENTO`.
 
 **Grants necessários até a S1.1** (só estes): `CREATE SESSION` e `SELECT` nas tabelas da lista "Tabelas do SIGA lidas pelo SIGA Vistas" (seção P01), mais `SIGA2_CAMUNDA.ACT_RU_EXECUTION`, `ACT_RU_TASK` e `ACT_RE_PROCDEF`. Os testes de integração criam um usuário com exatamente esses grants. O script de referência para o DBA está no [roteiro da S1.1](homologacao/S1.1-roteiro-homologacao.md).
 

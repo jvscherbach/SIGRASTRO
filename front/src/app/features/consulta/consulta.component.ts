@@ -36,7 +36,7 @@ export class ConsultaComponent {
   protected readonly erro = signal('');
   protected readonly carregando = signal(false);
   protected readonly resultado = signal<PageResponse<ResultadoBusca> | null>(null);
-  protected readonly recentes = signal(this.recentesService.listar());
+  protected readonly recentes = signal(this.recentesService.listarParaExibicao());
   protected readonly processoRepetido = signal(false);
 
   private criterioAtual: CriterioBusca | null = null;

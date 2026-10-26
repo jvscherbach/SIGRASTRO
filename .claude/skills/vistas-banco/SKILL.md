@@ -95,3 +95,6 @@ O dono é o módulo que define o **significado de negócio**. Ex.: "quais docume
 - Nenhuma escrita no banco do SIGA.
 - Nenhum valor real de credencial, URL institucional ou token no repositório.
 - Prompts e automações não fazem commit nem push; só `git diff` para revisão.
+- **Verificação sem sistemas externos (D34):** todo `docker compose up` usa `-f compose.yaml -f compose.local.yaml -f compose.verificacao.yaml`; nunca abrir nem imprimir o `.env.local`; confirmar as variáveis externas vazias dentro do container, sem imprimir valores. Detalhes em `references/ambientes-e-docker.md`.
+- Nenhum CPF, CNPJ ou nome de pessoa real em documentação, testes, prompts, exemplos ou logs (use dados fictícios e marcadores como `<CPF_DE_TESTE>`).
+- A chave do arquivo, o token e a URL da API de arquivos nunca saem do domínio e dos adapters (nem DTO, nem log, nem resposta).

@@ -2,9 +2,15 @@ package br.gov.mt.sema.vistas.integration.siga;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
+
 import br.gov.mt.sema.vistas.consulta.domain.CriterioBusca;
 import br.gov.mt.sema.vistas.consulta.domain.NumeroRequerimento;
 import br.gov.mt.sema.vistas.consulta.domain.TarefaAtual;
+import br.gov.mt.sema.vistas.documento.domain.Documento;
+import br.gov.mt.sema.vistas.documento.domain.OrigemDocumento;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.AfterAll;
@@ -78,5 +84,40 @@ class SigaFumacaTest {
 
         // Falha de leitura viraria INDISPONIVEL (o adapter não lança); para um id inexistente o esperado é SEM_TAREFA.
         assertThat(tarefas.obter(-1).estado()).isEqualTo(TarefaAtual.Estado.SEM_TAREFA);
+    }
+
+    @Test
+    void cadaOrigemDeDocumentoExecutaORealSqlComRequerimentoInexistente() {
+        List<String> falhas = new ArrayList<>();
+        for (OrigemDocumento origem : OrigemDocumento.values()) {
+            try {
+                // -1 valida tabela, coluna e junção sem depender de dado; falha vira exceção.
+                new DocumentosDoSigaJdbc(jdbc, EnumSet.of(origem)).listar(-1);
+            } catch (RuntimeException e) {
+                falhas.add(origem.name() + " (" + e.getClass().getSimpleName() + ")");
+            }
+        }
+
+        assertThat(falhas).as("origens cujo SQL falhou no SIGA real (consulte o roteiro de homologação)").isEmpty();
+    }
+
+    /**
+     * Só com SIGA_FUMACA_REQUERIMENTO (id numérico definido pelo responsável). Imprime apenas a contagem por origem e,
+     * por documento, origem, id, situação, tipo e sigilo: nunca chave, título nem nome do arquivo.
+     */
+    @Test
+    @EnabledIfEnvironmentVariable(named = "SIGA_FUMACA_REQUERIMENTO", matches = "[0-9]+")
+    void listaContagemPorOrigemDeUmRequerimentoReal() {
+        long id = Long.parseLong(System.getenv("SIGA_FUMACA_REQUERIMENTO"));
+        List<Documento> lista = new DocumentosDoSigaJdbc(jdbc, EnumSet.allOf(OrigemDocumento.class)).listar(id);
+
+        for (OrigemDocumento origem : OrigemDocumento.values()) {
+            System.out.println("[fumaca] " + origem + ": " + lista.stream().filter(d -> d.origem() == origem).count());
+        }
+        for (Documento d : lista) {
+            System.out.println("[fumaca] " + d.origem() + " id=" + d.id() + " situacao=" + d.situacao() + " tipo="
+                    + d.tipoArquivo() + " sigiloso=" + d.sigiloso());
+        }
+        assertThat(lista).isNotNull();
     }
 }

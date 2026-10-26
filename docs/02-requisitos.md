@@ -16,7 +16,7 @@
 
 | ID | Requisito |
 |---|---|
-| RF06 | Listar todos os documentos relacionados ao requerimento, ou a todos os requerimentos do processo, de todas as origens mapeadas. |
+| RF06 | Listar todos os documentos do requerimento (a chave é o requerimento, D31), das seis origens da Vista do SIGA (S2.1; SCORP na S4), com os totais (total, vigentes, não PDF, tipo não informado, indisponíveis, sigilosos). A chave de um documento é origem + id. |
 | RF07 | Para cada documento, exibir: identificador, nome, origem, data e sigilo. A situação (vigente, substituído, indisponível) é usada internamente na pré-seleção e não é exibida; documentos indisponíveis ficam bloqueados para seleção, com indicação no nome do arquivo. |
 | RF08 | Permitir ordenar a lista por documento, origem e data, e filtrar por texto e origem. |
 | RF09 | Visualizar qualquer documento em modal. Documentos não-PDF são exibidos já convertidos, quando houver conversão. |
@@ -40,7 +40,7 @@
 | ID | Requisito |
 |---|---|
 | RF19 | Login simulado com usuários fixos de três perfis: `OPERADOR`, `OPERADOR_SIGILO` (Gestor) e `ADMIN` (Administrador). Permissões em [12 — Configurações](12-configuracoes.md). |
-| RF20 | Documentos sigilosos aparecem na lista para todos os perfis, mas só Gestor e Administrador podem visualizá-los, selecioná-los e incluí-los no dossiê. |
+| RF20 | Documentos sigilosos aparecem na lista para todos os perfis, mas só Gestor e Administrador podem visualizá-los, selecioná-los e incluí-los no dossiê. Para o Operador o documento vem **mascarado** (título "Documento sigiloso", sem nome de arquivo nem extensão) e o `POST /dossies` com ele responde 403 `DOCUMENTO_SIGILOSO`. **Aplicado no back-end desde a S2 (D36);** a matriz completa e o modal seguem na S4. |
 | RF30 | O Operador só consulta, visualiza, gera e baixa dossiê de processos e requerimentos vinculados a ele (RN07). Busca por número de processo ou requerimento sem vínculo retorna "não tem você como interessado"; buscas por interessado só listam os vinculados. |
 
 ### Auditoria
@@ -84,7 +84,7 @@
 |---|---|
 | RN01 | **Vigente**: registro sem data de fim (`DATA_FIM IS NULL`) e com chave diferente de `"0"`. **Substituído**: registro com `DATA_FIM` preenchida. **Indisponível**: chave `"0"` ou arquivo inexistente. |
 | RN02 | Documentos de doença grave (`PESSOA_DOCUMENTO_DOENCA_GRAVE`) nunca são listados. |
-| RN03 | Data para ordem cronológica, em ordem de preferência: data de assinatura (quando houver), data do documento na tabela de origem, data de cadastro no repositório de arquivos. Documentos sem data vão ao final. Empate desempata por origem e id. |
+| RN03 | Data para ordem cronológica: a data da própria origem (S2.1; a data de assinatura deixou de ser usada, a Vista não a usa). Documentos sem data vão ao final. Empate desempata por origem e id. |
 | RN04 | O requerimento vira processo após o pagamento da taxa e a conclusão do protocolo. Quando há processo, a identificação exibida (topo da tela, atalhos, resultados, capa e nome do dossiê) é sempre o número do processo; o número do requerimento só aparece enquanto ele não foi protocolado. |
 | RN05 | Documentos presentes em mais de uma tabela com a mesma chave aparecem uma única vez. |
 | RN06 | A sinalização de sigilo considera todas as variações de coluna (`SIGILOSO`, `SIGILO`, `IND_SIGILOSO`). Na dúvida, o documento é tratado como sigiloso. |

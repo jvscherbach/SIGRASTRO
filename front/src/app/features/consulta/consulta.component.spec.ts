@@ -432,5 +432,27 @@ describe('ConsultaComponent', () => {
       atalhos[0].click();
       expect(router.navigate).toHaveBeenCalledWith(['/consulta/requerimentos', 7]);
     });
+
+    it('dois requerimentos do mesmo processo aparecem desempatados, com a situação em texto pequeno', () => {
+      localStorage.setItem(
+        'vistas.recentes.u.demo',
+        JSON.stringify([
+          { id: 2, rotulo: 'Processo 445/2022', numeroRequerimento: '3798/2023', situacao: 'Cancelado' },
+          { id: 1, rotulo: 'Processo 445/2022', numeroRequerimento: '3391/2022', situacao: 'Concluído' },
+          { id: 3, rotulo: 'Processo 2825/2025', numeroRequerimento: '3331/2025', situacao: 'Em análise' },
+        ]),
+      );
+      const raiz = criar();
+
+      const atalhos = Array.from(raiz.querySelectorAll('.tile')).map((t) => ({
+        titulo: t.querySelector('b')!.textContent,
+        situacao: t.querySelector('small')?.textContent ?? null,
+      }));
+      expect(atalhos).toEqual([
+        { titulo: 'Processo 445/2022 · Req. 3798/2023', situacao: 'Cancelado' },
+        { titulo: 'Processo 445/2022 · Req. 3391/2022', situacao: 'Concluído' },
+        { titulo: 'Processo 2825/2025', situacao: null },
+      ]);
+    });
   });
 });
