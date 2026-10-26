@@ -33,10 +33,30 @@ export function filtrar(itens: DocumentoItem[], busca: string, origem: string): 
   });
 }
 
-/** Documento e origem por texto (pt-BR); data cronológica, sem data sempre ao final; desempate pelo id numérico. */
+/** Ordem das origens no empate de data: a mesma do servidor (tabela do docs/04, enum `OrigemDocumento`). */
+export const ORDEM_DAS_ORIGENS = [
+  'DOCUMENTO_PROCESSO',
+  'DOCUMENTO_REQUERIMENTO',
+  'COMPLEMENTACAO',
+  'IMOVEL',
+  'REPRESENTANTE_LEGAL',
+  'RESPONSAVEL_TECNICO',
+];
+
+const posicaoDaOrigem = (origem: string): number => {
+  const i = ORDEM_DAS_ORIGENS.indexOf(origem);
+  return i < 0 ? ORDEM_DAS_ORIGENS.length : i;
+};
+
+/**
+ * Documento e origem por texto (pt-BR); data cronológica pelo timestamp completo, sem data sempre ao final. Na data,
+ * o empate segue o critério do servidor (origem, depois id numérico); nos demais campos, o id numérico.
+ */
 export function ordenar(itens: DocumentoItem[], ordem: Ordem): DocumentoItem[] {
   const texto = (a: string | null, b: string | null) => normalizar(a).localeCompare(normalizar(b), 'pt-BR');
   const id = (a: DocumentoItem, b: DocumentoItem) => a.id.length - b.id.length || a.id.localeCompare(b.id);
+  const origem = (a: DocumentoItem, b: DocumentoItem) =>
+    ordem.campo === 'data' ? posicaoDaOrigem(a.origem) - posicaoDaOrigem(b.origem) : 0;
   return [...itens].sort((a, b) => {
     let c: number;
     if (ordem.campo === 'data') {
@@ -54,7 +74,7 @@ export function ordenar(itens: DocumentoItem[], ordem: Ordem): DocumentoItem[] {
     } else {
       c = texto(a.titulo, b.titulo);
     }
-    return c * ordem.direcao || id(a, b);
+    return c * ordem.direcao || origem(a, b) || id(a, b);
   });
 }
 

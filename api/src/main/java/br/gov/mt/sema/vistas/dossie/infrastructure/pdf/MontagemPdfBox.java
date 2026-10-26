@@ -51,7 +51,10 @@ class MontagemPdfBox implements MontadorDoDossie {
     private static final float MARGEM_DO_RODAPE = 20f;
     private static final float ALTURA_DA_LINHA = 16f;
     private static final DateTimeFormatter DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-    private static final DateTimeFormatter DATA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm");
+    static final String SEM_DATA = "sem data";
+    static final String NOTA_SEM_DATA =
+            "Documentos \"sem data\" não têm data registrada na origem e aparecem ao final, por origem e id.";
+    private static final DateTimeFormatter DATA_HORA =DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm");
 
     private final PDType1Font normal = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
     private final PDType1Font negrito = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
@@ -257,12 +260,16 @@ class MontagemPdfBox implements MontadorDoDossie {
                 for (int i = primeiro; i < ultimo; i++) {
                     DocumentoParaMontagem d = documentos.get(i);
                     LocalDateTime data = d.data();
-                    texto(c, data == null ? "s/d" : data.format(DATA), normal, 9f, colData, y, 0f);
+                    texto(c, data == null ? SEM_DATA : data.format(DATA), normal, 9f, colData, y, 0f);
                     texto(c, TextoPdf.cortar(normal, d.titulo(), 9f, colOrigem - colTitulo - 8f), normal, 9f, colTitulo, y, 0f);
                     texto(c, TextoPdf.cortar(normal, d.origem(), 9f, colPaginaDireita - 40f - colOrigem), normal, 9f, colOrigem, y, 0f);
                     String numero = String.valueOf(inicio[i]);
                     texto(c, numero, normal, 9f, colPaginaDireita - TextoPdf.largura(normal, numero, 9f), y, 0f);
                     y -= ALTURA_DA_LINHA;
+                }
+                // A nota fica no rodapé da última página do sumário: não ocupa linha, então a paginação não muda.
+                if (p == paginas.size() - 1 && documentos.stream().anyMatch(d -> d.data() == null)) {
+                    texto(c, NOTA_SEM_DATA, normal, 8f, colData, 60f, 0f);
                 }
             }
             adicionarLinks(saida, pagina, primeiro(p), Math.min(documentos.size(), primeiro(p) + LINHAS_POR_PAGINA_DO_SUMARIO), inicio);

@@ -9,9 +9,12 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.TimeZone;
 
 import br.gov.mt.sema.vistas.acesso.application.ObterPermissoesDoUsuario;
 import br.gov.mt.sema.vistas.acesso.application.ObterRestricaoDeInteressado;
@@ -200,6 +203,64 @@ class CasosDeUsoDocumentoTest {
 
         assertThat(escolhidos).extracting(Documento::id).containsExactly("1", "5");
         assertThat(escolhidos.get(0).chaveDoArquivo()).isEqualTo("K1");
+    }
+
+    // --- ordem cronológica do servidor (RN03, S2.2)
+
+    private List<ReferenciaDeDocumento> refs(String... origemEId) {
+        return Arrays.stream(origemEId).map(s -> ref(s.split(":")[0], s.split(":")[1])).toList();
+    }
+
+    @Test
+    void ordemDoDossieNaoDependeDaOrdemDaSelecao() {
+        LocalDateTime mesmoInstante = LocalDateTime.of(2025, 4, 2, 14, 0);
+        when(documentos.listar(anyLong())).thenReturn(List.of(
+                doc(OrigemDocumento.IMOVEL, "10", "K10", "Matrícula", "m.pdf", mesmoInstante, null, 0),
+                doc(OrigemDocumento.DOCUMENTO_PROCESSO, "10", "K11", "Ofício 10", "o10.pdf", mesmoInstante, null, 0),
+                doc(OrigemDocumento.DOCUMENTO_PROCESSO, "9", "K12", "Ofício 9", "o9.pdf", mesmoInstante, null, 0),
+                doc(OrigemDocumento.COMPLEMENTACAO, "3", "K13", "Sem data B", "b.pdf", null, null, 0),
+                doc(OrigemDocumento.DOCUMENTO_PROCESSO, "4", "K14", "Sem data A", "a.pdf", null, null, 0),
+                doc(OrigemDocumento.DOCUMENTO_REQUERIMENTO, "1", "K15", "Mais antigo", "r.pdf",
+                        mesmoInstante.minusSeconds(1), null, 0)));
+        List<String> esperado = List.of(
+                "DOCUMENTO_REQUERIMENTO:1", // data mais antiga (por 1 segundo: timestamp completo)
+                "DOCUMENTO_PROCESSO:9", // empate de data: origem, depois id numérico (9 antes de 10)
+                "DOCUMENTO_PROCESSO:10",
+                "IMOVEL:10",
+                "DOCUMENTO_PROCESSO:4", // sem data ao final, também por origem
+                "COMPLEMENTACAO:3");
+
+        List<List<String>> selecoes = List.of(
+                esperado,
+                esperado.reversed(),
+                List.of("IMOVEL:10", "COMPLEMENTACAO:3", "DOCUMENTO_PROCESSO:10", "DOCUMENTO_REQUERIMENTO:1",
+                        "DOCUMENTO_PROCESSO:4", "DOCUMENTO_PROCESSO:9"));
+        for (List<String> selecao : selecoes) {
+            assertThat(selecionar.executar(101, refs(selecao.toArray(String[]::new))))
+                    .extracting(d -> d.origem().name() + ":" + d.id())
+                    .containsExactlyElementsOf(esperado);
+        }
+    }
+
+    @Test
+    void horariosDeBordaComJvmEmUtcMantemODiaEAOrdem() {
+        TimeZone original = TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+        try {
+            when(documentos.listar(anyLong())).thenReturn(List.of(
+                    doc(OrigemDocumento.DOCUMENTO_PROCESSO, "2", "K2", "Madrugada", "m.pdf",
+                            LocalDateTime.of(2025, 4, 2, 0, 30), null, 0),
+                    doc(OrigemDocumento.DOCUMENTO_PROCESSO, "1", "K1", "Noite", "n.pdf",
+                            LocalDateTime.of(2025, 4, 1, 23, 30), null, 0)));
+
+            List<Documento> escolhidos = selecionar.executar(101, refs("DOCUMENTO_PROCESSO:2", "DOCUMENTO_PROCESSO:1"));
+
+            assertThat(escolhidos).extracting(Documento::titulo).containsExactly("Noite", "Madrugada");
+            assertThat(escolhidos.get(0).data().toLocalDate()).isEqualTo(LocalDate.of(2025, 4, 1));
+            assertThat(escolhidos.get(1).data().toLocalDate()).isEqualTo(LocalDate.of(2025, 4, 2));
+        } finally {
+            TimeZone.setDefault(original);
+        }
     }
 
     @Test

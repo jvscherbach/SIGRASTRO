@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TimeZone;
 
 import br.gov.mt.sema.vistas.dossie.application.port.FalhaNoDocumentoException;
 import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie.DocumentoParaMontagem;
@@ -178,7 +179,40 @@ class ValidadorEMontadorPdfBoxTest {
             // capa = 1, sumário = 2, documentos começam na 3: Oficio (3-4), Planta (5-7), Sem data (8)
             assertThat(sumario).containsPattern("02/04/2025\\s+Oficio\\s+Documento do processo\\s+3");
             assertThat(sumario).containsPattern("02/04/2025\\s+Planta\\s+Documento do processo\\s+5");
-            assertThat(sumario).containsPattern("s/d\\s+Sem data\\s+Juntada\\s+8");
+            assertThat(sumario).containsPattern("sem data\\s+Sem data\\s+Juntada\\s+8");
+            assertThat(sumario).contains("aparecem ao final, por origem e id");
+        }
+    }
+
+    @Test
+    void semDocumentoSemDataNaoHaNotaNoSumario() throws IOException {
+        Path saida = pasta.resolve("dossie.pdf");
+        montador.montar(capa(), List.of(doc("Oficio", 1, PDRectangle.A4, 0)), TUDO, saida);
+
+        try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+            assertThat(texto(pdf, 2, 2)).doesNotContain("sem data").doesNotContain("aparecem ao final");
+        }
+    }
+
+    @Test
+    void horariosDeBordaNaoDeslocamODiaNoSumarioComJvmEmUtc() throws IOException {
+        TimeZone original = TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+        try {
+            Path um = PdfsDeTeste.criarA4(pasta.resolve("um.pdf"), 1, "um");
+            Path saida = pasta.resolve("dossie.pdf");
+            montador.montar(capa(), List.of(
+                    new DocumentoParaMontagem("Noite", "Juntada", LocalDateTime.of(2025, 4, 1, 23, 30), um, 1),
+                    new DocumentoParaMontagem("Madrugada", "Juntada", LocalDateTime.of(2025, 4, 2, 0, 30), um, 1)),
+                    TUDO, saida);
+
+            try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+                String sumario = texto(pdf, 2, 2);
+                assertThat(sumario).containsPattern("01/04/2025\\s+Noite");
+                assertThat(sumario).containsPattern("02/04/2025\\s+Madrugada");
+            }
+        } finally {
+            TimeZone.setDefault(original);
         }
     }
 

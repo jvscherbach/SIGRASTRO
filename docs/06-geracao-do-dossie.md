@@ -69,7 +69,20 @@ A validação visual será feita com as planilhas reais dos processos de teste.
 
 ## Sumário
 
-Página(s) após a capa com uma linha por documento: data, título, origem e página inicial. Cada documento recebe também um marcador (bookmark) no PDF.
+Página(s) após a capa com uma linha por documento: data (dd/MM/aaaa), título, origem e página inicial. Cada documento recebe também um marcador (bookmark) no PDF. Documento sem data mostra "sem data" e fica no fim; havendo algum, o rodapé da última página do sumário traz a nota "Documentos "sem data" não têm data registrada na origem e aparecem ao final, por origem e id." (a nota não ocupa linha, então a paginação do sumário não muda).
+
+## Ordem do dossiê (S2.2)
+
+A ordem é **sempre a do servidor**, decidida no `POST /dossies` a partir do instantâneo da lista relida do SIGA (`SelecionarDocumentosParaDossie`, `Documento.ORDEM_CRONOLOGICA`):
+
+1. `DATA_DOC` crescente, pelo timestamp completo (dia, hora, minuto e segundo);
+2. sem data, ao final;
+3. empate de data (e entre os sem data): ordem das origens na tabela do docs/04 (documento do processo, documento do requerimento, complementação, imóvel, representante legal, responsável técnico);
+4. depois, `ID` numérico (9 antes de 10).
+
+A ordem em que o usuário clica, filtra ou ordena a tabela não altera o dossiê: o cliente manda só `origem + id`, e o servidor reordena. A gaveta avisa "O dossiê segue sempre a ordem cronológica.". A tabela abre por data crescente com o mesmo critério de desempate.
+
+**Fuso e dia.** `DATA_DOC` é `TIMESTAMP` (ou `DATE`) sem fuso, no relógio de Cuiabá. O adapter lê a coluna como `LocalDateTime` direto do driver (`DataHoraDoSiga`), sem passar por `java.sql.Timestamp`, que usaria o fuso da JVM. Um documento das 23:30 continua no mesmo dia na tela e no sumário, mesmo com a JVM em UTC. O front lê o texto `aaaa-mm-ddThh:mm` campo a campo, sem converter pelo fuso do navegador.
 
 ## Falha na geração
 

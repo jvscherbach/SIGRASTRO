@@ -150,6 +150,7 @@ test('lista, seleção padrão, geração com acompanhamento, pré-visualizaçã
 
   // acompanhamento até o fim (polling)
   await expect(page.locator('.d-head h2')).toHaveText('Dossiê pronto', { timeout: 10_000 });
+  await expect(page.locator('.d-head .ordem-cronologica')).toHaveText('O dossiê segue sempre a ordem cronológica.');
   await expect(page.locator('.d-body')).toContainText('6 páginas');
   const alturaDepois = await page.locator('.dash-hero').evaluate((e) => e.getBoundingClientRect().height);
   expect(alturaDepois).toBe(alturaAntes);

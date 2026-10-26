@@ -120,6 +120,12 @@ describe('GavetaDossieComponent', () => {
       expect(api.andamento).toHaveBeenCalledWith('pedido-1');
     });
 
+    it('avisa que o dossiê segue sempre a ordem cronológica (a ordem da tabela não muda o PDF)', () => {
+      abrir();
+
+      expect(texto()).toContain('O dossiê segue sempre a ordem cronológica.');
+    });
+
     it('enquanto o pedido é enviado mostra "Enviando pedido…" e a lista da seleção', () => {
       api.criar.mockReturnValue(new Subject());
       abrir();

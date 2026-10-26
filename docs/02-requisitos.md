@@ -84,7 +84,7 @@
 |---|---|
 | RN01 | **Vigente**: registro sem data de fim (`DATA_FIM IS NULL`) e com chave diferente de `"0"`. **Substituído**: registro com `DATA_FIM` preenchida. **Indisponível**: chave `"0"` ou arquivo inexistente. |
 | RN02 | Documentos de doença grave (`PESSOA_DOCUMENTO_DOENCA_GRAVE`) nunca são listados. |
-| RN03 | Data para ordem cronológica: a data da própria origem (S2.1; a data de assinatura deixou de ser usada, a Vista não a usa). Documentos sem data vão ao final. Empate desempata por origem e id. |
+| RN03 | Data para ordem cronológica: a data da própria origem (S2.1; a data de assinatura deixou de ser usada, a Vista não a usa). Documentos sem data vão ao final. Empate desempata por origem e id. **Reforçada na S2.2:** a ordem do dossiê é sempre a do servidor, decidida no `POST /dossies` (`DATA_DOC` crescente pelo timestamp completo; sem data ao final; empate pela ordem das origens do docs/04 e depois pelo `ID` numérico); a ordem, o filtro e os cliques na tabela não a alteram. A data é lida sem deslocar o dia (relógio de Cuiabá, qualquer que seja o fuso da JVM ou do navegador). Detalhes em docs/06. |
 | RN04 | O requerimento vira processo após o pagamento da taxa e a conclusão do protocolo. Quando há processo, a identificação exibida (topo da tela, atalhos, resultados, capa e nome do dossiê) é sempre o número do processo; o número do requerimento só aparece enquanto ele não foi protocolado. |
 | RN05 | Documentos presentes em mais de uma tabela com a mesma chave aparecem uma única vez. |
 | RN06 | A sinalização de sigilo considera todas as variações de coluna (`SIGILOSO`, `SIGILO`, `IND_SIGILOSO`). Na dúvida, o documento é tratado como sigiloso. |
