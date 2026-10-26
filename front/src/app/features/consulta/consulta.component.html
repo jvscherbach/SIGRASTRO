@@ -46,7 +46,7 @@
       <!-- Espaço reservado para o alerta: mensagens de erro não mudam a altura do quadro do topo (docs/08). -->
       <div class="search-feedback">
         @if (erro()) {
-          <div class="alert" role="alert"><app-icone nome="alert" /><span>{{ erro() }}</span></div>
+          <div class="alert" role="alert"><app-icone nome="alert" /><span [attr.title]="erro()">{{ erro() }}</span></div>
         }
       </div>
     </form>
@@ -131,7 +131,12 @@
           @for (recente of recentes(); track recente.id) {
             <button type="button" class="tile" (click)="abrir(recente.id)">
               <span class="tile-icon"><app-icone nome="license" /></span>
-              <span><b>{{ recente.rotulo }}</b></span>
+              <span>
+                <b>{{ recente.titulo }}</b>
+                @if (recente.situacao) {
+                  <small>{{ recente.situacao }}</small>
+                }
+              </span>
             </button>
           }
         </div>

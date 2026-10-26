@@ -33,7 +33,7 @@ describe('RecentesService', () => {
     expect(recentes.listar()).toEqual([]);
   });
 
-  it('guarda só id e rótulo, com o mais recente primeiro', () => {
+  it('guarda só id, rótulo, número do requerimento e situação, com o mais recente primeiro', () => {
     recentes.registrar({ id: 1, rotulo: 'Processo 2825/2025' });
     recentes.registrar({ id: 2, rotulo: 'Requerimento 1187/2026' });
 
@@ -85,5 +85,61 @@ describe('RecentesService', () => {
 
     localStorage.setItem('vistas.recentes.operador.demo', JSON.stringify([{ id: 'x' }, { id: 3, rotulo: 'C' }, 7]));
     expect(recentes.listar()).toEqual([{ id: 3, rotulo: 'C' }]);
+  });
+
+  describe('desempate de atalhos com o mesmo rótulo', () => {
+    it('dois requerimentos do mesmo processo ganham o número do requerimento e a situação', () => {
+      recentes.registrar({ id: 1, rotulo: 'Processo 445/2022', numeroRequerimento: '3391/2022', situacao: 'Concluído' });
+      recentes.registrar({ id: 2, rotulo: 'Processo 445/2022', numeroRequerimento: '3798/2023', situacao: 'Cancelado' });
+      recentes.registrar({ id: 3, rotulo: 'Processo 2825/2025', numeroRequerimento: '3331/2025', situacao: 'Em análise' });
+
+      expect(recentes.listarParaExibicao()).toEqual([
+        { id: 3, titulo: 'Processo 2825/2025', situacao: null },
+        { id: 2, titulo: 'Processo 445/2022 · Req. 3798/2023', situacao: 'Cancelado' },
+        { id: 1, titulo: 'Processo 445/2022 · Req. 3391/2022', situacao: 'Concluído' },
+      ]);
+    });
+
+    it('rótulo único não ganha nada além do próprio rótulo', () => {
+      recentes.registrar({ id: 1, rotulo: 'Processo 2825/2025', numeroRequerimento: '3331/2025', situacao: 'Em análise' });
+
+      expect(recentes.listarParaExibicao()).toEqual([{ id: 1, titulo: 'Processo 2825/2025', situacao: null }]);
+    });
+
+    it('atalho antigo (só id e rótulo) continua sendo lido e, repetido, não inventa o que não tem', () => {
+      localStorage.setItem(
+        'vistas.recentes.operador.demo',
+        JSON.stringify([
+          { id: 1, rotulo: 'Processo 445/2022' },
+          { id: 2, rotulo: 'Processo 445/2022', numeroRequerimento: '3798/2023', situacao: 'Cancelado' },
+        ]),
+      );
+
+      expect(recentes.listar()).toEqual([
+        { id: 1, rotulo: 'Processo 445/2022' },
+        { id: 2, rotulo: 'Processo 445/2022', numeroRequerimento: '3798/2023', situacao: 'Cancelado' },
+      ]);
+      expect(recentes.listarParaExibicao()).toEqual([
+        { id: 1, titulo: 'Processo 445/2022', situacao: null },
+        { id: 2, titulo: 'Processo 445/2022 · Req. 3798/2023', situacao: 'Cancelado' },
+      ]);
+    });
+
+    it('campos novos com tipo errado no localStorage são descartados', () => {
+      localStorage.setItem(
+        'vistas.recentes.operador.demo',
+        JSON.stringify([{ id: 1, rotulo: 'A', numeroRequerimento: 7, situacao: { x: 1 }, extra: '<script>' }]),
+      );
+
+      expect(recentes.listar()).toEqual([{ id: 1, rotulo: 'A' }]);
+    });
+
+    it('o limite de 6 vale com os campos novos', () => {
+      for (let id = 1; id <= 8; id++) {
+        recentes.registrar({ id, rotulo: 'Processo 445/2022', numeroRequerimento: `${id}/2022`, situacao: 'Concluído' });
+      }
+
+      expect(recentes.listarParaExibicao().map((r) => r.id)).toEqual([8, 7, 6, 5, 4, 3]);
+    });
   });
 });

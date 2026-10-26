@@ -13,6 +13,10 @@ final class SigaSql {
     private SigaSql() {
     }
 
+    static boolean existe(String nome) {
+        return new ClassPathResource("sql/siga/" + nome + ".sql").exists();
+    }
+
     static String carregar(String nome) {
         ClassPathResource recurso = new ClassPathResource("sql/siga/" + nome + ".sql");
         try (InputStream entrada = recurso.getInputStream()) {

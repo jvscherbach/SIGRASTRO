@@ -22,6 +22,8 @@ Cada módulo materializa **apenas** os pacotes que a funcionalidade usa.
 9. **Somente `integration.siga` executa SQL contra o banco do SIGA.** Os módulos de negócio declaram portas (ex.: `documento.application.port.DocumentosDoRequerimento`) e recebem objetos internos.
 10. Tipos de `integration.*` (DTOs externos, linhas do SIGA, enums do SIGA) não aparecem em assinaturas de nenhum módulo de negócio.
 
+Regras adicionadas na S2 ao `ArchitectureTest`: (a) **HTTP de saída** (`RestClient`, `java.net.http`, `HttpURLConnection`) só em `integration.*`, e nenhum HTTP em `integration.siga`; (b) a **chave do arquivo** (`chaveDoArquivo()` de `Documento` e de `ItemDoPedido`) não é lida por classe de `..api..`, e nenhum campo de `..api.dto..` tem "chave" no nome.
+
 Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTest test` (não precisa de Docker). O teste ignora pacotes vazios e passa a inspecioná-los quando recebem classes.
 
 ## Contratos internos usados no Vistas
@@ -33,6 +35,21 @@ Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTes
 | todos | `acesso` | usuário atual, perfil e verificação de vínculo (RN07) |
 | `dossie`, `documento` | `configuracao` | parâmetros vigentes (expiração, origens, timeouts, modo das planilhas) |
 | `documento`, `dossie` | portas implementadas em `integration.*` | obter binário do arquivo, listar documentos pessoais |
+
+**Contratos internos entregues na S2:**
+
+| Consumidor | Contrato | Publicado por |
+|---|---|---|
+| `documento` | `VerificarAcessoAoRequerimento` (existe + RN07) | `consulta.application` |
+| `dossie` | `ObterRequerimento` (dados da capa, com RN07) | `consulta.application` |
+| `documento`, `dossie` | `ObterPermissoesDoUsuario`, `UsuarioAtual` | `acesso.application` |
+| `dossie` | `SelecionarDocumentosParaDossie` (seleção validada, em ordem, com a chave resolvida) | `documento.application` |
+| `integration.siga` | porta `DocumentosDoRequerimento` | `documento.application.port` |
+| `integration.licenciamento` | porta `ArquivosDoRepositorio` | `dossie.application.port` |
+| `dossie.infrastructure` | portas `ValidadorDePdf`, `MontadorDoDossie`, `RepositorioDePedidos`, `FilaDeGeracao` | `dossie.application.port` |
+| `config` | `ParametrosDoDossie` (variáveis de ambiente; a S5 troca) | `dossie.application.port` |
+
+Dependências previstas entre módulos de negócio: `documento` → `consulta`, `acesso`; `dossie` → `documento`, `consulta`, `acesso`. Não há ciclo (o `ArchitectureTest` fiscaliza). `consulta` não depende de `documento` nem de `dossie`.
 
 **Nunca são contrato interno:** DTO HTTP de outro módulo, entidade JPA de outro módulo, repository concreto de outro módulo, DTO de integração externa.
 

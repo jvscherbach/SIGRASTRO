@@ -28,6 +28,8 @@ Serviço externo ao SIGA Licenciamento que gera o **dossiê em PDF** de um reque
 | [14 — Plano de sprints](14-plano-de-sprints.md) | Sprints do protótipo, entregas, aceite e validações |
 | [Homologação da S1](homologacao/S1-roteiro-homologacao.md) | Roteiro manual de conexão e leitura reais do SIGA |
 | [Homologação da S1.1](homologacao/S1.1-roteiro-homologacao.md) | Roteiro manual de objeto, prioridade, responsável, processo 1:N e quadro do topo |
+| [Homologação da S2](homologacao/S2-roteiro-homologacao.md) | Roteiro manual de documentos, token, dossiê real, falhas, acesso e quadro do topo |
+| [Casos de teste](casos-de-teste.md) | Processos de teste (que falham hoje e com planilhas) e o resultado de cada dossiê |
 | [Prompts das sprints](prompts/) | Prompt de cada sprint para o Claude Code |
 
 ## Fontes

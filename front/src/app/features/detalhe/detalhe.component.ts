@@ -11,13 +11,23 @@ import { QuadroTopoComponent } from '../../shared/quadro-topo.component';
 import { RecentesService } from '../../shared/recentes.service';
 import { SituacaoTagComponent } from '../../shared/situacao-tag.component';
 import { TrilhaService } from '../../shared/trilha.service';
+import { DocumentosSecaoComponent } from '../documentos/documentos-secao.component';
 import { DetalheApiService } from './detalhe-api.service';
 import { Requerimento, Responsavel } from './detalhe.models';
+import { ObjetoDoRequerimentoComponent } from './objeto-do-requerimento.component';
 
 @Component({
   selector: 'app-detalhe',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, QuadroTopoComponent, FolhaSobrepostaComponent, IconeComponent, SituacaoTagComponent],
+  imports: [
+    RouterLink,
+    QuadroTopoComponent,
+    FolhaSobrepostaComponent,
+    IconeComponent,
+    SituacaoTagComponent,
+    ObjetoDoRequerimentoComponent,
+    DocumentosSecaoComponent,
+  ],
   templateUrl: './detalhe.component.html',
 })
 export class DetalheComponent {
@@ -37,39 +47,6 @@ export class DetalheComponent {
   protected readonly descricao = computed(() => {
     const r = this.requerimento();
     return [r?.interessado?.nome, r?.tipoProcesso].filter(Boolean).join(' · ');
-  });
-
-  /**
-   * Cartões do objeto (P01). Objetivos e pares Finalidade | Atividade são listas independentes; o bloco
-   * Tipo | Objetivo só aparece com objetivos de outorga. Sem dados, o cartão mostra "—".
-   */
-  protected readonly cartoesDoObjeto = computed<CartaoDoObjeto[]>(() => {
-    const objeto = this.requerimento()?.objeto;
-    if (!objeto) {
-      return [];
-    }
-    const cartoes: CartaoDoObjeto[] = [
-      { icone: 'drop', rotulo: 'Objetivos', linhas: linhas(objeto.objetivos) },
-      {
-        icone: 'bars',
-        rotulo: 'Finalidade | Atividade',
-        linhas: linhas(objeto.finalidadesAtividades.map((p) => `${p.finalidade || '—'} | ${p.atividade || '—'}`)),
-      },
-    ];
-    if (objeto.tiposObjetivo.length) {
-      cartoes.push({
-        icone: 'layers',
-        rotulo: 'Tipo | Objetivo',
-        linhas: objeto.tiposObjetivo.map((t) => `${t.tipoDescricao || '—'} | ${t.objetivo || '—'}`),
-      });
-    }
-    const atividade = objeto.atividadeLicenciamento;
-    cartoes.push({
-      icone: 'building',
-      rotulo: 'Atividade',
-      linhas: linhas(atividade ? [[atividade.grupo, atividade.atividade].filter(Boolean).join(' · ')] : []),
-    });
-    return cartoes;
   });
 
   protected criteriosComoDica(r: Requerimento): string {
@@ -106,7 +83,12 @@ export class DetalheComponent {
           this.carregando.set(false);
           const { rotulo, numero } = requerimento.identificacao;
           this.trilha.definir(['Consulta', `${rotulo} ${numero}`]);
-          this.recentes.registrar({ id: requerimento.id, rotulo: `${rotulo} ${numero}` });
+          this.recentes.registrar({
+            id: requerimento.id,
+            rotulo: `${rotulo} ${numero}`,
+            numeroRequerimento: requerimento.numeroRequerimento,
+            situacao: requerimento.situacao.descricao,
+          });
         },
         error: (erro: unknown) => {
           this.carregando.set(false);
@@ -118,17 +100,6 @@ export class DetalheComponent {
   protected voltar(): void {
     void this.router.navigate(['/consulta']);
   }
-}
-
-interface CartaoDoObjeto {
-  icone: string;
-  rotulo: string;
-  linhas: string[];
-}
-
-function linhas(valores: string[]): string[] {
-  const preenchidos = valores.filter((v) => v && v.trim());
-  return preenchidos.length ? preenchidos : ['—'];
 }
 
 /** Mensagem do erro no corpo da página; usa o errorCode, nunca o detail técnico cru. */

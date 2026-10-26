@@ -1,0 +1,171 @@
+<section class="panel" aria-label="Documentos">
+  <div class="dash-sec-head">
+    <div>
+      <h2><app-icone nome="plan" />Documentos</h2>
+      @if (totais(); as t) {
+        <p>{{ t.total }} documento(s) de todas as origens · {{ t.vigentes }} vigente(s).</p>
+      }
+    </div>
+    @if (resposta()) {
+      <div class="row wrap">
+        <button type="button" class="btn sm" (click)="usarSelecaoPadrao()"><app-icone nome="refresh" />Seleção padrão</button>
+        <button type="button" class="btn sm quiet" (click)="limparSelecao()">Limpar seleção</button>
+      </div>
+    }
+  </div>
+
+  @if (carregando()) {
+    <p class="muted" role="status">Carregando documentos…</p>
+  } @else if (erro()) {
+    <div class="alert docs-erro" role="alert">
+      <app-icone nome="alert" /><span>{{ erro() }}</span>
+    </div>
+    <button type="button" class="btn sm" (click)="carregar()"><app-icone nome="refresh" />Tentar novamente</button>
+  } @else if (totais(); as t) {
+    @if (t.naoPdf > 0) {
+      <div class="note amber docs-aviso nao-pdf" role="status">
+        <app-icone nome="info" />
+        <span>{{ t.naoPdf }} documento(s) não são PDF e entram no dossiê a partir da próxima etapa.</span>
+      </div>
+    }
+    @if (t.tipoNaoInformado > 0) {
+      <div class="note amber docs-aviso tipo-nao-informado" role="status">
+        <app-icone nome="info" />
+        <span>{{ t.tipoNaoInformado }} documento(s) sem tipo informado: o tipo é conferido ao gerar o dossiê.</span>
+      </div>
+    }
+
+    <div class="toolbar">
+      <div class="search">
+        <app-icone nome="search" />
+        <input
+          type="search"
+          placeholder="Buscar por nome, arquivo ou ID"
+          aria-label="Buscar documentos"
+          [value]="busca()"
+          (input)="digitarBusca($event)"
+        />
+      </div>
+      <select aria-label="Origem" [value]="origem()" (change)="escolherOrigem($event)">
+        <option value="">Todas as origens</option>
+        @for (o of origens(); track o.codigo) {
+          <option [value]="o.codigo" [selected]="origem() === o.codigo">{{ o.descricao }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="chk">
+              <input
+                type="checkbox"
+                aria-label="Selecionar todos os documentos listados"
+                [checked]="todosMarcados()"
+                [disabled]="!selecionaveisListados().length"
+                (change)="alternarTodos($any($event.target).checked)"
+              />
+            </th>
+            <th class="ordenavel" [attr.aria-sort]="ariaSort('titulo')">
+              <button type="button" (click)="ordenarPor('titulo')">
+                Documento @if (ordem().campo === 'titulo') { <app-icone [nome]="ordem().direcao === 1 ? 'up' : 'down'" /> }
+              </button>
+            </th>
+            <th class="ordenavel" [attr.aria-sort]="ariaSort('origem')">
+              <button type="button" (click)="ordenarPor('origem')">
+                Origem @if (ordem().campo === 'origem') { <app-icone [nome]="ordem().direcao === 1 ? 'up' : 'down'" /> }
+              </button>
+            </th>
+            <th class="ordenavel" [attr.aria-sort]="ariaSort('data')">
+              <button type="button" (click)="ordenarPor('data')">
+                Data @if (ordem().campo === 'data') { <app-icone [nome]="ordem().direcao === 1 ? 'up' : 'down'" /> }
+              </button>
+            </th>
+            <th>Sigilo</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (d of listados(); track chaveDe(d)) {
+            <tr
+              [class.sel]="selecionados().has(chaveDe(d))"
+              [class.bloqueado]="!selecionavel(d)"
+              [class.off]="d.bloqueio === 'INDISPONIVEL'"
+              [attr.data-bloqueio]="d.bloqueio"
+            >
+              <td class="chk">
+                <input
+                  type="checkbox"
+                  [attr.aria-label]="'Selecionar ' + d.titulo"
+                  [checked]="selecionados().has(chaveDe(d))"
+                  [disabled]="!selecionavel(d)"
+                  (change)="alternar(d)"
+                />
+              </td>
+              <td>
+                <div class="doc-cell">
+                  <span [class]="'ext ' + classeDaExtensao(d)">{{ d.extensao ? d.extensao.toUpperCase() : '—' }}</span>
+                  <span>
+                    <b>{{ d.titulo || 'Documento ' + d.id }}</b>
+                    <small>
+                      ID {{ d.id }}@if (d.nomeArquivo) { · {{ d.nomeArquivo }} }
+                      @if (rotuloDoBloqueio(d); as rotulo) {
+                        · <span class="doc-aviso-linha">{{ rotulo }}</span>
+                      }
+                      @if (d.situacao === 'SUBSTITUIDO') { · <span class="doc-aviso-linha">versão substituída</span> }
+                      @if (d.tipoArquivo === 'DESCONHECIDO' && d.acessivel) { · <span class="doc-aviso-linha etiqueta-tipo">tipo não informado</span> }
+                    </small>
+                  </span>
+                </div>
+              </td>
+              <td class="nowrap">{{ d.origemDescricao }}</td>
+              <td class="nowrap">{{ formatarData(d.data) }}</td>
+              <td>
+                @if (d.sigiloso) {
+                  <span class="lock"><app-icone nome="lock" />Sigiloso</span>
+                  @if (!d.acessivel) {
+                    <span class="cell-sub">Requer perfil autorizado</span>
+                  }
+                } @else {
+                  <span class="muted">Não</span>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5">
+                <div class="empty">
+                  <h3>{{ itens().length ? 'Nenhum documento com esses filtros' : 'Este requerimento não tem documentos' }}</h3>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="table-foot">
+      <span>Exibindo {{ listados().length }} de {{ itens().length }}</span>
+      <span>Ordem cronológica pela data da própria origem; sem data, ao final.</span>
+    </div>
+
+    <div class="selbar">
+      <div class="facts">
+        <span><b>{{ quantidadeSelecionada() }}</b> selecionado(s)</span>
+      </div>
+      <div class="row">
+        <button type="button" class="btn lime" [disabled]="!quantidadeSelecionada()" (click)="gerar()">
+          <app-icone nome="layers" />Gerar dossiê
+        </button>
+      </div>
+    </div>
+  }
+</section>
+
+@if (gaveta(); as referencias) {
+  <app-gaveta-dossie
+    [idRequerimento]="idRequerimento()"
+    [referencias]="referencias"
+    (documentoRemovido)="tirarDaSelecao($event)"
+    (fechar)="fecharGaveta()"
+  />
+}

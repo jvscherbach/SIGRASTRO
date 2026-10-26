@@ -16,7 +16,7 @@ Pontos que moldam todas as regras abaixo:
 | Leitura do SIGA | `NamedParameterJdbcTemplate` + `ojdbc11`, datasource somente leitura (sem JPA) |
 | Schema próprio (definitivo) | Oracle — 23 Free local, 19c no ambiente final; Spring Data JPA + Flyway, `ddl-auto=validate` |
 | Agendamento | Spring `@Scheduled` em processo (ver [`padroes/agendamento.md`](padroes/agendamento.md)) |
-| PDF | Apache PDFBox 3 |
+| PDF | Apache PDFBox 3, com arquivos em disco (`Loader.loadPDF` sobre `File`, cache em arquivos temporários; nunca tudo em memória) |
 | Conversão | LibreOffice headless via JODConverter |
 | HTTP de saída | `RestClient` |
 | Front-end | Angular, servido por nginx |
@@ -84,6 +84,15 @@ O dono é o módulo que define o **significado de negócio**. Ex.: "quais docume
 - Credencial de serviço para arquivos (API key do serviço de identidade ou acesso direto ao Pandora).
 - Versão real do Oracle do SIGA em homologação/produção (assumir compatibilidade com 19c até confirmar).
 - Se o Flyway roda no startup da API ou numa etapa do pipeline.
+
+## Exceções registradas a "sem dependências novas"
+
+- **`@playwright/test`** (devDependency do `front`, versão fixa, D35): testes e2e com API simulada; fora das imagens de produção, `npm audit` em 0.
+- **`org.apache.pdfbox:pdfbox`** (produção, `api`), prevista desde a S0 como stack do PDF.
+
+## Verificação sem sistemas externos
+
+Toda subida de verificação usa `compose.yaml` + `compose.local.yaml` + **`compose.verificacao.yaml`**, que esvazia as variáveis externas, e confirma as variáveis vazias dentro do container (D34; [`padroes/ambientes-e-docker.md`](padroes/ambientes-e-docker.md)).
 
 ## Regras que não mudam
 

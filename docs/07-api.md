@@ -124,39 +124,54 @@ Para o **Operador**, a mesma resposta vem **sem** `tarefaAtual.responsavel` (o c
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/requerimentos/{id}/documentos` | Documentos do requerimento (e do processo, quando protocolado). |
-| `GET` | `/documentos/{origem}/{id}/conteudo?formato=original\|pdf` | Conteúdo do documento para o modal. Retorna binário. Com `formato=pdf`, converte quando necessário. Bloqueado para sigilosos sem perfil. |
+| `GET` | `/requerimentos/{id}/documentos` | Documentos **do requerimento** (a chave é o requerimento, D31), das seis origens da Vista (S2.1), deduplicados (RN05), sem compactados (RN11) e sem geometrias (até a S4), em ordem cronológica (RN03). Aplica a RN07 e o sigilo (D36): Operador de outro interessado, 403 `NAO_INTERESSADO`; requerimento inexistente, 404 `NAO_ENCONTRADO`; SIGA fora do ar, 503 `SIGA_INDISPONIVEL`. |
+| `GET` | `/documentos/{origem}/{id}/conteudo?formato=original\|pdf` | **S3.** Conteúdo do documento para o modal. Retorna binário. Com `formato=pdf`, converte quando necessário. Bloqueado para sigilosos sem perfil. |
 
-Item da lista de documentos:
+Resposta de `GET /requerimentos/{id}/documentos`:
 
 ```json
 {
-  "origem": "DOCUMENTO_PROCESSO",
-  "id": 804328,
-  "idRequerimento": 12345,
-  "titulo": "RG e CPF",
-  "nomeArquivo": "RG e CPF.pdf",
-  "origemDescricao": "Representante legal",
-  "data": "2025-03-31T10:12:00",
-  "situacao": "VIGENTE",
-  "sigiloso": false,
-  "acessivel": true,
-  "extensao": "pdf"
+  "itens": [
+    {
+      "origem": "DOCUMENTO_PROCESSO",
+      "id": "804328",
+      "idRequerimento": 12345,
+      "titulo": "RG e CPF",
+      "nomeArquivo": "RG e CPF.pdf",
+      "origemDescricao": "Documento do processo",
+      "data": "2025-03-31T10:12:00",
+      "situacao": "VIGENTE",
+      "sigiloso": false,
+      "acessivel": true,
+      "extensao": "pdf",
+      "tipoArquivo": "PDF",
+      "selecionavelPorPadrao": true,
+      "bloqueio": null
+    }
+  ],
+  "totais": { "total": 55, "vigentes": 48, "naoPdf": 6, "tipoNaoInformado": 1, "indisponiveis": 2, "sigilosos": 3 }
 }
 ```
 
-- `situacao`: `VIGENTE`, `SUBSTITUIDO` ou `INDISPONIVEL`. Usada pelo front-end para a pré-seleção e o bloqueio de indisponíveis; não é exibida como coluna.
-- `acessivel`: `false` quando o perfil não permite acessar documentos sigilosos.
-- A chave do arquivo nunca é retornada.
+- `id` é **texto** em todo o contrato (`"804328"`), para acomodar o SCORP. `origem` é o código (`DOCUMENTO_PROCESSO`, `DOCUMENTO_REQUERIMENTO`, `COMPLEMENTACAO`, `IMOVEL`, `REPRESENTANTE_LEGAL`, `RESPONSAVEL_TECNICO`) e `origemDescricao`, o texto da tela.
+- `situacao`: `VIGENTE`, `SUBSTITUIDO` ou `INDISPONIVEL` (RN01). Não é exibida como coluna.
+- `tipoArquivo`: `PDF`, `PLANILHA`, `TEXTO`, `IMAGEM`, `GEOMETRIA`, `COMPACTADO` ou `DESCONHECIDO` (pela extensão do nome do arquivo; sem extensão ou extensão não reconhecida é `DESCONHECIDO`).
+- `bloqueio` (por que o documento não pode ser selecionado): `null`, `NAO_PDF` (conversão na S3; `DESCONHECIDO` não recebe `NAO_PDF`), `INDISPONIVEL` ou `SIGILOSO` (sem perfil). Precedência: indisponível, sigiloso, não PDF.
+- `selecionavelPorPadrao`: pré-seleção do domínio: só PDF, vigente e sem bloqueio (`DESCONHECIDO` fica fora). Documento substituído em PDF não é pré-selecionado, mas pode ser marcado manualmente.
+- `acessivel`: `false` quando o documento é sigiloso e o perfil não o acessa (Operador). Nesse caso o documento vem **mascarado**: `titulo` = "Documento sigiloso" e `nomeArquivo`, `extensao` e `tipoArquivo` são `null` (RF20).
+- `totais`: contagem de toda a lista (`naoPdf` conta os bloqueados por `NAO_PDF`, `tipoNaoInformado` conta os de tipo `DESCONHECIDO` (não entram em `naoPdf`) e `vigentes`, os de situação `VIGENTE`).
+- **A chave do arquivo nunca é retornada** (RNF09); testado percorrendo as respostas.
 
 ## Dossiê
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/dossies` | Cria um pedido de geração. Retorna `202` com `{ "id": "..." }`. |
+| `POST` | `/dossies` | Cria um pedido de geração. Retorna `202` com `{ "id": "..." }` (UUID aleatório). |
 | `GET` | `/dossies/{id}` | Andamento do pedido. |
-| `GET` | `/dossies/{id}/arquivo?disposicao=inline\|attachment` | PDF final. `inline` para pré-visualização, `attachment` para download. |
-| `DELETE` | `/dossies/{id}` | Cancela o pedido ou descarta o arquivo. |
+| `GET` | `/dossies/{id}/arquivo?disposicao=inline\|attachment` | PDF final. `inline` para pré-visualização (o arquivo continua), `attachment` para download (**o arquivo é apagado ao fim do download**, RNF05). `Content-Disposition` com o nome do RF18: `dossie-processo-<numero>-<ano>.pdf` (protocolado) ou `dossie-requerimento-<numero>-<ano>.pdf`. |
+| `DELETE` | `/dossies/{id}` | Cancela o pedido em andamento ou descarta o arquivo já gerado (idempotente, 204). |
+
+Só quem criou o pedido (e Gestor e Administrador) acessa o `{id}`; para os demais o pedido **não existe** (404 `NAO_ENCONTRADO`).
 
 Corpo do `POST /dossies`:
 
@@ -164,35 +179,60 @@ Corpo do `POST /dossies`:
 {
   "idRequerimento": 12345,
   "documentos": [
-    { "origem": "DOCUMENTO_PROCESSO", "id": 804328 },
-    { "origem": "SCORP", "id": "..." }
+    { "origem": "DOCUMENTO_PROCESSO", "id": "804328" },
+    { "origem": "COMPLEMENTACAO", "id": "900118" }
   ]
 }
 ```
+
+Validações (nesta ordem; o cliente nunca é confiável, a lista é relida no servidor):
+
+1. requerimento existe (404) e o usuário pode acessá-lo, RN07 (403 `NAO_INTERESSADO`);
+2. lista não vazia (400 `PARAMETRO_INVALIDO`, com `campos`);
+3. cada `{origem, id}` **pertence** ao requerimento (400, indicando qual);
+4. documento sigiloso sem perfil: 403 `DOCUMENTO_SIGILOSO` (a mensagem não revela o título);
+5. documento indisponível ou não PDF: 400 `PARAMETRO_INVALIDO`, indicando qual. Substituído em PDF é aceito.
+
+O pedido resolve as chaves **uma vez**, guarda o instantâneo e libera a conexão do SIGA antes de baixar qualquer arquivo.
 
 Resposta do `GET /dossies/{id}`:
 
 ```json
 {
-  "id": "...",
+  "id": "6f0c3c0e-5f0e-4c7e-9a52-2b1f0f5d8a11",
   "status": "PROCESSANDO",
   "total": 55,
   "processados": 21,
   "erro": null,
   "paginas": null,
-  "expiraEm": "2026-10-19T18:30:00"
+  "expiraEm": "2026-10-19T18:30:00",
+  "itens": [
+    { "origem": "DOCUMENTO_PROCESSO", "id": "804328", "titulo": "RG e CPF", "situacao": "OK" },
+    { "origem": "COMPLEMENTACAO", "id": "900118", "titulo": "Resposta da complementação", "situacao": "OBTENDO" }
+  ]
 }
 ```
 
-`status`: `PENDENTE`, `PROCESSANDO`, `CONCLUIDO`, `FALHA`, `CANCELADO` ou `EXPIRADO`.
+- `status`: `PENDENTE`, `PROCESSANDO`, `CONCLUIDO`, `FALHA`, `CANCELADO` ou `EXPIRADO`.
+- `itens[].situacao` (RF16): `AGUARDANDO`, `OBTENDO`, `OK` ou `FALHA`. A ordem é a cronológica (RN03).
+- `paginas`: total de páginas do PDF final (só em `CONCLUIDO`). `expiraEm`: horário de Cuiabá, sem fuso.
+- `GET /dossies/{id}/arquivo`: 409 `DOSSIE_SEM_ARQUIVO` se não há arquivo (em andamento, falha, cancelado); 410 `DOSSIE_EXPIRADO` se expirou ou já foi baixado; 400 se `disposicao` for outra.
 
 Em `FALHA`, `erro` traz o documento e o motivo, e `GET /dossies/{id}/arquivo` retorna 409 (não há arquivo):
 
 ```json
-"erro": { "origem": "JUNTADA", "id": 900118, "titulo": "Ofício juntado ao processo", "motivo": "Tempo limite excedido ao obter o arquivo" }
+"erro": { "origem": "COMPLEMENTACAO", "id": "900118", "titulo": "Resposta da complementação", "motivo": "tempo limite excedido ao obter o arquivo" }
 ```
 
-Para tentar de novo, o cliente envia um novo `POST /dossies` (com ou sem o documento que falhou).
+Quando a API de arquivos recusa a credencial (401/403), a geração inteira é interrompida e o erro traz o código (sem o valor do token):
+
+```json
+"erro": { "origem": "DOCUMENTO_PROCESSO", "id": "804328", "titulo": "RG e CPF", "motivo": "Token da API de arquivos expirado ou recusado: capture um novo token.", "codigo": "CREDENCIAL_ARQUIVOS_RECUSADA" }
+```
+
+Motivos possíveis: tempo limite excedido ao obter o arquivo; arquivo não encontrado no repositório; repositório de arquivos indisponível; API de arquivos não configurada; o documento está protegido por senha; o arquivo está corrompido; o arquivo não tem páginas; o arquivo não é um PDF válido.
+
+Para tentar de novo, o cliente envia um novo `POST /dossies` (com ou sem o documento que falhou). **Auditoria** é da S5: nenhum evento é registrado na S2.
 
 ## Auditoria
 
@@ -246,9 +286,9 @@ Todo erro segue `ProblemDetail` com `errorCode` estável e `correlationId` (head
 | 403 | `DOCUMENTO_SIGILOSO` | Documento sigiloso para perfil não autorizado |
 | 403 | `NAO_INTERESSADO` | Operador sem vínculo com o processo/requerimento |
 | 404 | `NAO_ENCONTRADO` | Requerimento, processo, documento, dossiê ou evento inexistente |
-| 409 | `DOSSIE_SEM_ARQUIVO` | Arquivo inexistente porque a geração falhou |
-| 410 | `DOSSIE_EXPIRADO` | Dossiê expirado |
-| 502 | `CREDENCIAL_ARQUIVOS_RECUSADA` | API de arquivos recusou a credencial |
+| 409 | `DOSSIE_SEM_ARQUIVO` | Arquivo inexistente: a geração falhou, foi cancelada ou ainda está em andamento |
+| 410 | `DOSSIE_EXPIRADO` | Dossiê expirado ou já baixado (o arquivo foi apagado) |
+| 502 | `CREDENCIAL_ARQUIVOS_RECUSADA` | API de arquivos recusou a credencial (na geração assíncrona vira `erro.codigo` do pedido) |
 | 503 | `SIGA_INDISPONIVEL` | Banco do SIGA indisponível |
 | 500 | `ERRO_INTERNO` | Demais erros |
 

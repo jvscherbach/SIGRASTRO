@@ -178,3 +178,78 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 
 **Decisão:** `ASSIGNEE_` guarda o CPF do servidor. O nome é resolvido **no próprio SQL** da tarefa atual: `SERVIDOR` (versão mais recente por CPF) e, se não houver, `PESSOA`. Só tenta resolver quando o valor tem 11 dígitos; a conversão de `NVARCHAR2` fica do lado de `ASSIGNEE_` (`TO_CHAR`), para não impedir índice nas tabelas de nome. O adapter devolve só a situação (`ATRIBUIDO`, `NAO_ATRIBUIDA`, `NAO_IDENTIFICADO`) e o nome: o CPF nunca sai do SQL. O caso de uso remove o responsável para quem não pode vê-lo (`Perfil.podeVerResponsavelTarefa()`, RN12): o Operador recebe `tarefaAtual` sem o campo `responsavel`.
 **Motivo:** o CPF do servidor é dado pessoal e não serve ao usuário; o SIGA não tem regra própria de visibilidade, e o Operador (interessado) não precisa saber quem analisa o processo.
+
+## D33 — Uma consulta SQL por origem de documento
+
+**Contexto:** a primeira ideia era um `UNION ALL` único com uma parte por origem (docs/04).
+**Decisão:** cada origem tem o próprio arquivo em `resources/sql/siga/documentos/` e é executada em sequência. Todas devolvem as mesmas colunas (`ORIGEM, ID, ID_REQUERIMENTO, CHAVE, TITULO, NOME_ARQUIVO, TIPO, DATA_DOC, DATA_FIM, SIGILO`) e **não filtram vigência**. Cada origem pode ser desligada por `vistas.documentos.origens.<origem>`; origem desligada não é consultada. Falha numa origem ligada derruba a listagem inteira (503 ou 500), sem estado parcial. (S2.1: as origens ligadas são as seis da Vista, D41.)
+**Motivo:** isolar falhas (um grant ou uma coluna errada aponta a origem exata), poder desligar uma origem sem mexer em SQL e não esconder uma origem quebrada atrás de um `UNION`.
+
+## D34 — Verificação sempre sem sistemas externos
+
+**Contexto:** na entrega anterior a `api` foi subida com as variáveis `SIGA_DB_*` do `.env.local` preenchidas (a checagem não viu linhas com espaço no início) e leu dados reais do SIGA.
+**Decisão:** todo `docker compose up` de verificação usa os três arquivos `-f compose.yaml -f compose.local.yaml -f compose.verificacao.yaml`. O terceiro esvazia, no serviço `api`, todas as variáveis que levam a sistemas externos (SIGA, API de arquivos, SCORP, schema próprio); `environment` tem precedência sobre `env_file`. Antes de qualquer chamada, confirma-se **dentro do container** que cada variável está vazia, sem imprimir valores. O `.env.local` nunca é aberto nem impresso. Se algo vier preenchido ou se uma resposta trouxer dado real: parar, derrubar os containers (sem `-v`) e relatar.
+**Motivo:** uma checagem que depende de formato de arquivo falha em silêncio; a que roda dentro do container sobre o ambiente efetivo, não. Dados pessoais reais nunca entram em arquivo, mensagem ou log.
+
+## D35 — Playwright como dependência de desenvolvimento
+
+**Exceção a "sem dependências novas" ([13](13-padroes-tecnicos.md)):** `@playwright/test` (versão fixa, `devDependencies`) para o teste e2e do quadro do topo e do fluxo de documentos. Não entra em imagem de produção (o Dockerfile só copia o `dist`), `npm audit` continua em 0 e a API é simulada por `page.route`: nenhum sistema real é tocado. O navegador (Chromium) é instalado fora do projeto, por `npx playwright install chromium`.
+**Motivo:** o defeito do quadro do topo reapareceu duas vezes porque os testes só olhavam a estrutura do DOM; a altura renderizada só se mede num navegador de verdade.
+
+## D36 — RN07 e sigilo antecipados da S4 para a S2
+
+**Decisão:** o back-end aplica, já na S2, a RN07 em `GET /requerimentos/{id}/documentos` e `POST /dossies` (Operador de outro interessado: 403 `NAO_INTERESSADO`; inexistente: 404) e o sigilo (RF20): sigilosos aparecem para todos, mas para o Operador vêm **mascarados** (título "Documento sigiloso", sem nome de arquivo nem extensão), com `acessivel=false` e `bloqueio=SIGILOSO`, e o `POST /dossies` com um deles responde 403 `DOCUMENTO_SIGILOSO`. A matriz completa e a validação dela por `MockMvc` seguem na S4.
+**Motivo:** não entregar um furo de sigilo na primeira sprint que lê arquivos reais.
+
+## D37 — `id` de documento em texto em todo o contrato
+
+**Decisão:** o `id` do documento passa a ser texto (`"804328"`) na lista, no `POST /dossies` e no andamento. A chave do arquivo continua interna (RNF09).
+**Motivo:** acomodar o SCORP (ids que não são numéricos) sem quebrar o contrato depois.
+
+## D38 — Geração: documentos em sequência, `DOSSIE_THREADS` gerações simultâneas
+
+**Decisão:** dentro de um pedido os arquivos são obtidos um a um, na ordem cronológica; o executor limitado a `DOSSIE_THREADS` (padrão 2) roda pedidos diferentes ao mesmo tempo, então o total de downloads simultâneos nunca passa desse número. A primeira falha interrompe e descarta tudo (RN09). Os PDFs são abertos com cache em arquivos temporários (PDFBox 3) e ficam abertos até o PDF final ser salvo, porque o PDFBox compartilha objetos entre origem e destino.
+**Motivo:** a regra "completo ou nenhum" fica determinística (os seguintes nunca são processados) e a memória é limitada. Se o tempo de geração pesar, a S3 avalia obter em paralelo dentro do pedido.
+
+## D39 — Pedidos em memória: o registro sobrevive um pouco ao vencimento
+
+**Decisão:** o arquivo é apagado ao vencer (`DOSSIE_TTL_MINUTOS`) ou ao fim do download (`attachment`); o registro do pedido continua por 60 minutos, para o front mostrar "expirado" (410) em vez de "não encontrado" (404). A limpeza de pastas órfãs só apaga pastas com nome de UUID dentro de `VISTAS_DOSSIE_DIRETORIO`, para nunca tocar em arquivos que não são do dossiê, mesmo que a variável aponte para uma pasta com outro conteúdo.
+
+## D40 — Servidor HTTP de teste sobre `ServerSocket`
+
+**Contexto:** o prompt pedia `com.sun.net.httpserver.HttpServer`. No JDK 25 em Windows (a máquina de desenvolvimento) o `HttpServer` falha ao abrir o seletor (`Unable to establish loopback connection`), então qualquer teste com ele quebraria `./mvnw clean verify` ali.
+**Decisão:** os testes de `integration.licenciamento` usam `ServidorHttpDeTeste`, um servidor HTTP/1.1 mínimo sobre `ServerSocket` bloqueante (sem dependência nova, sem seletor), com resposta com `Content-Length`, em partes (chunked) e atraso.
+**Motivo:** manter o critério (nada de rede externa, sem dependência) sem depender de um comportamento do JDK que não funciona na máquina do responsável.
+
+## D41 — Documentos: só as seis origens que a Vista lista
+
+**Contexto:** o teste de fumaça da S2 falhou com `ORA-00904: "A"."NOME_ARQUIVO"` em `COMPLEMENTACAO_ITEM_ARQUIVO`: a S2 assumiu colunas por padrão de nome e ampliou as origens por suposição. A análise do código do SIGA Licenciamento mostrou que a seção "Arquivos do Processo" da Vista lê seis tabelas.
+**Decisão:** a lista passa a ter exatamente as origens da Vista (`DOCUMENTO_PROCESSO`, `DOCUMENTO_REQUERIMENTO`, `COMPLEMENTACAO`, `IMOVEL`, `REPRESENTANTE_LEGAL`, `RESPONSAVEL_TECNICO`), com as colunas confirmadas no banco. Removidas: `PARECER_ANEXO`, `JUNTADA`, `TITULACAO`, `PRORROGACAO` e `EXTRATO_PUBLICACAO` (SQL, mapeamento, propriedades, testes e grants). Nada de origem nova sem prova de que a Vista a lista (docs/04, "Origens não listadas pela Vista"; P04).
+**Motivo:** reproduzir a Vista e não depender de colunas não confirmadas.
+
+## D42 — Data do documento é a da própria origem
+
+**Decisão:** a data da ordem cronológica (RN03) é a coluna de data da própria origem. A regra "maior data de assinatura" e a tabela `DOCUMENTO_PROCESSO_SIGNATARIO` foram removidas: a Vista não usa assinatura. Data nula não derruba a listagem: o documento vai ao final; empate por origem e id.
+**Motivo:** a mesma ordem inicial da Vista; menos uma tabela e um grant.
+
+## D43 — Sigilo real em representante legal e responsável técnico (divergência consciente)
+
+**Contexto:** a Vista do SIGA ignora a coluna `SIGILO` de `REQ_REP_LEGAL_DOCUMENTO` e `REQ_RESP_TECNICO_DOCUMENTO` e mostra sempre "Não" (R25).
+**Decisão:** o SIGA Vistas usa a coluna real `SIGILO` nas duas origens, com a normalização tolerante e "na dúvida, sigiloso" (RN06). A regra é mais restritiva que a da Vista, de propósito.
+**Motivo:** exibir como público um documento marcado como sigiloso é o erro mais caro.
+
+## D44 — Extensão desconhecida: tipo `DESCONHECIDO`
+
+**Contexto:** os nomes vêm sem tipo e sem extensão garantida (a complementação usa `TITULO`; o imóvel pode ter nome em branco).
+**Decisão:** sem extensão ou com extensão não reconhecida o `tipoArquivo` é `DESCONHECIDO` (substitui `OUTRO`). O documento aparece, é selecionável (se vigente, com chave válida e acessível pelo perfil), fica fora da pré-seleção, mostra a etiqueta "tipo não informado" e não recebe o bloqueio `NAO_PDF`. Ao baixar, o validador confere a assinatura `%PDF-`: PDF segue normal; senão a falha é do documento ("o arquivo não é um PDF (tipo detectado: X); a conversão chega na próxima etapa") e vale a RN09. Os totais ganham `tipoNaoInformado`.
+**Motivo:** não esconder documento por falta de extensão nem deixar entrar no dossiê o que não é PDF.
+
+## D45 — Pré-seleção é conveniência do SIGA Vistas
+
+**Decisão:** a Vista não pré-seleciona nada; o SIGA Vistas mantém a pré-seleção de **PDF vigente, sem bloqueio**.
+**Motivo:** gerar o dossiê comum com um clique; o usuário ajusta a seleção.
+
+## D46 — Deduplicação por chave diverge da Vista
+
+**Decisão:** a Vista não deduplica; o SIGA Vistas sim (RN05), para não repetir páginas no dossiê. Precedência: a ordem das origens na tabela de docs/04. Chave `"0"` ou vazia nunca deduplica. RL e RT não duplicam por construção do SQL.
+**Motivo:** o dossiê é um PDF único; repetir o mesmo arquivo só o infla.

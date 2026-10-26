@@ -15,4 +15,9 @@ public class ObterPermissoesDoUsuario {
     public boolean podeVerResponsavelTarefa() {
         return usuarioAtual.obter().perfil().podeVerResponsavelTarefa();
     }
+
+    /** RF20: só Gestor e Administrador visualizam, selecionam e incluem no dossiê documentos sigilosos. */
+    public boolean podeVerSigilosos() {
+        return usuarioAtual.obter().perfil().podeVerSigilosos();
+    }
 }

@@ -21,6 +21,17 @@ Pedido (documentos selecionados)
 
 A obtenção e a conversão podem ser paralelas. A montagem respeita sempre a ordem cronológica.
 
+## Como está na S2 (sem conversão)
+
+- Só **PDFs** entram; os demais tipos aparecem na lista, bloqueados ("conversão disponível em breve"), até a S3.
+- O `POST /dossies` relê a lista no servidor, valida a seleção (pertencimento, indisponível, não PDF, sigilo, RN07), **resolve as chaves uma única vez**, guarda o instantâneo no pedido e libera a conexão do SIGA **antes** de baixar qualquer arquivo; a geração não usa o banco (provado em `ConexaoDoSigaLiberadaTest`).
+- Passo a passo: ordenar (RN03) → obter cada PDF (em sequência, um pedido por vez em cada thread de `DOSSIE_THREADS`) → validar (assinatura `%PDF-`, abre, sem senha de abertura, com páginas) → capa → sumário → montagem → marcadores e numeração → PDF final.
+- **PDFBox 3 em disco:** `Loader.loadPDF` sobre `File` com cache em arquivos temporários; páginas importadas com `importPage` (tamanho, rotação, anotações e links preservados; **nada é forçado para A4**, RNF06). Formulários interativos são achatados com tratamento de erro (falha ao achatar não interrompe). Os documentos de origem ficam abertos até o PDF final ser salvo (o PDFBox compartilha objetos).
+- **Capa** (RF12) e **sumário** são páginas A4 desenhadas com a fonte padrão do PDFBox (WinAnsi): o que a fonte não codifica vira `?` (acentos, `º`, `ç` funcionam).
+- **Sumário determinístico:** uma linha por documento (data, título, origem, página inicial), com **38 linhas por página**; a página inicial de cada documento é conhecida antes de importar qualquer página (capa = 1, sumário = próximas, documentos em seguida). Cada linha é um link para a página do documento.
+- **Marcadores** (`PDDocumentOutline`): "Capa", "Sumário" e um por documento. **Numeração** "Página X de Y" a partir da primeira página após a capa (X é o número físico), posicionada pela **caixa de recorte e pela rotação** de cada página (testado nas quatro rotações). Os três respeitam os parâmetros ligado/desligado.
+- **Expiração:** `DOSSIE_TTL_MINUTOS` (30) a partir da conclusão; o arquivo é apagado ao fim do download (`attachment`) ou ao vencer (limpeza a cada 5 min e verificação a cada leitura); na subida, as pastas de pedido sobrando são apagadas (a fila é em memória).
+
 ## Tipos de arquivo
 
 | Tipo | Tratamento |
@@ -66,9 +77,9 @@ O objetivo é entregar o dossiê completo com o que foi pedido. Por isso, se qua
 
 1. a geração é interrompida no documento que falhou; os seguintes não são processados;
 2. os arquivos temporários são descartados e **nenhum PDF é entregue**;
-3. o pedido fica com status `FALHA`, com o documento e o motivo (ex.: "tempo limite excedido ao obter o arquivo", "arquivo não encontrado no repositório", "documento protegido por senha");
+3. o pedido fica com status `FALHA`, com o documento e o motivo (ex.: "tempo limite excedido ao obter o arquivo", "arquivo não encontrado no repositório", "o documento está protegido por senha", "o arquivo está corrompido", "o arquivo não tem páginas", "o arquivo não é um PDF válido"); token recusado interrompe tudo com o código `CREDENCIAL_ARQUIVOS_RECUSADA`;
 4. o usuário escolhe entre **Tentar novamente** (mesma seleção) ou **Remover documento e gerar** (nova geração sem o documento, por decisão explícita);
-5. a tentativa interrompida é registrada na auditoria de documentos (evento `FALHA`).
+5. a tentativa interrompida será registrada na auditoria de documentos (evento `FALHA`, S5; a auditoria não existe na S2).
 
 Geometrias e arquivos compactados não fazem parte da seleção do dossiê, portanto não geram falha.
 

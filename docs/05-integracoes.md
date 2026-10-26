@@ -6,16 +6,28 @@
 |---|---|
 | Endpoint | `GET {LICENCIAMENTO_API_URL}/api/arquivo/{chave}` |
 | Parâmetro opcional | `versao` (número da versão no repositório de arquivos) |
-| Autenticação | Token de sessão de usuário (`Authorization: Bearer ...`, ou cookie de autorização) |
+| Autenticação | Token de sessão de usuário, em um de dois modos: `bearer` (`Authorization: Bearer <token>`, padrão) ou `cookie` (`Cookie: <nome>=<token>`) |
 | Resposta | Binário completo, com `Content-Type`, `Content-Length` e `Content-Disposition: inline; filename=...` |
 | Erros | Falha no repositório de arquivos retorna HTTP 503; token ausente ou inválido, 401 |
 
-Comportamento no protótipo:
+Variáveis (todas no `.env.local`, nunca versionado; `.env.local.example` só traz os nomes, comentados):
 
-- chave `"0"` não é requisitada: o documento é marcado como indisponível;
-- 401 interrompe a geração com mensagem clara de token expirado;
-- 404, 503 e timeout marcam apenas o documento como falho;
-- o binário é gravado direto em arquivo temporário (streaming), sem passar por memória.
+| Variável | Uso |
+|---|---|
+| `LICENCIAMENTO_API_URL` | Base da API. **Ausente ou vazia = "arquivos não configurados"** (mesmo padrão do SIGA, D26): a `api` sobe, a lista funciona e a geração falha com o motivo "API de arquivos não configurada" |
+| `LICENCIAMENTO_API_TOKEN` | Token capturado (sem o prefixo `Bearer`) |
+| `LICENCIAMENTO_API_AUTH_MODE` | `bearer` (padrão; vazio também vale como bearer) ou `cookie` |
+| `LICENCIAMENTO_API_COOKIE_NAME` | Nome do cookie, no modo `cookie` |
+| `DOWNLOAD_TIMEOUT_SEGUNDOS` | Tempo limite de conexão e de leitura (sem receber bytes), por arquivo (padrão 60) |
+
+Comportamento (S2):
+
+- chave `"0"` (ou nula/vazia) **nunca é requisitada**: o documento é indisponível;
+- **401 e 403** interrompem toda a geração: o pedido fica `FALHA` com `erro.codigo = CREDENCIAL_ARQUIVOS_RECUSADA` e a mensagem "Token da API de arquivos expirado ou recusado: capture um novo token." (nunca o valor do token); `CREDENCIAL_ARQUIVOS_RECUSADA` (502) é o código HTTP equivalente;
+- **404**, **5xx**, tempo limite e conexão recusada falham **só aquele documento** ("arquivo não encontrado no repositório", "repositório de arquivos indisponível", "tempo limite excedido ao obter o arquivo"), o que interrompe o dossiê (RN09);
+- o binário é gravado direto em arquivo temporário (streaming, RNF03), nunca em memória, e o temporário é apagado em qualquer falha;
+- o tipo real é conferido pela assinatura `%PDF-` do arquivo (o `Content-Type` do repositório não basta): conteúdo que não é PDF falha o documento ("o arquivo não é um PDF válido");
+- **nenhuma resposta ou log traz URL institucional, token ou chave** (testado).
 
 ### Token no protótipo
 
@@ -25,6 +37,7 @@ O protótipo usa o token da sessão de um usuário logado no SIGA, capturado no 
 2. DevTools → aba **Network**, com **Preserve log** marcado.
 3. Visualizar um documento, o que dispara `GET .../api/arquivo/<chave>`.
 4. Em **Request Headers**, copiar o valor de `Authorization` (sem o prefixo `Bearer`) para `LICENCIAMENTO_API_TOKEN`. Se não houver esse header, copiar o cookie de autorização e configurar `LICENCIAMENTO_API_AUTH_MODE=cookie` e `LICENCIAMENTO_API_COOKIE_NAME`.
+5. **Linhas do `.env.local` não podem começar com espaço.** Antes de subir, nunca imprima o arquivo; para verificar sem mostrar valores, teste dentro do container (ver [`padroes/ambientes-e-docker.md`](padroes/ambientes-e-docker.md)).
 
 Restrições:
 

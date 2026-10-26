@@ -1,0 +1,18 @@
+# Verificação SEM sistemas externos (decisão D-VERIFICACAO, docs/09).
+# Esvazia, no serviço api, toda variável que leva ao SIGA, à API de arquivos ou ao SCORP.
+# A chave "environment" tem precedência sobre o "env_file", então o que estiver no .env.local é ignorado.
+# Todo "docker compose up" de verificação usa: -f compose.yaml -f compose.local.yaml -f compose.verificacao.yaml
+services:
+  api:
+    environment:
+      SIGA_DB_URL: ""
+      SIGA_DB_USER: ""
+      SIGA_DB_PASSWORD: ""
+      LICENCIAMENTO_API_URL: ""
+      LICENCIAMENTO_API_TOKEN: ""
+      LICENCIAMENTO_API_AUTH_MODE: ""
+      LICENCIAMENTO_API_COOKIE_NAME: ""
+      SCORP_API_URL: ""
+      VISTAS_DB_URL: ""
+      VISTAS_DB_USER: ""
+      VISTAS_DB_PASSWORD: ""

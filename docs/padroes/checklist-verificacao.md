@@ -33,3 +33,11 @@ git diff --check
 
 - Garante: dependências entre camadas e módulos; ausência de JPA/JDBC/Spring Web no domínio; SQL contra o SIGA só em `integration.siga`; DTOs externos só em `integration.*`; localização de entidades, repositories e `PersistenceMapper`.
 - Não garante: semântica dos contratos, correção das consultas ao SIGA, correção do mapeamento domínio↔entidade.
+
+## Itens da S2
+
+- [ ] `docker compose` de verificação com **os três arquivos** (`compose.verificacao.yaml` por último) e variáveis externas conferidas **vazias dentro do container**, sem imprimir valores (D34).
+- [ ] `npm --prefix front run e2e` verde (quadro do topo com diferença de 0 px em todos os estados; fluxo de documentos e dossiê).
+- [ ] Nenhuma resposta de documentos ou dossiês traz a chave do arquivo ou o token (testes `DocumentoHttpTest` e `DossieHttpTest`).
+- [ ] `ConexaoDoSigaLiberadaTest`: pool do SIGA sem conexão ativa durante download e montagem.
+- [ ] Varredura de CPF/CNPJ e nomes reais em `docs/`, `README.md`, `CLAUDE.md`, testes e `front/src` (só dados fictícios).

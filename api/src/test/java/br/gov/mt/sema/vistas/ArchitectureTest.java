@@ -1,11 +1,14 @@
 package br.gov.mt.sema.vistas;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
 import java.util.List;
 import java.util.stream.Stream;
 
+import br.gov.mt.sema.vistas.documento.domain.Documento;
+import br.gov.mt.sema.vistas.dossie.domain.ItemDoPedido;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
@@ -25,6 +28,7 @@ class ArchitectureTest {
     private static final List<String> INTEGRACOES = List.of("siga", "licenciamento", "scorp", "arrecadacao");
 
     private static final String[] SQL = {"java.sql..", "javax.sql..", "org.springframework.jdbc.."};
+    private static final String[] HTTP = {"org.springframework.web.client..", "java.net.http..", "java.net.HttpURLConnection"};
 
     private static String[] pacotes(String camada) {
         return MODULOS.stream().map(m -> RAIZ + m + "." + camada + "..").toArray(String[]::new);
@@ -113,6 +117,34 @@ class ArchitectureTest {
                     .allowEmptyShould(true).check(classes);
         }
     }
+
+
+    // S2: HTTP de saída (RestClient, java.net.http, HttpURLConnection) só em integration.*; no SIGA, nenhum HTTP.
+    @ArchTest
+    static final ArchRule http_de_saida_somente_em_integration =
+            noClasses().that().resideOutsideOfPackage(RAIZ + "integration..")
+                    .should().dependOnClassesThat().resideInAnyPackage(HTTP)
+                    .allowEmptyShould(true);
+
+    @ArchTest
+    static final ArchRule integration_siga_nao_fala_http =
+            noClasses().that().resideInAPackage(RAIZ + "integration.siga..")
+                    .should().dependOnClassesThat().resideInAnyPackage(HTTP)
+                    .allowEmptyShould(true);
+
+    // S2 (RNF09): a chave do arquivo nunca chega à camada HTTP (nem por método, nem por campo de DTO).
+    @ArchTest
+    static final ArchRule api_nao_le_a_chave_do_arquivo =
+            noClasses().that().resideInAPackage("..api..")
+                    .should().callMethod(Documento.class, "chaveDoArquivo")
+                    .orShould().callMethod(ItemDoPedido.class, "chaveDoArquivo")
+                    .allowEmptyShould(true);
+
+    @ArchTest
+    static final ArchRule dto_http_sem_campo_de_chave =
+            noFields().that().areDeclaredInClassesThat().resideInAPackage("..api.dto..")
+                    .should().haveNameMatching("(?i).*chave.*")
+                    .allowEmptyShould(true);
 
     private static String[] concat(String[]... partes) {
         return java.util.Arrays.stream(partes).flatMap(java.util.Arrays::stream).toArray(String[]::new);

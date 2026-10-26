@@ -91,7 +91,8 @@ O arquivo `.env.local` não é versionado e é opcional na Sprint 0 e 1 (a `api`
 | `VISTAS_DB_URL` / `VISTAS_DB_USER` / `VISTAS_DB_PASSWORD` | Schema próprio (somente na versão definitiva) |
 | `FLYWAY_ENABLED` | Flyway do schema próprio (versão definitiva) |
 | `OPENAPI_ENABLED` | OpenAPI fora do ambiente local |
-| `LICENCIAMENTO_API_URL` | Base da API do Licenciamento (`https://licenciamento-api.sema.mt.gov.br`) |
+| `LICENCIAMENTO_API_URL` | Base da API do Licenciamento (ausente ou vazia = arquivos não configurados) |
+| `LICENCIAMENTO_API_AUTH_MODE` / `LICENCIAMENTO_API_COOKIE_NAME` | Forma de envio do token: `bearer` (padrão) ou `cookie` (com o nome do cookie) |
 | `LICENCIAMENTO_API_TOKEN` | Token de acesso (ver [05 — Integrações](05-integracoes.md)) |
 | `SCORP_API_URL` | Base da API do SCORP (**NÃO CONFIRMADO**) |
 | `DOSSIE_TTL_MINUTOS` | Expiração dos arquivos gerados (padrão 30) |
