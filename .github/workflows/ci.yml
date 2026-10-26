@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: api
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-java@v4.7.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      # Os testes de fumaça (SIGA_SMOKE, ARQUIVOS_SMOKE) ficam pulados: nenhuma dessas variáveis é definida aqui.
+      # Os de Testcontainers (Oracle 23 Free) usam o Docker do próprio runner.
+      - name: Build e testes
+        run: ./mvnw -B clean verify
+      - name: Relatórios de teste (só em falha)
+        if: failure()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: api-relatorios-de-teste
+          path: |
+            api/target/surefire-reports
+            api/target/failsafe-reports
+          if-no-files-found: ignore
+          retention-days: 7
+
+  front:
+    name: front
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: front
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+      - name: Instalar dependências
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Testes unitários
+        run: npm test -- --watch=false
+      - name: Auditoria das dependências de produção (alta ou crítica falha)
+        run: npm audit --omit=dev --audit-level=high
+      # Ferramentas de desenvolvimento (Angular CLI etc.) não vão para a imagem: só informativo.
+      - name: Auditoria completa, incluindo desenvolvimento (informativa)
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
+  e2e:
+    name: e2e
+    needs: front
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: front
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+      - name: Instalar dependências
+        run: npm ci
+      - name: Cache do Chromium do Playwright
+        id: playwright-cache
+        uses: actions/cache@v4.2.3
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('front/package-lock.json') }}
+      - name: Instalar Chromium e dependências do sistema
+        run: npx playwright install --with-deps chromium
+      # A API é simulada por page.route: nenhum serviço real é tocado.
+      - name: Testes e2e
+        run: npm run e2e
+      - name: Relatório do Playwright (só em falha)
+        if: failure()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: playwright-report
+          path: front/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
