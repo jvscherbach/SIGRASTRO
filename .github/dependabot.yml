@@ -1,0 +1,47 @@
+version: 2
+
+updates:
+  - package-ecosystem: maven
+    directory: /api
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      maven-patch-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /front
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      npm-patch-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      actions-patch-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directory: /api
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      docker-api-patch-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directory: /front
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      docker-front-patch-minor:
+        update-types: [minor, patch]
