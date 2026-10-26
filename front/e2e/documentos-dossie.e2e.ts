@@ -91,10 +91,11 @@ async function simular(page: Page, aoCriar: (corpo: unknown) => void = () => und
       return route.fulfill({
         json: {
           id: 'pedido-1',
-          status: concluido ? 'CONCLUIDO' : 'PROCESSANDO',
+          status: concluido ? 'CONCLUIDO' : 'OBTENDO',
           total: 2,
           processados: concluido ? 2 : 1,
           erro: null,
+          falhas: [],
           paginas: concluido ? 6 : null,
           expiraEm: '2099-01-01T00:00:00',
           itens: ITENS.map((i, n) => ({ ...i, situacao: concluido || n === 0 ? 'OK' : 'OBTENDO' })),

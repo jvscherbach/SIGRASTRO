@@ -30,23 +30,25 @@
           </div>
         }
 
-        @if (status() === 'FALHA' && erroDoDossie(); as erro) {
+        @if (status() === 'PENDENTE_DECISAO') {
           <div class="alert gaveta-interrompida" role="alert" style="margin: 0 0 16px">
             <app-icone nome="alert" />
             @if (tokenRecusado()) {
               <span>
                 <b>Token da API de arquivos expirado ou recusado.</b> Capture um novo token e tente novamente.<br />
-                A geração foi interrompida e nenhum arquivo foi gerado.
+                Os documentos já obtidos foram mantidos; nenhum arquivo foi entregue.
               </span>
-            } @else if (erro.titulo) {
+            } @else if (falhas().length) {
               <span>
-                <b>{{ erro.titulo }}</b> não pôde ser incluído: {{ erro.motivo }}.<br />
-                A geração foi interrompida e nenhum arquivo foi gerado, para não entregar um dossiê incompleto.
+                @for (falha of falhas(); track falha.origem + ':' + falha.id) {
+                  <b>{{ falha.titulo }}</b> não pôde ser incluído: {{ falha.motivo }}.<br />
+                }
+                Os demais já foram obtidos e não serão baixados de novo. Nada é entregue sem a sua decisão.
               </span>
-            } @else {
+            } @else if (erroDoDossie(); as erro) {
               <span>
                 {{ erro.motivo }}.<br />
-                A geração foi interrompida e nenhum arquivo foi gerado.
+                Os documentos já obtidos foram mantidos; nenhum arquivo foi entregue.
               </span>
             }
           </div>
@@ -61,9 +63,10 @@
             } @else {
               @switch (status()) {
                 @case ('CONCLUIDO') { Concluído }
-                @case ('FALHA') { Interrompido }
+                @case ('PENDENTE_DECISAO') { Aguardando decisão }
                 @case ('CANCELADO') { Cancelado }
-                @case ('PENDENTE') { Na fila }
+                @case ('AGUARDANDO') { Na fila }
+                @case ('MONTANDO') { Montando }
                 @default { Processando }
               }
               · {{ processados() }}/{{ total() }}
@@ -71,7 +74,7 @@
           </span>
           <b>{{ percentual() }}%</b>
         </div>
-        <div class="bar" [class.done]="status() === 'CONCLUIDO'" [class.fail]="status() === 'FALHA'">
+        <div class="bar" [class.done]="status() === 'CONCLUIDO'" [class.fail]="status() === 'PENDENTE_DECISAO'">
           <i [style.width.%]="percentual()"></i>
         </div>
 
@@ -130,13 +133,13 @@
           <button type="button" class="btn primary" (click)="tentarNovamente()"><app-icone nome="refresh" />Tentar novamente</button>
         }
         <button type="button" class="btn quiet" (click)="fechar.emit()">Fechar</button>
-      } @else if (status() === 'FALHA') {
+      } @else if (status() === 'PENDENTE_DECISAO') {
         @if (podeRemover()) {
-          <button type="button" class="btn quiet" (click)="removerEGerar()">Remover documento e gerar</button>
+          <button type="button" class="btn quiet" [disabled]="ocupado()" (click)="removerEGerar()">Remover documento e gerar</button>
         } @else {
           <span></span>
         }
-        <button type="button" class="btn primary" (click)="tentarNovamente()"><app-icone nome="refresh" />Tentar novamente</button>
+        <button type="button" class="btn primary" [disabled]="ocupado()" (click)="tentarNovamente()"><app-icone nome="refresh" />Tentar novamente</button>
       } @else if (status() === 'CONCLUIDO' && !vencido() && !baixado()) {
         <button type="button" class="btn quiet" (click)="fechar.emit()">Fechar</button>
         <div class="row">

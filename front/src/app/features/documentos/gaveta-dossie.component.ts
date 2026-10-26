@@ -20,6 +20,7 @@ import { agoraEmCuiaba, formatarDataHora, minutosAte } from '../../shared/format
 import { IconeComponent } from '../../shared/icone.component';
 import { DossiesApiService } from './documentos-api.service';
 import {
+  AcaoDeContinuacao,
   AndamentoDossie,
   ErroDossie,
   ReferenciaDocumento,
@@ -91,10 +92,11 @@ export class GavetaDossieComponent implements OnInit {
   );
   protected readonly erroDoDossie = computed<ErroDossie | null>(() => this.andamento()?.erro ?? null);
   protected readonly tokenRecusado = computed(() => this.erroDoDossie()?.codigo === CREDENCIAL_RECUSADA);
-  protected readonly podeRemover = computed(() => {
-    const erro = this.erroDoDossie();
-    return !!erro?.origem && !!erro.id && !this.tokenRecusado() && this.selecao.length > 1;
-  });
+  protected readonly falhas = computed(() => this.andamento()?.falhas ?? []);
+  /** Remover só faz sentido com falhas de documento e algum documento já obtido para montar. */
+  protected readonly podeRemover = computed(
+    () => this.falhas().length > 0 && !!this.andamento()?.itens.some((i) => i.situacao === 'OK'),
+  );
   protected readonly expiraAs = computed(() => formatarDataHora(this.andamento()?.expiraEm));
   protected readonly minutosRestantes = computed(() => {
     this.agora();
@@ -220,20 +222,44 @@ export class GavetaDossieComponent implements OnInit {
     this.consultar();
   }
 
-  /** Novo POST com a mesma seleção (RN09: a tentativa interrompida não deixa nada para continuar). */
+  /**
+   * Pedido à espera de decisão: continua o mesmo pedido, refazendo só os documentos com problema (S2.2). Sem pedido
+   * (o POST falhou), envia um novo.
+   */
   protected tentarNovamente(): void {
-    this.iniciar();
+    if (this.pedido && this.status() === 'PENDENTE_DECISAO') {
+      this.decidir('TENTAR_NOVAMENTE');
+    } else {
+      this.iniciar();
+    }
   }
 
+  /** Remove os documentos com problema e monta com os já obtidos; a tabela deixa de selecioná-los. */
   protected removerEGerar(): void {
-    const erro = this.erroDoDossie();
-    if (!erro?.origem || !erro.id) {
+    const removidos = this.falhas().map((f) => ({ origem: f.origem, id: f.id }));
+    this.selecao = this.selecao.filter((r) => !removidos.some((x) => x.origem === r.origem && x.id === r.id));
+    removidos.forEach((removido) => this.documentoRemovido.emit(removido));
+    this.decidir('REMOVER_E_CONTINUAR');
+  }
+
+  private decidir(acao: AcaoDeContinuacao): void {
+    if (!this.pedido) {
       return;
     }
-    const removido = { origem: erro.origem, id: erro.id };
-    this.selecao = this.selecao.filter((r) => r.origem !== removido.origem || r.id !== removido.id);
-    this.documentoRemovido.emit(removido);
-    this.iniciar();
+    this.parar();
+    this.mensagemDeErro.set('');
+    this.ocupado.set(true);
+    this.acao = this.api.continuar(this.pedido, acao).subscribe({
+      next: () => {
+        this.ocupado.set(false);
+        this.intervalo = INTERVALO_INICIAL_MS;
+        this.consultar();
+      },
+      error: (erro: unknown) => {
+        this.ocupado.set(false);
+        this.mensagemDeErro.set(mensagemDaGaveta(erro));
+      },
+    });
   }
 
   protected cancelarGeracao(): void {
@@ -312,19 +338,20 @@ export class GavetaDossieComponent implements OnInit {
   // --- apresentação
 
   protected iconeDoItem(situacao: SituacaoItemDossie): string {
-    return { AGUARDANDO: 'clock', OBTENDO: 'refresh', OK: 'check', FALHA: 'alert' }[situacao];
+    return { AGUARDANDO: 'clock', OBTENDO: 'refresh', OK: 'check', FALHA: 'alert', REMOVIDO: 'close' }[situacao];
   }
 
   protected classeDoItem(situacao: SituacaoItemDossie): string {
-    return { AGUARDANDO: '', OBTENDO: 'run', OK: 'ok', FALHA: 'err' }[situacao];
+    return { AGUARDANDO: '', OBTENDO: 'run', OK: 'ok', FALHA: 'err', REMOVIDO: 'off' }[situacao];
   }
 
   protected rotuloDoItem(situacao: SituacaoItemDossie): string {
     return {
       AGUARDANDO: 'Aguardando',
       OBTENDO: 'Obtendo arquivo…',
-      OK: 'Incluído',
+      OK: 'Obtido',
       FALHA: 'Falhou',
+      REMOVIDO: 'Removido',
     }[situacao];
   }
 
@@ -338,8 +365,8 @@ export class GavetaDossieComponent implements OnInit {
     switch (this.status()) {
       case 'CONCLUIDO':
         return 'Dossiê pronto';
-      case 'FALHA':
-        return 'Geração interrompida';
+      case 'PENDENTE_DECISAO':
+        return 'Documentos com problema';
       case 'CANCELADO':
         return 'Geração cancelada';
       default:

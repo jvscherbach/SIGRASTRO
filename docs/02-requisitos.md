@@ -29,9 +29,9 @@
 | RF11 | Gerar um PDF único com os documentos selecionados em ordem cronológica. |
 | RF12 | O dossiê tem capa com os dados do requerimento ou processo e sumário com marcadores (bookmarks) para cada documento. |
 | RF13 | Converter para PDF planilhas (XLS, XLSX, ODS), documentos de texto (DOC, DOCX, ODT) e imagens (PNG, JPG). |
-| RF14 | Se qualquer documento selecionado não puder ser obtido ou convertido, a geração é interrompida, nenhum arquivo é entregue e o erro informa o documento e o motivo. O usuário pode tentar novamente ou remover o documento e gerar de novo. |
+| RF14 | Se documentos selecionados não puderem ser obtidos ou convertidos, a geração coleta todas as falhas, nenhum arquivo é entregue e o andamento lista cada documento com o motivo. O usuário decide entre tentar de novo só os documentos com problema ou removê-los e gerar; a decisão não baixa de novo o que já foi obtido (S2.2). |
 | RF15 | Geometrias (SHP, KML, KMZ) são listadas à parte e baixadas por "Baixar geometrias" (RN10). Arquivos compactados são desconsiderados (RN11). |
-| RF16 | Acompanhar o andamento da geração (pendente, processando, concluído, falha) com progresso por documento. |
+| RF16 | Acompanhar o andamento da geração (aguardando, obtendo, aguardando decisão, montando, concluído, cancelado, expirado) com progresso por documento que não volta a zero após a decisão (S2.2). |
 | RF17 | Pré-visualizar o dossiê gerado antes de baixar. |
 | RF18 | Baixar o dossiê com o nome `dossie-processo-<numero>-<ano>.pdf` quando o requerimento estiver protocolado, ou `dossie-requerimento-<numero>-<ano>.pdf` quando não estiver. |
 
@@ -69,7 +69,7 @@
 | RNF01 | Somente leitura no banco do SIGA. O serviço não grava em nenhuma tabela do SIGA. |
 | RNF02 | Geração assíncrona: o pedido retorna imediatamente e o processamento ocorre em segundo plano. |
 | RNF03 | Arquivos processados em disco temporário, nunca acumulados integralmente em memória. |
-| RNF04 | Timeout por documento na obtenção e na conversão. A falha de qualquer documento interrompe a geração e descarta os temporários: o dossiê é entregue completo ou não é entregue. |
+| RNF04 | Timeout por documento na obtenção e na conversão (inatividade e teto total, com novas tentativas automáticas; docs/05). Nenhum dossiê é entregue com documento faltando sem decisão explícita do usuário (RN09); os temporários são descartados ao concluir, cancelar ou expirar. |
 | RNF05 | O dossiê não é armazenado de forma permanente. Arquivos temporários são apagados após o download ou após expiração (padrão: 30 minutos). |
 | RNF06 | Páginas mantêm tamanho e orientação originais. Não se força A4. |
 | RNF07 | Credenciais (token da API, conexão com o banco) ficam só em variáveis de ambiente (`.env` fora do controle de versão). |
@@ -90,7 +90,7 @@
 | RN06 | A sinalização de sigilo considera todas as variações de coluna (`SIGILOSO`, `SIGILO`, `IND_SIGILOSO`). Na dúvida, o documento é tratado como sigiloso. |
 | RN07 | Vínculo: o processo é do interessado. O Operador só acessa processos e requerimentos em que o CPF/CNPJ do seu usuário é o do interessado (`PESSOA.CPF_CNPJ` de `REQUERIMENTO.ID_PESSOA`). Gestor e Administrador acessam todos. |
 | RN08 | Itens de menu de funções que o perfil não pode usar não são exibidos. No protótipo, o item "Acessos" continua visível com cadeado apenas para demonstração. |
-| RN09 | Dossiê completo ou nenhum: falha em qualquer documento selecionado interrompe a geração (RF14). |
+| RN09 | Nada incompleto sem decisão explícita (reescrita na S2.2): a geração percorre todos os documentos e coleta as falhas; com falha, o pedido fica em `PENDENTE_DECISAO` e nada é entregue. A decisão — tentar de novo só os documentos com problema, ou removê-los e montar com os já obtidos — não reinicia nada. Credencial recusada (401/403) para a obtenção na hora, preservando o que já foi obtido. Detalhes em docs/06. (Até a S2.1: "completo ou nenhum", a primeira falha interrompia e descartava tudo.) |
 | RN10 | Geometrias (SHP, KML, KMZ) não entram no dossiê: ficam numa seção própria do detalhe, com download à parte ("Baixar geometrias"), registrado na auditoria. |
 | RN11 | Arquivos compactados (ZIP, RAR, 7Z) são desconsiderados: não aparecem na lista nem entram no dossiê. |
 | RN12 | Responsável pela tarefa atual: só o **nome** do servidor é exibido, e só para Gestor e Administrador. O Operador não recebe o campo (a API o omite). O CPF do servidor nunca sai na API nem na tela. Sem responsável: "Não atribuída"; sem nome encontrado ou valor em outro formato: "Responsável não identificado". |

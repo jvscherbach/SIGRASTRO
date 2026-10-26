@@ -13,7 +13,6 @@ import java.util.stream.Stream;
 import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.RepositorioDePedidos;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
-import br.gov.mt.sema.vistas.dossie.domain.StatusDossie;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -48,11 +47,12 @@ public class LimparDossies {
         LocalDateTime agora = LocalDateTime.now(relogio);
         int tratados = 0;
         for (PedidoDeDossie pedido : pedidos.todos()) {
-            if (pedido.venceu(agora) && pedido.status() == StatusDossie.CONCLUIDO) {
-                ArquivosTemporarios.apagarArquivo(pedido.expirar());
+            if (pedido.venceu(agora) && pedido.expirar()) {
+                // Concluído ou à espera de decisão, sem atividade dentro do TTL (S2.2).
+                ArquivosTemporarios.apagarPasta(ArquivosTemporarios.pastaDo(parametros, pedido));
                 tratados++;
             }
-            if (pedido.status().encerrado() && pedido.venceu(agora.minusMinutes(RETENCAO_DO_REGISTRO_MINUTOS))) {
+            if (pedido.status().terminal() && pedido.venceu(agora.minusMinutes(RETENCAO_DO_REGISTRO_MINUTOS))) {
                 ArquivosTemporarios.apagarPasta(parametros.diretorio().resolve(pedido.id()));
                 pedidos.remover(pedido.id());
                 tratados++;
@@ -71,7 +71,7 @@ public class LimparDossies {
             return 0;
         }
         Set<String> ativos = pedidos.todos().stream()
-                .filter(p -> !p.status().encerrado() || p.status() == StatusDossie.CONCLUIDO)
+                .filter(p -> !p.status().terminal())
                 .map(PedidoDeDossie::id)
                 .collect(Collectors.toSet());
         int apagados = 0;

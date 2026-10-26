@@ -47,7 +47,9 @@ import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
 import br.gov.mt.sema.vistas.dossie.domain.StatusDossie;
 import br.gov.mt.sema.vistas.shared.application.exception.DocumentoSigilosoException;
 import br.gov.mt.sema.vistas.shared.application.exception.DossieExpiradoException;
+import br.gov.mt.sema.vistas.shared.application.exception.CredencialArquivosRecusadaException;
 import br.gov.mt.sema.vistas.shared.application.exception.DossieSemArquivoException;
+import br.gov.mt.sema.vistas.shared.application.exception.DossieSemDecisaoPendenteException;
 import br.gov.mt.sema.vistas.shared.application.exception.NaoInteressadoException;
 import br.gov.mt.sema.vistas.shared.application.exception.ParametroInvalidoException;
 import br.gov.mt.sema.vistas.shared.application.exception.RecursoNaoEncontradoException;
@@ -76,6 +78,8 @@ class CasosDeUsoDossieTest {
     private CancelarDossie cancelar;
     private ConsultarDossie consultar;
     private LimparDossies limpar;
+    private ContinuarDossie continuar;
+    private Montador montador;
 
     @BeforeEach
     void preparar() {
@@ -96,11 +100,13 @@ class CasosDeUsoDossieTest {
         arquivos = new Arquivos();
         parametros = new Parametros(pasta);
         relogio = new RelogioControlado();
-        GeradorDeDossie gerador = new GeradorDeDossie(arquivos, new Validador(), new Montador(), parametros, d -> Long.MAX_VALUE, relogio);
-        localizar = new LocalizarPedido(repositorio, atual, relogio);
+        montador = new Montador();
+        GeradorDeDossie gerador = new GeradorDeDossie(arquivos, new Validador(), montador, parametros, d -> Long.MAX_VALUE, relogio);
+        localizar = new LocalizarPedido(repositorio, atual, parametros, relogio);
         criar = new CriarDossie(requerimentos, selecao, atual, repositorio, fila, gerador, parametros, relogio);
-        obterArquivo = new ObterArquivoDoDossie(localizar);
-        cancelar = new CancelarDossie(localizar);
+        obterArquivo = new ObterArquivoDoDossie(localizar, parametros);
+        cancelar = new CancelarDossie(localizar, parametros);
+        continuar = new ContinuarDossie(localizar, fila, gerador, parametros, relogio);
         consultar = new ConsultarDossie(localizar);
         limpar = new LimparDossies(repositorio, parametros, relogio);
 
@@ -135,7 +141,7 @@ class CasosDeUsoDossieTest {
 
         assertThat(UUID.fromString(id)).isNotNull();
         PedidoDeDossie pedido = repositorio.buscar(id).orElseThrow();
-        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE);
+        assertThat(pedido.status()).isEqualTo(StatusDossie.AGUARDANDO);
         assertThat(pedido.login()).isEqualTo("gestor.demo");
         assertThat(pedido.itens()).extracting(i -> i.origem() + "/" + i.id() + ":" + i.titulo())
                 .containsExactly("DOCUMENTO_PROCESSO/1:Requerimento", "COMPLEMENTACAO/2:oficio.pdf");
@@ -262,7 +268,7 @@ class CasosDeUsoDossieTest {
     }
 
     @Test
-    void arquivoEm409QuandoEmAndamentoOuFalhouOuCancelado() {
+    void arquivoEm409QuandoEmAndamentoOuAguardandoDecisaoOuCancelado() {
         fila.adiar = true;
         String emAndamento = criar.executar(101, refs());
         assertThatThrownBy(() -> obterArquivo.executar(emAndamento)).isInstanceOf(DossieSemArquivoException.class);
@@ -270,7 +276,7 @@ class CasosDeUsoDossieTest {
         fila.adiar = false;
         arquivos.comportamentos.put("K1", Arquivos.falhaDoDocumento("arquivo não encontrado no repositório"));
         String falho = criar.executar(101, refs());
-        assertThat(consultar.executar(falho).status()).isEqualTo(StatusDossie.FALHA);
+        assertThat(consultar.executar(falho).status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
         assertThatThrownBy(() -> obterArquivo.executar(falho)).isInstanceOf(DossieSemArquivoException.class);
 
         cancelar.executar(emAndamento);
@@ -359,14 +365,20 @@ class CasosDeUsoDossieTest {
     }
 
     @Test
-    void falhaTambemEEsquecidaDepoisDaRetencao() {
+    void pendenteDeDecisaoSemAtividadeExpiraApagaODiretorioEDepoisEEsquecido() {
         arquivos.comportamentos.put("K1", Arquivos.falhaDoDocumento("arquivo não encontrado no repositório"));
         String id = criar.executar(101, refs());
-        assertThat(repositorio.buscar(id)).isPresent();
+        PedidoDeDossie pedido = repositorio.buscar(id).orElseThrow();
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+        assertThat(pasta.resolve(id)).as("o documento obtido fica no disco").isDirectoryContaining("glob:**.pdf");
 
-        relogio.avancarMinutos(30 + LimparDossies.RETENCAO_DO_REGISTRO_MINUTOS + 1);
+        relogio.avancarMinutos(31);
+        assertThat(limpar.expirarVencidos()).isEqualTo(1);
+        assertThat(pedido.status()).isEqualTo(StatusDossie.EXPIRADO);
+        assertThat(pasta.resolve(id)).doesNotExist();
+
+        relogio.avancarMinutos(LimparDossies.RETENCAO_DO_REGISTRO_MINUTOS);
         limpar.expirarVencidos();
-
         assertThat(repositorio.buscar(id)).isEmpty();
     }
 
@@ -395,5 +407,237 @@ class CasosDeUsoDossieTest {
         try (var filhos = Files.list(pasta)) {
             assertThat(filhos.toList()).isEmpty();
         }
+    }
+
+    // --- continuação (S2.2): coleta falhas e continua de onde parou
+
+    /** 10 documentos em ordem cronológica (ids 1 a 10, chaves K1 a K10). */
+    private void dezDocumentos() {
+        List<Documento> dez = new java.util.ArrayList<>();
+        for (int i = 1; i <= 10; i++) {
+            dez.add(Documento.deLinha(OrigemDocumento.DOCUMENTO_PROCESSO, String.valueOf(i), 101, "K" + i, "Doc " + i,
+                    "d" + i + ".pdf", D1.plusDays(i), null, 0));
+        }
+        when(selecao.executar(anyLong(), anyList())).thenReturn(dez);
+    }
+
+    private PedidoDeDossie pedidoComFalhasEm3E7() {
+        dezDocumentos();
+        arquivos.comportamentos.put("K3", Arquivos.falhaDoDocumento("arquivo não encontrado no repositório"));
+        arquivos.comportamentos.put("K7", Arquivos.falhaDoDocumento("tempo limite excedido ao obter o arquivo"));
+        return criarPedido();
+    }
+
+    private long vezesBaixada(String chave) {
+        return arquivos.baixadas.stream().filter(chave::equals).count();
+    }
+
+    @Test
+    void dezDocumentosComDoisFalhandoObtemOsOitoUmaVezSoEAguardaDecisao() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+        assertThat(arquivos.baixadas).as("não para na primeira falha").hasSize(10);
+        for (int i = 1; i <= 10; i++) {
+            assertThat(vezesBaixada("K" + i)).as("K" + i).isEqualTo(1);
+        }
+        AndamentoDoDossie andamento = consultar.executar(pedido.id());
+        assertThat(andamento.falhas()).extracting(f -> f.id() + ":" + f.motivo()).containsExactly(
+                "3:arquivo não encontrado no repositório", "7:tempo limite excedido ao obter o arquivo");
+        assertThat(andamento.processados()).isEqualTo(8);
+        assertThat(montador.titulosMontados).as("nada é entregue sem decisão").isEmpty();
+        assertThatThrownBy(() -> obterArquivo.executar(pedido.id())).isInstanceOf(DossieSemArquivoException.class);
+    }
+
+    @Test
+    void tentarNovamenteChamaSoOsDoisQueFalharamEConclui() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+        arquivos.comportamentos.clear();
+        arquivos.baixadas.clear();
+
+        continuar.executar(pedido.id(), "TENTAR_NOVAMENTE");
+
+        assertThat(arquivos.baixadas).containsExactly("K3", "K7");
+        assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
+        assertThat(montador.titulosMontados).singleElement().asList().hasSize(10);
+        assertThat(montador.titulosMontados.get(0)).containsExactly("Doc 1", "Doc 2", "Doc 3", "Doc 4", "Doc 5",
+                "Doc 6", "Doc 7", "Doc 8", "Doc 9", "Doc 10");
+    }
+
+    @Test
+    void tentarNovamenteQueFalhaDeNovoVoltaParaADecisaoSemRebaixarOsObtidos() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+        arquivos.comportamentos.remove("K3");
+        arquivos.baixadas.clear();
+
+        continuar.executar(pedido.id(), "TENTAR_NOVAMENTE");
+
+        assertThat(arquivos.baixadas).containsExactly("K3", "K7");
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+        assertThat(consultar.executar(pedido.id()).falhas()).extracting(AndamentoDoDossie.Item::id).containsExactly("7");
+        assertThat(pedido.processados()).isEqualTo(9);
+    }
+
+    @Test
+    void removerEContinuarNaoBaixaNadaDeNovoEMontaOsOitoEmOrdemCronologica() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+        arquivos.baixadas.clear();
+
+        continuar.executar(pedido.id(), "REMOVER_E_CONTINUAR");
+
+        assertThat(arquivos.baixadas).as("nenhum download novo").isEmpty();
+        assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
+        assertThat(montador.titulosMontados).singleElement().isEqualTo(List.of("Doc 1", "Doc 2", "Doc 4", "Doc 5",
+                "Doc 6", "Doc 8", "Doc 9", "Doc 10"));
+        assertThat(pedido.itens()).extracting(i -> i.id() + ":" + i.situacao()).contains("3:REMOVIDO", "7:REMOVIDO");
+        assertThat(pedido.processados()).as("removidos contam como resolvidos").isEqualTo(10);
+    }
+
+    @Test
+    void oProgressoNaoVoltaAZeroDepoisDaDecisao() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+        fila.adiar = true;
+
+        continuar.executar(pedido.id(), "TENTAR_NOVAMENTE");
+
+        assertThat(pedido.status()).isEqualTo(StatusDossie.AGUARDANDO);
+        assertThat(consultar.executar(pedido.id()).processados()).isEqualTo(8);
+        assertThat(pedido.itens()).extracting(i -> i.id() + ":" + i.situacao()).contains("3:AGUARDANDO", "7:AGUARDANDO",
+                "1:OK", "10:OK");
+    }
+
+    @Test
+    void credencialRecusadaNoMeioPreservaOsObtidosEComCredencialNovaSoOsPendentesSaoObtidos() {
+        dezDocumentos();
+        arquivos.comportamentos.put("K4", destino -> {
+            throw new CredencialArquivosRecusadaException();
+        });
+        PedidoDeDossie pedido = criarPedido();
+
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+        assertThat(pedido.erro().codigo()).isEqualTo("CREDENCIAL_ARQUIVOS_RECUSADA");
+        assertThat(arquivos.baixadas).containsExactly("K1", "K2", "K3", "K4");
+        assertThat(pedido.processados()).isEqualTo(3);
+
+        // credencial nova (o token por arquivo foi trocado): só os pendentes são obtidos
+        arquivos.comportamentos.clear();
+        arquivos.baixadas.clear();
+        continuar.executar(pedido.id(), "TENTAR_NOVAMENTE");
+
+        assertThat(arquivos.baixadas).containsExactly("K4", "K5", "K6", "K7", "K8", "K9", "K10");
+        assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
+        assertThat(pedido.erro()).isNull();
+    }
+
+    @Test
+    void removerSemNenhumDocumentoObtidoEhParametroInvalido() {
+        arquivos.comportamentos.put("K1", destino -> {
+            throw new CredencialArquivosRecusadaException();
+        });
+        PedidoDeDossie pedido = criarPedido();
+
+        assertThatThrownBy(() -> continuar.executar(pedido.id(), "REMOVER_E_CONTINUAR"))
+                .isInstanceOf(ParametroInvalidoException.class);
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+    }
+
+    @Test
+    void ttlContaDesdeAUltimaAtividadeInclusiveNaEsperaPorDecisao() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+        LocalDateTime decisaoPendenteDesde = LocalDateTime.now(relogio);
+        assertThat(pedido.expiraEm()).isEqualTo(decisaoPendenteDesde.plusMinutes(30));
+
+        relogio.avancarMinutos(29);
+        assertThat(consultar.executar(pedido.id()).status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+
+        // nova ação (que falha de novo): o prazo recomeça
+        continuar.executar(pedido.id(), "TENTAR_NOVAMENTE");
+        assertThat(pedido.expiraEm()).isEqualTo(LocalDateTime.now(relogio).plusMinutes(30));
+        relogio.avancarMinutos(29);
+        assertThat(limpar.expirarVencidos()).isZero();
+        assertThat(consultar.executar(pedido.id()).status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+
+        relogio.avancarMinutos(2);
+        assertThat(consultar.executar(pedido.id()).status()).isEqualTo(StatusDossie.EXPIRADO);
+        assertThat(pasta.resolve(pedido.id())).doesNotExist();
+        assertThatThrownBy(() -> continuar.executar(pedido.id(), "TENTAR_NOVAMENTE"))
+                .isInstanceOf(DossieSemDecisaoPendenteException.class);
+    }
+
+    @Test
+    void cancelarPedidoAguardandoDecisaoApagaODiretorio() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+        assertThat(pasta.resolve(pedido.id())).exists();
+
+        cancelar.executar(pedido.id());
+
+        assertThat(pedido.status()).isEqualTo(StatusDossie.CANCELADO);
+        assertThat(pasta.resolve(pedido.id())).doesNotExist();
+        assertThatThrownBy(() -> continuar.executar(pedido.id(), "REMOVER_E_CONTINUAR"))
+                .isInstanceOf(DossieSemDecisaoPendenteException.class);
+    }
+
+    @Test
+    void cancelarDepoisDaDecisaoAntesDeAFilaRodarApagaODiretorioENaoBaixaNada() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+        fila.adiar = true;
+        continuar.executar(pedido.id(), "TENTAR_NOVAMENTE");
+        arquivos.baixadas.clear();
+
+        cancelar.executar(pedido.id());
+        fila.pendentes.forEach(Runnable::run);
+
+        assertThat(pedido.status()).isEqualTo(StatusDossie.CANCELADO);
+        assertThat(arquivos.baixadas).isEmpty();
+        assertThat(pasta.resolve(pedido.id())).doesNotExist();
+    }
+
+    @Test
+    void concluidoTambemTemODiretorioApagadoAoCancelarEAoExpirar() {
+        PedidoDeDossie cancelado = criarPedido();
+        cancelar.executar(cancelado.id());
+        assertThat(pasta.resolve(cancelado.id())).doesNotExist();
+
+        PedidoDeDossie vencido = criarPedido();
+        relogio.avancarMinutos(31);
+        limpar.expirarVencidos();
+        assertThat(pasta.resolve(vencido.id())).doesNotExist();
+    }
+
+    @Test
+    void continuacaoForaDePendenteDeDecisaoEh409() {
+        PedidoDeDossie concluido = criarPedido();
+        assertThatThrownBy(() -> continuar.executar(concluido.id(), "TENTAR_NOVAMENTE"))
+                .isInstanceOf(DossieSemDecisaoPendenteException.class);
+
+        fila.adiar = true;
+        String naFila = criar.executar(101, refs());
+        assertThatThrownBy(() -> continuar.executar(naFila, "REMOVER_E_CONTINUAR"))
+                .isInstanceOf(DossieSemDecisaoPendenteException.class);
+    }
+
+    @Test
+    void acaoDesconhecidaOuVaziaEhParametroInvalido() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+
+        for (String acao : new String[] {"REINICIAR", "", null, "tentar_novamente"}) {
+            assertThatThrownBy(() -> continuar.executar(pedido.id(), acao)).isInstanceOf(ParametroInvalidoException.class);
+        }
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+    }
+
+    @Test
+    void soQuemCriouGestorEAdminDecidem() {
+        usuario = new Usuario("operador.demo", "Operador Demo", Perfil.OPERADOR, "12.345.678/0001-90", true);
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+
+        usuario = new Usuario("outro.operador", "Outro", Perfil.OPERADOR, "98.765.432/0001-10", true);
+        assertThatThrownBy(() -> continuar.executar(pedido.id(), "TENTAR_NOVAMENTE"))
+                .isInstanceOf(RecursoNaoEncontradoException.class);
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+
+        usuario = new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true);
+        continuar.executar(pedido.id(), "REMOVER_E_CONTINUAR");
+        assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
     }
 }

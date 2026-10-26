@@ -6,6 +6,8 @@ import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.stream.Stream;
 
+import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
+import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,6 +17,11 @@ final class ArquivosTemporarios {
     private static final Logger log = LoggerFactory.getLogger(ArquivosTemporarios.class);
 
     private ArquivosTemporarios() {
+    }
+
+    /** Diretório próprio do pedido dentro de {@code VISTAS_DOSSIE_DIRETORIO}: documentos obtidos e o PDF final. */
+    static Path pastaDo(ParametrosDoDossie parametros, PedidoDeDossie pedido) {
+        return parametros.diretorio().resolve(pedido.id());
     }
 
     static void apagarArquivo(Path arquivo) {

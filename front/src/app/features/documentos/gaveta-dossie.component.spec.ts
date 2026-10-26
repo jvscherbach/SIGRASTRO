@@ -15,10 +15,11 @@ const REFS: ReferenciaDocumento[] = [
 function andamento(sobre: Partial<AndamentoDossie> = {}): AndamentoDossie {
   return {
     id: 'pedido-1',
-    status: 'PROCESSANDO',
+    status: 'OBTENDO',
     total: 3,
     processados: 1,
     erro: null,
+    falhas: [],
     paginas: null,
     expiraEm: '2026-10-21T11:30:00',
     itens: [
@@ -38,13 +39,13 @@ const CONCLUIDO = andamento({
 });
 
 const FALHA = andamento({
-  status: 'FALHA',
-  processados: 1,
-  erro: { origem: 'JUNTADA', id: '900118', titulo: 'Ofício juntado', motivo: 'tempo limite excedido ao obter o arquivo' },
+  status: 'PENDENTE_DECISAO',
+  processados: 2,
+  falhas: [{ origem: 'JUNTADA', id: '900118', titulo: 'Ofício juntado', motivo: 'tempo limite excedido ao obter o arquivo' }],
   itens: [
     { origem: 'DOCUMENTO_PROCESSO', id: '804328', titulo: 'Requerimento assinado', situacao: 'OK' },
-    { origem: 'JUNTADA', id: '900118', titulo: 'Ofício juntado', situacao: 'FALHA' },
-    { origem: 'IMOVEL', id: '31', titulo: 'Matrícula', situacao: 'AGUARDANDO' },
+    { origem: 'JUNTADA', id: '900118', titulo: 'Ofício juntado', situacao: 'FALHA', motivo: 'tempo limite excedido ao obter o arquivo' },
+    { origem: 'IMOVEL', id: '31', titulo: 'Matrícula', situacao: 'OK' },
   ],
 });
 
@@ -62,6 +63,7 @@ describe('GavetaDossieComponent', () => {
     andamento: ReturnType<typeof vi.fn>;
     arquivo: ReturnType<typeof vi.fn>;
     cancelar: ReturnType<typeof vi.fn>;
+    continuar: ReturnType<typeof vi.fn>;
   };
   let fixture: ComponentFixture<GavetaDossieComponent>;
   let raiz: HTMLElement;
@@ -102,6 +104,7 @@ describe('GavetaDossieComponent', () => {
       andamento: vi.fn(() => of(andamento())),
       arquivo: vi.fn(),
       cancelar: vi.fn(() => of(undefined)),
+      continuar: vi.fn(() => of(undefined)),
     };
     URL.createObjectURL = vi.fn(() => 'blob:http://localhost/previa-1');
     URL.revokeObjectURL = vi.fn();
@@ -151,7 +154,7 @@ describe('GavetaDossieComponent', () => {
     });
 
     it('pendente aparece como "Na fila"', () => {
-      api.andamento.mockReturnValue(of(andamento({ status: 'PENDENTE', processados: 0 })));
+      api.andamento.mockReturnValue(of(andamento({ status: 'AGUARDANDO', processados: 0 })));
       abrir();
 
       expect(texto()).toContain('Na fila');
@@ -174,11 +177,11 @@ describe('GavetaDossieComponent', () => {
       }
     });
 
-    it('para ao chegar a um estado final (concluído, falha, cancelado, expirado)', async () => {
-      for (const status of ['CONCLUIDO', 'FALHA', 'CANCELADO', 'EXPIRADO'] as const) {
+    it('para ao chegar a um estado que depende do usuário (concluído, aguardando decisão, cancelado, expirado)', async () => {
+      for (const status of ['CONCLUIDO', 'PENDENTE_DECISAO', 'CANCELADO', 'EXPIRADO'] as const) {
         TestBed.resetTestingModule();
         api.andamento.mockClear();
-        api.andamento.mockReturnValue(of(andamento({ status, erro: status === 'FALHA' ? FALHA.erro : null })));
+        api.andamento.mockReturnValue(of(andamento({ status, falhas: status === 'PENDENTE_DECISAO' ? FALHA.falhas : [] })));
         abrir();
 
         await avancar(60_000);
@@ -353,58 +356,76 @@ describe('GavetaDossieComponent', () => {
     });
   });
 
-  describe('interrompido (RN09)', () => {
+  describe('aguardando decisão (RN09, S2.2)', () => {
     beforeEach(() => api.andamento.mockReturnValue(of(FALHA)));
 
-    it('informa o documento e o motivo e que nenhum arquivo foi gerado', () => {
+    it('informa o documento e o motivo, mantém os obtidos e não entrega nada', () => {
       abrir();
 
-      expect(texto()).toContain('Geração interrompida');
+      expect(texto()).toContain('Documentos com problema');
       expect(texto()).toContain('Ofício juntado não pôde ser incluído: tempo limite excedido ao obter o arquivo.');
-      expect(texto()).toContain('nenhum arquivo foi gerado');
-      expect(texto()).toContain('Interrompido · 1/3');
-      expect(passos().map((p) => p.situacao)).toEqual(['OK', 'FALHA', 'AGUARDANDO']);
+      expect(texto()).toContain('não serão baixados de novo');
+      expect(texto()).toContain('Aguardando decisão · 2/3');
+      expect(passos().map((p) => p.situacao)).toEqual(['OK', 'FALHA', 'OK']);
       expect(botao('Pré-visualizar')).toBeUndefined();
       expect(botao('Baixar PDF')).toBeUndefined();
     });
 
-    it('"Tentar novamente" é um novo POST com a mesma seleção', () => {
+    it('"Tentar novamente" continua o mesmo pedido (sem novo POST) e volta a acompanhar', () => {
       abrir();
       api.criar.mockClear();
+      api.andamento.mockClear();
+      api.andamento.mockReturnValue(of(CONCLUIDO));
 
       botao('Tentar novamente')!.click();
+      fixture.detectChanges();
 
-      expect(api.criar).toHaveBeenCalledTimes(1);
-      expect(api.criar).toHaveBeenCalledWith(101, REFS);
+      expect(api.continuar).toHaveBeenCalledWith('pedido-1', 'TENTAR_NOVAMENTE');
+      expect(api.criar).not.toHaveBeenCalled();
+      expect(api.andamento).toHaveBeenCalledTimes(1);
+      expect(texto()).toContain('Dossiê pronto');
       expect(removidos).toEqual([]);
     });
 
-    it('"Remover documento e gerar" envia a seleção sem o documento que falhou e avisa a tela', () => {
+    it('"Remover documento e gerar" decide REMOVER_E_CONTINUAR e avisa a tela do que saiu', () => {
       abrir();
       api.criar.mockClear();
 
       botao('Remover documento e gerar')!.click();
 
-      expect(api.criar).toHaveBeenCalledWith(101, [
-        { origem: 'DOCUMENTO_PROCESSO', id: '804328' },
-        { origem: 'IMOVEL', id: '31' },
-      ]);
+      expect(api.continuar).toHaveBeenCalledWith('pedido-1', 'REMOVER_E_CONTINUAR');
+      expect(api.criar).not.toHaveBeenCalled();
       expect(removidos).toEqual([{ origem: 'JUNTADA', id: '900118' }]);
     });
 
-    it('a remoção vale para as tentativas seguintes (a seleção encolhe de verdade)', () => {
+    it('o progresso não volta a zero depois da decisão', () => {
       abrir();
-      botao('Remover documento e gerar')!.click();
-      api.andamento.mockReturnValue(of(FALHA));
-      api.criar.mockClear();
+      api.andamento.mockReturnValue(of(andamento({ status: 'OBTENDO', processados: 2 })));
 
       botao('Tentar novamente')!.click();
+      fixture.detectChanges();
 
-      expect((api.criar.mock.calls[0][1] as ReferenciaDocumento[]).length).toBe(2);
+      expect(texto()).toContain('2/3');
     });
 
-    it('com um documento só não há o que remover', () => {
-      abrir([REFS[1]]);
+    it('decisão recusada pelo servidor (409) mostra a mensagem e mantém os botões', () => {
+      api.continuar.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'DOSSIE_SEM_DECISAO_PENDENTE' } })),
+      );
+      abrir();
+
+      botao('Tentar novamente')!.click();
+      fixture.detectChanges();
+
+      expect(raiz.querySelector('.gaveta-erro')).not.toBeNull();
+      expect(botao('Tentar novamente')).toBeTruthy();
+    });
+
+    it('sem nenhum documento obtido não há o que remover', () => {
+      api.andamento.mockReturnValue(
+        of({ ...FALHA, processados: 0, itens: FALHA.itens.map((i) => ({ ...i, situacao: i.situacao === 'OK' ? 'AGUARDANDO' as const : i.situacao })) }),
+      );
+      abrir();
 
       expect(botao('Remover documento e gerar')).toBeUndefined();
       expect(botao('Tentar novamente')).toBeTruthy();
@@ -413,7 +434,7 @@ describe('GavetaDossieComponent', () => {
 
   describe('token da API de arquivos recusado', () => {
     const recusado = andamento({
-      status: 'FALHA',
+      status: 'PENDENTE_DECISAO',
       erro: {
         origem: 'DOCUMENTO_PROCESSO',
         id: '804328',
@@ -421,9 +442,23 @@ describe('GavetaDossieComponent', () => {
         motivo: 'Token da API de arquivos expirado ou recusado: capture um novo token.',
         codigo: 'CREDENCIAL_ARQUIVOS_RECUSADA',
       },
+      falhas: [
+        {
+          origem: 'DOCUMENTO_PROCESSO',
+          id: '804328',
+          titulo: 'Requerimento assinado',
+          motivo: 'Token da API de arquivos expirado ou recusado: capture um novo token.',
+        },
+      ],
+      processados: 0,
+      itens: [
+        { origem: 'DOCUMENTO_PROCESSO', id: '804328', titulo: 'Requerimento assinado', situacao: 'FALHA' },
+        { origem: 'JUNTADA', id: '900118', titulo: 'Ofício juntado', situacao: 'AGUARDANDO' },
+        { origem: 'IMOVEL', id: '31', titulo: 'Matrícula', situacao: 'AGUARDANDO' },
+      ],
     });
 
-    it('orienta a capturar um novo token, sem citar valor e sem oferecer a remoção do documento', () => {
+    it('orienta a capturar um novo token, sem citar valor e sem oferecer a remoção', () => {
       api.andamento.mockReturnValue(of(recusado));
       abrir();
 

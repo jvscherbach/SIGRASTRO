@@ -24,7 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** RN09 / RNF04: completo ou nenhum. Portas falsas, sem SIGA e sem rede. */
+/** RN09 (S2.2): nada é entregue sem decisão, falhas são coletadas. Portas falsas, sem SIGA e sem rede. */
 class GeradorDeDossieTest {
 
     @TempDir
@@ -101,20 +101,19 @@ class GeradorDeDossieTest {
     }
 
     @Test
-    void espacoInsuficienteFalhaODocumentoSemBaixarEApagaOsTemporarios() throws IOException {
+    void espacoInsuficienteFalhaCadaDocumentoSemBaixarENaoDeixaTemporarios() throws IOException {
         PedidoDeDossie pedido = pedidoDeTres();
         parametros.espacoMinimoMb = 2048;
         espaco.livre = 2048L * 1024 * 1024 - 1;
 
         gerador.processar(pedido);
 
-        assertThat(pedido.status()).isEqualTo(StatusDossie.FALHA);
-        assertThat(pedido.erro().motivo()).isEqualTo("espaço em disco insuficiente");
-        assertThat(pedido.erro().id()).isEqualTo("1");
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+        assertThat(pedido.erro()).isNull();
+        assertThat(pedido.itens()).extracting(i -> i.motivo()).containsOnly("espaço em disco insuficiente");
         assertThat(pedido.itens().get(0).tentativas()).isZero();
         assertThat(arquivos.baixadas).isEmpty();
-        assertThat(espaco.consultas).containsExactly(pasta.resolve(pedido.id()));
-        assertThat(pasta.resolve(pedido.id())).doesNotExist();
+        assertThat(espaco.consultas).hasSize(3).containsOnly(pasta.resolve(pedido.id()));
         assertThat(arquivosNaPasta()).isZero();
     }
 
@@ -140,41 +139,42 @@ class GeradorDeDossieTest {
     }
 
     @Test
-    void falhaNoMeioInterrompeDescartaTudoENaoProcessaOsSeguintes() throws IOException {
+    void falhaNoMeioNaoParaAObtencaoEDeixaOPedidoAguardandoDecisao() throws IOException {
         PedidoDeDossie pedido = pedidoDeTres();
         arquivos.comportamentos.put("K2", Arquivos.falhaDoDocumento("tempo limite excedido ao obter o arquivo"));
 
         gerador.processar(pedido);
 
-        assertThat(pedido.status()).isEqualTo(StatusDossie.FALHA);
-        assertThat(pedido.erro()).isEqualTo(new ErroDoDossie("DOCUMENTO_PROCESSO", "2", "Oficio",
-                "tempo limite excedido ao obter o arquivo", null));
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+        assertThat(pedido.erro()).as("falha de documento fica no item, não no pedido").isNull();
         assertThat(pedido.itens()).extracting(i -> i.situacao())
-                .containsExactly(SituacaoItem.OK, SituacaoItem.FALHA, SituacaoItem.AGUARDANDO);
-        assertThat(pedido.processados()).isEqualTo(1);
-        assertThat(arquivos.baixadas).as("o terceiro não é processado").containsExactly("K1", "K2");
-        assertThat(montador.titulosMontados).isEmpty();
+                .containsExactly(SituacaoItem.OK, SituacaoItem.FALHA, SituacaoItem.OK);
+        assertThat(pedido.falhas()).singleElement().satisfies(i -> {
+            assertThat(i.id()).isEqualTo("2");
+            assertThat(i.motivo()).isEqualTo("tempo limite excedido ao obter o arquivo");
+        });
+        assertThat(pedido.processados()).isEqualTo(2);
+        assertThat(arquivos.baixadas).as("o terceiro também é obtido").containsExactly("K1", "K2", "K3");
+        assertThat(montador.titulosMontados).as("nada é entregue sem decisão").isEmpty();
         assertThat(pedido.arquivo()).isNull();
-        assertThat(pasta.resolve(pedido.id())).doesNotExist();
-        assertThat(arquivosNaPasta()).isZero();
+        assertThat(arquivosNaPasta()).as("os dois obtidos ficam no disco do pedido").isEqualTo(2);
     }
 
     @Test
-    void documentoInvalidoDepoisDeObtidoTambemInterrompe() throws IOException {
+    void documentoInvalidoDepoisDeObtidoFalhaSoEleESeuArquivoSai() throws IOException {
         PedidoDeDossie pedido = pedidoDeTres();
         arquivos.comportamentos.put("K1", destino -> Fakes.gravar(destino, "invalido:o documento está protegido por senha"));
 
         gerador.processar(pedido);
 
-        assertThat(pedido.status()).isEqualTo(StatusDossie.FALHA);
-        assertThat(pedido.erro().motivo()).isEqualTo("o documento está protegido por senha");
-        assertThat(pedido.erro().id()).isEqualTo("1");
-        assertThat(arquivos.baixadas).containsExactly("K1");
-        assertThat(arquivosNaPasta()).isZero();
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+        assertThat(pedido.itens().get(0).motivo()).isEqualTo("o documento está protegido por senha");
+        assertThat(arquivos.baixadas).containsExactly("K1", "K2", "K3");
+        assertThat(arquivosNaPasta()).isEqualTo(2);
     }
 
     @Test
-    void credencialRecusadaInterrompeTudoComOCodigoPropriosemOToken() throws IOException {
+    void credencialRecusadaInterrompeAObtencaoComOCodigoESemOToken() throws IOException {
         PedidoDeDossie pedido = pedidoDeTres();
         arquivos.comportamentos.put("K1", destino -> {
             throw new CredencialArquivosRecusadaException();
@@ -182,24 +182,40 @@ class GeradorDeDossieTest {
 
         gerador.processar(pedido);
 
-        assertThat(pedido.status()).isEqualTo(StatusDossie.FALHA);
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
         assertThat(pedido.erro().codigo()).isEqualTo("CREDENCIAL_ARQUIVOS_RECUSADA");
         assertThat(pedido.erro().motivo()).isEqualTo("Token da API de arquivos expirado ou recusado: capture um novo token.");
-        assertThat(arquivos.baixadas).containsExactly("K1");
+        assertThat(pedido.itens()).extracting(i -> i.situacao())
+                .containsExactly(SituacaoItem.FALHA, SituacaoItem.AGUARDANDO, SituacaoItem.AGUARDANDO);
+        assertThat(arquivos.baixadas).as("nada mais funciona: para na hora").containsExactly("K1");
         assertThat(arquivosNaPasta()).isZero();
     }
 
     @Test
-    void erroInesperadoNaMontagemTambemNaoEntregaNada() throws IOException {
+    void erroInesperadoNaMontagemAguardaDecisaoSemVazarDetalheEGuardaOsObtidos() throws IOException {
         PedidoDeDossie pedido = pedidoDeTres();
         montador.falha = new IllegalStateException("detalhe interno que não deve vazar");
 
         gerador.processar(pedido);
 
-        assertThat(pedido.status()).isEqualTo(StatusDossie.FALHA);
-        assertThat(pedido.erro().motivo()).isEqualTo("falha inesperada ao gerar o dossiê");
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+        assertThat(pedido.erro().motivo()).isEqualTo("falha inesperada ao montar o dossiê");
+        assertThat(pedido.falhas()).isEmpty();
         assertThat(pedido.arquivo()).isNull();
-        assertThat(arquivosNaPasta()).isZero();
+        assertThat(arquivosNaPasta()).isEqualTo(3);
+    }
+
+    @Test
+    void erroInesperadoAoObterUmDocumentoViraFalhaSoDele() {
+        PedidoDeDossie pedido = pedidoDeTres();
+        arquivos.comportamentos.put("K3", destino -> {
+            throw new IllegalStateException("detalhe interno que não deve vazar");
+        });
+
+        gerador.processar(pedido);
+
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+        assertThat(pedido.itens().get(2).motivo()).isEqualTo("falha inesperada ao obter o documento");
     }
 
     @Test

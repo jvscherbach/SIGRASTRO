@@ -89,6 +89,7 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 **Decisão:** se qualquer documento selecionado falhar, a geração é interrompida com erro e nenhum arquivo é entregue. Não há página substituta nem relatório de geração no fim do dossiê. *(Substitui a decisão anterior de página substituta.)*
 **Motivo:** o dossiê deve conter exatamente o que foi pedido; entregar parcialmente poderia ser tomado como completo.
 **Consequência:** falhas transitórias (ex.: tempo limite) exigem nova tentativa; o usuário pode remover o documento por decisão explícita.
+**Revista na S2.2 (D48):** o princípio (nada incompleto sem decisão) continua; a interrupção na primeira falha e o descarte de tudo deixaram de valer.
 
 ## D16 — Geometrias à parte e compactados desconsiderados
 
@@ -259,3 +260,10 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 **Contexto:** na homologação da S2/S2.1, documentos de tipo não informado ficavam fora da primeira geração, e a tela do 769/2025 mostrava "145 documentos · 71 vigentes" com "144 selecionados", o que parecia não fechar. O dossiê responde a processos jurídicos: o padrão é incluir tudo o que pode entrar.
 **Decisão:** `selecionavelPorPadrao` passa a significar "selecionável" (sem `bloqueio`): vigentes e sem efeito, de qualquer tipo, inclusive `DESCONHECIDO`, vêm selecionados (RN13). Continuam fora: indisponíveis, não PDF por extensão conhecida e sigilosos para o Operador. Os totais ganham `semEfeito`, e a tela mostra `N documentos · V vigentes · S sem efeito · I indisponíveis` (somam N). Substitui a D45 e o trecho "fica fora da pré-seleção" da D44.
 **Motivo:** a Vista lista os "sem efeito" e permite incluí-los; deixar de fora por padrão já produziu dossiê incompleto. Com a soma explícita, o total de selecionados é conferível.
+
+## D48 — Falhas coletadas e continuação sem reiniciar (S2.2)
+
+**Contexto:** na homologação da S2/S2.1, com arquivos de ~50 MB, "Tentar novamente" e "Remover documento e gerar" reiniciavam o dossiê inteiro (novo `POST`), baixando de novo o que já tinha dado certo.
+**Decisão:** a geração percorre todos os documentos e coleta as falhas; com falha, o pedido fica em `PENDENTE_DECISAO` com a lista completa e nada é entregue. Os arquivos obtidos ficam no diretório do pedido. A decisão é `POST /dossies/{id}/continuacao` (`TENTAR_NOVAMENTE` refaz só os com problema; `REMOVER_E_CONTINUAR` os marca `REMOVIDO` e monta). Credencial recusada para a obtenção na hora e também espera decisão. O estado `FALHA` deixa de existir; o TTL conta desde a última atividade, inclusive na espera. Só quem criou o pedido, Gestor e Administrador decidem (os demais recebem 404); fora de `PENDENTE_DECISAO`, 409 `DOSSIE_SEM_DECISAO_PENDENTE`. Revê a D12 (RN09 reescrita em docs/02).
+**Motivo:** manter a regra "nada incompleto sem decisão explícita" sem pagar de novo o download do que já foi obtido; com credencial nova (token por arquivo), só o que falta é obtido.
+**Consequência:** o disco guarda os documentos de um pedido parado até a decisão, o cancelamento ou o TTL (dimensionamento em docs/12). A lista de documentos não incluídos no PDF é do bloco 6; a interface completa da decisão, do bloco 7.

@@ -12,8 +12,8 @@ Pedido (documentos selecionados)
   │      b. identificar o tipo real (Content-Type + assinatura do arquivo)
   │      c. converter para PDF, se necessário
   │      d. validar o PDF (abre? tem senha? tem páginas?)
-  │      e. em caso de falha → INTERROMPE a geração (ver abaixo)
-  ├─ 4. Capa
+  │      e. em caso de falha → registra a falha do documento e segue (S2.2; ver abaixo)
+  ├─ 4. Com falhas: PENDENTE_DECISAO (nada é entregue até a decisão); sem falhas: capa
   ├─ 5. Montagem: capa + sumário + documentos, na ordem
   ├─ 6. Marcadores (bookmarks) e numeração de páginas
   └─ 7. Arquivo final disponível para pré-visualização e download
@@ -30,7 +30,7 @@ A obtenção e a conversão podem ser paralelas. A montagem respeita sempre a or
 - **Capa** (RF12) e **sumário** são páginas A4 desenhadas com a fonte padrão do PDFBox (WinAnsi): o que a fonte não codifica vira `?` (acentos, `º`, `ç` funcionam).
 - **Sumário determinístico:** uma linha por documento (data, título, origem, página inicial), com **38 linhas por página**; a página inicial de cada documento é conhecida antes de importar qualquer página (capa = 1, sumário = próximas, documentos em seguida). Cada linha é um link para a página do documento.
 - **Marcadores** (`PDDocumentOutline`): "Capa", "Sumário" e um por documento. **Numeração** "Página X de Y" a partir da primeira página após a capa (X é o número físico), posicionada pela **caixa de recorte e pela rotação** de cada página (testado nas quatro rotações). Os três respeitam os parâmetros ligado/desligado.
-- **Expiração:** `DOSSIE_TTL_MINUTOS` (30) a partir da conclusão; o arquivo é apagado ao fim do download (`attachment`) ou ao vencer (limpeza a cada 5 min e verificação a cada leitura); na subida, as pastas de pedido sobrando são apagadas (a fila é em memória).
+- **Expiração:** `DOSSIE_TTL_MINUTOS` (30) desde a última atividade (S2.2; até a S2.1, a partir da conclusão); o diretório do pedido é apagado ao fim do download (`attachment`) ou ao vencer (limpeza a cada 5 min e verificação a cada leitura); na subida, as pastas de pedido sobrando são apagadas (a fila é em memória).
 
 ## Tipos de arquivo
 
@@ -84,15 +84,28 @@ A ordem em que o usuário clica, filtra ou ordena a tabela não altera o dossiê
 
 **Fuso e dia.** `DATA_DOC` é `TIMESTAMP` (ou `DATE`) sem fuso, no relógio de Cuiabá. O adapter lê a coluna como `LocalDateTime` direto do driver (`DataHoraDoSiga`), sem passar por `java.sql.Timestamp`, que usaria o fuso da JVM. Um documento das 23:30 continua no mesmo dia na tela e no sumário, mesmo com a JVM em UTC. O front lê o texto `aaaa-mm-ddThh:mm` campo a campo, sem converter pelo fuso do navegador.
 
-## Falha na geração
+## Falha na geração (S2.2: coleta as falhas e continua de onde parou)
 
-O objetivo é entregar o dossiê completo com o que foi pedido. Por isso, se qualquer documento selecionado não puder ser obtido, convertido ou validado:
+O dossiê continua **sem ser entregue incompleto sem decisão explícita** (RN09), mas a decisão não reinicia nada:
 
-1. a geração é interrompida no documento que falhou; os seguintes não são processados;
-2. os arquivos temporários são descartados e **nenhum PDF é entregue**;
-3. o pedido fica com status `FALHA`, com o documento e o motivo (ex.: "tempo limite excedido ao obter o arquivo", "arquivo não encontrado no repositório", "o documento está protegido por senha", "o arquivo está corrompido", "o arquivo não tem páginas", "o arquivo não é um PDF válido"); token recusado interrompe tudo com o código `CREDENCIAL_ARQUIVOS_RECUSADA`;
-4. o usuário escolhe entre **Tentar novamente** (mesma seleção) ou **Remover documento e gerar** (nova geração sem o documento, por decisão explícita);
-5. a tentativa interrompida será registrada na auditoria de documentos (evento `FALHA`, S5; a auditoria não existe na S2).
+1. o pipeline percorre **todos** os documentos e coleta as falhas (arquivo não encontrado, tempo limite, protegido por senha, corrompido, sem páginas, não é PDF, formato aguardando conversão, espaço em disco insuficiente); não para na primeira;
+2. terminada a obtenção: sem falha, monta e conclui. Com falhas, o pedido fica em **`PENDENTE_DECISAO`** com a lista completa (`falhas` no andamento, cada uma com documento e motivo) e **nada é entregue**;
+3. exceção: **401/403** (credencial recusada) interrompe a obtenção na hora (nada mais funcionaria) e também deixa o pedido em `PENDENTE_DECISAO`, com `erro.codigo = CREDENCIAL_ARQUIVOS_RECUSADA`; os itens ainda não tentados ficam `AGUARDANDO`;
+4. os arquivos já obtidos e validados ficam no **diretório do pedido** (`VISTAS_DOSSIE_DIRETORIO/<id>/`, um arquivo por posição no pedido) até concluir, cancelar ou expirar; o arquivo de um documento que falhou é apagado na hora;
+5. a decisão é `POST /dossies/{id}/continuacao` (docs/07): **`TENTAR_NOVAMENTE`** devolve à fila só os itens não resolvidos (`FALHA` e `AGUARDANDO`); **`REMOVER_E_CONTINUAR`** os marca `REMOVIDO` e vai para a montagem com os já obtidos. Nenhuma das duas baixa de novo o que já foi obtido (testado contando as chamadas ao repositório). `REMOVER_E_CONTINUAR` sem nenhum documento obtido é recusado (400);
+6. falha na **montagem** também leva a `PENDENTE_DECISAO` (motivo geral em `erro`); `TENTAR_NOVAMENTE` refaz só a montagem;
+7. a tentativa com falhas será registrada na auditoria de documentos (evento `FALHA`, S5; a auditoria não existe na S2).
+
+Situações do **item**: `AGUARDANDO`, `OBTENDO`, `OK`, `FALHA`, `REMOVIDO`. Situações do **pedido**: `AGUARDANDO`, `OBTENDO`, `PENDENTE_DECISAO`, `MONTANDO`, `CONCLUIDO`, `CANCELADO`, `EXPIRADO`.
+
+```
+AGUARDANDO → OBTENDO ─┬─ sem falhas ─→ MONTANDO → CONCLUIDO
+     ↑                └─ com falhas ─→ PENDENTE_DECISAO
+     └──────── TENTAR_NOVAMENTE / REMOVER_E_CONTINUAR ─┘
+(cancelar: de qualquer situação não terminal → CANCELADO; sem atividade no TTL: CONCLUIDO ou PENDENTE_DECISAO → EXPIRADO)
+```
+
+**Validade:** o TTL (`DOSSIE_TTL_MINUTOS`) conta desde a **última atividade** — criação, cada documento processado, a entrada em `PENDENTE_DECISAO`, cada decisão e a conclusão —, inclusive enquanto o pedido espera a decisão. Cancelar e expirar apagam o diretório do pedido inteiro.
 
 Geometrias e arquivos compactados não fazem parte da seleção do dossiê, portanto não geram falha.
 
@@ -111,5 +124,5 @@ Numeração "Página X de Y" no rodapé, a partir da primeira página após a ca
 ## Limites e expiração
 
 - Timeout por download e por conversão (configuráveis).
-- O arquivo final e os temporários são removidos após o download ou após `DOSSIE_TTL_MINUTOS`.
+- O arquivo final e os temporários são removidos após o download, ao cancelar ou após `DOSSIE_TTL_MINUTOS` sem atividade (inclusive à espera de decisão).
 - A pré-visualização usa o mesmo arquivo e não gera novamente.

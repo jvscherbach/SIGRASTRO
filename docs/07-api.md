@@ -172,7 +172,8 @@ Resposta de `GET /requerimentos/{id}/documentos`:
 | `POST` | `/dossies` | Cria um pedido de geração. Retorna `202` com `{ "id": "..." }` (UUID aleatório). |
 | `GET` | `/dossies/{id}` | Andamento do pedido. |
 | `GET` | `/dossies/{id}/arquivo?disposicao=inline\|attachment` | PDF final. `inline` para pré-visualização (o arquivo continua), `attachment` para download (**o arquivo é apagado ao fim do download**, RNF05). `Content-Disposition` com o nome do RF18: `dossie-processo-<numero>-<ano>.pdf` (protocolado) ou `dossie-requerimento-<numero>-<ano>.pdf`. |
-| `DELETE` | `/dossies/{id}` | Cancela o pedido em andamento ou descarta o arquivo já gerado (idempotente, 204). |
+| `POST` | `/dossies/{id}/continuacao` | Decide um pedido em `PENDENTE_DECISAO` (S2.2): `{ "acao": "TENTAR_NOVAMENTE" }` refaz **só** os documentos com problema; `{ "acao": "REMOVER_E_CONTINUAR" }` os marca `REMOVIDO` e monta com os já obtidos. Nada já obtido é baixado de novo. `202`; `409 DOSSIE_SEM_DECISAO_PENDENTE` fora de `PENDENTE_DECISAO`; `400 PARAMETRO_INVALIDO` para ação desconhecida ou `REMOVER_E_CONTINUAR` sem nenhum documento obtido. Substitui os "novos `POST`" da S2. |
+| `DELETE` | `/dossies/{id}` | Cancela o pedido em qualquer situação não terminal e apaga o diretório do pedido (documentos já obtidos e PDF final); idempotente, 204. |
 
 Só quem criou o pedido (e Gestor e Administrador) acessa o `{id}`; para os demais o pedido **não existe** (404 `NAO_ENCONTRADO`).
 
@@ -203,10 +204,11 @@ Resposta do `GET /dossies/{id}`:
 ```json
 {
   "id": "6f0c3c0e-5f0e-4c7e-9a52-2b1f0f5d8a11",
-  "status": "PROCESSANDO",
+  "status": "OBTENDO",
   "total": 55,
   "processados": 21,
   "erro": null,
+  "falhas": [],
   "paginas": null,
   "expiraEm": "2026-10-19T18:30:00",
   "itens": [
@@ -216,19 +218,25 @@ Resposta do `GET /dossies/{id}`:
 }
 ```
 
-- `status`: `PENDENTE`, `PROCESSANDO`, `CONCLUIDO`, `FALHA`, `CANCELADO` ou `EXPIRADO`.
-- `itens[].situacao` (RF16): `AGUARDANDO`, `OBTENDO`, `OK` ou `FALHA`. A ordem é a cronológica (RN03).
+- `status` (S2.2): `AGUARDANDO` (na fila), `OBTENDO`, `PENDENTE_DECISAO` (há documentos com problema; nada é entregue até a decisão), `MONTANDO`, `CONCLUIDO`, `CANCELADO` ou `EXPIRADO`. Não existe mais `FALHA` como estado final. O front para o polling em `CONCLUIDO`, `PENDENTE_DECISAO`, `CANCELADO` e `EXPIRADO`.
+- `itens[].situacao` (RF16): `AGUARDANDO`, `OBTENDO`, `OK`, `FALHA` ou `REMOVIDO`. A ordem é a cronológica (RN03). `itens[].motivo` só aparece em `FALHA`.
+- `processados`: itens resolvidos (`OK` ou `REMOVIDO`). **Não volta a zero** numa continuação: os já obtidos continuam contando.
+- `falhas` (S2.2): a lista completa dos itens em `FALHA` (`origem`, `id`, `titulo`, `motivo`), que a decisão vai refazer ou remover.
+- `erro`: motivo **geral**, só quando não é de um documento: credencial recusada (com `codigo`) ou falha na montagem. Falha de documento fica em `falhas`.
+- `expiraEm` (S2.2): conta desde a **última atividade** (criação, cada documento processado, decisão, conclusão), inclusive enquanto o pedido espera a decisão.
 - `itens[].tentativas` (S2.2): pedidos feitos à API de arquivos para o item (0 = nenhum ainda; mais de 1 = houve nova tentativa automática, docs/05). Não traz chave nem URL.
 - `paginas`: total de páginas do PDF final (só em `CONCLUIDO`). `expiraEm`: horário de Cuiabá, sem fuso.
-- `GET /dossies/{id}/arquivo`: 409 `DOSSIE_SEM_ARQUIVO` se não há arquivo (em andamento, falha, cancelado); 410 `DOSSIE_EXPIRADO` se expirou ou já foi baixado; 400 se `disposicao` for outra.
+- `GET /dossies/{id}/arquivo`: 409 `DOSSIE_SEM_ARQUIVO` se não há arquivo (em andamento, aguardando decisão, cancelado); 410 `DOSSIE_EXPIRADO` se expirou ou já foi baixado; 400 se `disposicao` for outra.
 
-Em `FALHA`, `erro` traz o documento e o motivo, e `GET /dossies/{id}/arquivo` retorna 409 (não há arquivo):
+Em `PENDENTE_DECISAO` por falha de documento, `falhas` traz cada documento e o motivo, e `GET /dossies/{id}/arquivo` retorna 409 (não há arquivo):
 
 ```json
-"erro": { "origem": "COMPLEMENTACAO", "id": "900118", "titulo": "Resposta da complementação", "motivo": "tempo limite excedido ao obter o arquivo" }
+"falhas": [
+  { "origem": "COMPLEMENTACAO", "id": "900118", "titulo": "Resposta da complementação", "motivo": "tempo limite excedido ao obter o arquivo" }
+]
 ```
 
-Quando a API de arquivos recusa a credencial (401/403), a geração inteira é interrompida e o erro traz o código (sem o valor do token):
+Quando a API de arquivos recusa a credencial (401/403), a obtenção para na hora (os já obtidos são mantidos), o pedido vai para `PENDENTE_DECISAO` e `erro` traz o código (sem o valor do token):
 
 ```json
 "erro": { "origem": "DOCUMENTO_PROCESSO", "id": "804328", "titulo": "RG e CPF", "motivo": "Token da API de arquivos expirado ou recusado: capture um novo token.", "codigo": "CREDENCIAL_ARQUIVOS_RECUSADA" }
@@ -236,7 +244,9 @@ Quando a API de arquivos recusa a credencial (401/403), a geração inteira é i
 
 Motivos possíveis: tempo limite excedido ao obter o arquivo; tempo total máximo excedido ao obter o arquivo; espaço em disco insuficiente; arquivo não encontrado no repositório; repositório de arquivos indisponível; API de arquivos não configurada; o documento está protegido por senha; o arquivo está corrompido; o arquivo não tem páginas; o arquivo não é um PDF válido.
 
-Para tentar de novo, o cliente envia um novo `POST /dossies` (com ou sem o documento que falhou). **Auditoria** é da S5: nenhum evento é registrado na S2.
+Falha na montagem (rara: os documentos já foram validados) também deixa o pedido em `PENDENTE_DECISAO`, com `erro.motivo` "falha ao montar o dossiê: …" e `falhas` vazia. `TENTAR_NOVAMENTE` refaz só a montagem.
+
+Para continuar, o cliente usa `POST /dossies/{id}/continuacao` (acima), **não** um novo `POST /dossies`: com credencial nova (token por arquivo, docs/05), `TENTAR_NOVAMENTE` obtém só o que falta. **Auditoria** é da S5: nenhum evento é registrado na S2.
 
 ## Auditoria
 
@@ -290,7 +300,8 @@ Todo erro segue `ProblemDetail` com `errorCode` estável e `correlationId` (head
 | 403 | `DOCUMENTO_SIGILOSO` | Documento sigiloso para perfil não autorizado |
 | 403 | `NAO_INTERESSADO` | Operador sem vínculo com o processo/requerimento |
 | 404 | `NAO_ENCONTRADO` | Requerimento, processo, documento, dossiê ou evento inexistente |
-| 409 | `DOSSIE_SEM_ARQUIVO` | Arquivo inexistente: a geração falhou, foi cancelada ou ainda está em andamento |
+| 409 | `DOSSIE_SEM_ARQUIVO` | Arquivo inexistente: o pedido aguarda decisão, foi cancelado ou ainda está em andamento |
+| 409 | `DOSSIE_SEM_DECISAO_PENDENTE` | Continuação pedida para um dossiê que não está em `PENDENTE_DECISAO` (S2.2) |
 | 410 | `DOSSIE_EXPIRADO` | Dossiê expirado ou já baixado (o arquivo foi apagado) |
 | 502 | `CREDENCIAL_ARQUIVOS_RECUSADA` | API de arquivos recusou a credencial (na geração assíncrona vira `erro.codigo` do pedido) |
 | 503 | `SIGA_INDISPONIVEL` | Banco do SIGA indisponível |

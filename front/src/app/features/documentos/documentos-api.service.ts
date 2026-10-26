@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, from, switchMap, throwError } from 'rxjs';
 
 import { SEM_TOAST } from '../../core/interceptors';
-import { AndamentoDossie, DocumentosResposta, ReferenciaDocumento } from './documentos.models';
+import { AcaoDeContinuacao, AndamentoDossie, DocumentosResposta, ReferenciaDocumento } from './documentos.models';
 
 /** A tela mostra o erro no próprio corpo (seção ou gaveta), sem toast duplicado. */
 const SEM_AVISO = () => new HttpContext().set(SEM_TOAST, true);
@@ -42,6 +42,11 @@ export class DossiesApiService {
         context: SEM_AVISO(),
       })
       .pipe(catchError((erro: unknown) => erroLegivel(erro)));
+  }
+
+  /** Decisão sobre um pedido em PENDENTE_DECISAO (S2.2): nada já obtido é baixado de novo. */
+  continuar(id: string, acao: AcaoDeContinuacao): Observable<void> {
+    return this.http.post<void>(`/api/dossies/${encodeURIComponent(id)}/continuacao`, { acao }, { context: SEM_AVISO() });
   }
 
   cancelar(id: string): Observable<void> {

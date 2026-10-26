@@ -8,10 +8,12 @@ import java.nio.charset.StandardCharsets;
 
 import br.gov.mt.sema.vistas.documento.application.ReferenciaDeDocumento;
 import br.gov.mt.sema.vistas.dossie.api.dto.AndamentoResponse;
+import br.gov.mt.sema.vistas.dossie.api.dto.ContinuacaoRequest;
 import br.gov.mt.sema.vistas.dossie.api.dto.CriarDossieRequest;
 import br.gov.mt.sema.vistas.dossie.api.dto.DossieCriadoResponse;
 import br.gov.mt.sema.vistas.dossie.application.CancelarDossie;
 import br.gov.mt.sema.vistas.dossie.application.ConsultarDossie;
+import br.gov.mt.sema.vistas.dossie.application.ContinuarDossie;
 import br.gov.mt.sema.vistas.dossie.application.CriarDossie;
 import br.gov.mt.sema.vistas.dossie.application.ObterArquivoDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.ObterArquivoDoDossie.ArquivoDoDossie;
@@ -46,13 +48,15 @@ public class DossieController {
     private final ConsultarDossie consultarDossie;
     private final ObterArquivoDoDossie obterArquivo;
     private final CancelarDossie cancelarDossie;
+    private final ContinuarDossie continuarDossie;
 
     public DossieController(CriarDossie criarDossie, ConsultarDossie consultarDossie, ObterArquivoDoDossie obterArquivo,
-            CancelarDossie cancelarDossie) {
+            CancelarDossie cancelarDossie, ContinuarDossie continuarDossie) {
         this.criarDossie = criarDossie;
         this.consultarDossie = consultarDossie;
         this.obterArquivo = obterArquivo;
         this.cancelarDossie = cancelarDossie;
+        this.continuarDossie = continuarDossie;
     }
 
     @PostMapping
@@ -114,6 +118,21 @@ public class DossieController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
                 .header(HttpHeaders.CACHE_CONTROL, "no-store")
                 .body(new InputStreamResource(corpo));
+    }
+
+    @PostMapping("/{id}/continuacao")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Operation(summary = "Decide um pedido que aguarda decisão",
+            description = "TENTAR_NOVAMENTE obtém de novo só os documentos com problema; REMOVER_E_CONTINUAR os marca "
+                    + "como removidos e monta com os já obtidos. Nada já obtido é baixado de novo. 409 se o pedido não "
+                    + "está em PENDENTE_DECISAO.")
+    @ApiResponse(responseCode = "202", description = "Decisão aceita; a geração continua.")
+    @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest")
+    @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized")
+    @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound")
+    @ApiResponse(responseCode = "409", description = "Sem decisão pendente (DOSSIE_SEM_DECISAO_PENDENTE).")
+    public void continuar(@PathVariable String id, @RequestBody ContinuacaoRequest decisao) {
+        continuarDossie.executar(id, decisao.acao());
     }
 
     @DeleteMapping("/{id}")

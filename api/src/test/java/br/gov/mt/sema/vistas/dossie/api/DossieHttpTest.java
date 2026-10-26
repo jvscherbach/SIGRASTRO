@@ -189,7 +189,7 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
         mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PENDENTE"))
+                .andExpect(jsonPath("$.status").value("AGUARDANDO"))
                 .andExpect(jsonPath("$.processados").value(0))
                 .andExpect(jsonPath("$.itens[0].situacao").value("AGUARDANDO"));
         mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
@@ -198,19 +198,22 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     }
 
     @Test
-    void andamentoDeFalhaTrazDocumentoEMotivoENenhumArquivo() throws Exception {
+    void andamentoAguardandoDecisaoTrazAsFalhasComMotivoENenhumArquivo() throws Exception {
         Mockito.doThrow(new FalhaNoDocumentoException("tempo limite excedido ao obter o arquivo"))
                 .when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
         String id = criarComSucesso("gestor.demo");
 
         mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
-                .andExpect(jsonPath("$.status").value("FALHA"))
+                .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
                 .andExpect(jsonPath("$.processados").value(1))
-                .andExpect(jsonPath("$.erro.origem").value("COMPLEMENTACAO"))
-                .andExpect(jsonPath("$.erro.id").value("900118"))
-                .andExpect(jsonPath("$.erro.titulo").value("oficio.pdf"))
-                .andExpect(jsonPath("$.erro.motivo").value("tempo limite excedido ao obter o arquivo"))
-                .andExpect(jsonPath("$.erro.codigo").doesNotExist())
+                .andExpect(jsonPath("$.erro").doesNotExist())
+                .andExpect(jsonPath("$.falhas", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$.falhas[0].origem").value("COMPLEMENTACAO"))
+                .andExpect(jsonPath("$.falhas[0].id").value("900118"))
+                .andExpect(jsonPath("$.falhas[0].titulo").value("oficio.pdf"))
+                .andExpect(jsonPath("$.falhas[0].motivo").value("tempo limite excedido ao obter o arquivo"))
+                .andExpect(jsonPath("$.itens[1].motivo").value("tempo limite excedido ao obter o arquivo"))
+                .andExpect(jsonPath("$.itens[0].motivo").doesNotExist())
                 .andExpect(jsonPath("$.itens[0].situacao").value("OK"))
                 .andExpect(jsonPath("$.itens[1].situacao").value("FALHA"));
         mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
@@ -219,12 +222,12 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     }
 
     @Test
-    void credencialRecusadaViraFalhaComCodigoESemOTokenNaResposta() throws Exception {
+    void credencialRecusadaAguardaDecisaoComCodigoESemOTokenNaResposta() throws Exception {
         Mockito.doThrow(new CredencialArquivosRecusadaException()).when(arquivos).baixar(anyString(), any(Path.class));
         String id = criarComSucesso("gestor.demo");
 
         String resposta = mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
-                .andExpect(jsonPath("$.status").value("FALHA"))
+                .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
                 .andExpect(jsonPath("$.erro.codigo").value("CREDENCIAL_ARQUIVOS_RECUSADA"))
                 .andExpect(jsonPath("$.erro.motivo").value("Token da API de arquivos expirado ou recusado: capture um novo token."))
                 .andReturn().getResponse().getContentAsString();
@@ -238,9 +241,9 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
         String id = criarComSucesso("gestor.demo");
 
         mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
-                .andExpect(jsonPath("$.status").value("FALHA"))
-                .andExpect(jsonPath("$.erro.motivo").value("o arquivo não é um PDF (tipo detectado: HTML); a conversão chega na próxima etapa"))
-                .andExpect(jsonPath("$.erro.id").value("804328"));
+                .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
+                .andExpect(jsonPath("$.falhas[0].motivo").value("o arquivo não é um PDF (tipo detectado: HTML); a conversão chega na próxima etapa"))
+                .andExpect(jsonPath("$.falhas[0].id").value("804328"));
     }
 
     private void comDocumentoDeTipoDesconhecido() {
@@ -266,12 +269,94 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
         String id = idDe(criar("gestor.demo", 101, "DOCUMENTO_PROCESSO", "804328", "IMOVEL", "31").andExpect(status().isAccepted()));
 
         mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
-                .andExpect(jsonPath("$.status").value("FALHA"))
-                .andExpect(jsonPath("$.erro.origem").value("IMOVEL"))
-                .andExpect(jsonPath("$.erro.motivo").value(
+                .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
+                .andExpect(jsonPath("$.falhas[0].origem").value("IMOVEL"))
+                .andExpect(jsonPath("$.falhas[0].motivo").value(
                         "o arquivo não é um PDF (tipo detectado: ZIP ou documento do Office (docx, xlsx)); a conversão chega na próxima etapa"));
         mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
                 .andExpect(status().isConflict());
+    }
+
+    // --- continuação (S2.2)
+
+    private org.springframework.test.web.servlet.ResultActions continuar(String login, String id, String acao)
+            throws Exception {
+        return mvc.perform(post("/api/dossies/" + id + "/continuacao").header("Authorization", bearer(login))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"acao\":\"" + acao + "\"}"));
+    }
+
+    @Test
+    void tentarNovamenteResponde202EObtemSoOQueFalhou() throws Exception {
+        Mockito.doThrow(new FalhaNoDocumentoException("tempo limite excedido ao obter o arquivo"))
+                .when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
+        String id = criarComSucesso("gestor.demo");
+        Mockito.clearInvocations(arquivos);
+        Mockito.doAnswer(chamada -> {
+            java.nio.file.Files.write(chamada.<Path>getArgument(1), br.gov.mt.sema.vistas.testsupport.PdfsDeTeste.bytes(1, "novo"));
+            return 1;
+        }).when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
+
+        String resposta = continuar("gestor.demo", id, "TENTAR_NOVAMENTE").andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+
+        verify(arquivos, Mockito.times(1)).baixar(anyString(), any(Path.class));
+        verify(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+                .andExpect(jsonPath("$.status").value("CONCLUIDO"))
+                .andExpect(jsonPath("$.processados").value(2))
+                .andExpect(jsonPath("$.falhas", hasSize(0)));
+        for (String segredo : SEGREDOS) {
+            assertThat(resposta).doesNotContain(segredo);
+        }
+    }
+
+    @Test
+    void removerEContinuarMontaSemBaixarDeNovo() throws Exception {
+        Mockito.doThrow(new FalhaNoDocumentoException("arquivo não encontrado no repositório"))
+                .when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
+        String id = criarComSucesso("gestor.demo");
+        Mockito.clearInvocations(arquivos);
+
+        continuar("gestor.demo", id, "REMOVER_E_CONTINUAR").andExpect(status().isAccepted());
+
+        verify(arquivos, never()).baixar(anyString(), any(Path.class));
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+                .andExpect(jsonPath("$.status").value("CONCLUIDO"))
+                .andExpect(jsonPath("$.itens[1].situacao").value("REMOVIDO"));
+    }
+
+    @Test
+    void continuacaoSemDecisaoPendenteEh409() throws Exception {
+        String id = criarComSucesso("gestor.demo");
+
+        continuar("gestor.demo", id, "TENTAR_NOVAMENTE")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("DOSSIE_SEM_DECISAO_PENDENTE"));
+    }
+
+    @Test
+    void continuacaoComAcaoInvalidaEh400() throws Exception {
+        Mockito.doThrow(new FalhaNoDocumentoException("arquivo não encontrado no repositório"))
+                .when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
+        String id = criarComSucesso("gestor.demo");
+
+        continuar("gestor.demo", id, "REINICIAR")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("PARAMETRO_INVALIDO"));
+    }
+
+    @Test
+    void continuacaoDePedidoDeOutroUsuarioEh404ParaOperador() throws Exception {
+        Mockito.doThrow(new FalhaNoDocumentoException("arquivo não encontrado no repositório"))
+                .when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
+        String id = criarComSucesso("gestor.demo");
+
+        continuar("operador.demo", id, "TENTAR_NOVAMENTE")
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("NAO_ENCONTRADO"));
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+                .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"));
     }
 
     @Test

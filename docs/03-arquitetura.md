@@ -43,7 +43,7 @@ Monólito modular por domínio. Regras completas em [13 — Padrões técnicos](
 | `acesso` | Usuários, perfis, vínculo do interessado, login (simulado no protótipo) |
 | `consulta` | Busca de requerimento/processo, dados de exibição, situação e tarefa atual |
 | `documento` | Agregação dos documentos, vigência, sigilo, deduplicação, geometrias, conteúdo para visualização |
-| `dossie` | Fila de geração, conversão, montagem do PDF, capa, sumário, expiração, regra "completo ou nenhum" |
+| `dossie` | Fila de geração, conversão, montagem do PDF, capa, sumário, expiração, regra "nada incompleto sem decisão" (RN09) e continuação |
 | `auditoria` | Registro e consulta de eventos |
 | `configuracao` | Parâmetros administráveis |
 | `integration.siga` | Única camada com SQL e conhecimento do modelo do banco do SIGA |

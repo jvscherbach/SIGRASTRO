@@ -17,6 +17,7 @@ public final class ItemDoPedido {
     private volatile SituacaoItem situacao = SituacaoItem.AGUARDANDO;
     private volatile int paginas;
     private volatile int tentativas;
+    private volatile String motivo;
 
     public ItemDoPedido(String origem, String origemDescricao, String id, String titulo, LocalDateTime data,
             String chave) {
@@ -59,6 +60,19 @@ public final class ItemDoPedido {
 
     public void situacao(SituacaoItem nova) {
         this.situacao = nova;
+        if (nova != SituacaoItem.FALHA) {
+            this.motivo = null;
+        }
+    }
+
+    /** Motivo da falha (só em FALHA); nunca traz chave, URL ou token. */
+    public String motivo() {
+        return motivo;
+    }
+
+    public void falhar(String motivo) {
+        this.situacao = SituacaoItem.FALHA;
+        this.motivo = motivo;
     }
 
     public int paginas() {
