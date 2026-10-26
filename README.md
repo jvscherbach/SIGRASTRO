@@ -305,7 +305,7 @@ npm run e2e
 
 | Sintoma | O que fazer |
 |---|---|
-| **Porta 8080 ou 8081 ocupada** (`port is already allocated`) | Descubra quem usa: Windows `netstat -ano \| findstr :8080`; Linux/macOS `lsof -i :8080`. Feche esse programa ou troque a porta da esquerda em `compose.local.yaml` (ex.: `"9080:80"` para o front e `"9081:8080"` para a api) e repita o passo 3. |
+| **Porta 8080 ou 8081 ocupada** (`port is already allocated`) | Descubra quem usa: Windows `netstat -ano \| findstr :8080`; Linux/macOS `lsof -i :8080`. Feche esse programa ou troque a porta da esquerda em `compose.local.yaml` (ex.: `"9080:8080"` para o front e `"9081:8080"` para a api) e repita o passo 3. |
 | **Porta 4200 ocupada** (Tutorial 2) | Rode `npm start -- --port 4300` e abra `http://localhost:4300`. |
 | **"Cannot connect to the Docker daemon"** / "docker: command not found" / `failed to connect to the docker API` | O Docker não está iniciado. Abra o Docker Desktop, espere ele indicar que está rodando e tente de novo. No Linux: `sudo systemctl start docker`. |
 | **Primeira construção muito demorada** | É normal: o Docker baixa as imagens e instala o LibreOffice (conversão de documentos, usada a partir da Sprint 3) dentro da imagem da `api`. As próximas vezes usam o cache e levam segundos. |

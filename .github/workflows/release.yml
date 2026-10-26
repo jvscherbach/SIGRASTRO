@@ -17,7 +17,7 @@ jobs:
   # Execução manual numa branch não publica: a ref precisa ser uma tag vX.Y.Z (com pré-release opcional).
   validar-ref:
     name: validar-ref
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - name: Conferir se a ref é uma tag de versão
@@ -40,7 +40,7 @@ jobs:
   publicar:
     name: publicar (${{ matrix.componente }})
     needs: ci
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -50,7 +50,9 @@ jobs:
       matrix:
         componente: [api, front]
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       # O nome da imagem no GHCR precisa ser minúsculo.
       - name: Nome da imagem
@@ -62,7 +64,7 @@ jobs:
       # Tags vX.Y.Z, X.Y e sha-<curto>; nunca latest (latest=false desliga o padrão "auto").
       - name: Tags e rótulos
         id: meta
-        uses: docker/metadata-action@v5.7.0
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
         with:
           images: ${{ steps.nome.outputs.imagem }}
           flavor: |
@@ -72,28 +74,28 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-,format=short
 
-      - uses: docker/setup-buildx-action@v3.10.0
+      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
 
       # Só o GITHUB_TOKEN do próprio job, com packages: write; nenhum PAT.
       - name: Login no GHCR
-        uses: docker/login-action@v3.4.0
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Sem build-args: nenhuma credencial entra na imagem.
+      # Sem build-args: nenhuma credencial entra na imagem. Sem cache do GitHub Actions: a imagem publicada é
+      # construída do zero, sem reaproveitar camadas gravadas por outras execuções (envenenamento de cache).
       - name: Construir e publicar
         id: build
-        uses: docker/build-push-action@v6.18.0
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: ${{ matrix.componente }}
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.componente }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.componente }}
+          no-cache: true
           provenance: mode=max
           sbom: true
 
