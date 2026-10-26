@@ -5,7 +5,7 @@ Escopo: a pipeline só valida e publica imagens; não há deploy.
 | Bloco | Título | Modelo | Estado |
 |---|---|---|---|
 | 1 | CI base: jobs `api`, `front` e `e2e` | SONNET | [x] concluído |
-| 2 | Imagens: `.dockerignore` e jobs `docker` e `compose` | SONNET | [ ] pendente |
+| 2 | Imagens: `.dockerignore` e jobs `docker` e `compose` | SONNET | [x] concluído |
 | 3 | Publicação de imagens (`release.yml`, GHCR) | OPUS | [ ] pendente |
 | 4 | Dependabot e CodeQL | SONNET | [ ] pendente |
 | 5 | Auditoria de segurança dos workflows | OPUS | [ ] pendente |

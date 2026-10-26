@@ -8,3 +8,11 @@ test-results/
 playwright-report/
 e2e/
 playwright.config.ts
+
+# Segredos, ambiente e artefatos locais fora do contexto de build
+.env
+.env.*
+.git/
+.secrets/
+dossies-tmp/
+target/

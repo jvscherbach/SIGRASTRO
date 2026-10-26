@@ -2,3 +2,12 @@ target/
 .idea/
 *.iml
 .vscode/
+
+# Segredos, ambiente e artefatos locais fora do contexto de build
+.env
+.env.*
+.git/
+.gitignore
+.secrets/
+dossies-tmp/
+node_modules/
