@@ -34,7 +34,8 @@ import org.springframework.web.util.UriUtils;
 /**
  * Cliente da API de arquivos do Licenciamento: {@code GET {url}/api/arquivo/{chave}} (docs/05). O corpo vai direto
  * para o arquivo temporário (RNF03), nunca para a memória. O token vai em {@code Authorization: Bearer} (modo bearer)
- * ou em {@code Cookie: <nome>=<token>} (modo cookie). Nenhuma mensagem, log ou exceção traz URL, token ou chave.
+ * ou em {@code Cookie: <nome>=<token>} (modo cookie); vem de {@link FonteDoToken} (variável ou arquivo relido a cada
+ * tentativa). Nenhuma mensagem, log ou exceção traz URL, token ou chave.
  *
  * <p>Tempo (S2.2): conexão em 10 s; inatividade da leitura em {@code DOWNLOAD_TIMEOUT_SEGUNDOS} (vale também no meio
  * do corpo); teto total por documento em {@code DOWNLOAD_TOTAL_MAXIMO_SEGUNDOS}, somando as novas tentativas.
@@ -65,7 +66,7 @@ class ArquivosDoLicenciamentoHttp implements ArquivosDoRepositorio {
     }
 
     private final String urlBase;
-    private final String token;
+    private final FonteDoToken token;
     private final boolean modoCookie;
     private final String nomeDoCookie;
     private final Supplier<LimitesDeDownload> limites;
@@ -74,22 +75,29 @@ class ArquivosDoLicenciamentoHttp implements ArquivosDoRepositorio {
     @Autowired
     ArquivosDoLicenciamentoHttp(@Value("${vistas.arquivos.url}") String url,
             @Value("${vistas.arquivos.token:}") String token,
+            @Value("${vistas.arquivos.token-file:}") String arquivoDoToken,
             @Value("${vistas.arquivos.auth-mode:bearer}") String modo,
             @Value("${vistas.arquivos.cookie-name:}") String nomeDoCookie, ParametrosDoDossie parametros) {
-        this(url, token, modo, nomeDoCookie, () -> new LimitesDeDownload(LimitesDeDownload.CONEXAO_PADRAO,
-                Duration.ofSeconds(Math.max(1, parametros.downloadTimeoutSegundos())),
-                Duration.ofSeconds(Math.max(1, parametros.downloadTotalMaximoSegundos()))),
+        this(url, FonteDoToken.de(token, arquivoDoToken), modo, nomeDoCookie,
+                () -> new LimitesDeDownload(LimitesDeDownload.CONEXAO_PADRAO,
+                        Duration.ofSeconds(Math.max(1, parametros.downloadTimeoutSegundos())),
+                        Duration.ofSeconds(Math.max(1, parametros.downloadTotalMaximoSegundos()))),
                 duracao -> Thread.sleep(duracao.toMillis()));
     }
 
     ArquivosDoLicenciamentoHttp(String url, String token, String modo, String nomeDoCookie,
+            Supplier<LimitesDeDownload> limites, Espera espera) {
+        this(url, FonteDoToken.de(token, null), modo, nomeDoCookie, limites, espera);
+    }
+
+    ArquivosDoLicenciamentoHttp(String url, FonteDoToken token, String modo, String nomeDoCookie,
             Supplier<LimitesDeDownload> limites, Espera espera) {
         String semBarraFinal = url.trim();
         while (semBarraFinal.endsWith("/")) {
             semBarraFinal = semBarraFinal.substring(0, semBarraFinal.length() - 1);
         }
         this.urlBase = semBarraFinal;
-        this.token = token == null ? "" : token.trim();
+        this.token = token;
         this.modoCookie = "cookie".equalsIgnoreCase(modo == null ? "" : modo.trim());
         this.nomeDoCookie = nomeDoCookie == null ? "" : nomeDoCookie.trim();
         this.limites = limites;
@@ -109,9 +117,16 @@ class ArquivosDoLicenciamentoHttp implements ArquivosDoRepositorio {
         int tentativa = 0;
         while (true) {
             tentativa++;
+            // Relido a cada tentativa: um token novo no arquivo vale já na próxima (bloco 4, S2.2).
+            String valorDoToken;
+            try {
+                valorDoToken = token.obter();
+            } catch (FalhaNoDocumentoException e) {
+                throw new FalhaNoDocumentoException(e.getMessage(), tentativa - 1);
+            }
             boolean concluido = false;
             try {
-                tentar(uri, destino, limite, prazo);
+                tentar(uri, destino, limite, prazo, valorDoToken);
                 concluido = true;
                 return tentativa;
             } catch (FalhaTemporaria e) {
@@ -132,9 +147,9 @@ class ArquivosDoLicenciamentoHttp implements ArquivosDoRepositorio {
         }
     }
 
-    private void tentar(URI uri, Path destino, LimitesDeDownload limite, long prazo) {
+    private void tentar(URI uri, Path destino, LimitesDeDownload limite, long prazo, String valorDoToken) {
         try {
-            cliente(limite).get().uri(uri).headers(this::autenticar).exchange((requisicao, resposta) -> {
+            cliente(limite).get().uri(uri).headers(h -> autenticar(h, valorDoToken)).exchange((requisicao, resposta) -> {
                 int status = resposta.getStatusCode().value();
                 if (status == 401 || status == 403) {
                     throw new CredencialArquivosRecusadaException();
@@ -211,14 +226,14 @@ class ArquivosDoLicenciamentoHttp implements ArquivosDoRepositorio {
         return (int) Math.max(1, Math.min(Integer.MAX_VALUE, duracao.toMillis()));
     }
 
-    private void autenticar(HttpHeaders cabecalhos) {
-        if (token.isEmpty()) {
+    private void autenticar(HttpHeaders cabecalhos, String valorDoToken) {
+        if (valorDoToken.isEmpty()) {
             return;
         }
         if (modoCookie) {
-            cabecalhos.set(HttpHeaders.COOKIE, nomeDoCookie + "=" + token);
+            cabecalhos.set(HttpHeaders.COOKIE, nomeDoCookie + "=" + valorDoToken);
         } else {
-            cabecalhos.setBearerAuth(token);
+            cabecalhos.setBearerAuth(valorDoToken);
         }
     }
 

@@ -14,7 +14,7 @@ O banco do SIGA **nunca** entra no Compose: é sempre externo, acessado por rede
 ## Arquivos Compose
 
 - `compose.yaml`: configurações comuns (`api` com JDK 21 + LibreOffice; `front` com nginx servindo o build do Angular e encaminhando `/api`).
-- `compose.verificacao.yaml`: **só para verificar o código sem tocar em sistemas externos.** Esvazia, no serviço `api`, `SIGA_DB_URL`, `SIGA_DB_USER`, `SIGA_DB_PASSWORD`, `LICENCIAMENTO_API_URL`, `LICENCIAMENTO_API_TOKEN`, `LICENCIAMENTO_API_AUTH_MODE`, `LICENCIAMENTO_API_COOKIE_NAME`, `SCORP_API_URL` e `VISTAS_DB_*`. A chave `environment` tem precedência sobre o `env_file`. Versionado, sem segredo (D34).
+- `compose.verificacao.yaml`: **só para verificar o código sem tocar em sistemas externos.** Esvazia, no serviço `api`, `SIGA_DB_URL`, `SIGA_DB_USER`, `SIGA_DB_PASSWORD`, `LICENCIAMENTO_API_URL`, `LICENCIAMENTO_API_TOKEN`, `LICENCIAMENTO_API_TOKEN_FILE`, `LICENCIAMENTO_API_AUTH_MODE`, `LICENCIAMENTO_API_COOKIE_NAME`, `SCORP_API_URL` e `VISTAS_DB_*`. A chave `environment` tem precedência sobre o `env_file`. Versionado, sem segredo (D34).
 - `compose.local.yaml`: portas locais, volume temporário de dossiês e, no definitivo, o serviço `oracle` (imagem Oracle Database 23 Free com **tag fixa**, nunca `latest`), healthcheck, volume de dados e dependência da `api`.
 - Fase inicial: a aplicação roda inteira em Docker (`api` e `front`); o Oracle local só entra quando surgir a primeira tabela do schema próprio.
 - Overrides de homologação/produção só serão criados quando a infraestrutura for definida; não conterão banco nem volume de banco.
@@ -36,6 +36,7 @@ O banco do SIGA **nunca** entra no Compose: é sempre externo, acessado por rede
 | `FLYWAY_ENABLED` | Flyway do schema próprio (definitivo) |
 | `LICENCIAMENTO_API_URL` | Base da API de arquivos do Licenciamento. **Ausente ou vazia = "arquivos não configurados"**: a `api` sobe, a lista funciona e a geração falha com o motivo "API de arquivos não configurada" |
 | `LICENCIAMENTO_API_TOKEN` | Token de acesso (ver [05 — Integrações](05-integracoes.md)); só no `.env.local`, nunca em log, URL ou resposta |
+| `LICENCIAMENTO_API_TOKEN_FILE` | Opcional (S2.2): caminho, dentro do container, de um arquivo com o token (montado de `./.secrets/`, fora do git). Relido a cada pedido; tem precedência sobre `LICENCIAMENTO_API_TOKEN` |
 | `LICENCIAMENTO_API_AUTH_MODE` | `bearer` (padrão; vazio também vale) ou `cookie` |
 | `LICENCIAMENTO_API_COOKIE_NAME` | Nome do cookie, no modo `cookie` |
 | `DOSSIE_SUMARIO` / `DOSSIE_MARCADORES` / `DOSSIE_NUMERACAO` | Sumário, marcadores e numeração de páginas (padrão ligados) |

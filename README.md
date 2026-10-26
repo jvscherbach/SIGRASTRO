@@ -53,7 +53,7 @@ docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml -f co
 Antes de qualquer chamada, confirme **dentro do container** (sem imprimir valores) que cada variável está vazia; a saída tem de ser `vazia` em todas:
 
 ```bash
-for v in SIGA_DB_URL SIGA_DB_USER SIGA_DB_PASSWORD LICENCIAMENTO_API_URL LICENCIAMENTO_API_TOKEN LICENCIAMENTO_API_COOKIE_NAME SCORP_API_URL; do
+for v in SIGA_DB_URL SIGA_DB_USER SIGA_DB_PASSWORD LICENCIAMENTO_API_URL LICENCIAMENTO_API_TOKEN LICENCIAMENTO_API_TOKEN_FILE LICENCIAMENTO_API_COOKIE_NAME SCORP_API_URL; do
   docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml -f compose.verificacao.yaml exec -T api sh -c "[ -z \"\$$v\" ] && echo $v: vazia || echo $v: PREENCHIDA"
 done
 ```
@@ -195,7 +195,18 @@ LICENCIAMENTO_API_TOKEN=O_TOKEN_CAPTURADO
 
 2. Como capturar o token (procedimento completo no passo 4 de [docs/homologacao/S2-roteiro-homologacao.md](docs/homologacao/S2-roteiro-homologacao.md)): entre no SIGA Licenciamento, abra a Vista de um processo, abra o DevTools do navegador (aba **Network**), visualize um documento e copie o valor do cabeçalho `Authorization` (sem a palavra `Bearer`).
 3. **Os acessos ficam registrados no nome de quem capturou o token.** Use só na sua máquina e nunca versione nem envie o token.
-4. Suba de novo (passo 3 do Tutorial 1). O token **expira**; quando isso acontecer, a geração mostra "Token da API de arquivos expirado ou recusado. Capture um novo token": capture outro, troque no `.env.local` e suba de novo.
+4. Suba de novo (passo 3 do Tutorial 1). O token **expira**; quando isso acontecer, a geração mostra "Token da API de arquivos expirado ou recusado. Capture um novo token": capture outro, troque no `.env.local` e suba de novo. Para trocar **sem recriar o container**, use o token por arquivo (abaixo).
+
+### Token por arquivo (sem reiniciar o container)
+
+Com `LICENCIAMENTO_API_TOKEN_FILE` definida, a `api` lê o token de um arquivo **a cada pedido e a cada nova tentativa**. Ela tem precedência sobre `LICENCIAMENTO_API_TOKEN`. Trocar o token é só reescrever o arquivo.
+
+1. Crie a pasta `.secrets/` na raiz do projeto (já está no `.gitignore`) e, dentro dela, o arquivo `token-arquivos` contendo **só o token**, sem a palavra `Bearer`. Uma quebra de linha no final é ignorada.
+2. Em `compose.local.yaml`, descomente a linha `- ./.secrets:/run/secrets-vistas:ro` do serviço `api`.
+3. No `.env.local`, acrescente `LICENCIAMENTO_API_TOKEN_FILE=/run/secrets-vistas/token-arquivos`. O caminho é o de **dentro do container**.
+4. Suba uma vez (passo 3 do Tutorial 1). Quando o token expirar, capture outro e grave por cima de `.secrets/token-arquivos`. Na gaveta, clique em **Tentar novamente**: a próxima chamada já usa o token novo.
+
+Arquivo ausente ou vazio: a geração falha com "API de arquivos não configurada". O valor do token e o caminho do arquivo nunca aparecem em log, erro ou resposta.
 
 Sem `LICENCIAMENTO_API_URL` a lista de documentos funciona normalmente e a geração falha com o motivo "API de arquivos não configurada".
 

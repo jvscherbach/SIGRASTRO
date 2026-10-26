@@ -73,6 +73,8 @@ vistas:
   arquivos:
     url: ${LICENCIAMENTO_API_URL:}
     token: ${LICENCIAMENTO_API_TOKEN:}
+    # Caminho de um arquivo com o token (S2.2): relido a cada pedido e tem precedência sobre o token acima.
+    token-file: ${LICENCIAMENTO_API_TOKEN_FILE:}
     # bearer (padrão) ou cookie; vazio também vale como bearer.
     auth-mode: ${LICENCIAMENTO_API_AUTH_MODE:bearer}
     cookie-name: ${LICENCIAMENTO_API_COOKIE_NAME:}

@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import br.gov.mt.sema.vistas.dossie.application.port.FalhaNoDocumentoException;
+import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
 import br.gov.mt.sema.vistas.shared.application.exception.CredencialArquivosRecusadaException;
 import br.gov.mt.sema.vistas.testsupport.ServidorHttpDeTeste;
 import br.gov.mt.sema.vistas.testsupport.ServidorHttpDeTeste.Troca;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 /** A API de arquivos é simulada por um servidor HTTP local: nenhum sistema real é tocado. */
 class ArquivosDoLicenciamentoHttpTest {
@@ -438,6 +440,156 @@ class ArquivosDoLicenciamentoHttpTest {
         assertThat(log.list).isNotEmpty();
         assertThat(log.list).allSatisfy(evento -> assertThat(evento.getFormattedMessage())
                 .doesNotContain(TOKEN, CHAVE, url()));
+    }
+
+    // --- token por arquivo (S2.2, bloco 4)
+
+    private static final String TOKEN_DO_ARQUIVO_ANTIGO = "TOKEN-ARQUIVO-ANTIGO-DE-TESTE";
+    private static final String TOKEN_DO_ARQUIVO_NOVO = "TOKEN-ARQUIVO-NOVO-DE-TESTE";
+
+    private Path arquivoDoToken(String conteudo) throws IOException {
+        Path arquivo = pasta.resolve("segredo").resolve("token-arquivos");
+        Files.createDirectories(arquivo.getParent());
+        Files.writeString(arquivo, conteudo, StandardCharsets.UTF_8);
+        // Força outra data de modificação a cada troca (sistemas de arquivos com resolução grossa).
+        Files.setLastModifiedTime(arquivo, java.nio.file.attribute.FileTime.fromMillis(System.currentTimeMillis()
+                + conteudo.hashCode()));
+        return arquivo;
+    }
+
+    private ArquivosDoLicenciamentoHttp comArquivo(Path arquivo, ArquivosDoLicenciamentoHttp.Espera espera) {
+        return new ArquivosDoLicenciamentoHttp(url(), FonteDoToken.de(TOKEN, arquivo.toString()), "bearer", "",
+                limites(5), espera);
+    }
+
+    @Test
+    void tokenDoArquivoTemPrecedenciaETrocaEntreDuasChamadasValeNaSegunda() throws IOException {
+        rota(troca -> troca.responder(200, bytes("x")));
+        Path arquivo = arquivoDoToken(TOKEN_DO_ARQUIVO_ANTIGO + "\n");
+        ArquivosDoLicenciamentoHttp adapter = comArquivo(arquivo, esperas::add);
+
+        adapter.baixar(CHAVE, pasta.resolve("a.pdf"));
+        assertThat(ultima.get().cabecalho("Authorization")).isEqualTo("Bearer " + TOKEN_DO_ARQUIVO_ANTIGO);
+
+        arquivoDoToken(TOKEN_DO_ARQUIVO_NOVO);
+        adapter.baixar(CHAVE, pasta.resolve("b.pdf"));
+        assertThat(ultima.get().cabecalho("Authorization")).isEqualTo("Bearer " + TOKEN_DO_ARQUIVO_NOVO);
+    }
+
+    @Test
+    void springLeLicenciamentoApiTokenFileEDaPrecedenciaAoArquivo() throws IOException {
+        rota(troca -> troca.responder(200, bytes("x")));
+        Path arquivo = arquivoDoToken(TOKEN_DO_ARQUIVO_NOVO);
+        ParametrosDoDossie parametros = org.mockito.Mockito.mock(ParametrosDoDossie.class);
+        org.mockito.Mockito.when(parametros.downloadTimeoutSegundos()).thenReturn(5);
+        org.mockito.Mockito.when(parametros.downloadTotalMaximoSegundos()).thenReturn(60);
+
+        new ApplicationContextRunner()
+                .withPropertyValues("vistas.arquivos.url=" + url(), "vistas.arquivos.token=" + TOKEN,
+                        "vistas.arquivos.token-file=" + arquivo)
+                .withBean(ParametrosDoDossie.class, () -> parametros)
+                .withUserConfiguration(ArquivosDoLicenciamentoHttp.class)
+                .run(contexto -> {
+                    contexto.getBean(ArquivosDoLicenciamentoHttp.class).baixar(CHAVE, pasta.resolve("a.pdf"));
+                    assertThat(ultima.get().cabecalho("Authorization")).isEqualTo("Bearer " + TOKEN_DO_ARQUIVO_NOVO);
+                });
+    }
+
+    @Test
+    void tokenTrocadoDuranteAEsperaValeNaNovaTentativa() throws IOException {
+        List<String> autorizacoes = new CopyOnWriteArrayList<>();
+        rota(troca -> {
+            autorizacoes.add(troca.cabecalho("Authorization"));
+            if (autorizacoes.size() == 1) {
+                troca.responder(503, new byte[0]);
+            } else {
+                troca.responder(200, bytes("x"));
+            }
+        });
+        Path arquivo = arquivoDoToken(TOKEN_DO_ARQUIVO_ANTIGO);
+
+        int tentativas = comArquivo(arquivo, duracao -> {
+            try {
+                arquivoDoToken(TOKEN_DO_ARQUIVO_NOVO);
+            } catch (IOException e) {
+                throw new AssertionError(e);
+            }
+        }).baixar(CHAVE, pasta.resolve("a.pdf"));
+
+        assertThat(tentativas).isEqualTo(2);
+        assertThat(autorizacoes).containsExactly("Bearer " + TOKEN_DO_ARQUIVO_ANTIGO, "Bearer " + TOKEN_DO_ARQUIVO_NOVO);
+    }
+
+    @Test
+    void arquivoDoTokenAusenteOuVazioNaoChamaAApiENaoUsaATokenDaVariavel() throws IOException {
+        rota(troca -> troca.responder(200, bytes("x")));
+        Path vazio = arquivoDoToken("");
+        Path ausente = pasta.resolve("nao-existe");
+
+        for (Path arquivo : List.of(vazio, ausente)) {
+            assertThatThrownBy(() -> comArquivo(arquivo, esperas::add).baixar(CHAVE, pasta.resolve("a.pdf")))
+                    .isInstanceOf(FalhaNoDocumentoException.class).hasMessage("API de arquivos não configurada")
+                    .satisfies(e -> assertThat(((FalhaNoDocumentoException) e).tentativas()).isZero());
+        }
+        assertThat(pedidos).isEmpty();
+    }
+
+    @Test
+    void tokenDoArquivoNaoApareceEmNenhumLogNemErroDeNenhumCenario() throws IOException {
+        ListAppender<ILoggingEvent> raiz = new ListAppender<>();
+        raiz.start();
+        Logger logRaiz = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+        logRaiz.addAppender(raiz);
+        List<String> saidas = new CopyOnWriteArrayList<>();
+        Path arquivo = arquivoDoToken(TOKEN_DO_ARQUIVO_NOVO + "\n");
+        AtomicInteger chamada = new AtomicInteger();
+        List<ServidorHttpDeTeste.Tratador> cenarios = List.of(
+                troca -> troca.responder(200, bytes("x")),
+                troca -> troca.responder(chamada.incrementAndGet() % 2 == 1 ? 503 : 200, bytes("x")),
+                troca -> troca.responder(401, new byte[0]),
+                troca -> troca.responder(403, new byte[0]),
+                troca -> troca.responder(404, new byte[0]),
+                troca -> troca.responder(418, new byte[0]),
+                troca -> troca.responder(500, new byte[0]),
+                troca -> {
+                    dormir(1500);
+                    troca.responder(200, bytes("x"));
+                });
+        try {
+            for (ServidorHttpDeTeste.Tratador cenario : cenarios) {
+                rota(cenario);
+                ArquivosDoLicenciamentoHttp adapter = new ArquivosDoLicenciamentoHttp(url(),
+                        FonteDoToken.de(TOKEN, arquivo.toString()), "bearer", "",
+                        limites(Duration.ofMillis(500), Duration.ofMinutes(1)), esperas::add);
+                try {
+                    saidas.add("tentativas=" + adapter.baixar(CHAVE, pasta.resolve("a.pdf")));
+                } catch (RuntimeException e) {
+                    for (Throwable t = e; t != null; t = t.getCause()) {
+                        saidas.add(String.valueOf(t));
+                    }
+                }
+            }
+            // e o arquivo vazio
+            arquivoDoToken("");
+            try {
+                comArquivo(arquivo, esperas::add).baixar(CHAVE, pasta.resolve("a.pdf"));
+            } catch (RuntimeException e) {
+                saidas.add(String.valueOf(e));
+            }
+        } finally {
+            logRaiz.detachAppender(raiz);
+        }
+        raiz.list.forEach(evento -> {
+            saidas.add(evento.getFormattedMessage());
+            if (evento.getThrowableProxy() != null) {
+                saidas.add(evento.getThrowableProxy().getMessage());
+            }
+        });
+        log.list.forEach(evento -> saidas.add(evento.getFormattedMessage()));
+
+        assertThat(pedidos).as("os cenários chegaram ao servidor com o token do arquivo").isNotEmpty();
+        assertThat(saidas).isNotEmpty().allSatisfy(saida -> assertThat(String.valueOf(saida))
+                .doesNotContain(TOKEN_DO_ARQUIVO_NOVO, TOKEN, CHAVE, url(), arquivo.toString(), "token-arquivos"));
     }
 
     // --- API não configurada

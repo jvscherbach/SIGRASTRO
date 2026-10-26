@@ -16,6 +16,7 @@ Variáveis (todas no `.env.local`, nunca versionado; `.env.local.example` só tr
 |---|---|
 | `LICENCIAMENTO_API_URL` | Base da API. **Ausente ou vazia = "arquivos não configurados"** (mesmo padrão do SIGA, D26): a `api` sobe, a lista funciona e a geração falha com o motivo "API de arquivos não configurada" |
 | `LICENCIAMENTO_API_TOKEN` | Token capturado (sem o prefixo `Bearer`) |
+| `LICENCIAMENTO_API_TOKEN_FILE` | Opcional (S2.2): caminho de um arquivo com o token, relido a cada pedido; tem precedência sobre `LICENCIAMENTO_API_TOKEN` (ver "Token por arquivo") |
 | `LICENCIAMENTO_API_AUTH_MODE` | `bearer` (padrão; vazio também vale como bearer) ou `cookie` |
 | `LICENCIAMENTO_API_COOKIE_NAME` | Nome do cookie, no modo `cookie` |
 | `DOWNLOAD_TIMEOUT_SEGUNDOS` | Tempo máximo de **inatividade** da leitura (sem receber bytes), inclusive no meio do corpo (padrão 120; até a S2.1 era 60 e valia também para a conexão) |
@@ -51,6 +52,18 @@ Restrições:
 - o token identifica o usuário que o capturou, e todos os acessos ficam registrados em seu nome;
 - uso exclusivamente local, sem versionamento;
 - o token expira. Quando a API retornar 401, ele deve ser capturado novamente.
+
+#### Token por arquivo (S2.2)
+
+`LICENCIAMENTO_API_TOKEN_FILE` (opcional) é o caminho, **dentro do container**, de um arquivo só com o token:
+
+- o arquivo é relido a cada pedido e a cada nova tentativa, com cache pela data de modificação e pelo tamanho. Trocar o conteúdo vale já na próxima chamada, **sem recriar o container**;
+- quando definida, tem **precedência** sobre `LICENCIAMENTO_API_TOKEN`;
+- espaços e a quebra de linha final são aparados;
+- arquivo ausente, ilegível ou vazio: o documento falha com "API de arquivos não configurada", sem chamar a API (o token da variável **não** é usado como reserva);
+- o valor e o caminho do arquivo nunca vão para log, erro ou resposta (testado percorrendo as saídas de todos os cenários do adapter).
+
+Montagem local: a pasta `./.secrets/` (no `.gitignore`) é montada somente leitura em `/run/secrets-vistas` por uma linha comentada do `compose.local.yaml`, e o `.env.local` aponta `LICENCIAMENTO_API_TOKEN_FILE=/run/secrets-vistas/token-arquivos` (passo a passo no `README.md`). O `compose.verificacao.yaml` esvazia também essa variável.
 
 **Versão definitiva:** credencial de serviço (API key emitida pelo serviço de identidade e validada em `/api/auth/verify-api-key`) ou acesso direto ao Pandora. Ver [10 — Pendências e riscos](10-pendencias-e-riscos.md).
 
