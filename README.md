@@ -1,8 +1,6 @@
 # SIGA Vistas
 
-<!-- Selo do CI: descomente e troque <DONO>/<REPOSITORIO> quando o repositório existir no GitHub.
-[![CI](https://github.com/<DONO>/<REPOSITORIO>/actions/workflows/ci.yml/badge.svg)](https://github.com/<DONO>/<REPOSITORIO>/actions/workflows/ci.yml)
--->
+[![CI](https://github.com/jvscherbach/siga-vistas/actions/workflows/ci.yml/badge.svg)](https://github.com/jvscherbach/siga-vistas/actions/workflows/ci.yml)
 
 Integração contínua: veja [Integração contínua](docs/13-padroes-tecnicos.md#integração-contínua) e o [passo a passo no GitHub](docs/13-padroes-tecnicos.md#configuração-no-github-passo-a-passo-feita-pelo-responsável).
 

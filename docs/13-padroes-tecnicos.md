@@ -98,7 +98,6 @@ A pipeline roda no GitHub Actions (`.github/`). **Ela só valida e publica image
 |---|---|---|
 | `workflows/ci.yml` | Pull request, push na `main` e chamado pelo `release.yml` | Cinco jobs: `api` (`./mvnw -B clean verify`, com Testcontainers no Docker do runner), `front` (build, testes e `npm audit`), `e2e` (Playwright com API simulada, depois do `front`), `docker` (constrói as duas imagens, sem push e sem login) e `compose` (`config --services`, sem subir nada). Os relatórios de teste só são guardados em caso de falha, por 7 dias |
 | `workflows/release.yml` | Tag `vX.Y.Z` ou execução manual sobre uma tag | Confere a ref, roda o `ci.yml` e publica `api` e `front` no GHCR (`ghcr.io/<dono>/<repositório>/api` e `/front`) com as tags `vX.Y.Z`, `X.Y` e `sha-<curto>`. **Nunca `latest`.** Build sem cache, com `provenance` e `sbom`. Não publica a cada merge |
-| `workflows/codeql.yml` | Pull request, push na `main` e toda segunda-feira | Análise estática (CodeQL) de `java-kotlin` e `javascript-typescript` |
 | `dependabot.yml` | Semanal | Atualizações de `maven`, `npm`, `github-actions` e `docker`, agrupando minor e patch (máx. 5 PRs por ecossistema) |
 
 **Checks obrigatórios na `main`:** `api`, `front`, `e2e`, `docker` e `compose`. Os nomes dos jobs são estáveis de propósito. O `npm audit` bloqueante cobre só as dependências de produção; a auditoria completa (com as de desenvolvimento) é informativa (P25).
@@ -123,7 +122,6 @@ Faça depois do primeiro push, quando os workflows já tiverem rodado ao menos u
 3. **Segurança do código.** Settings → Code security:
    - ligar **Dependabot alerts** e **Dependabot security updates**;
    - ligar **Secret scanning** e **Push protection**, se disponíveis no plano;
-   - o **CodeQL** já roda pelo workflow; se o repositório for privado, a gravação dos resultados exige o GitHub Code Security.
 4. **Visibilidade do pacote no GHCR.** O pacote nasce **privado** na primeira publicação. Em Packages (perfil ou organização) abra `siga-vistas/api` e `siga-vistas/front` → Package settings: confira *Manage Actions access* (o repositório com permissão de escrita) e só mude a visibilidade para pública se o responsável decidir (R27).
 5. **Criar uma versão e conferir as imagens.** Veja "Como publicar uma versão" acima. Depois: Actions → Release deve ficar verde (`validar-ref`, `ci`, `publicar (api)` e `publicar (front)`); o resumo de cada job lista as tags e o digest; em Packages devem aparecer `vX.Y.Z`, `X.Y` e `sha-<curto>`, e **nenhuma** `latest`.
 

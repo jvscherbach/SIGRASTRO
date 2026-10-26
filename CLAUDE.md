@@ -84,3 +84,7 @@ Entre módulos, a comunicação acontece só por caso de uso ou porta publicada 
 
 - `docs/` está numerado de 01 a 14 (índice em `docs/README.md`).
 - **`docs/padroes/` e `.claude/skills/vistas-banco/references/` têm o mesmo conteúdo.** Ao alterar um, altere o outro (o `README.md` só existe em `docs/padroes/`).
+
+## Projeto sem orçamento
+
+O SIGA Vistas é um projeto pessoal, em fase de protótipo, sem orçamento e sem vínculo institucional por enquanto. **Nada pago pode entrar no projeto**: nem recurso do GitHub que exija plano pago, nem serviço, nem licença, nem ferramenta com cota paga. O repositório pode ser privado no plano gratuito do GitHub: trabalhe com essa hipótese pior. Antes de propor ou usar qualquer recurso, confirme que ele é gratuito para repositório privado no plano gratuito e, se não tiver certeza, **não use** e registre a dúvida em `docs/10`.

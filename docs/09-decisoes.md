@@ -285,6 +285,13 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 ## D51 — Pipeline só valida e publica imagens; deploy depende do servidor da SEMA (CI)
 
 **Contexto:** o ambiente de execução (P15) ainda não existe.
-**Decisão:** o GitHub Actions valida (`api`, `front`, `e2e`, `docker`, `compose`), analisa (CodeQL, Dependabot) e publica imagens no GHCR só em tag `vX.Y.Z`, sem `latest`. Não há deploy nem credencial de sistema externo na pipeline.
+**Decisão:** o GitHub Actions valida (`api`, `front`, `e2e`, `docker`, `compose`), mantém as dependências atualizadas (Dependabot) e publica imagens no GHCR só em tag `vX.Y.Z`, sem `latest`. Não há deploy nem credencial de sistema externo na pipeline.
 **Motivo:** não fixar uma forma de implantação antes de o servidor existir, e manter os segredos do SIGA fora de qualquer serviço de CI.
 **Consequência:** o deploy automatizado será um prompt futuro, depois da definição do ambiente (P26). A seção "Integração contínua" de [13](13-padroes-tecnicos.md) descreve os workflows.
+
+## D52 — CodeQL removido: projeto pessoal sem orçamento, nada pago (CI)
+
+**Contexto:** o SIGA Vistas é um projeto pessoal, em protótipo, sem orçamento. O repositório pode ser privado no plano gratuito do GitHub. O code scanning (CodeQL) em repositório privado exige o GitHub Code Security, que é pago.
+**Decisão:** o `codeql.yml` foi removido. Nenhum recurso, serviço, licença ou ferramenta com cota paga entra no projeto; antes de usar qualquer recurso, confirma-se que é gratuito para repositório privado no plano gratuito, e na dúvida não se usa (regra permanente no `CLAUDE.md`).
+**Motivo:** um workflow que falha ou que depende de plano pago não serve a um projeto sem orçamento.
+**Consequência:** os checks obrigatórios da `main` são só `api`, `front`, `e2e`, `docker` e `compose`. A auditoria de custo do restante da pipeline fica para o bloco 2 da tarefa `ci-sem-custo`.
