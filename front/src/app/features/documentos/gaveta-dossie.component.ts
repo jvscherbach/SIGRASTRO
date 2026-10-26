@@ -26,6 +26,7 @@ import {
   ReferenciaDocumento,
   STATUS_FINAIS,
   SituacaoItemDossie,
+  StatusDossie,
 } from './documentos.models';
 
 /** Consulta do andamento: começa em 1 s e cresce 50% a cada resposta, até 5 s. */
@@ -64,6 +65,7 @@ export class GavetaDossieComponent implements OnInit {
   protected readonly fase = signal<Fase>('enviando');
   protected readonly andamento = signal<AndamentoDossie | null>(null);
   protected readonly mensagemDeErro = signal('');
+  protected readonly mensagemDeToken = MENSAGEM_DE_TOKEN;
   protected readonly ocupado = signal(false);
   protected readonly baixado = signal(false);
   protected readonly vencido = signal(false);
@@ -93,10 +95,20 @@ export class GavetaDossieComponent implements OnInit {
   protected readonly erroDoDossie = computed<ErroDossie | null>(() => this.andamento()?.erro ?? null);
   protected readonly tokenRecusado = computed(() => this.erroDoDossie()?.codigo === CREDENCIAL_RECUSADA);
   protected readonly falhas = computed(() => this.andamento()?.falhas ?? []);
-  /** Remover só faz sentido com falhas de documento e algum documento já obtido para montar. */
-  protected readonly podeRemover = computed(
-    () => this.falhas().length > 0 && !!this.andamento()?.itens.some((i) => i.situacao === 'OK'),
+  /**
+   * Itens que a decisão vai refazer ou remover: os não resolvidos (em falha e, com a credencial recusada, também os
+   * que nem chegaram a ser tentados). É o N dos botões.
+   */
+  protected readonly comProblema = computed(() =>
+    this.status() === 'PENDENTE_DECISAO'
+      ? (this.andamento()?.itens ?? []).filter((i) => i.situacao !== 'OK' && i.situacao !== 'REMOVIDO').length
+      : 0,
   );
+  protected readonly obtidos = computed(() => (this.andamento()?.itens ?? []).filter((i) => i.situacao === 'OK').length);
+  /** Remover só faz sentido com algum documento já obtido para montar (o servidor recusa o contrário). */
+  protected readonly podeRemover = computed(() => this.comProblema() > 0 && this.obtidos() > 0);
+  protected readonly rotuloTentar = computed(() => rotuloDaDecisao('Tentar novamente', this.comProblema(), ''));
+  protected readonly rotuloRemover = computed(() => rotuloDaDecisao('Remover', this.comProblema(), ' e gerar'));
   protected readonly expiraAs = computed(() => formatarDataHora(this.andamento()?.expiraEm));
   protected readonly minutosRestantes = computed(() => {
     this.agora();
@@ -247,6 +259,7 @@ export class GavetaDossieComponent implements OnInit {
       return;
     }
     this.parar();
+    this.acao?.unsubscribe();
     this.mensagemDeErro.set('');
     this.ocupado.set(true);
     this.acao = this.api.continuar(this.pedido, acao).subscribe({
@@ -345,43 +358,86 @@ export class GavetaDossieComponent implements OnInit {
     return { AGUARDANDO: '', OBTENDO: 'run', OK: 'ok', FALHA: 'err', REMOVIDO: 'off' }[situacao];
   }
 
-  protected rotuloDoItem(situacao: SituacaoItemDossie): string {
-    return {
-      AGUARDANDO: 'Aguardando',
-      OBTENDO: 'Obtendo arquivo…',
-      OK: 'Obtido',
-      FALHA: 'Falhou',
-      REMOVIDO: 'Removido',
-    }[situacao];
+  /** Situação do item, com o motivo quando falhou ou foi removido. */
+  protected rotuloDoItem(situacao: SituacaoItemDossie, motivo?: string | null): string {
+    const rotulo = ROTULO_DO_ITEM[situacao];
+    return motivo && (situacao === 'FALHA' || situacao === 'REMOVIDO') ? `${rotulo}: ${motivo}` : rotulo;
   }
 
   protected titulo(): string {
     if (this.fase() === 'erro') {
       return 'Não foi possível gerar';
     }
-    if (this.vencido() || this.status() === 'EXPIRADO') {
-      return 'Dossiê expirado';
+    if (this.vencido()) {
+      return TITULO_DO_STATUS.EXPIRADO;
     }
-    switch (this.status()) {
-      case 'CONCLUIDO':
-        return 'Dossiê pronto';
-      case 'PENDENTE_DECISAO':
-        return 'Documentos com problema';
-      case 'CANCELADO':
-        return 'Geração cancelada';
-      default:
-        return 'Gerando dossiê';
+    const status = this.status();
+    return status ? TITULO_DO_STATUS[status] : TITULO_DO_STATUS.AGUARDANDO;
+  }
+
+  /** Rótulo da barra de progresso. */
+  protected rotuloDoStatus(): string {
+    if (this.vencido()) {
+      return ROTULO_DO_STATUS.EXPIRADO;
     }
+    const status = this.status();
+    return status ? ROTULO_DO_STATUS[status] : ROTULO_DO_STATUS.AGUARDANDO;
   }
 
   /** Itens da lista: os do andamento, ou — antes da primeira resposta — a seleção enviada. */
-  protected itens(): { chave: string; titulo: string; situacao: SituacaoItemDossie }[] {
+  protected itens(): { chave: string; titulo: string; situacao: SituacaoItemDossie; motivo?: string }[] {
     const andamento = this.andamento();
     if (andamento) {
-      return andamento.itens.map((i) => ({ chave: `${i.origem}:${i.id}`, titulo: i.titulo, situacao: i.situacao }));
+      return andamento.itens.map((i) => ({
+        chave: `${i.origem}:${i.id}`,
+        titulo: i.titulo,
+        situacao: i.situacao,
+        motivo: i.motivo,
+      }));
     }
     return this.selecao.map((r) => ({ chave: `${r.origem}:${r.id}`, titulo: `Documento ${r.id}`, situacao: 'AGUARDANDO' }));
   }
+}
+
+// --- mapa de mensagens da gaveta (S2.2)
+
+/** Título da gaveta por situação do pedido. */
+export const TITULO_DO_STATUS: Record<StatusDossie, string> = {
+  AGUARDANDO: 'Gerando dossiê',
+  OBTENDO: 'Gerando dossiê',
+  MONTANDO: 'Gerando dossiê',
+  PENDENTE_DECISAO: 'Documentos com problema',
+  CONCLUIDO: 'Dossiê pronto',
+  CANCELADO: 'Geração cancelada',
+  EXPIRADO: 'Dossiê expirado',
+};
+
+/** Rótulo da barra de progresso por situação do pedido. */
+export const ROTULO_DO_STATUS: Record<StatusDossie, string> = {
+  AGUARDANDO: 'Na fila',
+  OBTENDO: 'Obtendo documentos',
+  MONTANDO: 'Montando o PDF',
+  PENDENTE_DECISAO: 'Aguardando sua decisão',
+  CONCLUIDO: 'Concluído',
+  CANCELADO: 'Cancelado',
+  EXPIRADO: 'Expirado',
+};
+
+export const ROTULO_DO_ITEM: Record<SituacaoItemDossie, string> = {
+  AGUARDANDO: 'Aguardando',
+  OBTENDO: 'Obtendo arquivo…',
+  OK: 'Obtido',
+  FALHA: 'Falhou',
+  REMOVIDO: 'Removido',
+};
+
+/** Orientação quando a API de arquivos recusa o token (sem citar valor algum). */
+export const MENSAGEM_DE_TOKEN =
+  'Capture um novo token, atualize o arquivo do token e clique em Tentar novamente.';
+
+/** "Tentar novamente os 2 com problema", "Remover o 1 com problema e gerar". */
+export function rotuloDaDecisao(acao: string, quantidade: number, final: string): string {
+  return `${acao} ${quantidade === 1 ? 'o 1' : `os ${quantidade}`} com problema${final}`;
 }
 
 /** Mensagem da gaveta a partir do errorCode (token recusado orienta a capturar outro, sem citar valor algum). */

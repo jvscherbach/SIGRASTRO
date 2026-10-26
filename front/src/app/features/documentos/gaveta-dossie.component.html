@@ -33,24 +33,26 @@
         @if (status() === 'PENDENTE_DECISAO') {
           <div class="alert gaveta-interrompida" role="alert" style="margin: 0 0 16px">
             <app-icone nome="alert" />
-            @if (tokenRecusado()) {
-              <span>
-                <b>Token da API de arquivos expirado ou recusado.</b> Capture um novo token e tente novamente.<br />
-                Os documentos já obtidos foram mantidos; nenhum arquivo foi entregue.
-              </span>
-            } @else if (falhas().length) {
-              <span>
-                @for (falha of falhas(); track falha.origem + ':' + falha.id) {
-                  <b>{{ falha.titulo }}</b> não pôde ser incluído: {{ falha.motivo }}.<br />
-                }
-                Os demais já foram obtidos e não serão baixados de novo. Nada é entregue sem a sua decisão.
-              </span>
-            } @else if (erroDoDossie(); as erro) {
-              <span>
-                {{ erro.motivo }}.<br />
-                Os documentos já obtidos foram mantidos; nenhum arquivo foi entregue.
-              </span>
-            }
+            <div class="decisao">
+              @if (tokenRecusado()) {
+                <p class="decisao-token">
+                  <b>Token da API de arquivos expirado ou recusado.</b> {{ mensagemDeToken }}
+                </p>
+              } @else if (erroDoDossie(); as erro) {
+                <p class="decisao-geral">{{ erro.motivo }}.</p>
+              }
+              @if (falhas().length && !tokenRecusado()) {
+                <p>{{ falhas().length === 1 ? 'Este documento não pôde ser obtido:' : 'Estes documentos não puderam ser obtidos:' }}</p>
+                <ul class="falhas" aria-label="Documentos com problema">
+                  @for (falha of falhas(); track falha.origem + ':' + falha.id) {
+                    <li><b>{{ falha.titulo }}</b> <span>{{ falha.motivo }}</span></li>
+                  }
+                </ul>
+              }
+              <p class="decisao-nota">
+                {{ obtidos() }} documento(s) já obtido(s) e mantido(s): não serão baixados de novo. Nada é entregue sem a sua decisão.
+              </p>
+            </div>
           </div>
         }
 
@@ -58,18 +60,8 @@
           <span class="estado-rotulo">
             @if (fase() === 'enviando') {
               Enviando pedido…
-            } @else if (vencido() || status() === 'EXPIRADO') {
-              Expirado
             } @else {
-              @switch (status()) {
-                @case ('CONCLUIDO') { Concluído }
-                @case ('PENDENTE_DECISAO') { Aguardando decisão }
-                @case ('CANCELADO') { Cancelado }
-                @case ('AGUARDANDO') { Na fila }
-                @case ('MONTANDO') { Montando }
-                @default { Processando }
-              }
-              · {{ processados() }}/{{ total() }}
+              {{ rotuloDoStatus() }} · {{ processados() }}/{{ total() }}
             }
           </span>
           <b>{{ percentual() }}%</b>
@@ -117,7 +109,7 @@
               <span class="st"><app-icone [nome]="iconeDoItem(item.situacao)" [class.spin]="item.situacao === 'OBTENDO'" /></span>
               <span class="tx">
                 <b>{{ item.titulo }}</b>
-                <small>{{ rotuloDoItem(item.situacao) }}</small>
+                <small>{{ rotuloDoItem(item.situacao, item.motivo) }}</small>
               </span>
             </li>
           }
@@ -134,12 +126,15 @@
         }
         <button type="button" class="btn quiet" (click)="fechar.emit()">Fechar</button>
       } @else if (status() === 'PENDENTE_DECISAO') {
-        @if (podeRemover()) {
-          <button type="button" class="btn quiet" [disabled]="ocupado()" (click)="removerEGerar()">Remover documento e gerar</button>
-        } @else {
-          <span></span>
-        }
-        <button type="button" class="btn primary" [disabled]="ocupado()" (click)="tentarNovamente()"><app-icone nome="refresh" />Tentar novamente</button>
+        <button type="button" class="btn quiet" [disabled]="ocupado()" (click)="cancelarGeracao()">Cancelar</button>
+        <div class="row wrap decisao-botoes">
+          @if (podeRemover()) {
+            <button type="button" class="btn" [disabled]="ocupado()" (click)="removerEGerar()">{{ rotuloRemover() }}</button>
+          }
+          <button type="button" class="btn primary" [disabled]="ocupado()" (click)="tentarNovamente()">
+            <app-icone nome="refresh" />{{ rotuloTentar() }}
+          </button>
+        </div>
       } @else if (status() === 'CONCLUIDO' && !vencido() && !baixado()) {
         <button type="button" class="btn quiet" (click)="fechar.emit()">Fechar</button>
         <div class="row">

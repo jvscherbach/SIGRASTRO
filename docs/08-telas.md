@@ -115,14 +115,19 @@ Comportamento:
 ## 4. Geração do dossiê
 
 - Ação **Gerar dossiê**, habilitada com ao menos um documento selecionado. Abre a **gaveta de geração** (sobre a barra do topo), que cria o pedido (`POST /api/dossies`) com a origem e o id dos selecionados.
-- Acompanhamento por **polling** com intervalo crescente (1 s, 1,5 s, 2,25 s... até 5 s), que **para** ao chegar a um estado final ou ao fechar a gaveta (sem timer nem inscrição pendurados): barra de progresso `processados/total` e a situação de cada documento (aguardando, obtendo, incluído, falhou). Fechar a gaveta não interrompe a geração; **Cancelar geração** faz `DELETE`.
-- Estados: enviando, pendente ("Na fila"), processando, **concluído**, **interrompido**, **cancelado** e **expirado**.
+- Acompanhamento por **polling** com intervalo crescente (1 s, 1,5 s, 2,25 s... até 5 s), que **para** quando o pedido depende do usuário (concluído, aguardando decisão, cancelado, expirado) ou ao fechar a gaveta (sem timer nem inscrição pendurados, inclusive com uma decisão em envio): barra de progresso `processados/total` e a situação de cada documento (aguardando, obtendo, obtido, falhou, removido; falhou e removido trazem o motivo). Fechar a gaveta não interrompe a geração; **Cancelar geração** faz `DELETE`.
+- Estados (S2.2; textos no mapa de mensagens da gaveta, `TITULO_DO_STATUS` e `ROTULO_DO_STATUS`): enviando ("Enviando pedido…"), na fila, obtendo documentos, **aguardando sua decisão** (título "Documentos com problema"), montando o PDF, **concluído**, **cancelado** e **expirado**. O progresso `processados/total` **não volta a zero** depois da decisão: os documentos já obtidos (e os removidos) continuam contando.
 - Ao concluir:
   - **Pré-visualizar**: o PDF é buscado pelo `HttpClient` (o token vai no cabeçalho, **nunca na URL**), vira `Blob` e abre numa moldura sobre a gaveta por URL de objeto, revogada ao fechar;
   - **Baixar PDF**: também por `Blob`, com o nome do `Content-Disposition` (`dossie-processo-N-AAAA.pdf` ou `dossie-requerimento-N-AAAA.pdf`, RF18); o servidor apaga o arquivo ao fim do download, então a gaveta passa a "Arquivo baixado" e oferece **Gerar novamente**;
   - indicação do horário de expiração e do **tempo restante** (calculado pelo relógio de Cuiabá, qualquer que seja o fuso do navegador); ao zerar, a gaveta mostra "Dossiê expirado".
-- Em caso de token da API de arquivos expirado ou recusado (`CREDENCIAL_ARQUIVOS_RECUSADA`): "Token da API de arquivos expirado ou recusado. Capture um novo token e tente novamente." (nunca mostra o valor do token) e **Tentar novamente**, sem "Remover documento".
-- Em caso de falha em qualquer documento: a gaveta passa a "Geração interrompida", mostra o documento e o motivo, informa que nenhum arquivo foi gerado e oferece **Tentar novamente** (novo `POST` com a mesma seleção) ou **Remover documento e gerar** (novo `POST` sem o documento; ele também sai da seleção da tela). Em "Dossiês gerados" (S4), o pedido aparece como "Interrompido · nenhum arquivo gerado", sem download.
+- Pedido **aguardando decisão** (S2.2, `PENDENTE_DECISAO`): a gaveta lista **cada documento com problema e o motivo**, informa quantos já foram obtidos e que não serão baixados de novo, e que nada é entregue sem a decisão. Botões (N = itens não resolvidos: em falha e, com a credencial recusada, também os ainda não tentados):
+  - **Tentar novamente os N com problema** (`POST /dossies/{id}/continuacao` com `TENTAR_NOVAMENTE`; não cria outro pedido);
+  - **Remover os N com problema e gerar** (`REMOVER_E_CONTINUAR`; os removidos saem também da seleção da tela e aparecem como "Removido" na lista); só aparece se algum documento já foi obtido;
+  - **Cancelar** (`DELETE`).
+  - No singular: "o 1 com problema". Enquanto a decisão é enviada, os botões ficam desabilitados; uma recusa (`409 DOSSIE_SEM_DECISAO_PENDENTE`) aparece na própria gaveta.
+- Token da API de arquivos expirado ou recusado (`CREDENCIAL_ARQUIVOS_RECUSADA`): "Token da API de arquivos expirado ou recusado. Capture um novo token, atualize o arquivo do token e clique em Tentar novamente." (nunca mostra o valor do token; o token por arquivo está em docs/05). Os mesmos botões, sem reiniciar o que já foi obtido.
+- Falha na montagem: o motivo geral, com os mesmos botões ("Tentar novamente" refaz só a montagem). Em "Dossiês gerados" (S4), um pedido que expirou à espera de decisão aparece como "Expirado · nenhum arquivo gerado", sem download.
 - Erro ao criar o pedido (por exemplo, `DOCUMENTO_SIGILOSO`, `NAO_INTERESSADO`, `SIGA_INDISPONIVEL`): mensagem na própria gaveta, sem toast duplicado.
 
 ## 5. Auditoria

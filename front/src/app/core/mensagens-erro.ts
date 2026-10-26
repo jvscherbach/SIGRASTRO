@@ -9,9 +9,11 @@ const POR_CODIGO: Record<string, string> = {
   DOCUMENTO_SIGILOSO: 'Este documento é sigiloso e não está disponível para o seu perfil.',
   NAO_INTERESSADO: 'Você não é o interessado deste processo ou requerimento.',
   NAO_ENCONTRADO: 'O item solicitado não foi encontrado.',
-  DOSSIE_SEM_ARQUIVO: 'Não há arquivo: a geração do dossiê foi interrompida.',
+  DOSSIE_SEM_ARQUIVO: 'Não há arquivo: o dossiê aguarda uma decisão, foi cancelado ou ainda está sendo gerado.',
+  DOSSIE_SEM_DECISAO_PENDENTE: 'O dossiê não está mais aguardando decisão. Atualize para ver a situação.',
   DOSSIE_EXPIRADO: 'O dossiê expirou. Gere-o novamente.',
-  CREDENCIAL_ARQUIVOS_RECUSADA: 'A credencial de acesso aos arquivos foi recusada. Capture um novo token.',
+  CREDENCIAL_ARQUIVOS_RECUSADA:
+    'A credencial de acesso aos arquivos foi recusada. Capture um novo token, atualize o arquivo do token e clique em Tentar novamente.',
   SIGA_INDISPONIVEL: 'O banco do SIGA está indisponível no momento. Tente novamente em instantes.',
   ERRO_INTERNO: 'Ocorreu um erro inesperado.',
 };

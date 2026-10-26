@@ -141,7 +141,7 @@ describe('GavetaDossieComponent', () => {
       abrir();
 
       expect(texto()).toContain('Gerando dossiê');
-      expect(texto()).toContain('Processando · 1/3');
+      expect(texto()).toContain('Obtendo documentos · 1/3');
       expect(texto()).toContain('33%');
       expect(passos()).toEqual([
         { titulo: 'Requerimento assinado', situacao: 'OK' },
@@ -357,18 +357,56 @@ describe('GavetaDossieComponent', () => {
   });
 
   describe('aguardando decisão (RN09, S2.2)', () => {
-    beforeEach(() => api.andamento.mockReturnValue(of(FALHA)));
+    const DUAS_FALHAS = andamento({
+      status: 'PENDENTE_DECISAO',
+      processados: 1,
+      falhas: [
+        { origem: 'JUNTADA', id: '900118', titulo: 'Ofício juntado', motivo: 'tempo limite excedido ao obter o arquivo' },
+        { origem: 'IMOVEL', id: '31', titulo: 'Matrícula', motivo: 'arquivo não encontrado no repositório' },
+      ],
+      itens: [
+        { origem: 'DOCUMENTO_PROCESSO', id: '804328', titulo: 'Requerimento assinado', situacao: 'OK' },
+        { origem: 'JUNTADA', id: '900118', titulo: 'Ofício juntado', situacao: 'FALHA', motivo: 'tempo limite excedido ao obter o arquivo' },
+        { origem: 'IMOVEL', id: '31', titulo: 'Matrícula', situacao: 'FALHA', motivo: 'arquivo não encontrado no repositório' },
+      ],
+    });
+    const falhasNaTela = () =>
+      Array.from(raiz.querySelectorAll('.falhas li')).map(
+        (li) => `${li.querySelector('b')!.textContent} — ${li.querySelector('span')!.textContent}`,
+      );
 
-    it('informa o documento e o motivo, mantém os obtidos e não entrega nada', () => {
+    beforeEach(() => api.andamento.mockReturnValue(of(DUAS_FALHAS)));
+
+    it('lista cada documento com problema e o motivo, mantém os obtidos e não entrega nada', () => {
       abrir();
 
       expect(texto()).toContain('Documentos com problema');
-      expect(texto()).toContain('Ofício juntado não pôde ser incluído: tempo limite excedido ao obter o arquivo.');
-      expect(texto()).toContain('não serão baixados de novo');
-      expect(texto()).toContain('Aguardando decisão · 2/3');
-      expect(passos().map((p) => p.situacao)).toEqual(['OK', 'FALHA', 'OK']);
+      expect(falhasNaTela()).toEqual([
+        'Ofício juntado — tempo limite excedido ao obter o arquivo',
+        'Matrícula — arquivo não encontrado no repositório',
+      ]);
+      expect(texto()).toContain('1 documento(s) já obtido(s) e mantido(s): não serão baixados de novo');
+      expect(texto()).toContain('Aguardando sua decisão · 1/3');
+      expect(passos().map((p) => p.situacao)).toEqual(['OK', 'FALHA', 'FALHA']);
+      expect(texto()).toContain('Falhou: tempo limite excedido ao obter o arquivo');
       expect(botao('Pré-visualizar')).toBeUndefined();
       expect(botao('Baixar PDF')).toBeUndefined();
+    });
+
+    it('os botões dizem quantos documentos a decisão afeta', () => {
+      abrir();
+
+      expect(botao('Tentar novamente os 2 com problema')).toBeTruthy();
+      expect(botao('Remover os 2 com problema e gerar')).toBeTruthy();
+      expect(botao('Cancelar')).toBeTruthy();
+    });
+
+    it('no singular: "o 1 com problema"', () => {
+      api.andamento.mockReturnValue(of(FALHA));
+      abrir();
+
+      expect(botao('Tentar novamente o 1 com problema')).toBeTruthy();
+      expect(botao('Remover o 1 com problema e gerar')).toBeTruthy();
     });
 
     it('"Tentar novamente" continua o mesmo pedido (sem novo POST) e volta a acompanhar', () => {
@@ -387,25 +425,49 @@ describe('GavetaDossieComponent', () => {
       expect(removidos).toEqual([]);
     });
 
-    it('"Remover documento e gerar" decide REMOVER_E_CONTINUAR e avisa a tela do que saiu', () => {
+    it('"Remover" decide REMOVER_E_CONTINUAR, avisa a tela de cada documento que saiu e mostra os removidos', () => {
       abrir();
-      api.criar.mockClear();
+      api.andamento.mockReturnValue(
+        of({
+          ...CONCLUIDO,
+          itens: DUAS_FALHAS.itens.map((i) => (i.situacao === 'FALHA' ? { ...i, situacao: 'REMOVIDO' as const } : i)),
+        }),
+      );
 
-      botao('Remover documento e gerar')!.click();
+      botao('Remover os 2 com problema e gerar')!.click();
+      fixture.detectChanges();
 
       expect(api.continuar).toHaveBeenCalledWith('pedido-1', 'REMOVER_E_CONTINUAR');
-      expect(api.criar).not.toHaveBeenCalled();
-      expect(removidos).toEqual([{ origem: 'JUNTADA', id: '900118' }]);
+      expect(api.criar).toHaveBeenCalledTimes(1);
+      expect(removidos).toEqual([
+        { origem: 'JUNTADA', id: '900118' },
+        { origem: 'IMOVEL', id: '31' },
+      ]);
+      expect(passos().map((p) => p.situacao)).toEqual(['OK', 'REMOVIDO', 'REMOVIDO']);
+      expect(texto()).toContain('Removido: tempo limite excedido ao obter o arquivo');
+    });
+
+    it('"Cancelar" chama DELETE e mostra o cancelamento', () => {
+      abrir();
+      api.andamento.mockReturnValue(of(andamento({ status: 'CANCELADO' })));
+
+      botao('Cancelar')!.click();
+      fixture.detectChanges();
+
+      expect(api.cancelar).toHaveBeenCalledWith('pedido-1');
+      expect(api.continuar).not.toHaveBeenCalled();
+      expect(texto()).toContain('Geração cancelada');
     });
 
     it('o progresso não volta a zero depois da decisão', () => {
       abrir();
-      api.andamento.mockReturnValue(of(andamento({ status: 'OBTENDO', processados: 2 })));
+      api.andamento.mockReturnValue(of(andamento({ status: 'OBTENDO', processados: 1 })));
 
       botao('Tentar novamente')!.click();
       fixture.detectChanges();
 
-      expect(texto()).toContain('2/3');
+      expect(texto()).toContain('Obtendo documentos · 1/3');
+      expect(texto()).not.toContain('0/3');
     });
 
     it('decisão recusada pelo servidor (409) mostra a mensagem e mantém os botões', () => {
@@ -417,18 +479,58 @@ describe('GavetaDossieComponent', () => {
       botao('Tentar novamente')!.click();
       fixture.detectChanges();
 
-      expect(raiz.querySelector('.gaveta-erro')).not.toBeNull();
+      expect(raiz.querySelector('.gaveta-erro')!.textContent).toContain('não está mais aguardando decisão');
       expect(botao('Tentar novamente')).toBeTruthy();
+    });
+
+    it('enquanto a decisão é enviada os botões ficam desabilitados', () => {
+      api.continuar.mockReturnValue(new Subject());
+      abrir();
+
+      botao('Tentar novamente')!.click();
+      fixture.detectChanges();
+
+      expect(botao('Tentar novamente')!.disabled).toBe(true);
+      expect(botao('Remover')!.disabled).toBe(true);
+    });
+
+    it('sair da tela com a decisão pendente não deixa inscrição pendurada', () => {
+      const decisao = new Subject<void>();
+      api.continuar.mockReturnValue(decisao);
+      abrir();
+
+      botao('Tentar novamente')!.click();
+      expect(decisao.observed).toBe(true);
+      fixture.destroy();
+
+      expect(decisao.observed).toBe(false);
     });
 
     it('sem nenhum documento obtido não há o que remover', () => {
       api.andamento.mockReturnValue(
-        of({ ...FALHA, processados: 0, itens: FALHA.itens.map((i) => ({ ...i, situacao: i.situacao === 'OK' ? 'AGUARDANDO' as const : i.situacao })) }),
+        of({ ...DUAS_FALHAS, processados: 0, itens: DUAS_FALHAS.itens.map((i) => ({ ...i, situacao: 'FALHA' as const })) }),
       );
       abrir();
 
-      expect(botao('Remover documento e gerar')).toBeUndefined();
-      expect(botao('Tentar novamente')).toBeTruthy();
+      expect(botao('Remover')).toBeUndefined();
+      expect(botao('Tentar novamente os 3 com problema')).toBeTruthy();
+    });
+
+    it('falha na montagem mostra o motivo geral', () => {
+      api.andamento.mockReturnValue(
+        of(
+          andamento({
+            status: 'PENDENTE_DECISAO',
+            processados: 3,
+            erro: { origem: null, id: null, titulo: null, motivo: 'falha inesperada ao montar o dossiê' },
+            itens: CONCLUIDO.itens,
+          }),
+        ),
+      );
+      abrir();
+
+      expect(texto()).toContain('falha inesperada ao montar o dossiê.');
+      expect(raiz.querySelector('.falhas')).toBeNull();
     });
   });
 
@@ -444,29 +546,40 @@ describe('GavetaDossieComponent', () => {
       },
       falhas: [
         {
-          origem: 'DOCUMENTO_PROCESSO',
-          id: '804328',
-          titulo: 'Requerimento assinado',
+          origem: 'JUNTADA',
+          id: '900118',
+          titulo: 'Ofício juntado',
           motivo: 'Token da API de arquivos expirado ou recusado: capture um novo token.',
         },
       ],
-      processados: 0,
+      processados: 1,
       itens: [
-        { origem: 'DOCUMENTO_PROCESSO', id: '804328', titulo: 'Requerimento assinado', situacao: 'FALHA' },
-        { origem: 'JUNTADA', id: '900118', titulo: 'Ofício juntado', situacao: 'AGUARDANDO' },
+        { origem: 'DOCUMENTO_PROCESSO', id: '804328', titulo: 'Requerimento assinado', situacao: 'OK' },
+        { origem: 'JUNTADA', id: '900118', titulo: 'Ofício juntado', situacao: 'FALHA' },
         { origem: 'IMOVEL', id: '31', titulo: 'Matrícula', situacao: 'AGUARDANDO' },
       ],
     });
 
-    it('orienta a capturar um novo token, sem citar valor e sem oferecer a remoção', () => {
+    it('orienta a atualizar o arquivo do token e conta também os ainda não tentados, sem citar valor', () => {
       api.andamento.mockReturnValue(of(recusado));
       abrir();
 
       expect(texto()).toContain('Token da API de arquivos expirado ou recusado.');
-      expect(texto()).toContain('Capture um novo token e tente novamente.');
-      expect(botao('Remover documento e gerar')).toBeUndefined();
-      expect(botao('Tentar novamente')).toBeTruthy();
+      expect(texto()).toContain('Capture um novo token, atualize o arquivo do token e clique em Tentar novamente.');
+      expect(raiz.querySelector('.falhas')).toBeNull();
+      expect(botao('Tentar novamente os 2 com problema')).toBeTruthy();
+      expect(botao('Remover os 2 com problema e gerar')).toBeTruthy();
       expect(raiz.innerHTML).not.toMatch(/Bearer|eyJ/);
+    });
+
+    it('com token novo, "Tentar novamente" continua só os pendentes', () => {
+      api.andamento.mockReturnValue(of(recusado));
+      abrir();
+
+      botao('Tentar novamente')!.click();
+
+      expect(api.continuar).toHaveBeenCalledWith('pedido-1', 'TENTAR_NOVAMENTE');
+      expect(api.criar).toHaveBeenCalledTimes(1);
     });
   });
 
