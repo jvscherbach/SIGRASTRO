@@ -29,7 +29,7 @@ describe('serviços de documentos e dossiê', () => {
     const req = http.expectOne('/api/requerimentos/101/documentos');
     expect(req.request.method).toBe('GET');
     expect(req.request.context.get(SEM_TOAST)).toBe(true);
-    req.flush({ itens: [], totais: { total: 0, vigentes: 0, naoPdf: 0, tipoNaoInformado: 0, indisponiveis: 0, sigilosos: 0 } });
+    req.flush({ itens: [], totais: { total: 0, vigentes: 0, semEfeito: 0, naoPdf: 0, tipoNaoInformado: 0, indisponiveis: 0, sigilosos: 0 } });
   });
 
   it('cria o pedido só com origem e id dos documentos', () => {

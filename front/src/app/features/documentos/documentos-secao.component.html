@@ -3,7 +3,7 @@
     <div>
       <h2><app-icone nome="plan" />Documentos</h2>
       @if (totais(); as t) {
-        <p>{{ t.total }} documento(s) de todas as origens · {{ t.vigentes }} vigente(s).</p>
+        <p>{{ t.total }} documento(s) · {{ t.vigentes }} vigente(s) · {{ t.semEfeito }} sem efeito · {{ t.indisponiveis }} indisponível(is)</p>
       }
     </div>
     @if (resposta()) {

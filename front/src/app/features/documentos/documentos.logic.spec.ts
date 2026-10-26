@@ -105,15 +105,15 @@ describe('documentos.logic', () => {
   });
 
   describe('seleção', () => {
-    it('só o que a API marca como selecionável por padrão entra na pré-seleção', () => {
+    it('só o que a API marca como selecionável por padrão entra na seleção inicial', () => {
       const sel = selecaoPadrao([
         ...lista,
-        documento({ id: '5', situacao: 'SUBSTITUIDO', selecionavelPorPadrao: false }),
+        documento({ id: '5', situacao: 'SUBSTITUIDO', }),
         documento({ id: '6', situacao: 'INDISPONIVEL', bloqueio: 'INDISPONIVEL', selecionavelPorPadrao: false }),
         documento({ id: '7', sigiloso: true, acessivel: false, bloqueio: 'SIGILOSO', selecionavelPorPadrao: false }),
       ]);
 
-      expect(Array.from(sel).sort()).toEqual(['DOCUMENTO_PROCESSO:10', 'DOCUMENTO_PROCESSO:3', 'JUNTADA:9']);
+      expect(Array.from(sel).sort()).toEqual(['DOCUMENTO_PROCESSO:10', 'DOCUMENTO_PROCESSO:3', 'DOCUMENTO_PROCESSO:5', 'JUNTADA:9']);
     });
 
     it('bloqueado não é selecionável; substituído em PDF é (manualmente)', () => {

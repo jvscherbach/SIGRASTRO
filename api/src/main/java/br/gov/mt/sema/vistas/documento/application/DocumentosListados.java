@@ -6,12 +6,17 @@ import br.gov.mt.sema.vistas.documento.domain.SituacaoDocumento;
 
 public record DocumentosListados(List<DocumentoListado> itens, Totais totais) {
 
-    public record Totais(int total, int vigentes, int naoPdf, int tipoNaoInformado, int indisponiveis,
-            int sigilosos) {
+    /**
+     * {@code total = vigentes + semEfeito + indisponiveis} (situação, excludentes). {@code naoPdf},
+     * {@code tipoNaoInformado} e {@code sigilosos} são recortes que cruzam essas situações.
+     */
+    public record Totais(int total, int vigentes, int semEfeito, int naoPdf, int tipoNaoInformado,
+            int indisponiveis, int sigilosos) {
     }
 
     static DocumentosListados de(List<DocumentoListado> itens) {
         int vigentes = 0;
+        int semEfeito = 0;
         int naoPdf = 0;
         int tipoNaoInformado = 0;
         int indisponiveis = 0;
@@ -19,6 +24,9 @@ public record DocumentosListados(List<DocumentoListado> itens, Totais totais) {
         for (DocumentoListado item : itens) {
             if (item.documento().situacao() == SituacaoDocumento.VIGENTE) {
                 vigentes++;
+            }
+            if (item.documento().situacao() == SituacaoDocumento.SUBSTITUIDO) {
+                semEfeito++;
             }
             if (item.documento().situacao() == SituacaoDocumento.INDISPONIVEL) {
                 indisponiveis++;
@@ -33,6 +41,6 @@ public record DocumentosListados(List<DocumentoListado> itens, Totais totais) {
             }
         }
         return new DocumentosListados(List.copyOf(itens),
-                new Totais(itens.size(), vigentes, naoPdf, tipoNaoInformado, indisponiveis, sigilosos));
+                new Totais(itens.size(), vigentes, semEfeito, naoPdf, tipoNaoInformado, indisponiveis, sigilosos));
     }
 }

@@ -28,7 +28,7 @@ class DocumentoHttpTest extends BaseHttpDeDocumentos {
                 // ordem cronológica: o substituído (31/03) vem primeiro
                 .andExpect(jsonPath("$.itens[0].id").value("11"))
                 .andExpect(jsonPath("$.itens[0].situacao").value("SUBSTITUIDO"))
-                .andExpect(jsonPath("$.itens[0].selecionavelPorPadrao").value(false))
+                .andExpect(jsonPath("$.itens[0].selecionavelPorPadrao").value(true))
                 .andExpect(jsonPath("$.itens[1].origem").value("DOCUMENTO_PROCESSO"))
                 .andExpect(jsonPath("$.itens[1].id").value("804328"))
                 .andExpect(jsonPath("$.itens[1].titulo").value("Requerimento assinado"))
@@ -51,6 +51,7 @@ class DocumentoHttpTest extends BaseHttpDeDocumentos {
                 .andExpect(jsonPath("$.itens[5].bloqueio").value("INDISPONIVEL"))
                 .andExpect(jsonPath("$.totais.total").value(6))
                 .andExpect(jsonPath("$.totais.vigentes").value(4))
+                .andExpect(jsonPath("$.totais.semEfeito").value(1))
                 .andExpect(jsonPath("$.totais.naoPdf").value(1))
                 .andExpect(jsonPath("$.totais.tipoNaoInformado").value(0))
                 .andExpect(jsonPath("$.totais.indisponiveis").value(1))

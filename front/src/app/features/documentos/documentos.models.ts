@@ -25,6 +25,8 @@ export interface DocumentoItem {
 export interface TotaisDocumentos {
   total: number;
   vigentes: number;
+  /** Substituídos: chave válida e `DATA_FIM` preenchida. */
+  semEfeito: number;
   naoPdf: number;
   /** Sem extensão ou extensão não reconhecida: o tipo real é conferido ao gerar o dossiê. */
   tipoNaoInformado: number;

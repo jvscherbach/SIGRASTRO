@@ -61,9 +61,9 @@ const DOCUMENTOS = {
     doc('2', 'Oficio'),
     doc('3', 'Calculo', { nomeArquivo: 'calculo.xlsx', extensao: 'xlsx', tipoArquivo: 'PLANILHA', selecionavelPorPadrao: false, bloqueio: 'NAO_PDF' }),
     doc('4', 'Documento sigiloso', { nomeArquivo: null, extensao: null, tipoArquivo: null, sigiloso: true, acessivel: false, selecionavelPorPadrao: false, bloqueio: 'SIGILOSO' }),
-    doc('5', 'Planta', { nomeArquivo: null, extensao: '', tipoArquivo: 'DESCONHECIDO', selecionavelPorPadrao: false }),
+    doc('5', 'Planta', { nomeArquivo: null, extensao: '', tipoArquivo: 'DESCONHECIDO' }),
   ],
-  totais: { total: 5, vigentes: 5, naoPdf: 1, tipoNaoInformado: 1, indisponiveis: 0, sigilosos: 1 },
+  totais: { total: 5, vigentes: 5, semEfeito: 0, naoPdf: 1, tipoNaoInformado: 1, indisponiveis: 0, sigilosos: 1 },
 };
 
 const ITENS = [
@@ -123,9 +123,10 @@ test('lista, seleção padrão, geração com acompanhamento, pré-visualizaçã
   await simular(page, (corpo) => (corpoDoPedido = corpo));
   await page.goto('/consulta/requerimentos/101');
 
-  // lista: pré-seleção só com PDFs vigentes; planilha e sigiloso bloqueados
+  // lista: seleção total dos selecionáveis (inclusive tipo não informado); planilha e sigiloso bloqueados
   await expect(page.locator('tbody tr')).toHaveCount(5);
-  await expect(page.locator('.selbar b')).toHaveText('2');
+  await expect(page.locator('.selbar b')).toHaveText('3');
+  await expect(page.locator('.dash-sec-head p').first()).toContainText('5 documento(s) · 5 vigente(s) · 0 sem efeito · 0 indisponível(is)');
   await expect(page.locator('tbody tr', { hasText: 'Calculo' }).locator('input[type=checkbox]')).toBeDisabled();
   await expect(page.locator('tbody tr', { hasText: 'Documento sigiloso' }).locator('input[type=checkbox]')).toBeDisabled();
   await expect(page.locator('.nao-pdf')).toContainText('1 documento(s) não são PDF');
@@ -143,6 +144,7 @@ test('lista, seleção padrão, geração com acompanhamento, pré-visualizaçã
     documentos: [
       { origem: 'DOCUMENTO_PROCESSO', id: '1' },
       { origem: 'DOCUMENTO_PROCESSO', id: '2' },
+      { origem: 'DOCUMENTO_PROCESSO', id: '5' },
     ],
   });
 

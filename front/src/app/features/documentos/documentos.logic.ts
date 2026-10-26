@@ -60,7 +60,7 @@ export function ordenar(itens: DocumentoItem[], ordem: Ordem): DocumentoItem[] {
 
 export const selecionavel = (d: DocumentoItem): boolean => d.bloqueio === null;
 
-/** Pré-seleção definida pelo domínio: PDF vigente, sem bloqueio. */
+/** Seleção inicial definida pelo domínio: todo documento selecionável (S2.2). */
 export const selecaoPadrao = (itens: DocumentoItem[]): Set<string> =>
   new Set(itens.filter((d) => d.selecionavelPorPadrao).map(chaveDe));
 

@@ -137,9 +137,12 @@ public final class Documento {
         return null;
     }
 
-    /** Pré-seleção (conveniência do Vistas; a Vista do SIGA não pré-seleciona): só PDF vigente e sem bloqueio. */
+    /**
+     * Seleção inicial (S2.2; a Vista do SIGA não pré-seleciona): todo documento selecionável, vigente ou sem efeito,
+     * de qualquer tipo (inclusive {@code DESCONHECIDO}). Ficam fora só os que têm bloqueio.
+     */
     public boolean selecionavelPorPadrao(boolean perfilPodeVerSigilosos) {
-        return situacao == SituacaoDocumento.VIGENTE && ehPdf() && bloqueio(perfilPodeVerSigilosos) == null;
+        return bloqueio(perfilPodeVerSigilosos) == null;
     }
 
     public enum Bloqueio {

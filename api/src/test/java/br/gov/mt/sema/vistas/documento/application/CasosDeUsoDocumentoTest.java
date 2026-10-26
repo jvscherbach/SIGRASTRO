@@ -104,23 +104,34 @@ class CasosDeUsoDocumentoTest {
 
         // 8 linhas: 1 compactado e 1 geometria saem; 1 cópia (mesma chave K1) é deduplicada.
         assertThat(lista.itens()).extracting(i -> i.documento().id()).containsExactly("1", "5", "2", "3", "4");
-        assertThat(lista.totais()).isEqualTo(new DocumentosListados.Totais(5, 3, 1, 0, 1, 1));
+        assertThat(lista.totais()).isEqualTo(new DocumentosListados.Totais(5, 3, 1, 1, 0, 1, 1));
     }
 
     @Test
-    void preSelecaoSoPdfVigenteSemBloqueio() {
+    void selecaoInicialDoGestorTemTodosOsSelecionaveisInclusiveSemEfeitoESigiloso() {
         comoGestor();
 
         List<DocumentoListado> itens = listar.executar(101).itens();
 
         assertThat(itens).filteredOn(DocumentoListado::selecionavelPorPadrao)
-                .extracting(i -> i.documento().id()).containsExactly("1", "4");
+                .extracting(i -> i.documento().id()).containsExactly("1", "5", "4");
         assertThat(itens).extracting(i -> i.documento().id() + ":" + i.bloqueio()).contains(
-                "2:INDISPONIVEL", "3:NAO_PDF", "1:null", "5:null");
+                "2:INDISPONIVEL", "3:NAO_PDF", "1:null", "5:null", "4:null");
     }
 
     @Test
-    void tipoNaoInformadoTemLinhaPropriaNosTotaisESelecionavelForaDaPreSelecao() {
+    void selecaoInicialDoOperadorDeixaDeForaSigilosoIndisponivelENaoPdf() {
+        List<DocumentoListado> itens = listar.executar(101).itens();
+
+        assertThat(itens).filteredOn(DocumentoListado::selecionavelPorPadrao)
+                .extracting(i -> i.documento().id()).containsExactly("1", "5");
+        // selecionados = itens sem bloqueio
+        assertThat(itens).filteredOn(i -> i.bloqueio() == null)
+                .extracting(i -> i.documento().id()).containsExactly("1", "5");
+    }
+
+    @Test
+    void tipoNaoInformadoTemLinhaPropriaNosTotaisEEntraNaSelecaoInicial() {
         comoGestor();
         when(documentos.listar(anyLong())).thenReturn(List.of(
                 doc(OrigemDocumento.IMOVEL, "1", "K1", "Planta", null, D1, null, 0),
@@ -128,9 +139,9 @@ class CasosDeUsoDocumentoTest {
 
         DocumentosListados lista = listar.executar(101);
 
-        assertThat(lista.totais()).isEqualTo(new DocumentosListados.Totais(2, 2, 0, 1, 0, 0));
+        assertThat(lista.totais()).isEqualTo(new DocumentosListados.Totais(2, 2, 0, 0, 1, 0, 0));
         assertThat(lista.itens().get(0).bloqueio()).isNull();
-        assertThat(lista.itens().get(0).selecionavelPorPadrao()).isFalse();
+        assertThat(lista.itens().get(0).selecionavelPorPadrao()).isTrue();
         assertThat(selecionar.executar(101, List.of(ref("IMOVEL", "1")))).hasSize(1);
     }
 

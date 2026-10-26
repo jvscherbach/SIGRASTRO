@@ -91,8 +91,9 @@ Comportamento:
 
 - ordenação padrão por data crescente (RN03); clicar em **Documento**, **Origem** ou **Data** ordena (e inverte); sem data vai sempre ao final; `aria-sort` no cabeçalho;
 - **busca** por texto (título, ID e nome do arquivo, sem acento e sem diferenciar maiúsculas) e **filtro por origem** (as opções vêm dos documentos recebidos);
-- PDFs vigentes pré-selecionados; **Seleção padrão** restaura essa seleção e **Limpar seleção** a zera; a caixa do cabeçalho seleciona (ou desmarca) todos os **listados e selecionáveis** (respeita o filtro);
-- substituídos aparecem sem pré-seleção e podem ser marcados manualmente (se forem PDF);
+- todos os **selecionáveis** vêm selecionados (S2.2, RN13): vigentes e sem efeito, inclusive tipo não informado; **Seleção padrão** volta a marcar todos eles e **Limpar seleção** zera; a caixa do cabeçalho seleciona (ou desmarca) todos os **listados e selecionáveis** (respeita o filtro);
+- substituídos (sem efeito) aparecem selecionados e podem ser desmarcados;
+- linha de totais no cabeçalho da seção: "N documento(s) · V vigente(s) · S sem efeito · I indisponível(is)". Os três últimos são excludentes e somam N. "N selecionados" (barra) conta os itens marcados; logo ao abrir, é N menos os indisponíveis, os não PDF e, para o Operador, os sigilosos. No 769/2025, "145 documentos · 71 vigentes" com "144 selecionados" parecia não fechar porque a linha antiga não mostrava os sem efeito (selecionáveis) nem os indisponíveis; "vigentes" nunca foi o total selecionável. Com a linha nova, confira: selecionados ao abrir = itens sem bloqueio (N − I − não PDF − sigilosos bloqueados, contando cada documento uma vez);
 - **indisponíveis** esmaecidos, sem seleção, com "arquivo indisponível" junto ao nome;
 - **não PDF** bloqueados, com "conversão disponível em breve", e um aviso no topo da seção: "N documento(s) não são PDF e entram no dossiê a partir da próxima etapa";
 - **sigilosos sem perfil** visíveis, com o nome mascarado ("Documento sigiloso"), sem seleção, com "documento sigiloso" e "Requer perfil autorizado"; Gestor e Administrador os veem e podem selecioná-los;

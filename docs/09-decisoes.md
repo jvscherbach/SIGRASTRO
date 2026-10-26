@@ -81,7 +81,7 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 
 ## D11 — Lista completa com situação
 
-**Decisão:** listar todos os documentos, inclusive substituídos e indisponíveis, com a situação calculada. Os vigentes vêm pré-selecionados.
+**Decisão:** listar todos os documentos, inclusive substituídos e indisponíveis, com a situação calculada. Os vigentes vêm pré-selecionados (desde a S2.2, todos os selecionáveis: D47).
 **Motivo:** o operador decide o conteúdo do dossiê com visibilidade total.
 
 ## D12 — Dossiê completo ou nenhum
@@ -241,15 +241,21 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 ## D44 — Extensão desconhecida: tipo `DESCONHECIDO`
 
 **Contexto:** os nomes vêm sem tipo e sem extensão garantida (a complementação usa `TITULO`; o imóvel pode ter nome em branco).
-**Decisão:** sem extensão ou com extensão não reconhecida o `tipoArquivo` é `DESCONHECIDO` (substitui `OUTRO`). O documento aparece, é selecionável (se vigente, com chave válida e acessível pelo perfil), fica fora da pré-seleção, mostra a etiqueta "tipo não informado" e não recebe o bloqueio `NAO_PDF`. Ao baixar, o validador confere a assinatura `%PDF-`: PDF segue normal; senão a falha é do documento ("o arquivo não é um PDF (tipo detectado: X); a conversão chega na próxima etapa") e vale a RN09. Os totais ganham `tipoNaoInformado`.
+**Decisão:** sem extensão ou com extensão não reconhecida o `tipoArquivo` é `DESCONHECIDO` (substitui `OUTRO`). O documento aparece, é selecionável (se vigente, com chave válida e acessível pelo perfil), fica fora da pré-seleção (desde a S2.2 entra na seleção inicial: D47), mostra a etiqueta "tipo não informado" e não recebe o bloqueio `NAO_PDF`. Ao baixar, o validador confere a assinatura `%PDF-`: PDF segue normal; senão a falha é do documento ("o arquivo não é um PDF (tipo detectado: X); a conversão chega na próxima etapa") e vale a RN09. Os totais ganham `tipoNaoInformado`.
 **Motivo:** não esconder documento por falta de extensão nem deixar entrar no dossiê o que não é PDF.
 
 ## D45 — Pré-seleção é conveniência do SIGA Vistas
 
-**Decisão:** a Vista não pré-seleciona nada; o SIGA Vistas mantém a pré-seleção de **PDF vigente, sem bloqueio**.
+**Decisão:** a Vista não pré-seleciona nada; o SIGA Vistas mantém a pré-seleção de **PDF vigente, sem bloqueio**. **Substituída pela D47 (S2.2).**
 **Motivo:** gerar o dossiê comum com um clique; o usuário ajusta a seleção.
 
 ## D46 — Deduplicação por chave diverge da Vista
 
 **Decisão:** a Vista não deduplica; o SIGA Vistas sim (RN05), para não repetir páginas no dossiê. Precedência: a ordem das origens na tabela de docs/04. Chave `"0"` ou vazia nunca deduplica. RL e RT não duplicam por construção do SQL.
 **Motivo:** o dossiê é um PDF único; repetir o mesmo arquivo só o infla.
+
+## D47 — Seleção total dos selecionáveis (S2.2)
+
+**Contexto:** na homologação da S2/S2.1, documentos de tipo não informado ficavam fora da primeira geração, e a tela do 769/2025 mostrava "145 documentos · 71 vigentes" com "144 selecionados", o que parecia não fechar. O dossiê responde a processos jurídicos: o padrão é incluir tudo o que pode entrar.
+**Decisão:** `selecionavelPorPadrao` passa a significar "selecionável" (sem `bloqueio`): vigentes e sem efeito, de qualquer tipo, inclusive `DESCONHECIDO`, vêm selecionados (RN13). Continuam fora: indisponíveis, não PDF por extensão conhecida e sigilosos para o Operador. Os totais ganham `semEfeito`, e a tela mostra `N documentos · V vigentes · S sem efeito · I indisponíveis` (somam N). Substitui a D45 e o trecho "fica fora da pré-seleção" da D44.
+**Motivo:** a Vista lista os "sem efeito" e permite incluí-los; deixar de fora por padrão já produziu dossiê incompleto. Com a soma explícita, o total de selecionados é conferível.

@@ -74,7 +74,7 @@ Removidas na S2.1 (SQL, mapeamento, propriedades, testes e grants). Só voltam c
 - *Ordem (RN03):* data crescente; sem data ao final; empate por origem (ordem da tabela) e id (numérico).
 - *Tipo de arquivo pela extensão:* PDF; PLANILHA (xls, xlsx, ods); TEXTO (doc, docx, odt, rtf, html, txt); IMAGEM (png, jpg, jpeg); GEOMETRIA (shp, kml, kmz); COMPACTADO (zip, rar, 7z). **Sem extensão ou extensão não reconhecida: `DESCONHECIDO`** (o antigo `OUTRO` deixou de existir). **Compactados nunca aparecem (RN11); geometrias ficam classificadas mas fora da lista até a S4 (RN10).**
 - *Bloqueio:* `INDISPONIVEL` > `SIGILOSO` (sem perfil) > `NAO_PDF`. `DESCONHECIDO` **não** recebe `NAO_PDF`: é selecionável (se vigente, chave válida e acessível pelo perfil).
-- *Pré-seleção:* a Vista não pré-seleciona nada; o SIGA Vistas mantém a pré-seleção de **PDF vigente, sem bloqueio** como conveniência. `DESCONHECIDO` fica fora dela.
+- *Seleção inicial:* a Vista não pré-seleciona nada; desde a S2.2 o SIGA Vistas seleciona **todo documento selecionável** (sem bloqueio: vigente ou sem efeito, inclusive `DESCONHECIDO`), RN13 e D47.
 - *Tipo desconhecido ao baixar:* o validador do dossiê confere a assinatura `%PDF-`. Se for PDF, segue normal; se não, falha **do documento** com "o arquivo não é um PDF (tipo detectado: X); a conversão chega na próxima etapa" e vale a RN09. O mesmo vale para documento marcado como PDF cujo conteúdo não é PDF. O tipo detectado vem dos primeiros bytes; o `Content-Type` do repositório não chega à porta de arquivos e não é usado (não é confiável, RNF09).
 
 ## Camunda

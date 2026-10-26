@@ -119,12 +119,12 @@ class CatalogoEDocumentoTest {
     }
 
     @Test
-    void substituidoEPdfFicaSelecionavelManualmenteMasNaoPorPadrao() {
+    void substituidoEPdfFicaSelecionavelEEntraNaSelecaoInicial() {
         Documento d = Documento.deLinha(OrigemDocumento.DOCUMENTO_PROCESSO, "1", 1, "K", null, "a.pdf", D1, D2, null);
 
         assertThat(d.situacao()).isEqualTo(SituacaoDocumento.SUBSTITUIDO);
         assertThat(d.bloqueio(false)).isNull();
-        assertThat(d.selecionavelPorPadrao(false)).isFalse();
+        assertThat(d.selecionavelPorPadrao(false)).isTrue();
     }
 
     @Test
@@ -162,7 +162,7 @@ class CatalogoEDocumentoTest {
     }
 
     @Test
-    void semExtensaoOuExtensaoNaoReconhecidaEDesconhecidoSelecionavelEForaDaPreSelecao() {
+    void semExtensaoOuExtensaoNaoReconhecidaEDesconhecidoEntraNaSelecaoInicial() {
         Documento semExtensao = doc(OrigemDocumento.DOCUMENTO_PROCESSO, "1", "K1", "semextensao", D1);
         Documento naoReconhecida = doc(OrigemDocumento.DOCUMENTO_PROCESSO, "2", "K2", "projeto.dwg", D1);
         Documento semNome = doc(OrigemDocumento.IMOVEL, "3", "K3", null, D1);
@@ -171,7 +171,7 @@ class CatalogoEDocumentoTest {
             assertThat(d.tipoArquivo()).isEqualTo(TipoArquivo.DESCONHECIDO);
             assertThat(d.tipoNaoInformado()).isTrue();
             assertThat(d.bloqueio(false)).isNull();
-            assertThat(d.selecionavelPorPadrao(false)).isFalse();
+            assertThat(d.selecionavelPorPadrao(false)).isTrue();
         }
     }
 

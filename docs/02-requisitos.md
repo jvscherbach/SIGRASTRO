@@ -16,11 +16,11 @@
 
 | ID | Requisito |
 |---|---|
-| RF06 | Listar todos os documentos do requerimento (a chave é o requerimento, D31), das seis origens da Vista do SIGA (S2.1; SCORP na S4), com os totais (total, vigentes, não PDF, tipo não informado, indisponíveis, sigilosos). A chave de um documento é origem + id. |
-| RF07 | Para cada documento, exibir: identificador, nome, origem, data e sigilo. A situação (vigente, substituído, indisponível) é usada internamente na pré-seleção e não é exibida; documentos indisponíveis ficam bloqueados para seleção, com indicação no nome do arquivo. |
+| RF06 | Listar todos os documentos do requerimento (a chave é o requerimento, D31), das seis origens da Vista do SIGA (S2.1; SCORP na S4), com os totais (total, vigentes, sem efeito, não PDF, tipo não informado, indisponíveis, sigilosos). A chave de um documento é origem + id. |
+| RF07 | Para cada documento, exibir: identificador, nome, origem, data e sigilo. A situação (vigente, substituído, indisponível) não é exibida como coluna, só nos totais; documentos indisponíveis ficam bloqueados para seleção, com indicação no nome do arquivo. |
 | RF08 | Permitir ordenar a lista por documento, origem e data, e filtrar por texto e origem. |
 | RF09 | Visualizar qualquer documento em modal. Documentos não-PDF são exibidos já convertidos, quando houver conversão. |
-| RF10 | Selecionar documentos individualmente e em massa. Os vigentes vêm pré-selecionados. |
+| RF10 | Selecionar documentos individualmente e em massa. Todos os selecionáveis vêm selecionados (RN13). |
 
 ### Dossiê
 
@@ -94,3 +94,4 @@
 | RN10 | Geometrias (SHP, KML, KMZ) não entram no dossiê: ficam numa seção própria do detalhe, com download à parte ("Baixar geometrias"), registrado na auditoria. |
 | RN11 | Arquivos compactados (ZIP, RAR, 7Z) são desconsiderados: não aparecem na lista nem entram no dossiê. |
 | RN12 | Responsável pela tarefa atual: só o **nome** do servidor é exibido, e só para Gestor e Administrador. O Operador não recebe o campo (a API o omite). O CPF do servidor nunca sai na API nem na tela. Sem responsável: "Não atribuída"; sem nome encontrado ou valor em outro formato: "Responsável não identificado". |
+| RN13 | Seleção total (S2.2): ao abrir o requerimento, todo documento **selecionável** vem selecionado: vigente ou sem efeito (`DATA_FIM` preenchida), de qualquer tipo, inclusive tipo não informado (`DESCONHECIDO`). Não são selecionáveis: indisponíveis (chave nula, vazia ou `"0"`), não PDF por extensão conhecida (aguardam a S3) e sigilosos para o Operador. "Seleção padrão" volta a marcar todos os selecionáveis. |
