@@ -46,7 +46,9 @@ class DocumentoHttpTest extends BaseHttpDeDocumentos {
                 .andExpect(jsonPath("$.itens[3].titulo").value("Laudo reservado"))
                 .andExpect(jsonPath("$.itens[3].selecionavelPorPadrao").value(true))
                 .andExpect(jsonPath("$.itens[4].tipoArquivo").value("PLANILHA"))
-                .andExpect(jsonPath("$.itens[4].bloqueio").value("NAO_PDF"))
+                // conversão ligada (padrão, S3): a planilha é convertível, sem bloqueio e pré-selecionada
+                .andExpect(jsonPath("$.itens[4].bloqueio").doesNotExist())
+                .andExpect(jsonPath("$.itens[4].selecionavelPorPadrao").value(true))
                 .andExpect(jsonPath("$.itens[5].situacao").value("INDISPONIVEL"))
                 .andExpect(jsonPath("$.itens[5].bloqueio").value("INDISPONIVEL"))
                 .andExpect(jsonPath("$.totais.total").value(6))
@@ -55,7 +57,8 @@ class DocumentoHttpTest extends BaseHttpDeDocumentos {
                 .andExpect(jsonPath("$.totais.naoPdf").value(1))
                 .andExpect(jsonPath("$.totais.tipoNaoInformado").value(0))
                 .andExpect(jsonPath("$.totais.indisponiveis").value(1))
-                .andExpect(jsonPath("$.totais.sigilosos").value(1));
+                .andExpect(jsonPath("$.totais.sigilosos").value(1))
+                .andExpect(jsonPath("$.totais.convertiveis").value(1));
     }
 
     @Test

@@ -32,6 +32,7 @@ import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.RepositorioDePedidos;
 import br.gov.mt.sema.vistas.dossie.application.port.ValidadorDePdf;
+import br.gov.mt.sema.vistas.testsupport.ParametrosDeConversaoDeTeste;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
 import br.gov.mt.sema.vistas.dossie.domain.StatusDossie;
 import com.zaxxer.hikari.HikariDataSource;
@@ -87,7 +88,8 @@ class ConexaoDoSigaLiberadaTest {
         VerificarAcessoAoRequerimento acesso = new VerificarAcessoAoRequerimento(requerimentos, restricao);
         DocumentosDoSigaJdbc documentos = new DocumentosDoSigaJdbc(jdbc, EnumSet.allOf(OrigemDocumento.class));
         SelecionarDocumentosParaDossie selecao = new SelecionarDocumentosParaDossie(acesso,
-                new ListarDocumentos(acesso, documentos, permissoes), permissoes);
+                new ListarDocumentos(acesso, documentos, permissoes, ParametrosDeConversaoDeTeste.ligada()), permissoes,
+                ParametrosDeConversaoDeTeste.ligada());
 
         Map<String, Integer> conexoesAtivasVistasNoDownload = new ConcurrentHashMap<>();
         AtomicInteger downloads = new AtomicInteger();

@@ -120,18 +120,24 @@ public final class Documento {
         return SituacaoDocumento.chaveValida(chave);
     }
 
+    /** Planilha, texto ou imagem de formato convertível para PDF (RF13), pela extensão. */
+    public boolean convertivel() {
+        return TipoArquivo.convertivel(extensao);
+    }
+
     /**
      * Motivo pelo qual o documento não pode ser selecionado para o dossiê, ou nulo. Precedência: indisponível,
-     * sigiloso sem permissão, não PDF (a conversão é da S3). Tipo desconhecido não bloqueia.
+     * sigiloso sem permissão, não PDF. Tipo desconhecido não bloqueia. Com a conversão disponível (S3), o tipo
+     * convertível deixa de ser {@code NAO_PDF}.
      */
-    public Bloqueio bloqueio(boolean perfilPodeVerSigilosos) {
+    public Bloqueio bloqueio(boolean perfilPodeVerSigilosos, boolean conversaoDisponivel) {
         if (situacao == SituacaoDocumento.INDISPONIVEL) {
             return Bloqueio.INDISPONIVEL;
         }
         if (sigiloso && !perfilPodeVerSigilosos) {
             return Bloqueio.SIGILOSO;
         }
-        if (!ehPdf() && !tipoNaoInformado()) {
+        if (!ehPdf() && !tipoNaoInformado() && !(conversaoDisponivel && convertivel())) {
             return Bloqueio.NAO_PDF;
         }
         return null;
@@ -141,8 +147,8 @@ public final class Documento {
      * Seleção inicial (S2.2; a Vista do SIGA não pré-seleciona): todo documento selecionável, vigente ou sem efeito,
      * de qualquer tipo (inclusive {@code DESCONHECIDO}). Ficam fora só os que têm bloqueio.
      */
-    public boolean selecionavelPorPadrao(boolean perfilPodeVerSigilosos) {
-        return bloqueio(perfilPodeVerSigilosos) == null;
+    public boolean selecionavelPorPadrao(boolean perfilPodeVerSigilosos, boolean conversaoDisponivel) {
+        return bloqueio(perfilPodeVerSigilosos, conversaoDisponivel) == null;
     }
 
     public enum Bloqueio {

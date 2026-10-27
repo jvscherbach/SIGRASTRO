@@ -149,19 +149,20 @@ Resposta de `GET /requerimentos/{id}/documentos`:
       "bloqueio": null
     }
   ],
-  "totais": { "total": 55, "vigentes": 48, "semEfeito": 5, "naoPdf": 6, "tipoNaoInformado": 1, "indisponiveis": 2, "sigilosos": 3 }
+  "totais": { "total": 55, "vigentes": 48, "semEfeito": 5, "naoPdf": 6, "tipoNaoInformado": 1, "indisponiveis": 2, "sigilosos": 3, "convertiveis": 5 }
 }
 ```
 
 - `id` é **texto** em todo o contrato (`"804328"`), para acomodar o SCORP. `origem` é o código (`DOCUMENTO_PROCESSO`, `DOCUMENTO_REQUERIMENTO`, `COMPLEMENTACAO`, `IMOVEL`, `REPRESENTANTE_LEGAL`, `RESPONSAVEL_TECNICO`) e `origemDescricao`, o texto da tela.
 - `situacao`: `VIGENTE`, `SUBSTITUIDO` ou `INDISPONIVEL` (RN01). Não é exibida como coluna.
 - `tipoArquivo`: `PDF`, `PLANILHA`, `TEXTO`, `IMAGEM`, `GEOMETRIA`, `COMPACTADO` ou `DESCONHECIDO` (pela extensão do nome do arquivo; sem extensão ou extensão não reconhecida é `DESCONHECIDO`).
-- `bloqueio` (por que o documento não pode ser selecionado): `null`, `NAO_PDF` (conversão na S3; `DESCONHECIDO` não recebe `NAO_PDF`), `INDISPONIVEL` ou `SIGILOSO` (sem perfil). Precedência: indisponível, sigiloso, não PDF.
+- `bloqueio` (por que o documento não pode ser selecionado): `null`, `NAO_PDF` (extensão conhecida que não é PDF e não é convertível; com `CONVERSAO_HABILITADA=false` ou conversor indisponível, todo não PDF; `DESCONHECIDO` não recebe `NAO_PDF`; planilha, texto e imagem convertíveis só recebem `NAO_PDF` com a conversão desligada, S3), `INDISPONIVEL` ou `SIGILOSO` (sem perfil). Precedência: indisponível, sigiloso, não PDF.
 - `selecionavelPorPadrao` (S2.2, RN13): significa "selecionável" e é a seleção inicial: `true` exatamente quando `bloqueio` é `null`. Entram vigentes e sem efeito (substituídos), de qualquer tipo, inclusive `DESCONHECIDO`.
 - `acessivel`: `false` quando o documento é sigiloso e o perfil não o acessa (Operador). Nesse caso o documento vem **mascarado**: `titulo` = "Documento sigiloso" e `nomeArquivo`, `extensao` e `tipoArquivo` são `null` (RF20).
 - `totais`: contagem de toda a lista, depois da consolidação (RN05, RN11 e geometrias fora).
   - Por situação, excludentes, somam o total: `total = vigentes + semEfeito + indisponiveis`. `vigentes` conta `VIGENTE` (sem `DATA_FIM`, chave válida); `semEfeito` conta `SUBSTITUIDO` (`DATA_FIM` preenchida, chave válida); `indisponiveis` conta `INDISPONIVEL` (chave nula, vazia ou `"0"`), qualquer que seja a `DATA_FIM`.
-  - Recortes que cruzam as situações: `naoPdf` (extensão conhecida que não é PDF; não entra em `tipoNaoInformado`), `tipoNaoInformado` (tipo `DESCONHECIDO`) e `sigilosos`.
+  - Recortes que cruzam as situações: `naoPdf` (extensão conhecida que não é PDF; não entra em `tipoNaoInformado`), `tipoNaoInformado` (tipo `DESCONHECIDO`), `sigilosos` e `convertiveis` (S3: planilhas, textos e imagens convertíveis para PDF que o perfil pode selecionar, isto é, sem bloqueio; sempre 0 com a conversão desligada).
+  - `tipoArquivo` vem da extensão; o tipo real (conteúdo) só é conhecido ao obter o arquivo e é conferido ao gerar o dossiê.
   - Os selecionados não são um total da API: a tela conta os itens marcados; ao abrir, são os de `bloqueio` `null` (`total − indisponiveis − naoPdf − sigilosos bloqueados para o perfil`, sem contar duas vezes quem tem mais de um motivo; vale o `bloqueio` de cada item). Por isso "145 documentos · 71 vigentes" podia vir com "144 selecionados": os sem efeito também são selecionáveis, e "vigentes" nunca foi o total selecionável.
 - **A chave do arquivo nunca é retornada** (RNF09); testado percorrendo as respostas.
 

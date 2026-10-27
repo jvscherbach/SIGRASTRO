@@ -49,12 +49,18 @@ Origem desligada some da lista de documentos e não entra no dossiê. A regra de
 
 | Parâmetro | Padrão |
 |---|---|
+| Conversão habilitada | ligada (chave de segurança; desligada, só PDF entra, como na S2.2) |
 | Planilhas | Ajustar à largura (alternativa: uma página por aba) |
 | Geometrias (SHP, KML, KMZ) | Fora do dossiê, download à parte |
 | Compactados (ZIP, RAR, 7Z) | Desconsiderados |
 | Orientação automática | ligado |
 | Incluir abas ocultas | desligado |
-| Tempo limite de conversão | 120 s (30–600) |
+| Tempo limite de conversão | 300 s |
+| Instâncias do conversor | 2 |
+| Tarefas por instância antes de reiniciar | 50 |
+| Imagem: máximo de megapixels | 100 |
+
+Variáveis de ambiente do protótipo (todas opcionais; `.env.local.example`): `CONVERSAO_HABILITADA` (`true`), `CONVERSAO_TIMEOUT_SEGUNDOS` (300), `CONVERSAO_PROCESSOS` (2), `CONVERSAO_TAREFAS_POR_PROCESSO` (50), `CONVERSAO_PLANILHA_MODO` (`LARGURA` ou `PAGINA_POR_ABA`; valor desconhecido cai em `LARGURA`), `CONVERSAO_ABAS_OCULTAS` (`false`) e `CONVERSAO_IMAGEM_MAX_MEGAPIXELS` (100). Os valores padrão serão justificados pela medição de desempenho da S3 (bloco 9).
 
 ### Conexões
 

@@ -39,6 +39,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
 /** Contrato de /api/dossies (docs/07). A geração roda na hora (fila síncrona) e os arquivos vêm de uma porta falsa. */
+// Estes cenários descrevem o dossiê só-PDF da S2.2; a conversão entra no pipeline no bloco 5 da S3.
+@org.springframework.test.context.TestPropertySource(properties = "vistas.conversao.habilitada=false")
 class DossieHttpTest extends BaseHttpDeDocumentos {
 
     private String corpo(Object... referencias) throws Exception {

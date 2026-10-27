@@ -8,10 +8,12 @@ public record DocumentosListados(List<DocumentoListado> itens, Totais totais) {
 
     /**
      * {@code total = vigentes + semEfeito + indisponiveis} (situação, excludentes). {@code naoPdf},
-     * {@code tipoNaoInformado} e {@code sigilosos} são recortes que cruzam essas situações.
+     * {@code tipoNaoInformado}, {@code convertiveis} e {@code sigilosos} são recortes que cruzam essas situações.
+     * {@code convertiveis} conta os documentos convertíveis para PDF que o perfil pode selecionar (sem bloqueio);
+     * com a conversão desligada é sempre 0.
      */
     public record Totais(int total, int vigentes, int semEfeito, int naoPdf, int tipoNaoInformado,
-            int indisponiveis, int sigilosos) {
+            int indisponiveis, int sigilosos, int convertiveis) {
     }
 
     static DocumentosListados de(List<DocumentoListado> itens) {
@@ -21,6 +23,7 @@ public record DocumentosListados(List<DocumentoListado> itens, Totais totais) {
         int tipoNaoInformado = 0;
         int indisponiveis = 0;
         int sigilosos = 0;
+        int convertiveis = 0;
         for (DocumentoListado item : itens) {
             if (item.documento().situacao() == SituacaoDocumento.VIGENTE) {
                 vigentes++;
@@ -39,8 +42,11 @@ public record DocumentosListados(List<DocumentoListado> itens, Totais totais) {
             if (item.documento().sigiloso()) {
                 sigilosos++;
             }
+            if (item.bloqueio() == null && item.documento().convertivel()) {
+                convertiveis++;
+            }
         }
-        return new DocumentosListados(List.copyOf(itens),
-                new Totais(itens.size(), vigentes, semEfeito, naoPdf, tipoNaoInformado, indisponiveis, sigilosos));
+        return new DocumentosListados(List.copyOf(itens), new Totais(itens.size(), vigentes, semEfeito, naoPdf,
+                tipoNaoInformado, indisponiveis, sigilosos, convertiveis));
     }
 }
