@@ -9,7 +9,7 @@ export default defineConfig({
   testMatch: '**/*.e2e.ts',
   fullyParallel: false,
   workers: 1,
-  reporter: 'list',
+  reporter: process.env['CI'] ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: 'http://localhost:4300',
     browserName: 'chromium',

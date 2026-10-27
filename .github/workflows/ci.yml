@@ -1,0 +1,208 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Chamado pelo release.yml: o CI verde é pré-requisito da publicação, com uma só definição dos passos.
+  workflow_call:
+
+# Chamado por outro workflow, github.workflow é o nome do chamador ("Release"): o grupo fica distinto do dele.
+# Só cancela execuções antigas do mesmo PR; push na main e release vão até o fim.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+# Segurança (bloco 5): actions pinadas pelo hash do commit, com a versão em comentário (o Dependabot atualiza os dois);
+# checkout com persist-credentials: false, para o GITHUB_TOKEN não ficar no .git/config ao alcance dos passos seguintes.
+jobs:
+  # Economia de minutos (repositório privado no plano gratuito, D53): mudança só de documentação não roda api, front,
+  # e2e nem docker. O workflow dispara sempre (sem paths-ignore), e os jobs pulados por "if" contam como sucesso,
+  # então nenhum check fica pendente se um dia a main tiver checks obrigatórios. Na dúvida (sem base para comparar,
+  # execução manual ou chamada pelo release.yml), roda tudo.
+  mudancas:
+    name: mudancas
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      codigo: ${{ steps.filtro.outputs.codigo }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Detectar mudança fora da documentação
+        id: filtro
+        env:
+          EVENTO: ${{ github.event_name }}
+          BASE_PR: ${{ github.event.pull_request.base.sha }}
+          ANTES: ${{ github.event.before }}
+          CHAMADO: ${{ github.workflow != 'CI' }}
+        run: |
+          base=""
+          if [ "$CHAMADO" = "false" ]; then
+            case "$EVENTO" in
+              pull_request) base="$BASE_PR" ;;
+              push) base="$ANTES" ;;
+            esac
+          fi
+          if [ -z "$base" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            echo "Sem base para comparar: roda tudo."
+            echo "codigo=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Documentação: docs/, qualquer .md e .claude/ (skill e referências). Todo o resto é código ou infraestrutura.
+          if git diff --name-only "$base" HEAD | grep -qvE '^docs/|\.md$|^\.claude/'; then
+            echo "codigo=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Só documentação mudou: api, front, e2e e docker ficam pulados."
+            echo "codigo=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  api:
+    name: api
+    needs: mudancas
+    if: needs.mudancas.outputs.codigo == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      # Os testes de fumaça (SIGA_SMOKE, ARQUIVOS_SMOKE) ficam pulados: nenhuma dessas variáveis é definida aqui.
+      # Os de Testcontainers (Oracle 23 Free) usam o Docker do próprio runner.
+      - name: Build e testes
+        run: ./mvnw -B clean verify
+      - name: Relatórios de teste (só em falha)
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: api-relatorios-de-teste
+          path: |
+            api/target/surefire-reports
+            api/target/failsafe-reports
+          if-no-files-found: ignore
+          retention-days: 7
+
+  front:
+    name: front
+    needs: mudancas
+    if: needs.mudancas.outputs.codigo == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: front
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+      - name: Instalar dependências
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Testes unitários
+        run: npm test -- --watch=false
+      - name: Auditoria das dependências de produção (alta ou crítica falha)
+        run: npm audit --omit=dev --audit-level=high
+      # Ferramentas de desenvolvimento (Angular CLI etc.) não vão para a imagem: só informativo.
+      - name: Auditoria completa, incluindo desenvolvimento (informativa)
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
+  e2e:
+    name: e2e
+    needs: [mudancas, front]
+    if: needs.mudancas.outputs.codigo == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: front
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+      - name: Instalar dependências
+        run: npm ci
+      - name: Cache do Chromium do Playwright
+        id: playwright-cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('front/package-lock.json') }}
+      - name: Instalar Chromium e dependências do sistema
+        run: npx playwright install --with-deps chromium
+      # A API é simulada por page.route: nenhum serviço real é tocado.
+      - name: Testes e2e
+        run: npm run e2e
+      - name: Relatório do Playwright (só em falha)
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-report
+          path: front/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
+  docker:
+    name: docker
+    needs: [mudancas, api, front]
+    if: needs.mudancas.outputs.codigo == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+      # Só constrói: sem login em registry e sem push.
+      - name: Construir imagem da api
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: api
+          push: false
+          tags: siga-vistas-api:ci
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+      - name: Construir imagem do front
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: front
+          push: false
+          tags: siga-vistas-front:ci
+          cache-from: type=gha,scope=front
+          cache-to: type=gha,mode=max,scope=front
+
+  compose:
+    name: compose
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      # Sem --env-file e sem subir nada: só valida os arquivos e lista os serviços (esperado: api e front).
+      - name: Validar o Compose
+        run: docker compose -f compose.yaml -f compose.local.yaml -f compose.verificacao.yaml config --services

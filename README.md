@@ -1,5 +1,9 @@
 # SIGA Vistas
 
+[![CI](https://github.com/jvscherbach/siga-vistas/actions/workflows/ci.yml/badge.svg)](https://github.com/jvscherbach/siga-vistas/actions/workflows/ci.yml)
+
+Integração contínua: veja [Integração contínua](docs/13-padroes-tecnicos.md#integração-contínua) e o [passo a passo no GitHub](docs/13-padroes-tecnicos.md#configuração-no-github-passo-a-passo-feita-pelo-responsável).
+
 O **SIGA Vistas** (nome provisório) é um serviço externo ao SIGA Licenciamento. Ele consulta requerimentos e processos, lista os documentos de cada um e gera um **dossiê em PDF**, com os documentos escolhidos em ordem cronológica.
 
 Hoje o projeto é um **protótipo de validação**: o objetivo é provar que os problemas da "Vista do Processo" atual têm solução (processos que não geram a vista e planilhas que ficam fora do PDF). Estão prontas a **Sprint 0 (Fundação)**, a **Sprint 1 (Consulta)** e a **Sprint 2 (Documentos e dossiê em PDF)**: o login simulado funciona, é possível buscar um requerimento ou processo, ver os dados e a tarefa atual, **listar todos os documentos e gerar o dossiê em PDF dos documentos em PDF selecionados** (a leitura real do SIGA e dos arquivos depende da configuração descrita em "Conectar ao banco do SIGA" e "Gerar um dossiê"). Conversão de planilhas, textos e imagens (S3), a tela "Dossiês gerados" (S4), auditoria e configurações (S5) ainda mostram a página "em construção" ou estão por vir. Toda a documentação está em [docs/README.md](docs/README.md).
@@ -305,7 +309,7 @@ npm run e2e
 
 | Sintoma | O que fazer |
 |---|---|
-| **Porta 8080 ou 8081 ocupada** (`port is already allocated`) | Descubra quem usa: Windows `netstat -ano \| findstr :8080`; Linux/macOS `lsof -i :8080`. Feche esse programa ou troque a porta da esquerda em `compose.local.yaml` (ex.: `"9080:80"` para o front e `"9081:8080"` para a api) e repita o passo 3. |
+| **Porta 8080 ou 8081 ocupada** (`port is already allocated`) | Descubra quem usa: Windows `netstat -ano \| findstr :8080`; Linux/macOS `lsof -i :8080`. Feche esse programa ou troque a porta da esquerda em `compose.local.yaml` (ex.: `"9080:8080"` para o front e `"9081:8080"` para a api) e repita o passo 3. |
 | **Porta 4200 ocupada** (Tutorial 2) | Rode `npm start -- --port 4300` e abra `http://localhost:4300`. |
 | **"Cannot connect to the Docker daemon"** / "docker: command not found" / `failed to connect to the docker API` | O Docker não está iniciado. Abra o Docker Desktop, espere ele indicar que está rodando e tente de novo. No Linux: `sudo systemctl start docker`. |
 | **Primeira construção muito demorada** | É normal: o Docker baixa as imagens e instala o LibreOffice (conversão de documentos, usada a partir da Sprint 3) dentro da imagem da `api`. As próximas vezes usam o cache e levam segundos. |

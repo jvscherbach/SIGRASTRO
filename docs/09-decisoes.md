@@ -274,3 +274,31 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 **Decisão:** abaixo de `DOSSIE_BLOB_MAX_MB` (padrão 150) nada muda: Blob e pré-visualização. Acima, o andamento indica `entregaPorTicket`. O front pede `POST /dossies/{id}/arquivo/ticket` e abre `GET /dossies/{id}/arquivo?disposicao=attachment&ticket=...` direto, para o navegador baixar em streaming. O ticket tem 256 bits aleatórios, é de uso único, vale 60 s e fica preso ao pedido e ao usuário. O servidor guarda só o resumo SHA-256; ticket inválido dá 403 `TICKET_INVALIDO` sem dizer o motivo. A rota com ticket é a única que o filtro deixa passar sem Bearer; se vier Bearer, ele precisa ser do mesmo usuário. O ticket não vai para log: a aplicação não registra a query string, e o nginx desliga o log de acesso dessa rota e reduz o de erro a `crit`. A resposta leva `Referrer-Policy: no-referrer`. A pré-visualização some acima do limite, com aviso.
 **Motivo:** download em streaming de arquivos grandes sem expor a sessão. Com uso único e 60 s, um ticket que fique no histórico do navegador não serve para nada.
 **Consequência:** a página não vê o fim do download feito pelo navegador; ela avisa que o arquivo é descartado quando o download termina. O ticket fica na URL (histórico do navegador e eventuais proxies intermediários fora do nginx do projeto); a mitigação é o uso único e a validade curta.
+
+## D50 — Front sem root, na porta 8080 do container (CI, bloco 5)
+
+**Contexto:** a auditoria de segurança da pipeline encontrou o processo mestre do nginx do front rodando como root (padrão da imagem `nginx:alpine`). A imagem da `api` já roda como o usuário `vistas`.
+**Decisão:** o front roda como o usuário `nginx` da própria imagem base. O `nginx.conf` passa a ouvir na **8080** (porta acima de 1024 dispensa privilégio), o Dockerfile dá ao usuário só o cache/temporários (`/var/cache/nginx`) e o PID, e o `HEALTHCHECK` usa a 8080. No Compose local o mapeamento passa de `8080:80` para `8080:8080` (o endereço no navegador não muda).
+**Motivo:** menor privilégio sem trocar a imagem base (a `nginx-unprivileged` seria outra fonte a acompanhar) e sem depender de o runtime liberar portas baixas para usuário comum.
+**Consequência:** o futuro manifesto de implantação (Kubernetes ou outro, P15) aponta para a porta 8080 do front. Conferido com a imagem construída: processos como `nginx` (uid 101), `healthy` e `GET /` 200.
+
+## D51 — Pipeline só valida e publica imagens; deploy depende do servidor da SEMA (CI)
+
+**Contexto:** o ambiente de execução (P15) ainda não existe.
+**Decisão:** o GitHub Actions valida (`api`, `front`, `e2e`, `docker`, `compose`), mantém as dependências atualizadas (Dependabot) e publica imagens no GHCR só em tag `vX.Y.Z`, sem `latest`. Não há deploy nem credencial de sistema externo na pipeline.
+**Motivo:** não fixar uma forma de implantação antes de o servidor existir, e manter os segredos do SIGA fora de qualquer serviço de CI.
+**Consequência:** o deploy automatizado será um prompt futuro, depois da definição do ambiente (P26). A seção "Integração contínua" de [13](13-padroes-tecnicos.md) descreve os workflows.
+
+## D52 — CodeQL removido: projeto pessoal sem orçamento, nada pago (CI)
+
+**Contexto:** o SIGA Vistas é um projeto pessoal, em protótipo, sem orçamento. O repositório pode ser privado no plano gratuito do GitHub. O code scanning (CodeQL) em repositório privado exige o GitHub Code Security, que é pago.
+**Decisão:** o `codeql.yml` foi removido. Nenhum recurso, serviço, licença ou ferramenta com cota paga entra no projeto; antes de usar qualquer recurso, confirma-se que é gratuito para repositório privado no plano gratuito, e na dúvida não se usa (regra permanente no `CLAUDE.md`).
+**Motivo:** um workflow que falha ou que depende de plano pago não serve a um projeto sem orçamento.
+**Consequência:** os checks obrigatórios da `main` são só `api`, `front`, `e2e`, `docker` e `compose`. A auditoria de custo do restante da pipeline está na D53.
+
+## D53 — Pipeline ajustada a repositório privado no plano gratuito (CI, ci-sem-custo)
+
+**Contexto:** a regra "nada pago" (D52) exigia conferir o restante da pipeline e do tutorial na pior hipótese: repositório privado, conta pessoal, GitHub Free. A documentação oficial do GitHub (26/10/2026) confirma que nesse cenário a proteção de branch, o secret scanning e o push protection, os Environments e os atestados de artefato não estão disponíveis sem pagar, e que o Actions tem 2.000 min/mês em runner de 2 vCPU. Já são gratuitos o Dependabot, o cache do Actions até 10 GB e, por enquanto, o GHCR.
+**Decisão:** (1) sem proteção de branch, a `main` é protegida pelo fluxo: sempre PR, merge só com os cinco checks verdes, nunca push direto; (2) o `ci.yml` ganha o job `mudancas`, e mudança só de documentação (`docs/`, `*.md`, `.claude/`) pula `api`, `front`, `e2e` e `docker` por `if` (não por `paths-ignore`, que deixaria check pendente se um dia houver proteção); (3) o Dependabot de versões passa a mensal (os alertas e as atualizações de segurança continuam imediatos); (4) o secret scanning é substituído por varredura local com `gitleaks`, fora da pipeline; (5) a retenção do GHCR é manual; (6) recurso cuja gratuidade não foi confirmada (rulesets, P27) não é usado. A tabela "Recurso × situação × decisão" fica em [13](13-padroes-tecnicos.md).
+**Motivo:** manter a verificação de todo PR dentro da cota gratuita sem depender de recurso pago, e sem esconder o que a documentação não confirma.
+**Consequência:** o GitHub não impede um merge com check vermelho (R32), e a cota pode acabar num mês de muitos PRs (R28). Tornar o repositório público tornaria gratuitos a proteção, o code scanning e o secret scanning, mas depende da varredura do histórico (R27) e de decisão do responsável; não é recomendado nem descartado aqui.
