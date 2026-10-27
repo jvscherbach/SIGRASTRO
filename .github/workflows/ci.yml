@@ -19,8 +19,53 @@ permissions:
 # Segurança (bloco 5): actions pinadas pelo hash do commit, com a versão em comentário (o Dependabot atualiza os dois);
 # checkout com persist-credentials: false, para o GITHUB_TOKEN não ficar no .git/config ao alcance dos passos seguintes.
 jobs:
+  # Economia de minutos (repositório privado no plano gratuito, D53): mudança só de documentação não roda api, front,
+  # e2e nem docker. O workflow dispara sempre (sem paths-ignore), e os jobs pulados por "if" contam como sucesso,
+  # então nenhum check fica pendente se um dia a main tiver checks obrigatórios. Na dúvida (sem base para comparar,
+  # execução manual ou chamada pelo release.yml), roda tudo.
+  mudancas:
+    name: mudancas
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      codigo: ${{ steps.filtro.outputs.codigo }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Detectar mudança fora da documentação
+        id: filtro
+        env:
+          EVENTO: ${{ github.event_name }}
+          BASE_PR: ${{ github.event.pull_request.base.sha }}
+          ANTES: ${{ github.event.before }}
+          CHAMADO: ${{ github.workflow != 'CI' }}
+        run: |
+          base=""
+          if [ "$CHAMADO" = "false" ]; then
+            case "$EVENTO" in
+              pull_request) base="$BASE_PR" ;;
+              push) base="$ANTES" ;;
+            esac
+          fi
+          if [ -z "$base" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            echo "Sem base para comparar: roda tudo."
+            echo "codigo=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Documentação: docs/, qualquer .md e .claude/ (skill e referências). Todo o resto é código ou infraestrutura.
+          if git diff --name-only "$base" HEAD | grep -qvE '^docs/|\.md$|^\.claude/'; then
+            echo "codigo=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Só documentação mudou: api, front, e2e e docker ficam pulados."
+            echo "codigo=false" >> "$GITHUB_OUTPUT"
+          fi
+
   api:
     name: api
+    needs: mudancas
+    if: needs.mudancas.outputs.codigo == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
@@ -52,6 +97,8 @@ jobs:
 
   front:
     name: front
+    needs: mudancas
+    if: needs.mudancas.outputs.codigo == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
@@ -81,7 +128,8 @@ jobs:
 
   e2e:
     name: e2e
-    needs: front
+    needs: [mudancas, front]
+    if: needs.mudancas.outputs.codigo == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
@@ -120,7 +168,8 @@ jobs:
 
   docker:
     name: docker
-    needs: [api, front]
+    needs: [mudancas, api, front]
+    if: needs.mudancas.outputs.codigo == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

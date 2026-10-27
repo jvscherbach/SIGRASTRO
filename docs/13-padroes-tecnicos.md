@@ -96,34 +96,59 @@ A pipeline roda no GitHub Actions (`.github/`). **Ela só valida e publica image
 
 | Arquivo | Quando roda | O que faz |
 |---|---|---|
-| `workflows/ci.yml` | Pull request, push na `main` e chamado pelo `release.yml` | Cinco jobs: `api` (`./mvnw -B clean verify`, com Testcontainers no Docker do runner), `front` (build, testes e `npm audit`), `e2e` (Playwright com API simulada, depois do `front`), `docker` (constrói as duas imagens, sem push e sem login) e `compose` (`config --services`, sem subir nada). Os relatórios de teste só são guardados em caso de falha, por 7 dias |
+| `workflows/ci.yml` | Pull request, push na `main` e chamado pelo `release.yml` | `mudancas` decide se a mudança é só de documentação (`docs/`, `*.md`, `.claude/`); nesse caso `api`, `front`, `e2e` e `docker` ficam pulados (D53). Cinco jobs de verificação: `api` (`./mvnw -B clean verify`, com Testcontainers no Docker do runner), `front` (build, testes e `npm audit`), `e2e` (Playwright com API simulada, depois do `front`), `docker` (constrói as duas imagens, sem push e sem login) e `compose` (`config --services`, sem subir nada). Os relatórios de teste só são guardados em caso de falha, por 7 dias |
 | `workflows/release.yml` | Tag `vX.Y.Z` ou execução manual sobre uma tag | Confere a ref, roda o `ci.yml` e publica `api` e `front` no GHCR (`ghcr.io/<dono>/<repositório>/api` e `/front`) com as tags `vX.Y.Z`, `X.Y` e `sha-<curto>`. **Nunca `latest`.** Build sem cache, com `provenance` e `sbom`. Não publica a cada merge |
-| `dependabot.yml` | Semanal | Atualizações de `maven`, `npm`, `github-actions` e `docker`, agrupando minor e patch (máx. 5 PRs por ecossistema) |
+| `dependabot.yml` | Mensal (D53) | Atualizações de `maven`, `npm`, `github-actions` e `docker`, agrupando minor e patch (máx. 5 PRs por ecossistema) |
 
-**Checks obrigatórios na `main`:** `api`, `front`, `e2e`, `docker` e `compose`. Os nomes dos jobs são estáveis de propósito. O `npm audit` bloqueante cobre só as dependências de produção; a auditoria completa (com as de desenvolvimento) é informativa (P25).
+**Checks da `main`:** `api`, `front`, `e2e`, `docker` e `compose` (nomes estáveis de propósito; `mudancas` é auxiliar). Em repositório **privado no plano gratuito não há proteção de branch** (tabela abaixo): os checks rodam e aparecem no PR, mas o GitHub não impede o merge. A disciplina é o fluxo (passo 3 do tutorial). Se um dia houver proteção, esses cinco viram obrigatórios; os jobs pulados por mudança só de documentação contam como sucesso, porque o workflow sempre dispara e o pulo é por `if` (não há `paths-ignore`, que deixaria o check pendente). O `npm audit` bloqueante cobre só as dependências de produção; a auditoria completa (com as de desenvolvimento) é informativa (P25).
 
-**Segurança dos workflows:** permissões mínimas por workflow e por job (`packages: write` só no job de publicação); actions só de `actions/*`, `docker/*` e `github/*`, fixadas pelo hash do commit com a versão em comentário; `actions/checkout` sem credencial persistida; sem `pull_request_target`; nenhuma entrada controlável por terceiros dentro de `run:`. A `api` e o `front` rodam sem root nas imagens (D50).
+**Segurança dos workflows:** permissões mínimas por workflow e por job (`packages: write` só no job de publicação); actions só de `actions/*` e `docker/*`, fixadas pelo hash do commit com a versão em comentário; `actions/checkout` sem credencial persistida; sem `pull_request_target`; nenhuma entrada controlável por terceiros dentro de `run:`. A `api` e o `front` rodam sem root nas imagens (D50).
 
-**O que não está na pipeline:** deploy (aguarda o ambiente de execução, P15 e P26), testes de fumaça contra o SIGA ou a API de arquivos reais (homologação do responsável, D27) e qualquer credencial.
+**O que não está na pipeline:** deploy (aguarda o ambiente de execução, P15 e P26), testes de fumaça contra o SIGA ou a API de arquivos reais (homologação do responsável, D27), qualquer credencial e qualquer recurso pago (D52): code scanning, secret scanning, Environments com aprovação e atestados de artefato (`actions/attest`) ficam fora.
 
 **Como publicar uma versão:** no GitHub, **Releases → Draft a new release → Choose a tag**, digite `vX.Y.Z` (por exemplo `v0.1.0`), escolha **Create new tag on publish**, com o alvo na `main`, e publique. A tag dispara o `release.yml`. Em **Actions → Release** acompanhe os jobs; em **Packages** (página do repositório) conferem-se as imagens e as tags. Pré-releases (`v0.1.0-rc.1`) são aceitas e não geram a tag `X.Y`.
 
+### Custo: repositório privado no plano GitHub Free (D52, D53)
+
+Conferido na documentação oficial do GitHub em 26/10/2026 (páginas de planos, cobrança do Actions e do Packages, runners, ambientes, recursos de segurança). "Não confirmado" quer dizer que a documentação lida não responde; nesses casos o recurso **não é usado** e a dúvida está em [10](10-pendencias-e-riscos.md).
+
+| Recurso | Situação no Free privado | Decisão |
+|---|---|---|
+| Minutos do GitHub Actions (runner padrão Linux) | **Limitado:** 2.000 min/mês. Em repositório privado o runner `ubuntu-24.04` tem 2 vCPU e 8 GB (o público tem 4 vCPU). Sem forma de pagamento cadastrada, o uso é **bloqueado** ao fim da cota, sem cobrança | Usar, com economia: só documentação não roda os jobs pesados, PR antigo é cancelado, Dependabot mensal, `timeout-minutes` em todo job (R28) |
+| Armazenamento de artefatos do Actions | **Limitado:** 500 MB, compartilhados com o GitHub Packages (fora o GHCR) | Usar: artefatos só em falha, 7 dias |
+| Cache do Actions (`actions/cache`, `setup-*`, `type=gha`) | **Gratuito até 10 GB por repositório**; só é cobrado se o limite for configurado acima disso. Entradas sem acesso há 7 dias são removidas | Usar; **não aumentar** o limite do cache (R30) |
+| GHCR (Container registry) | **Gratuito "por enquanto"**: armazenamento e tráfego do Container registry não são cobrados hoje; o GitHub promete aviso com um mês de antecedência. O Packages em geral tem cota de 500 MB e 1 GB de tráfego/mês no Free. Tráfego a partir do Actions com `GITHUB_TOKEN` é gratuito | Usar, com retenção manual (passo 5 do tutorial) (R29) |
+| Proteção de branch (checks e revisão obrigatórios) | **Pago:** "Protected branches" e "Required pull request reviewers" em privado são do GitHub Pro/Team | **Não usar.** Fluxo disciplinado (passo 3) |
+| Rulesets de repositório | **Não confirmado:** uma página do GitHub os lista entre os recursos "para todos os planos" e outra limita a Team/Enterprise | **Não usar** (P27) |
+| Dependabot (alertas, atualizações de segurança e de versão) e dependency graph | **Gratuito** ("Available for all GitHub plans"). Os PRs do Dependabot rodam o CI e consomem minutos | Usar; versões mensais |
+| Secret scanning e push protection | **Pago** em privado (GitHub Secret Protection); gratuito só em repositório público | **Não usar.** Varredura local com `gitleaks` (passo 6) |
+| Code scanning (CodeQL) | **Pago** em privado (GitHub Code Security) | Removido (D52) |
+| Environments e aprovação manual (*required reviewers*) | **Indisponível:** no Free, ambientes só em repositório público | Não usado (o `release.yml` não tem Environment) |
+| Atestados de artefato (`actions/attest`) | **Indisponível** em privado no Free | Não usado; `provenance` e `sbom` do Buildx ficam na própria imagem no GHCR |
+| Configurações do Actions (actions permitidas, token somente leitura) | **Gratuito**, sem restrição de plano na documentação | Usar (passo 1) |
+| `actions/*`, `docker/*`, Maven Wrapper, `npm audit`, Playwright, Testcontainers, PDFBox, LibreOffice | Código aberto, sem cota paga | Usar |
+| Docker Hub (imagens base e `gvenzl/oracle-free` do Testcontainers) | **Limitado:** pull anônimo tem limite de taxa (valores **não confirmados** nesta auditoria) | Usar sem login; falha por limite só atrasa o CI (R31) |
+
+**Consumo estimado** (estimativa, **não medida**; confira na primeira semana em Settings → Billing): `api` 10 a 15 min (2 vCPU, Oracle por Testcontainers), `front` 3 a 5, `e2e` 4 a 6, `docker` 5 a 10, `compose` e `mudancas` 1 cada (o GitHub arredonda cada job para cima, em minutos). Uma execução completa fica entre **25 e 38 min**; um PR com dois pushes e o push na `main` gasta perto de 100 min, e só documentação fica em ~2 min. A cota de 2.000 min cobre algo como 15 a 20 PRs de código por mês, contando os do Dependabot. Uma release roda o CI de novo e os dois `publicar` sem cache (mais 20 a 30 min).
+
 ### Configuração no GitHub (passo a passo, feita pelo responsável)
 
-Faça depois do primeiro push, quando os workflows já tiverem rodado ao menos uma vez (os checks só aparecem na lista depois disso).
+Só usa o que é gratuito em repositório privado no plano Free. Faça depois do primeiro push.
 
 1. **Actions permitidas e permissões do token.** Settings → Actions → General.
-   - Em *Actions permissions*, escolha **Allow select actions and reusable workflows**, marque *Allow actions created by GitHub* e acrescente `docker/*` na lista de permitidas.
-   - Em *Workflow permissions*, escolha **Read repository contents and packages permissions** (somente leitura por padrão). Cada job que precisa de mais declara no próprio arquivo.
-2. **Proteção da `main`.** Settings → Branches → Add branch ruleset (ou *Add rule*) para `main`:
-   - exigir *pull request* antes de integrar, com ao menos 1 aprovação;
-   - exigir *status checks* e marcar `api`, `front`, `e2e`, `docker` e `compose`;
-   - exigir que a branch esteja atualizada antes de integrar e bloquear *force push*.
-3. **Segurança do código.** Settings → Code security:
-   - ligar **Dependabot alerts** e **Dependabot security updates**;
-   - ligar **Secret scanning** e **Push protection**, se disponíveis no plano;
-4. **Visibilidade do pacote no GHCR.** O pacote nasce **privado** na primeira publicação. Em Packages (perfil ou organização) abra `siga-vistas/api` e `siga-vistas/front` → Package settings: confira *Manage Actions access* (o repositório com permissão de escrita) e só mude a visibilidade para pública se o responsável decidir (R27).
-5. **Criar uma versão e conferir as imagens.** Veja "Como publicar uma versão" acima. Depois: Actions → Release deve ficar verde (`validar-ref`, `ci`, `publicar (api)` e `publicar (front)`); o resumo de cada job lista as tags e o digest; em Packages devem aparecer `vX.Y.Z`, `X.Y` e `sha-<curto>`, e **nenhuma** `latest`.
+   - Em *Actions permissions*, escolha a opção de permitir as actions do dono **e algumas de fora** (*Allow \<dono\>, and select non-\<dono\>, actions and reusable workflows*; o texto varia com a interface), marque *Allow actions created by GitHub* e acrescente `docker/*` na lista.
+   - Em *Workflow permissions*, escolha **Read repository contents and packages permissions** (somente leitura, o padrão de repositório novo de conta pessoal). Cada job que precisa de mais declara no próprio arquivo.
+2. **Cobrança sem surpresa.** Em Settings → Billing (da conta), **não cadastre forma de pagamento** para o projeto: sem ela, o Actions para ao fim da cota em vez de cobrar. Se a conta já tiver uma forma de pagamento por outro motivo, confira os orçamentos (*budgets*) antes de seguir (P28). Acompanhe ali o uso de minutos. **Não aumente** o limite do cache do Actions.
+3. **Fluxo da `main` (sem proteção de branch).** No plano gratuito privado o GitHub não bloqueia push direto nem exige checks. A regra é de disciplina:
+   - toda mudança vai por branch e pull request; **nunca** push direto na `main`;
+   - só faça o merge com `api`, `front`, `e2e`, `docker` e `compose` verdes (ou pulados por ser só documentação) no PR;
+   - nada de *force push* na `main`.
+4. **Dependabot.** Settings → *Code security* (o nome da seção varia: *Security* ou *Advanced Security*): ligar **Dependency graph**, **Dependabot alerts** e **Dependabot security updates**. As atualizações de versão já vêm do `dependabot.yml`. Secret scanning e push protection **não** aparecem ou pedem plano pago em privado: não contrate.
+5. **Pacotes no GHCR: acesso e retenção.** O pacote nasce **privado** na primeira publicação. Em Packages (perfil) abra `siga-vistas/api` e `siga-vistas/front` → Package settings: confira *Manage Actions access* (o repositório com permissão de escrita). Mantenha os pacotes privados (R27). **Retenção** (manual, sem custo): a cada release, apague as versões com tag que não serão mais usadas (por exemplo, guarde as três últimas) pelo menu da versão → *Delete version*; uma versão apagada pode ser restaurada em até 30 dias. **Não apague versões sem tag** soltas: cada imagem leva manifestos sem tag (plataforma, `provenance` e `sbom`) e apagar um que ainda faz parte de uma versão com tag quebra essa imagem (P29).
+6. **Varredura de segredos local (substitui o secret scanning).** Antes de tornar o repositório ou um pacote público (R27), e de vez em quando, rode o [gitleaks](https://github.com/gitleaks/gitleaks) (código aberto) na sua máquina, sobre todo o histórico, com os valores mascarados. Com o binário da página de releases oficial: `gitleaks detect --source . --log-opts="--all" --redact`. Com Docker, fixe uma versão publicada da imagem oficial: `docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:<versão> detect --source /repo --log-opts="--all" --redact`. Um achado é tratado fora do repositório (troca da credencial e limpeza do histórico); o relatório não é versionado. **Não entra na pipeline.**
+7. **Criar uma versão e conferir as imagens.** Veja "Como publicar uma versão" acima. Depois: Actions → Release deve ficar verde (`validar-ref`, `ci`, `publicar (api)` e `publicar (front)`); o resumo de cada job lista as tags e o digest; em Packages devem aparecer `vX.Y.Z`, `X.Y` e `sha-<curto>`, e **nenhuma** `latest`.
+
+**Alternativa registrada, sem recomendação:** tornar o repositório público torna gratuitos o code scanning, o secret scanning, a proteção de branch, os Environments e os minutos do runner padrão (4 vCPU). Depende antes da varredura do histórico (R27, passo 6) e de decisão do responsável.
 
 ## Verificação sem sistemas externos
 

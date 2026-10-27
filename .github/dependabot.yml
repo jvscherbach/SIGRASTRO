@@ -1,10 +1,13 @@
 version: 2
 
+# Mensal (D53): cada PR do Dependabot roda o CI inteiro e consome minutos do plano gratuito. Os alertas e as
+# atualizações de segurança do Dependabot não dependem deste agendamento: chegam assim que a falha é publicada.
+
 updates:
   - package-ecosystem: maven
     directory: /api
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 5
     groups:
       maven-patch-minor:
@@ -13,7 +16,7 @@ updates:
   - package-ecosystem: npm
     directory: /front
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 5
     groups:
       npm-patch-minor:
@@ -22,7 +25,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 5
     groups:
       actions-patch-minor:
@@ -31,7 +34,7 @@ updates:
   - package-ecosystem: docker
     directory: /api
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 5
     groups:
       docker-api-patch-minor:
@@ -40,7 +43,7 @@ updates:
   - package-ecosystem: docker
     directory: /front
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 5
     groups:
       docker-front-patch-minor:
