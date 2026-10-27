@@ -44,7 +44,7 @@ class GeradorDeDossieTest {
         parametros = new Parametros(pasta);
         espaco = new Espaco();
         relogio = new RelogioControlado();
-        gerador = new GeradorDeDossie(arquivos, new Validador(), montador, parametros, espaco, relogio);
+        gerador = new GeradorDeDossie(arquivos, Fakes.preparador(new Validador()), montador, parametros, espaco, relogio);
     }
 
     private PedidoDeDossie pedidoDeTres() {
@@ -288,7 +288,7 @@ class GeradorDeDossieTest {
         };
         PedidoDeDossie pedido = pedidoDeTres();
 
-        new GeradorDeDossie(arquivos, new Validador(), capturador, parametros, espaco, relogio).processar(pedido);
+        new GeradorDeDossie(arquivos, Fakes.preparador(new Validador()), capturador, parametros, espaco, relogio).processar(pedido);
 
         assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
     }
@@ -306,7 +306,7 @@ class GeradorDeDossieTest {
             }
         };
 
-        new GeradorDeDossie(arquivos, new Validador(), cancelador, parametros, espaco, relogio).processar(pedido);
+        new GeradorDeDossie(arquivos, Fakes.preparador(new Validador()), cancelador, parametros, espaco, relogio).processar(pedido);
 
         assertThat(pedido.status()).isEqualTo(StatusDossie.CANCELADO);
         assertThat(pedido.arquivo()).isNull();

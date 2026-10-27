@@ -81,6 +81,8 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
     static final Duration NOVA_PARTIDA_APOS = Duration.ofMinutes(1);
     private static final Duration ESPERA_DE_ENCERRAMENTO = Duration.ofSeconds(10);
     private static final long TEMPO_DE_PARTIDA_MS = 60_000L;
+    /** Espera mínima por um processo livre: cobre o reinício de um processo depois de um tempo limite. */
+    private static final int ESPERA_MINIMA_NA_FILA_S = 30;
     private static final long MB = 1024L * 1024;
 
     /** Propriedades de carga: oculto, só leitura, macro nunca executada e vínculo nunca atualizado. */
@@ -306,7 +308,7 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
                     .templateProfileDir(modelo.toFile())
                     .maxTasksPerProcess(Math.max(1, parametros.tarefasPorProcesso()))
                     .taskExecutionTimeout(parametros.timeoutSegundos() * 1000L)
-                    .taskQueueTimeout(parametros.timeoutSegundos() * 1000L)
+                    .taskQueueTimeout(Math.max(parametros.timeoutSegundos(), ESPERA_MINIMA_NA_FILA_S) * 1000L)
                     .processTimeout(TEMPO_DE_PARTIDA_MS)
                     .existingProcessAction(ExistingProcessAction.KILL)
                     .startFailFast(true)

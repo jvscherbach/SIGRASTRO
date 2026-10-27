@@ -21,6 +21,32 @@ Pedido (documentos selecionados)
 
 A obtenção e a conversão podem ser paralelas. A montagem respeita sempre a ordem cronológica.
 
+## Conversão na geração (S3, bloco 5)
+
+Depois de obter cada arquivo, o pipeline (`PreparadorDePdf`, no `dossie`) decide pelo **tipo real** (conteúdo, `DetectorDeTipoReal`; a extensão do nome só desempata XLS e DOC antigos):
+
+| Tipo real | O que acontece |
+|---|---|
+| PDF | segue como na S2 (validação: assinatura, senha, páginas) |
+| planilha, texto, HTML | conversor de documentos (LibreOffice, [05](05-integracoes.md)) |
+| imagem (PNG, JPEG) | conversor de imagens (PDFBox) |
+| compactado (ZIP) | falha do documento: "arquivo compactado (ZIP): não entra no dossiê" (RN11) |
+| não reconhecido | validação de PDF (aceita PDF com bytes antes da assinatura; senão, "o arquivo não é um PDF (tipo detectado: …)") |
+
+- **Falha de conversão é falha do documento** (coletada, `PENDENTE_DECISAO`, decisão do usuário), com o motivo do conversor: protegido por senha, corrompido, tempo limite da conversão, planilha sem conteúdo imprimível, páginas demais, conversor indisponível, imagem grande demais. As ações `TENTAR_NOVAMENTE` e `REMOVER_E_CONTINUAR` não mudaram.
+- **Retomada:** o PDF convertido fica no diretório do pedido e **nunca é convertido de novo** (o item está resolvido). O arquivo original (`<posição>.original`) é apagado quando o PDF do item fica pronto e **guardado quando a conversão falha**: "Tentar novamente" converte de novo **sem baixar de novo** (as tentativas do item ficam 0). Os originais guardados de itens removidos saem ao concluir. Testado contando as chamadas ao repositório e ao conversor.
+- **Concorrência:** cada thread de `DOSSIE_THREADS` obtém e converte um documento por vez (o total de downloads continua limitado por ela). As conversões de todos os pedidos (e da visualização) dividem o mesmo pool do LibreOffice (`CONVERSAO_PROCESSOS`), que enfileira: sem deadlock, porque a conversão não espera nenhum outro recurso do pedido. A espera por um processo livre tem o mesmo limite da tarefa (mínimo de 30 s).
+- **Cancelamento:** cancelar um pedido em andamento interrompe a conversão em curso (a espera termina na hora, com "conversão interrompida"), e o executor apaga o diretório do pedido com os temporários (inclusive o diretório de trabalho do conversor, que fica dentro dele).
+- **Paginação e ordem não mudam:** a página inicial de cada documento é conhecida depois da conversão e antes da montagem (as páginas vêm do resultado da conversão).
+- Com **`CONVERSAO_HABILITADA=false`**, vale a S2.2: o que não é PDF falha com "o arquivo não é um PDF (tipo detectado: planilha XLSX) e a conversão está desligada" (a seleção já os marca como "não é PDF: aguardando conversão").
+
+**Identificação do convertido (transparência jurídica, D54):**
+
+- **Sumário:** "Título (convertido de XLSX)" na linha do documento; o título é cortado antes da nota, que sempre aparece inteira, sem mudar a paginação. Planilha com aba em página única (escala mínima): "(convertido de XLSX*)" e a nota de rodapé "* Planilha com aba(s) em página única: no ajuste à largura da página, a escala ficaria abaixo da mínima.".
+- **Marcador:** "Título (convertido de XLSX)".
+- **Capa:** "N documentos incluídos de M listados; K convertidos para PDF" (sem conversões, a frase da S2.2).
+- O formato é o do **tipo real** (XLSX, XLS, ODS, DOCX, DOC, ODT, RTF, HTML, PNG, JPG), não o do nome.
+
 ## Como está na S2 (sem conversão)
 
 - Só **PDFs** entram; os demais tipos aparecem na lista, bloqueados ("conversão disponível em breve"), até a S3.
@@ -88,7 +114,7 @@ Logo após o sumário (ou após a capa, com o sumário desligado), a seção "Do
 | removido pelo usuário após falha: *motivo* | o usuário escolheu "Remover e continuar" (docs/07); sem falha registrada (não chegou a ser obtido): "removido pelo usuário (não obtido)" |
 | não selecionado pelo usuário | selecionável, mas desmarcado na tabela |
 | indisponível (chave do arquivo inválida) | chave nula, vazia ou `"0"` (RN01) |
-| não é PDF: aguardando conversão | extensão conhecida que não é PDF (S3) |
+| não é PDF: aguardando conversão | só com `CONVERSAO_HABILITADA=false`: extensão convertível que não é PDF. Com a conversão ligada (padrão, S3) esses documentos entram convertidos |
 | sigiloso: o perfil de quem gerou não tem acesso | sigiloso para o Operador; o título sai mascarado ("Documento sigiloso") |
 
 - A seção é **omitida** quando não há nada fora; tem **marcador** próprio ("Documentos não incluídos") e é **obrigatória** (não depende de `DOSSIE_SUMARIO`).
@@ -116,7 +142,7 @@ A ordem em que o usuário clica, filtra ou ordena a tabela não altera o dossiê
 
 O dossiê continua **sem ser entregue incompleto sem decisão explícita** (RN09), mas a decisão não reinicia nada:
 
-1. o pipeline percorre **todos** os documentos e coleta as falhas (arquivo não encontrado, tempo limite, protegido por senha, corrompido, sem páginas, não é PDF, formato aguardando conversão, espaço em disco insuficiente); não para na primeira;
+1. o pipeline percorre **todos** os documentos e coleta as falhas (arquivo não encontrado, tempo limite, protegido por senha, corrompido, sem páginas, não é PDF, falha de conversão (S3), compactado, espaço em disco insuficiente); não para na primeira;
 2. terminada a obtenção: sem falha, monta e conclui. Com falhas, o pedido fica em **`PENDENTE_DECISAO`** com a lista completa (`falhas` no andamento, cada uma com documento e motivo) e **nada é entregue**;
 3. exceção: **401/403** (credencial recusada) interrompe a obtenção na hora (nada mais funcionaria) e também deixa o pedido em `PENDENTE_DECISAO`, com `erro.codigo = CREDENCIAL_ARQUIVOS_RECUSADA`; os itens ainda não tentados ficam `AGUARDANDO`;
 4. os arquivos já obtidos e validados ficam no **diretório do pedido** (`VISTAS_DOSSIE_DIRETORIO/<id>/`, um arquivo por posição no pedido) até concluir, cancelar ou expirar; o arquivo de um documento que falhou é apagado na hora;

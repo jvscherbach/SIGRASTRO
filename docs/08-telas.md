@@ -127,6 +127,7 @@ Comportamento:
   - **Remover os N com problema e gerar** (`REMOVER_E_CONTINUAR`; os removidos saem também da seleção da tela e aparecem como "Removido" na lista); só aparece se algum documento já foi obtido;
   - **Cancelar** (`DELETE`).
   - No singular: "o 1 com problema". Enquanto a decisão é enviada, os botões ficam desabilitados; uma recusa (`409 DOSSIE_SEM_DECISAO_PENDENTE`) aparece na própria gaveta.
+  - Falha de conversão (S3) aparece como as demais, com o motivo do conversor (ex.: "documento protegido por senha", "tempo limite da conversão excedido", "planilha sem conteúdo imprimível"); "Tentar novamente" converte de novo sem baixar de novo, e o que já foi convertido não é refeito. Nenhuma mudança de tela: o contrato do andamento é o mesmo.
 - Token da API de arquivos expirado ou recusado (`CREDENCIAL_ARQUIVOS_RECUSADA`): "Token da API de arquivos expirado ou recusado. Capture um novo token, atualize o arquivo do token e clique em Tentar novamente." (nunca mostra o valor do token; o token por arquivo está em docs/05). Os mesmos botões, sem reiniciar o que já foi obtido.
 - Falha na montagem: o motivo geral, com os mesmos botões ("Tentar novamente" refaz só a montagem). Em "Dossiês gerados" (S4), um pedido que expirou à espera de decisão aparece como "Expirado · nenhum arquivo gerado", sem download.
 - Erro ao criar o pedido (por exemplo, `DOCUMENTO_SIGILOSO`, `NAO_INTERESSADO`, `SIGA_INDISPONIVEL`): mensagem na própria gaveta, sem toast duplicado.

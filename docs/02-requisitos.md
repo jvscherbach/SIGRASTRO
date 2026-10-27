@@ -29,7 +29,7 @@
 | RF11 | Gerar um PDF único com os documentos selecionados em ordem cronológica. |
 | RF12 | O dossiê tem capa com os dados do requerimento ou processo e sumário com marcadores (bookmarks) para cada documento. |
 | RF13 | Converter para PDF planilhas (XLS, XLSX, ODS), documentos de texto (DOC, DOCX, ODT, RTF, HTML) e imagens (PNG, JPG, JPEG). O tipo é confirmado pelo conteúdo do arquivo (assinatura), não só pela extensão (S3). O que foi convertido fica identificado no dossiê. A chave `CONVERSAO_HABILITADA` (padrão ligada) volta ao comportamento só-PDF da S2.2. |
-| RF14 | Se documentos selecionados não puderem ser obtidos ou convertidos, a geração coleta todas as falhas, nenhum arquivo é entregue e o andamento lista cada documento com o motivo. O usuário decide entre tentar de novo só os documentos com problema ou removê-los e gerar; a decisão não baixa de novo o que já foi obtido (S2.2). |
+| RF14 | Se documentos selecionados não puderem ser obtidos ou convertidos, a geração coleta todas as falhas, nenhum arquivo é entregue e o andamento lista cada documento com o motivo. O usuário decide entre tentar de novo só os documentos com problema ou removê-los e gerar; a decisão não baixa de novo o que já foi obtido (S2.2) nem converte de novo o que já foi convertido (S3); falha de conversão é falha do documento. |
 | RF15 | Geometrias (SHP, KML, KMZ) são listadas à parte e baixadas por "Baixar geometrias" (RN10). Arquivos compactados são desconsiderados (RN11). |
 | RF16 | Acompanhar o andamento da geração (aguardando, obtendo, aguardando decisão, montando, concluído, cancelado, expirado) com progresso por documento que não volta a zero após a decisão (S2.2). |
 | RF17 | Pré-visualizar o dossiê gerado antes de baixar. |

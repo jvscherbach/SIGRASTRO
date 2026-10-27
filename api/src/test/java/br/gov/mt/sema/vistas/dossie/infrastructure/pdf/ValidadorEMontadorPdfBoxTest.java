@@ -106,7 +106,7 @@ class ValidadorEMontadorPdfBoxTest {
     @Test
     void conteudoQueNaoEPdfEFalhaDoDocumento() {
         assertThatThrownBy(() -> validador.validar(PdfsDeTeste.html(pasta.resolve("h.pdf"))))
-                .isInstanceOf(FalhaNoDocumentoException.class).hasMessage("o arquivo não é um PDF (tipo detectado: HTML); a conversão chega na próxima etapa");
+                .isInstanceOf(FalhaNoDocumentoException.class).hasMessage("o arquivo não é um PDF (tipo detectado: HTML)");
     }
 
     @Test
@@ -361,6 +361,44 @@ class ValidadorEMontadorPdfBoxTest {
             assertThat(marcadores(pdf, paginas)).containsExactly("Capa", "Documentos não incluídos", "Oficio");
             assertThat(paginas).containsExactly(0, 1, 2);
         }
+    }
+
+    @Test
+    void convertidoFicaIdentificadoNoSumarioNosMarcadoresENaCapaSemMudarAPaginacao() throws IOException {
+        DocumentoParaMontagem pdf = doc("Requerimento", 1, PDRectangle.A4, 0);
+        DocumentoParaMontagem base = doc("Planilha de custos com um título bem longo que precisa ser cortado no sumário",
+                2, PDRectangle.A4, 0);
+        DocumentoParaMontagem planilha = new DocumentoParaMontagem(base.titulo(), base.origem(), base.data(),
+                base.arquivo(), base.paginas(), "XLSX", 1);
+        DocumentoParaMontagem imagemBase = doc("Foto", 1, PDRectangle.A4, 0);
+        DocumentoParaMontagem imagem = new DocumentoParaMontagem("Foto", imagemBase.origem(), imagemBase.data(),
+                imagemBase.arquivo(), 1, "PNG", 0);
+        Path destino = pasta.resolve("dossie.pdf");
+
+        int paginas = montador.montar(capa(), List.of(pdf, planilha, imagem), inventario(3), TUDO, destino);
+
+        assertThat(paginas).isEqualTo(1 + 1 + 1 + 2 + 1);
+        try (PDDocument dossie = Loader.loadPDF(destino.toFile())) {
+            assertThat(texto(dossie, 1, 1)).contains("3 documentos incluídos de 3 listados; 2 convertidos para PDF");
+            String sumario = texto(dossie, 2, 2).replaceAll("\\s+", " ");
+            assertThat(sumario).contains("(convertido de XLSX*)").contains("Foto (convertido de PNG)")
+                    .contains("* Planilha com aba(s) em página única")
+                    .doesNotContain("Requerimento (convertido");
+            // Página inicial de cada documento: 3, 4 e 6 (capa, sumário, depois os documentos).
+            assertThat(sumario).containsSubsequence("Requerimento", "3", "Planilha", "4", "Foto", "6");
+            List<Integer> paginasDosMarcadores = new ArrayList<>();
+            assertThat(marcadores(dossie, paginasDosMarcadores)).containsExactly("Capa", "Sumário", "Requerimento",
+                    planilha.titulo() + " (convertido de XLSX)", "Foto (convertido de PNG)");
+        }
+    }
+
+    @Test
+    void textoDaCapaComConvertidos() {
+        assertThat(MontagemPdfBox.incluidosDeListados(8, 10, 0)).isEqualTo("8 documentos incluídos de 10 listados");
+        assertThat(MontagemPdfBox.incluidosDeListados(8, 10, 1))
+                .isEqualTo("8 documentos incluídos de 10 listados; 1 convertido para PDF");
+        assertThat(MontagemPdfBox.incluidosDeListados(8, 10, 3))
+                .isEqualTo("8 documentos incluídos de 10 listados; 3 convertidos para PDF");
     }
 
     @Test

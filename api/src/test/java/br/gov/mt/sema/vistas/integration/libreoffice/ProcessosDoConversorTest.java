@@ -58,6 +58,44 @@ class ProcessosDoConversorTest {
     }
 
     @Test
+    void interromperAThreadEncerraAEsperaComMotivoProprioSemEsperarOTimeout() throws Exception {
+        assumeTrue(!System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win"),
+                "simulação de travamento por SIGSTOP só em Linux/macOS");
+        ConversorLibreOffice alvo = ConversorLibreOfficeTest.conversor(new Parametros(true, 120, 1, 50), OFFICE_HOME, pasta);
+        try {
+            converter(alvo, DocumentosDeTeste.docx("aquecimento"));
+            for (ProcessHandle processo : ProcessosDoConversor.comMarca(alvo.marca())) {
+                new ProcessBuilder("kill", "-STOP", String.valueOf(processo.pid())).start().waitFor();
+            }
+            java.util.concurrent.atomic.AtomicReference<Throwable> falha = new java.util.concurrent.atomic.AtomicReference<>();
+            Thread conversao = new Thread(() -> {
+                try {
+                    converter(alvo, DocumentosDeTeste.docx("travado"));
+                } catch (Throwable e) {
+                    falha.set(e);
+                }
+            });
+            conversao.start();
+            Thread.sleep(2000); // a tarefa já está no soffice congelado
+            long inicio = System.nanoTime();
+            conversao.interrupt();
+            conversao.join(30_000);
+
+            assertThat(conversao.isAlive()).isFalse();
+            assertThat(Duration.ofNanos(System.nanoTime() - inicio)).isLessThan(Duration.ofSeconds(30));
+            assertThat(falha.get()).isInstanceOfSatisfying(
+                    br.gov.mt.sema.vistas.documento.application.port.FalhaDeConversaoException.class,
+                    f -> assertThat(f.motivo()).isEqualTo(Motivo.INTERROMPIDA));
+        } finally {
+            // Descongela: parar um soffice congelado faria o JODConverter esperar o próprio prazo antes de forçar.
+            for (ProcessHandle processo : ProcessosDoConversor.comMarca(alvo.marca())) {
+                new ProcessBuilder("kill", "-CONT", String.valueOf(processo.pid())).start().waitFor();
+            }
+            encerrarSemOrfaos(alvo);
+        }
+    }
+
+    @Test
     void processoMortoNoMeioNaoImpedeAProximaTarefa() throws Exception {
         ConversorLibreOffice alvo = ConversorLibreOfficeTest.conversor(new Parametros(true, 30, 1, 50), OFFICE_HOME, pasta);
         try {

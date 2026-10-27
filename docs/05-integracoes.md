@@ -89,7 +89,7 @@ Não é um sistema de rede: é o LibreOffice headless instalado na imagem da `ap
 
 - Pool de `CONVERSAO_PROCESSOS` instâncias do `soffice`, em portas livres do loopback (`127.0.0.1`), sobe na **primeira conversão**: instâncias da aplicação que nunca convertem (como os contextos de teste) não abrem processo.
 - Cada instância tem **perfil próprio e descartável**, cópia do perfil-modelo seguro, dentro do diretório de trabalho da aplicação (`<java.io.tmpdir>/vistas-conversor-<id>`), apagado ao parar. Na imagem, `java.io.tmpdir` é `/tmp` e o usuário é `vistas` (sem root), com `HOME` gravável.
-- Reinício a cada `CONVERSAO_TAREFAS_POR_PROCESSO` tarefas. Tarefa acima de `CONVERSAO_TIMEOUT_SEGUNDOS` falha com "tempo limite" e o processo é encerrado à força e reiniciado; espera na fila acima do mesmo tempo também é "tempo limite".
+- Reinício a cada `CONVERSAO_TAREFAS_POR_PROCESSO` tarefas. Tarefa acima de `CONVERSAO_TIMEOUT_SEGUNDOS` falha com "tempo limite" e o processo é encerrado à força e reiniciado; espera na fila por um processo livre acima do mesmo tempo (no mínimo 30 s, para cobrir o reinício de um processo) também é "tempo limite".
 - **Sem órfãos:** ao parar (inclusive ao desligar a aplicação), os processos que restarem são encerrados à força. O diretório de trabalho guarda o processo dono (pid e instante de início); na subida do pool, os processos e diretórios de uma execução anterior cujo dono morreu são encerrados e apagados.
 - Processo morto no meio de uma tarefa: a tarefa falha e o pool sobe outro processo; a próxima funciona.
 

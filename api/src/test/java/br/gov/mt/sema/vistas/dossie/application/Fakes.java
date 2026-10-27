@@ -18,6 +18,11 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
+import br.gov.mt.sema.vistas.documento.application.port.ConversorDeDocumentos;
+import br.gov.mt.sema.vistas.documento.application.port.ConversorDeImagens;
+import br.gov.mt.sema.vistas.documento.application.port.FalhaDeConversaoException;
+import br.gov.mt.sema.vistas.documento.application.port.ResultadoDaConversao;
+import br.gov.mt.sema.vistas.documento.domain.TipoDetectado;
 import br.gov.mt.sema.vistas.dossie.application.port.ArquivosDoRepositorio;
 import br.gov.mt.sema.vistas.dossie.application.port.EspacoEmDisco;
 import br.gov.mt.sema.vistas.dossie.application.port.FalhaNoDocumentoException;
@@ -31,6 +36,7 @@ import br.gov.mt.sema.vistas.dossie.domain.DadosDaCapa;
 import br.gov.mt.sema.vistas.dossie.domain.ItemDoPedido;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
 import br.gov.mt.sema.vistas.dossie.domain.TicketDeDownload;
+import br.gov.mt.sema.vistas.testsupport.ParametrosDeConversaoDeTeste;
 
 /** Portas falsas dos testes do dossiê. Os "PDFs" são texto: o que importa aqui é o fluxo, não o PDF. */
 final class Fakes {
@@ -232,8 +238,50 @@ final class Fakes {
         }
     }
 
+    /**
+     * Conversor falso para documentos e imagens (as duas portas têm o mesmo método): conta as chamadas, grava
+     * "paginas=N" no destino e pode falhar por formato ou travar até ser interrompido.
+     */
+    static final class Conversor implements ConversorDeDocumentos, ConversorDeImagens {
+        final List<String> convertidos = new java.util.concurrent.CopyOnWriteArrayList<>();
+        /** Extensão (do tipo detectado) que falha, com o motivo. */
+        final Map<String, FalhaDeConversaoException.Motivo> falhas = new ConcurrentHashMap<>();
+        int paginas = 2;
+        int abasEmPaginaUnica;
+        boolean disponivel = true;
+        /** Antes de converter (ex.: travar até a interrupção). */
+        Runnable aoConverter = () -> { };
+
+        @Override
+        public boolean disponivel() {
+            return disponivel;
+        }
+
+        @Override
+        public ResultadoDaConversao converter(Path origem, TipoDetectado tipo, Path destinoPdf) {
+            convertidos.add(tipo.extensaoSugerida());
+            aoConverter.run();
+            if (!disponivel) {
+                throw new FalhaDeConversaoException(FalhaDeConversaoException.Motivo.CONVERSOR_INDISPONIVEL);
+            }
+            FalhaDeConversaoException.Motivo falha = falhas.get(tipo.extensaoSugerida());
+            if (falha != null) {
+                throw new FalhaDeConversaoException(falha);
+            }
+            gravar(destinoPdf, "paginas=" + paginas);
+            return new ResultadoDaConversao(paginas, abasEmPaginaUnica);
+        }
+    }
+
+    /** Preparador com conversão ligada e um conversor falso que nunca é chamado para os arquivos "paginas=N". */
+    static PreparadorDePdf preparador(ValidadorDePdf validador) {
+        Conversor conversor = new Conversor();
+        return new PreparadorDePdf(validador, conversor, conversor, ParametrosDeConversaoDeTeste.ligada());
+    }
+
     static class Montador implements MontadorDoDossie {
         final List<List<String>> titulosMontados = new ArrayList<>();
+        final List<List<DocumentoParaMontagem>> documentosMontados = new ArrayList<>();
         final List<Inventario> inventarios = new ArrayList<>();
         RuntimeException falha;
 
@@ -245,6 +293,7 @@ final class Fakes {
             }
             inventarios.add(inventario);
             titulosMontados.add(documentos.stream().map(DocumentoParaMontagem::titulo).toList());
+            documentosMontados.add(List.copyOf(documentos));
             gravar(destino, "DOSSIE " + capa.titulo());
             return 1 + documentos.stream().mapToInt(DocumentoParaMontagem::paginas).sum();
         }

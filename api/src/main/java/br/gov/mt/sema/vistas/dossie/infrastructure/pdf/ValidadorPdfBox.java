@@ -27,8 +27,7 @@ class ValidadorPdfBox implements ValidadorDePdf {
     @Override
     public int validar(Path arquivo) {
         if (!temAssinaturaDePdf(arquivo)) {
-            throw new FalhaNoDocumentoException("o arquivo não é um PDF (tipo detectado: " + detectarTipo(arquivo)
-                    + "); a conversão chega na próxima etapa");
+            throw new FalhaNoDocumentoException("o arquivo não é um PDF (tipo detectado: " + detectarTipo(arquivo) + ")");
         }
         try (PDDocument documento = Loader.loadPDF(arquivo.toFile(), "", null, null,
                 IOUtils.createTempFileOnlyStreamCache())) {

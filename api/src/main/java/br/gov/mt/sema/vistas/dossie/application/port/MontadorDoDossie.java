@@ -21,8 +21,38 @@ public interface MontadorDoDossie {
         return montar(capa, documentos, new Inventario(documentos.size(), List.of()), opcoes, destino);
     }
 
-    /** @param paginas páginas do arquivo, já contadas na validação (o sumário depende delas) */
-    record DocumentoParaMontagem(String titulo, String origem, LocalDateTime data, Path arquivo, int paginas) {
+    /**
+     * @param paginas páginas do arquivo, já contadas na validação ou na conversão (o sumário depende delas)
+     * @param convertidoDe formato de origem (ex.: "XLSX") quando o PDF veio de uma conversão (S3); nulo para PDF
+     * @param abasEmPaginaUnica abas de planilha que foram para página única pela escala mínima (S3)
+     */
+    record DocumentoParaMontagem(String titulo, String origem, LocalDateTime data, Path arquivo, int paginas,
+            String convertidoDe, int abasEmPaginaUnica) {
+
+        /** Documento que já era PDF. */
+        public DocumentoParaMontagem(String titulo, String origem, LocalDateTime data, Path arquivo, int paginas) {
+            this(titulo, origem, data, arquivo, paginas, null, 0);
+        }
+
+        public boolean convertido() {
+            return convertidoDe != null;
+        }
+
+        /** "convertido de XLSX" (marcador) ou nulo. */
+        public String notaCurta() {
+            return convertido() ? "convertido de " + convertidoDe : null;
+        }
+
+        /**
+         * Nota do sumário: a curta, com "*" quando alguma aba foi para página única (explicado no rodapé do sumário,
+         * para caber na linha); nula para PDF.
+         */
+        public String nota() {
+            if (!convertido()) {
+                return null;
+            }
+            return abasEmPaginaUnica == 0 ? notaCurta() : notaCurta() + "*";
+        }
     }
 
     record OpcoesDeMontagem(boolean sumario, boolean marcadores, boolean numeracao) {

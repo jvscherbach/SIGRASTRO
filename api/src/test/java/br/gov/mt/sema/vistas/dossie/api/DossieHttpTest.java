@@ -245,7 +245,7 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
         mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
                 .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
-                .andExpect(jsonPath("$.falhas[0].motivo").value("o arquivo não é um PDF (tipo detectado: HTML); a conversão chega na próxima etapa"))
+                .andExpect(jsonPath("$.falhas[0].motivo").value("o arquivo não é um PDF (tipo detectado: texto HTML) e a conversão está desligada"))
                 .andExpect(jsonPath("$.falhas[0].id").value("804328"));
     }
 
@@ -275,7 +275,7 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
                 .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
                 .andExpect(jsonPath("$.falhas[0].origem").value("IMOVEL"))
                 .andExpect(jsonPath("$.falhas[0].motivo").value(
-                        "o arquivo não é um PDF (tipo detectado: ZIP ou documento do Office (docx, xlsx)); a conversão chega na próxima etapa"));
+                        "o arquivo não é um PDF (tipo detectado: ZIP ou documento do Office (docx, xlsx))"));
         mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
                 .andExpect(status().isConflict());
     }

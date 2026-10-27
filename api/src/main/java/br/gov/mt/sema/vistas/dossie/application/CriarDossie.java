@@ -78,7 +78,7 @@ public class CriarDossie {
         List<ItemDoPedido> itens = new ArrayList<>();
         for (Documento d : selecionados.escolhidos()) {
             itens.add(new ItemDoPedido(d.origem().name(), d.origem().descricao(), d.id(), d.titulo(), d.data(),
-                    d.chaveDoArquivo(), posicoes.get(d)));
+                    d.chaveDoArquivo(), posicoes.get(d), d.extensao()));
         }
         List<DocumentoNaoIncluido> naoSelecionados = new ArrayList<>();
         for (SelecaoParaDossie.NaoSelecionado n : selecionados.naoSelecionados()) {

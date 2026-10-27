@@ -246,7 +246,7 @@ Quando a API de arquivos recusa a credencial (401/403), a obtenção para na hor
 "erro": { "origem": "DOCUMENTO_PROCESSO", "id": "804328", "titulo": "RG e CPF", "motivo": "Token da API de arquivos expirado ou recusado: capture um novo token.", "codigo": "CREDENCIAL_ARQUIVOS_RECUSADA" }
 ```
 
-Motivos possíveis: tempo limite excedido ao obter o arquivo; tempo total máximo excedido ao obter o arquivo; espaço em disco insuficiente; arquivo não encontrado no repositório; repositório de arquivos indisponível; API de arquivos não configurada; o documento está protegido por senha; o arquivo está corrompido; o arquivo não tem páginas; o arquivo não é um PDF válido.
+Motivos possíveis: tempo limite excedido ao obter o arquivo; tempo total máximo excedido ao obter o arquivo; espaço em disco insuficiente; arquivo não encontrado no repositório; repositório de arquivos indisponível; API de arquivos não configurada; o documento está protegido por senha; o arquivo está corrompido; o arquivo não tem páginas; o arquivo não é um PDF (tipo detectado: …); S3: as falhas de conversão ("documento protegido por senha", "arquivo corrompido ou ilegível pelo conversor", "tempo limite da conversão excedido", "planilha sem conteúdo imprimível", "o PDF convertido excede o número máximo de páginas permitido", "conversor de documentos indisponível", "conversão interrompida" e as de imagem), "arquivo compactado (ZIP): não entra no dossiê" e, com a conversão desligada, "o arquivo não é um PDF (tipo detectado: planilha XLSX) e a conversão está desligada".
 
 Falha na montagem (rara: os documentos já foram validados) também deixa o pedido em `PENDENTE_DECISAO`, com `erro.motivo` "falha ao montar o dossiê: …" e `falhas` vazia. `TENTAR_NOVAMENTE` refaz só a montagem.
 
