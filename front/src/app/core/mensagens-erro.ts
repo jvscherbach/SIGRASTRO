@@ -14,6 +14,14 @@ const POR_CODIGO: Record<string, string> = {
   DOSSIE_EXPIRADO: 'O dossiê expirou. Gere-o novamente.',
   CREDENCIAL_ARQUIVOS_RECUSADA:
     'A credencial de acesso aos arquivos foi recusada. Capture um novo token, atualize o arquivo do token e clique em Tentar novamente.',
+  FORMATO_NAO_SUPORTADO: 'Este formato não tem conversão para PDF. Baixe o original para abri-lo.',
+  DOCUMENTO_PROTEGIDO_POR_SENHA: 'O documento é protegido por senha e não pode ser convertido. Baixe o original.',
+  DOCUMENTO_CORROMPIDO: 'O arquivo está corrompido ou não pôde ser lido pelo conversor.',
+  CONVERSAO_RECUSADA: 'A conversão foi recusada por exceder um limite (páginas, tamanho ou resolução) ou por não ter conteúdo.',
+  MUITAS_CONVERSOES: 'Há muitas conversões em andamento. Tente novamente em instantes.',
+  REPOSITORIO_DE_ARQUIVOS_INDISPONIVEL: 'O repositório de arquivos está indisponível no momento. Tente novamente em instantes.',
+  CONVERSOR_INDISPONIVEL: 'O conversor de documentos está indisponível no momento.',
+  TEMPO_LIMITE_EXCEDIDO: 'O tempo limite foi excedido. Tente novamente.',
   SIGA_INDISPONIVEL: 'O banco do SIGA está indisponível no momento. Tente novamente em instantes.',
   ERRO_INTERNO: 'Ocorreu um erro inesperado.',
 };

@@ -22,10 +22,16 @@
     </div>
     <button type="button" class="btn sm" (click)="carregar()"><app-icone nome="refresh" />Tentar novamente</button>
   } @else if (totais(); as t) {
-    @if (t.naoPdf > 0) {
+    @if (t.convertiveis > 0) {
+      <div class="note amber docs-aviso convertiveis" role="status">
+        <app-icone nome="convert" />
+        <span>{{ t.convertiveis }} documento(s) serão convertidos para PDF e identificados como convertidos no dossiê.</span>
+      </div>
+    }
+    @if (quantidadeSemConversao() > 0) {
       <div class="note amber docs-aviso nao-pdf" role="status">
         <app-icone nome="info" />
-        <span>{{ t.naoPdf }} documento(s) não são PDF e entram no dossiê a partir da próxima etapa.</span>
+        <span>{{ quantidadeSemConversao() }} documento(s) não são PDF e não têm conversão disponível: ficam fora do dossiê.</span>
       </div>
     }
     @if (t.tipoNaoInformado > 0) {
@@ -83,6 +89,7 @@
               </button>
             </th>
             <th>Sigilo</th>
+            <th class="acoes"><span class="sr-only">Ações</span></th>
           </tr>
         </thead>
         <tbody>
@@ -113,6 +120,7 @@
                         · <span class="doc-aviso-linha">{{ rotulo }}</span>
                       }
                       @if (d.situacao === 'SUBSTITUIDO') { · <span class="doc-aviso-linha">versão substituída</span> }
+                      @if (seraConvertido(d)) { · <span class="doc-aviso-linha etiqueta-conversao">será convertido para PDF</span> }
                       @if (d.tipoArquivo === 'DESCONHECIDO' && d.acessivel) { · <span class="doc-aviso-linha etiqueta-tipo">tipo não informado</span> }
                     </small>
                   </span>
@@ -130,10 +138,17 @@
                   <span class="muted">Não</span>
                 }
               </td>
+              <td class="nowrap acoes">
+                @if (visualizavel(d)) {
+                  <button type="button" class="btn sm quiet visualizar" [attr.aria-label]="'Visualizar ' + d.titulo" (click)="visualizar(d)">
+                    <app-icone nome="eye" />Visualizar
+                  </button>
+                }
+              </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="5">
+              <td colspan="6">
                 <div class="empty">
                   <h3>{{ itens().length ? 'Nenhum documento com esses filtros' : 'Este requerimento não tem documentos' }}</h3>
                 </div>
@@ -160,6 +175,15 @@
     </div>
   }
 </section>
+
+@if (visualizando(); as aberto) {
+  <app-visualizador-documento
+    [documento]="aberto"
+    [selecionado]="selecionados().has(chaveDe(aberto))"
+    (alternarSelecao)="alternar(aberto)"
+    (fechar)="fecharVisualizacao()"
+  />
+}
 
 @if (gaveta(); as referencias) {
   <app-gaveta-dossie

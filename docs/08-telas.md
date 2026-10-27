@@ -99,18 +99,22 @@ Comportamento:
 - **sigilosos sem perfil** visíveis, com o nome mascarado ("Documento sigiloso"), sem seleção, com "documento sigiloso" e "Requer perfil autorizado"; Gestor e Administrador os veem e podem selecioná-los;
 - contador "N selecionados" e rodapé "Exibindo X de Y";
 - o que pode ou não ser selecionado vem da API (`bloqueio`); a interface só obedece, a regra é do back-end (RNF10);
-- **sem** a ação "Visualizar" nesta etapa (modal e conteúdo são da S3);
+- ação **Visualizar** em cada linha (menos nos indisponíveis), que abre o modal abaixo; documentos convertíveis trazem a etiqueta "será convertido para PDF";
 - erro ao carregar: mensagem pelo `errorCode` no corpo da seção e "Tentar novamente"; requerimento sem documentos: "Este requerimento não tem documentos".
 
 **Barra de seleção** (fixa na parte de baixo da seção): contador e a ação **Gerar dossiê**, habilitada com pelo menos 1 documento selecionável.
 
-### Modal de visualização
+### Modal de visualização (S3, bloco 7)
 
-- Exibe o documento no visualizador de PDF do navegador.
-- Documentos convertidos (planilhas, textos, imagens) são exibidos na versão em PDF, permitindo conferir a conversão antes de gerar o dossiê.
-- Formatos sem conversão: mensagem com nome, tipo e opção de baixar o original.
-- Indicação de carregamento enquanto o documento é obtido ou convertido.
-- Ação de selecionar ou desmarcar o documento a partir do modal.
+Aberto pela ação **Visualizar** de cada linha (todas, menos as indisponíveis; o sigiloso sem perfil também tem a ação, mas o modal só mostra o motivo, sem chamar o servidor).
+
+- O PDF é buscado pelo `HttpClient` em `GET /documentos/{origem}/{id}/conteudo?requerimento=…&formato=pdf` (o token vai no cabeçalho, **nunca na URL**), vira `Blob` e é exibido na moldura por URL de objeto, **revogada ao fechar** (botão, `Esc`, clique no fundo ou sair da tela). Fechar com a resposta pendente cancela a requisição.
+- Carregamento: "Convertendo para PDF…" para planilhas, textos e imagens; "Carregando o documento…" para os demais.
+- Documento **convertido**: faixa "Versão convertida para PDF a partir de <formato>" (cabeçalho `X-Vistas-Convertido-De`), permitindo conferir a conversão antes de gerar o dossiê.
+- Erro pelo `errorCode` (nunca o `detail`), com **Tentar novamente**. Quando a conversão não vai funcionar de novo (formato sem conversão, senha, arquivo corrompido, limite excedido) o modal também oferece **Baixar original**. Formato sem conversão (415): nome, tipo e **Baixar original**. 429 (`MUITAS_CONVERSOES`): pede para tentar em instantes.
+- **Baixar original** pede `formato=original` e salva o Blob com o nome do `Content-Disposition`.
+- **Documento grande**: o front lê o `Content-Length` do cabeçalho da resposta e, acima de 150 MB (`LIMITE_DO_BLOB_MB`, espelho do padrão de `DOSSIE_BLOB_MAX_MB`), cancela a requisição, não exibe por Blob e oferece só **Baixar original**, com o tamanho aproximado. O contrato do conteúdo não tem ticket (como o do dossiê, D49): o original grande também passa pelo Blob, o que pesa no navegador. **NÃO CONFIRMADO:** se vale um ticket para o original (decisão para depois da homologação, `docs/10`).
+- **Incluir no dossiê / Tirar do dossiê** no cabeçalho do modal, refletindo na tabela e no contador (só aparece quando o documento pode ser selecionado).
 
 ## 4. Geração do dossiê
 

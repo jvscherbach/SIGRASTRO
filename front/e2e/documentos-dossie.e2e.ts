@@ -63,7 +63,7 @@ const DOCUMENTOS = {
     doc('4', 'Documento sigiloso', { nomeArquivo: null, extensao: null, tipoArquivo: null, sigiloso: true, acessivel: false, selecionavelPorPadrao: false, bloqueio: 'SIGILOSO' }),
     doc('5', 'Planta', { nomeArquivo: null, extensao: '', tipoArquivo: 'DESCONHECIDO' }),
   ],
-  totais: { total: 5, vigentes: 5, semEfeito: 0, naoPdf: 1, tipoNaoInformado: 1, indisponiveis: 0, sigilosos: 1 },
+  totais: { total: 5, vigentes: 5, semEfeito: 0, naoPdf: 1, tipoNaoInformado: 1, indisponiveis: 0, sigilosos: 1, convertiveis: 0 },
 };
 
 const ITENS = [
@@ -366,4 +366,110 @@ test('dossiê grande: sem pré-visualização; o navegador baixa pela URL do tic
   expect(download.suggestedFilename()).toBe('dossie-processo-2825-2025.pdf');
   expect(pedidosDoArquivo).toEqual([{ url: '?disposicao=attachment&ticket=TICKET-DE-TESTE', autorizacao: undefined }]);
   await expect(page.locator('.d-body')).toContainText('Download entregue ao navegador');
+});
+
+// --- visualização de documentos (S3): modal com PDF por Blob, faixa de convertido, erro, seleção e sigilo
+
+async function simularConteudo(page: Page, resposta: (id: string, chamada: number) => { status: number; corpo?: Buffer | object; headers?: Record<string, string>; atrasoMs?: number }) {
+  const pedidos: { id: string; url: string; autorizacao: string | undefined; formato: string | null }[] = [];
+  const chamadas = new Map<string, number>();
+  await page.route('**/api/documentos/**', async (route: Route) => {
+    const url = new URL(route.request().url());
+    const id = url.pathname.split('/')[4];
+    const chamada = (chamadas.get(id) ?? 0) + 1;
+    chamadas.set(id, chamada);
+    pedidos.push({ id, url: route.request().url(), autorizacao: route.request().headers()['authorization'], formato: url.searchParams.get('formato') });
+    const { status, corpo, headers, atrasoMs } = resposta(id, chamada);
+    if (atrasoMs) await new Promise((resolver) => setTimeout(resolver, atrasoMs));
+    if (corpo instanceof Buffer) {
+      return route.fulfill({ status, body: corpo, headers: { 'Content-Type': 'application/pdf', ...headers } });
+    }
+    return route.fulfill({ status, json: corpo ?? {}, headers });
+  });
+  return pedidos;
+}
+
+test('Visualizar abre o PDF por Blob (token no cabeçalho, nunca na URL), fecha e não mexe no quadro do topo', async ({ page }) => {
+  await simular(page);
+  const pedidos = await simularConteudo(page, () => ({ status: 200, corpo: PDF_MINIMO, headers: { 'Content-Disposition': 'inline; filename="requerimento.pdf"' } }));
+  await page.goto('/consulta/requerimentos/101');
+  await expect(page.locator('tbody tr')).toHaveCount(5);
+  const alturaAntes = await page.locator('.dash-hero').evaluate((e) => e.getBoundingClientRect().height);
+
+  await page.locator('tbody tr', { hasText: 'Requerimento assinado' }).getByRole('button', { name: /Visualizar/ }).click();
+  const modal = page.getByRole('dialog', { name: 'Requerimento assinado' });
+  await expect(modal).toBeVisible();
+  const moldura = modal.locator('iframe');
+  await expect(moldura).toBeVisible();
+  expect(await moldura.getAttribute('src')).toMatch(/^blob:/);
+  await expect(modal.locator('.vis-faixa')).toHaveCount(0);
+
+  expect(pedidos).toHaveLength(1);
+  expect(pedidos[0].formato).toBe('pdf');
+  expect(pedidos[0].autorizacao).toBe('Bearer token-de-teste');
+  expect(pedidos[0].url).not.toContain('token-de-teste');
+  expect(await page.locator('.dash-hero').evaluate((e) => e.getBoundingClientRect().height)).toBe(alturaAntes);
+
+  await modal.getByRole('button', { name: 'Fechar' }).click();
+  await expect(page.locator('app-visualizador-documento')).toHaveCount(0);
+  expect(await page.locator('.dash-hero').evaluate((e) => e.getBoundingClientRect().height)).toBe(alturaAntes);
+});
+
+test('planilha: mostra "Convertendo…" e depois a faixa "Versão convertida para PDF a partir de XLSX"', async ({ page }) => {
+  await simular(page);
+  await simularConteudo(page, () => ({ status: 200, corpo: PDF_MINIMO, headers: { 'X-Vistas-Convertido-De': 'XLSX' }, atrasoMs: 700 }));
+  await page.goto('/consulta/requerimentos/101');
+
+  await page.locator('tbody tr', { hasText: 'Calculo' }).getByRole('button', { name: /Visualizar/ }).click();
+  const modal = page.locator('app-visualizador-documento');
+  await expect(modal).toContainText('Convertendo para PDF…');
+  await expect(modal.locator('.vis-faixa')).toContainText('Versão convertida para PDF a partir de XLSX');
+  await expect(modal.locator('iframe')).toBeVisible();
+});
+
+test('erro na conversão: mensagem pelo errorCode e "Tentar novamente" abre o PDF', async ({ page }) => {
+  await simular(page);
+  const pedidos = await simularConteudo(page, (_id, chamada) =>
+    chamada === 1
+      ? { status: 504, corpo: { status: 504, errorCode: 'TEMPO_LIMITE_EXCEDIDO', detail: 'detalhe técnico que nunca deve aparecer', correlationId: 'c-1' } }
+      : { status: 200, corpo: PDF_MINIMO },
+  );
+  await page.goto('/consulta/requerimentos/101');
+
+  await page.locator('tbody tr', { hasText: 'Oficio' }).getByRole('button', { name: /Visualizar/ }).click();
+  const modal = page.locator('app-visualizador-documento');
+  await expect(modal.locator('.vis-erro')).toContainText('O tempo limite foi excedido');
+  await expect(modal).not.toContainText('detalhe técnico');
+
+  await modal.getByRole('button', { name: 'Tentar novamente' }).click();
+  await expect(modal.locator('iframe')).toBeVisible();
+  expect(pedidos).toHaveLength(2);
+});
+
+test('selecionar e desmarcar pelo modal reflete na tabela', async ({ page }) => {
+  await simular(page);
+  await simularConteudo(page, () => ({ status: 200, corpo: PDF_MINIMO }));
+  await page.goto('/consulta/requerimentos/101');
+  const linha = page.locator('tbody tr', { hasText: 'Oficio' });
+  await expect(page.locator('.selbar b')).toHaveText('3');
+
+  await linha.getByRole('button', { name: /Visualizar/ }).click();
+  await page.getByRole('button', { name: 'Tirar do dossiê' }).click();
+  await expect(linha.locator('input[type=checkbox]')).not.toBeChecked();
+  await expect(page.locator('.selbar b')).toHaveText('2');
+
+  await page.getByRole('button', { name: 'Incluir no dossiê' }).click();
+  await expect(linha.locator('input[type=checkbox]')).toBeChecked();
+  await expect(page.locator('.selbar b')).toHaveText('3');
+});
+
+test('sigiloso sem perfil: o modal mostra o motivo e nenhuma requisição de conteúdo é feita', async ({ page }) => {
+  await simular(page);
+  const pedidos = await simularConteudo(page, () => ({ status: 200, corpo: PDF_MINIMO }));
+  await page.goto('/consulta/requerimentos/101');
+
+  await page.locator('tbody tr', { hasText: 'Documento sigiloso' }).getByRole('button', { name: /Visualizar/ }).click();
+
+  await expect(page.locator('app-visualizador-documento .vis-sigiloso')).toContainText('sigiloso e não está disponível para o seu perfil');
+  expect(pedidos).toHaveLength(0);
 });

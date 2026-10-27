@@ -9,6 +9,9 @@ import {
   rotuloDoBloqueio,
   selecaoPadrao,
   selecionavel,
+  seraConvertido,
+  semConversao,
+  visualizavel,
 } from './documentos.logic';
 import { documento } from './documentos.fixtures';
 import { DocumentoItem } from './documentos.models';
@@ -148,7 +151,7 @@ describe('documentos.logic', () => {
   describe('apresentação', () => {
     it('rótulos dos bloqueios', () => {
       expect(rotuloDoBloqueio(documento({ bloqueio: 'INDISPONIVEL' }))).toBe('arquivo indisponível');
-      expect(rotuloDoBloqueio(documento({ bloqueio: 'NAO_PDF' }))).toBe('conversão disponível em breve');
+      expect(rotuloDoBloqueio(documento({ bloqueio: 'NAO_PDF' }))).toBe('conversão indisponível');
       expect(rotuloDoBloqueio(documento({ bloqueio: 'SIGILOSO' }))).toBe('documento sigiloso');
       expect(rotuloDoBloqueio(documento())).toBeNull();
     });
@@ -159,6 +162,23 @@ describe('documentos.logic', () => {
       expect(classeDaExtensao(documento({ tipoArquivo: 'TEXTO' }))).toBe('doc');
       expect(classeDaExtensao(documento({ tipoArquivo: 'IMAGEM' }))).toBe('img');
       expect(classeDaExtensao(documento({ tipoArquivo: null }))).toBe('off');
+    });
+
+    it('convertido: planilha, texto e imagem sem bloqueio; txt e conversão desligada ficam como sem conversão', () => {
+      expect(seraConvertido(documento({ tipoArquivo: 'PLANILHA', extensao: 'xlsx' }))).toBe(true);
+      expect(seraConvertido(documento({ tipoArquivo: 'TEXTO' }))).toBe(true);
+      expect(seraConvertido(documento({ tipoArquivo: 'IMAGEM' }))).toBe(true);
+      expect(seraConvertido(documento())).toBe(false);
+      expect(seraConvertido(documento({ tipoArquivo: 'PLANILHA', bloqueio: 'NAO_PDF' }))).toBe(false);
+      expect(semConversao(documento({ tipoArquivo: 'PLANILHA', bloqueio: 'NAO_PDF' }))).toBe(true);
+      expect(semConversao(documento({ tipoArquivo: 'PLANILHA' }))).toBe(false);
+    });
+
+    it('visualizar: tudo menos o indisponível (o sigiloso abre só com o motivo)', () => {
+      expect(visualizavel(documento())).toBe(true);
+      expect(visualizavel(documento({ bloqueio: 'SIGILOSO' }))).toBe(true);
+      expect(visualizavel(documento({ bloqueio: 'NAO_PDF' }))).toBe(true);
+      expect(visualizavel(documento({ bloqueio: 'INDISPONIVEL' }))).toBe(false);
     });
 
     it('normalizar tira acento, maiúsculas e espaços das pontas', () => {
