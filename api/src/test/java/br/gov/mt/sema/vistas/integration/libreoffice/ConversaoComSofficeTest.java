@@ -1,12 +1,10 @@
 package br.gov.mt.sema.vistas.integration.libreoffice;
 
 import static br.gov.mt.sema.vistas.integration.libreoffice.ConversorLibreOfficeTest.OFFICE_HOME;
-import static br.gov.mt.sema.vistas.integration.libreoffice.ConversorLibreOfficeTest.SEM_SOFFICE;
 import static br.gov.mt.sema.vistas.integration.libreoffice.ConversorLibreOfficeTest.pagina;
 import static br.gov.mt.sema.vistas.integration.libreoffice.ConversorLibreOfficeTest.texto;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.data.Offset.offset;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -53,7 +51,7 @@ class ConversaoComSofficeTest {
     /** Por teste, e não no BeforeAll, para que cada um apareça como pulado no relatório, com a mensagem. */
     @BeforeEach
     void exigirSoffice() {
-        assumeTrue(OFFICE_HOME != null, SEM_SOFFICE);
+        ConversorLibreOfficeTest.exigirSoffice();
     }
 
     @AfterAll

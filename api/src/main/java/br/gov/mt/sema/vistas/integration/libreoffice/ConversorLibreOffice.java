@@ -172,6 +172,7 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
         try {
             Path entrada = pasta.resolve("entrada." + extensao);
             copiarEntrada(origem, entrada, extensao);
+            ZipLimitado.conferir(entrada);
             if (DocumentoCriptografado.ooxmlCriptografado(entrada)) {
                 throw new FalhaDeConversaoException(Motivo.PROTEGIDO_POR_SENHA);
             }
@@ -198,6 +199,10 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
     }
 
     private static void copiarEntrada(Path origem, Path entrada, String extensao) throws IOException {
+        if (Files.size(origem) == 0) {
+            // O LibreOffice abriria um documento em branco e geraria uma página vazia, como se fosse o conteúdo.
+            throw new FalhaDeConversaoException(Motivo.CORROMPIDO);
+        }
         if (!"html".equals(extensao)) {
             Files.copy(origem, entrada);
             return;
@@ -210,21 +215,71 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
 
     private void executar(LocalOfficeManager pool, Path entrada, Path saida, FiltroDePlanilha planilha) {
         try {
-            LocalConverter.builder()
-                    .officeManager(pool)
-                    .applyDefaultLoadProperties(false)
-                    .loadProperties(PLANILHAS.contains(extensaoDe(entrada)) ? CARGA_DE_PLANILHA : CARGA)
-                    .filterChain(planilha)
-                    .build()
-                    .convert(entrada.toFile())
-                    .to(saida.toFile())
-                    .execute();
-        } catch (OfficeException e) {
-            Motivo motivo = motivo(e);
-            log.warn("Conversão para PDF falhou: {} ({})", motivo, e.getClass().getSimpleName());
-            log.debug("Detalhe da falha da conversão", e);
-            throw new FalhaDeConversaoException(motivo, e);
+            converterUmaVez(pool, entrada, saida, planilha);
+        } catch (OfficeException primeira) {
+            // Depois de um tempo limite o JODConverter reinicia o processo duas vezes (pelo tempo limite e pela conexão
+            // perdida); a tarefa seguinte pode ser cancelada ou cair no processo que a segunda reinicialização derruba. É falha do
+            // processo, não do documento: repete uma vez (bloco 8).
+            if (motivo(primeira) != Motivo.CORROMPIDO || !conexaoPerdida(primeira)) {
+                falhar(primeira);
+            }
+            log.info("Conexão com o LibreOffice perdida durante a conversão; nova tentativa.");
+            apagarSaida(saida);
+            try {
+                converterUmaVez(pool, entrada, saida, planilha);
+            } catch (OfficeException segunda) {
+                falhar(segunda);
+            }
         }
+    }
+
+    private void converterUmaVez(LocalOfficeManager pool, Path entrada, Path saida, FiltroDePlanilha planilha)
+            throws OfficeException {
+        LocalConverter.builder()
+                .officeManager(pool)
+                .applyDefaultLoadProperties(false)
+                .loadProperties(PLANILHAS.contains(extensaoDe(entrada)) ? CARGA_DE_PLANILHA : CARGA)
+                .filterChain(planilha)
+                .build()
+                .convert(entrada.toFile())
+                .to(saida.toFile())
+                .execute();
+    }
+
+    /**
+     * A ponte UNO caiu ou o JODConverter cancelou a tarefa ao reiniciar o processo ("Task was cancelled"). O cancelamento
+     * pedido pelo Vistas (interrupção da thread) não chega aqui: vira {@code INTERROMPIDA} antes.
+     */
+    static boolean conexaoPerdida(Throwable e) {
+        for (Throwable atual = e; atual != null; atual = atual.getCause()) {
+            if (atual instanceof com.sun.star.lang.DisposedException || atual instanceof com.sun.star.io.IOException
+                    || atual instanceof java.util.concurrent.CancellationException) {
+                return true;
+            }
+            String mensagem = atual.getMessage();
+            if (mensagem != null && (mensagem.contains("EOF reached") || mensagem.contains("is disposed"))) {
+                return true;
+            }
+            if (atual.getCause() == atual) {
+                break;
+            }
+        }
+        return false;
+    }
+
+    private static void apagarSaida(Path saida) {
+        try {
+            Files.deleteIfExists(saida);
+        } catch (IOException e) {
+            log.debug("Saída parcial não apagada antes da nova tentativa", e);
+        }
+    }
+
+    private static void falhar(OfficeException e) {
+        Motivo motivo = motivo(e);
+        log.warn("Conversão para PDF falhou: {} ({})", motivo, e.getClass().getSimpleName());
+        log.debug("Detalhe da falha da conversão", e);
+        throw new FalhaDeConversaoException(motivo, e);
     }
 
     private static String extensaoDe(Path arquivo) {

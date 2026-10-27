@@ -1,11 +1,9 @@
 package br.gov.mt.sema.vistas.integration.libreoffice;
 
 import static br.gov.mt.sema.vistas.integration.libreoffice.ConversorLibreOfficeTest.OFFICE_HOME;
-import static br.gov.mt.sema.vistas.integration.libreoffice.ConversorLibreOfficeTest.SEM_SOFFICE;
 import static br.gov.mt.sema.vistas.integration.libreoffice.PlanilhasDeTeste.marca;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -71,7 +69,7 @@ class ConversaoDePlanilhasTest {
 
     @BeforeEach
     void exigirSofficeEPadroes() {
-        assumeTrue(OFFICE_HOME != null, SEM_SOFFICE);
+        ConversorLibreOfficeTest.exigirSoffice();
         parametros.planilhaModo = PlanilhaModo.LARGURA;
         parametros.abasOcultas = false;
         parametros.planilhaEscalaMinima = 40;

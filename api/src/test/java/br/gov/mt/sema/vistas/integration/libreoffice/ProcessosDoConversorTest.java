@@ -1,7 +1,6 @@
 package br.gov.mt.sema.vistas.integration.libreoffice;
 
 import static br.gov.mt.sema.vistas.integration.libreoffice.ConversorLibreOfficeTest.OFFICE_HOME;
-import static br.gov.mt.sema.vistas.integration.libreoffice.ConversorLibreOfficeTest.SEM_SOFFICE;
 import static br.gov.mt.sema.vistas.integration.libreoffice.ConversorLibreOfficeTest.texto;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -31,7 +30,7 @@ class ProcessosDoConversorTest {
     /** Por teste, para que cada um apareça como pulado no relatório, com a mensagem. */
     @BeforeEach
     void exigirSoffice() {
-        assumeTrue(OFFICE_HOME != null, SEM_SOFFICE);
+        ConversorLibreOfficeTest.exigirSoffice();
     }
 
     @Test

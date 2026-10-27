@@ -33,6 +33,22 @@ class ConversorLibreOfficeTest {
     static final String SEM_SOFFICE = "LibreOffice (soffice) não instalado nesta máquina: testes de conversão pulados";
 
     /**
+     * Chamado no {@code @BeforeEach} dos testes que convertem de verdade. Sem o LibreOffice: na máquina do desenvolvedor,
+     * o teste é pulado com aviso; no CI (variável {@code CI} definida, como no GitHub Actions), falha, para a conversão
+     * nunca ficar sem teste em silêncio (S3, bloco 8).
+     */
+    static void exigirSoffice() {
+        if (OFFICE_HOME != null) {
+            return;
+        }
+        String ci = System.getenv("CI");
+        if (ci != null && !ci.isBlank() && !"false".equalsIgnoreCase(ci.trim())) {
+            org.junit.jupiter.api.Assertions.fail("CI sem LibreOffice (soffice): instale-o no job (ci.yml) para rodar os testes de conversão");
+        }
+        org.junit.jupiter.api.Assumptions.assumeTrue(false, SEM_SOFFICE);
+    }
+
+    /**
      * Parâmetros de teste. Os do pool (timeout, processos, tarefas) valem a partir da subida; os de planilha e os
      * limites são lidos a cada conversão e podem mudar entre os testes de um mesmo conversor.
      */
@@ -162,6 +178,19 @@ class ConversorLibreOfficeTest {
         assertThat(DocumentoCriptografado.ooxmlCriptografado(simples)).isFalse();
         assertThat(DocumentoCriptografado.ooxmlCriptografado(lixo)).isFalse();
         assertThat(DocumentoCriptografado.ooxmlCriptografado(vazio)).isFalse();
+    }
+
+    @Test
+    void conexaoPerdidaComOProcessoEhReconhecidaParaNovaTentativa() {
+        assertThat(ConversorLibreOffice.conexaoPerdida(new org.jodconverter.core.office.OfficeException("falhou",
+                new com.sun.star.lang.DisposedException("ponte encerrada")))).isTrue();
+        assertThat(ConversorLibreOffice.conexaoPerdida(new org.jodconverter.core.office.OfficeException("falhou",
+                new RuntimeException(new java.io.IOException("EOF reached - socket"))))).isTrue();
+        assertThat(ConversorLibreOffice.conexaoPerdida(new org.jodconverter.core.office.OfficeException("Task was cancelled",
+                new java.util.concurrent.CancellationException()))).isTrue();
+        // Documento que o LibreOffice não abre não é conexão perdida: sem nova tentativa.
+        assertThat(ConversorLibreOffice.conexaoPerdida(new org.jodconverter.core.office.OfficeException("falhou",
+                new NullPointerException("Could not open document: entrada.xlsx")))).isFalse();
     }
 
     @Test
