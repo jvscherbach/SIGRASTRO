@@ -35,3 +35,6 @@ Thumbs.db
 
 front/playwright-report/
 front/test-results/
+
+# Amostras reais usadas na homologação (S3): nunca vão para o repositório
+amostras-locais/

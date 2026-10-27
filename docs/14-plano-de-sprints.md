@@ -203,18 +203,49 @@ Aceite:
 
 ## S3 — Conversão e visualização
 
-**Objetivo:** provar que planilhas e outros formatos entram no PDF legíveis.
+**Objetivo:** provar que planilhas e outros formatos entram no PDF legíveis, **sem cortar colunas nem linhas**, e identificados como convertidos.
 
-Entregas:
-- Conversão com LibreOffice (JODConverter): XLS/XLSX/ODS com ajuste à largura e orientação automática, abas ocultas fora; DOC/DOCX/ODT/RTF/HTML; imagens como página.
+**Forma de trabalho:** 10 blocos, cada um terminando em um ponto de commit, executados por duas sessões do Claude Code (OPUS e SONNET) que recebem o mesmo prompt; o estado de cada bloco está em [`progresso/s3.md`](progresso/s3.md).
+
+| Bloco | Entrega | Sessão | Commit sugerido |
+|---|---|---|---|
+| 1 | Tipo real do arquivo pelo conteúdo (`DetectorDeTipoReal`); seleção dos formatos convertíveis (RN13); chave `CONVERSAO_HABILITADA`; porta `ParametrosDaConversao` | SONNET | `feat(documentos)` |
+| 2 | Conversor LibreOffice isolado (`integration.libreoffice`, JODConverter): pool, perfil descartável, timeout, macro e rede bloqueadas, textos e HTML sem recurso externo (D56) | OPUS | `feat(conversao)` |
+| 3 | Planilhas: largura, orientação, abas e linhas ocultas, modos `LARGURA` e `PAGINA_POR_ABA`, escala mínima, página única só quando cabe, conferência da última linha (D58) | OPUS | `feat(conversao)` |
+| 4 | Imagens PNG e JPG por PDFBox: uma página, EXIF, transparência, limite de megapixels (D57) | SONNET | `feat(conversao)` |
+| 5 | Conversão no pipeline do dossiê (`PreparadorDePdf`): falha de conversão é falha do documento, retomada sem reconverter, cancelamento, "convertido de" no sumário, marcador e capa (D54) | OPUS | `feat(dossie)` |
+| 6 | Endpoint de conteúdo `GET /documentos/{origem}/{id}/conteudo` com acesso a cada requisição, cache temporário, fila e `errorCode`s (D55) | OPUS | `feat(documentos)` |
+| 7 | Front: ação Visualizar e modal (PDF por Blob, faixa de convertido, erro, seleção, documento grande, sigiloso) | SONNET | `feat(front)` |
+| 8 | Testes com arquivos hostis (macro, vínculo, ZIP "bomba", 0 byte, milhares de abas…) e LibreOffice no CI | OPUS | `test(conversao)` |
+| 9 | Medição de desempenho (tempo, heap, memória do `soffice`, disco) que achou a perda de linhas em planilha grande (R41), corrigida no bloco 3 | SONNET (e ajuste OPUS) | `perf(conversao)` |
+| 10 | Roteiro de homologação da S3, decisões D56 a D58, casos de teste e verificação final | SONNET | `docs(homologacao)` |
+
+Entregas (resumo do plano original):
+- Conversão com LibreOffice (JODConverter): XLS/XLSX/ODS com ajuste à largura e orientação automática, abas ocultas fora; DOC/DOCX/ODT/RTF/HTML; imagens como página (por PDFBox).
 - Validação de PDF (senha, corrompido) tratada como falha (RN09).
 - Endpoint de conteúdo para o modal (`formato=pdf` converte quando necessário).
-- Front: modal de visualização do documento (mostra a versão convertida) e pré-visualização do dossiê sem gerar de novo.
-- Testes com arquivos de exemplo (XLSX largo, DOCX, imagem, PDF com senha, PDF corrompido).
+- Front: modal de visualização do documento (mostra a versão convertida). A pré-visualização do dossiê já existia (S2).
+- Testes com arquivos de exemplo **sintéticos**: planilha larga, DOCX, imagem, PDF/Office com senha, arquivo corrompido, além dos hostis.
 
 Aceite:
-- Planilhas reais dos processos de teste aparecem no dossiê sem cortes que impeçam a leitura. Se o ajuste à largura ficar ilegível, testar o modo "uma página por aba" e registrar a escolha.
+- Planilhas reais dos processos de teste aparecem no dossiê sem cortes que impeçam a leitura. Se o ajuste à largura ficar ilegível, testar o modo "uma página por aba" e **registrar a escolha** (roteiro da S3, passo 6; D58).
 - Tempo de geração anotado para os processos de teste.
+
+**Estado:** implementada e testada **sem sistema externo real** (arquivos sintéticos gerados por código, portas falsas, servidor HTTP local, LibreOffice 24.2 num container de teste e no CI, Playwright com API simulada). Verificação final: back-end `./mvnw -B test` (LibreOffice ativo no container de teste) verde, front com build, Vitest (253) e e2e (36) verdes, `ArchitectureTest`, Compose com os três arquivos e as variáveis externas vazias dentro do container, YAMLs válidos. A medição de desempenho está em [`10`](10-pendencias-e-riscos.md) ("Medição de desempenho da conversão"). **Pendente: R42 (memória do container) e a escolha do modo de planilha, que dependem da homologação.**
+
+### Validação da S3
+
+**PENDENTE: homologação manual pelo responsável**, com arquivos reais de base de desenvolvimento. Roteiro: [`homologacao/S3-roteiro-homologacao.md`](homologacao/S3-roteiro-homologacao.md). Arquivos reais **não** entram no repositório (pasta local `amostras-locais/`, no `.gitignore`).
+
+| Verificação (roteiro) | Resultado |
+|---|---|
+| 1. Compose local sobe e o LibreOffice está disponível | |
+| 2. Planilhas, textos e imagens vêm selecionados; contagem do aviso bate com o SIGA | |
+| 3. Visualizar planilha larga, DOC e imagem: nada cortado; faixa "Versão convertida" | |
+| 4. Dossiê completo: ordem, "convertido de", numeração, "Documentos não incluídos" | |
+| 5. Falha de conversão: decisão sem reconverter o resto; conversão desligada | |
+| 6. `LARGURA` × `PAGINA_POR_ABA` na pior planilha: **modo escolhido** e motivo | |
+| 7. Tempo, tamanho do PDF, disco, memória do container (R42) | |
 
 ## S4 — Regras de acesso e complementos
 

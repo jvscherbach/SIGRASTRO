@@ -47,9 +47,9 @@ Depois de obter cada arquivo, o pipeline (`PreparadorDePdf`, no `dossie`) decide
 - **Capa:** "N documentos incluídos de M listados; K convertidos para PDF" (sem conversões, a frase da S2.2).
 - O formato é o do **tipo real** (XLSX, XLS, ODS, DOCX, DOC, ODT, RTF, HTML, PNG, JPG), não o do nome.
 
-## Como está na S2 (sem conversão)
+## Base da geração (S2; a conversão da S3 entra na etapa de obtenção)
 
-- Só **PDFs** entram; os demais tipos aparecem na lista, bloqueados ("conversão disponível em breve"), até a S3.
+- Na S2 só **PDFs** entravam. Desde a S3, com `CONVERSAO_HABILITADA=true` (padrão), planilhas, textos e imagens também entram, convertidos depois do download (descrito acima); com `false`, vale o comportamento da S2.2: os demais tipos ficam bloqueados na lista ("conversão indisponível").
 - O `POST /dossies` relê a lista no servidor, valida a seleção (pertencimento, indisponível, não PDF, sigilo, RN07), **resolve as chaves uma única vez**, guarda o instantâneo no pedido e libera a conexão do SIGA **antes** de baixar qualquer arquivo; a geração não usa o banco (provado em `ConexaoDoSigaLiberadaTest`).
 - Passo a passo: ordenar (RN03) → obter cada PDF (em sequência, um pedido por vez em cada thread de `DOSSIE_THREADS`) → validar (assinatura `%PDF-`, abre, sem senha de abertura, com páginas) → capa → sumário → montagem → marcadores e numeração → PDF final.
 - **PDFBox 3 em disco:** `Loader.loadPDF` sobre `File` com cache em arquivos temporários; páginas importadas com `importPage` (tamanho, rotação, anotações e links preservados; **nada é forçado para A4**, RNF06). Formulários interativos são achatados com tratamento de erro (falha ao achatar não interrompe). Os documentos de origem ficam abertos até o PDF final ser salvo (o PDFBox compartilha objetos).
