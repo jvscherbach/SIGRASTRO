@@ -13,8 +13,17 @@ public enum ErrorCode {
     DOSSIE_SEM_ARQUIVO(HttpStatus.CONFLICT, "Dossiê sem arquivo"),
     DOSSIE_SEM_DECISAO_PENDENTE(HttpStatus.CONFLICT, "Dossiê sem decisão pendente"),
     DOSSIE_EXPIRADO(HttpStatus.GONE, "Dossiê expirado"),
+    // Conteúdo do documento para o modal (S3).
+    FORMATO_NAO_SUPORTADO(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Formato sem conversão para PDF"),
+    DOCUMENTO_PROTEGIDO_POR_SENHA(HttpStatus.UNPROCESSABLE_ENTITY, "Documento protegido por senha"),
+    DOCUMENTO_CORROMPIDO(HttpStatus.UNPROCESSABLE_ENTITY, "Documento corrompido"),
+    CONVERSAO_RECUSADA(HttpStatus.UNPROCESSABLE_ENTITY, "Conversão recusada"),
+    MUITAS_CONVERSOES(HttpStatus.TOO_MANY_REQUESTS, "Muitas conversões em andamento"),
     TICKET_INVALIDO(HttpStatus.FORBIDDEN, "Ticket de download inválido"),
     CREDENCIAL_ARQUIVOS_RECUSADA(HttpStatus.BAD_GATEWAY, "Credencial de arquivos recusada"),
+    REPOSITORIO_DE_ARQUIVOS_INDISPONIVEL(HttpStatus.BAD_GATEWAY, "Repositório de arquivos indisponível"),
+    TEMPO_LIMITE_EXCEDIDO(HttpStatus.GATEWAY_TIMEOUT, "Tempo limite excedido"),
+    CONVERSOR_INDISPONIVEL(HttpStatus.SERVICE_UNAVAILABLE, "Conversor indisponível"),
     SIGA_INDISPONIVEL(HttpStatus.SERVICE_UNAVAILABLE, "SIGA indisponível"),
     ERRO_INTERNO(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno");
 

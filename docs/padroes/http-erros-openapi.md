@@ -22,6 +22,7 @@
 | 410 | `DOSSIE_EXPIRADO` | Dossiê expirado |
 | 403 | `TICKET_INVALIDO` | Ticket de download direto inválido, usado, vencido, de outro pedido ou usuário (S2.2) |
 | 502 | `CREDENCIAL_ARQUIVOS_RECUSADA` | API de arquivos recusou a credencial (token expirado) |
+| 415, 422, 429, 502, 503, 504 | `FORMATO_NAO_SUPORTADO`, `DOCUMENTO_PROTEGIDO_POR_SENHA`, `DOCUMENTO_CORROMPIDO`, `CONVERSAO_RECUSADA`, `MUITAS_CONVERSOES`, `REPOSITORIO_DE_ARQUIVOS_INDISPONIVEL`, `CONVERSOR_INDISPONIVEL`, `TEMPO_LIMITE_EXCEDIDO` | Conteúdo do documento para o modal (S3): obtenção e conversão síncronas traduzidas em `ProblemDetail` (tabela completa em docs/07) |
 | 503 | `SIGA_INDISPONIVEL` | Banco do SIGA indisponível |
 | 500 | `ERRO_INTERNO` | Demais erros |
 

@@ -125,7 +125,7 @@ Para o **Operador**, a mesma resposta vem **sem** `tarefaAtual.responsavel` (o c
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/requerimentos/{id}/documentos` | Documentos **do requerimento** (a chave é o requerimento, D31), das seis origens da Vista (S2.1), deduplicados (RN05), sem compactados (RN11) e sem geometrias (até a S4), em ordem cronológica (RN03). Aplica a RN07 e o sigilo (D36): Operador de outro interessado, 403 `NAO_INTERESSADO`; requerimento inexistente, 404 `NAO_ENCONTRADO`; SIGA fora do ar, 503 `SIGA_INDISPONIVEL`. |
-| `GET` | `/documentos/{origem}/{id}/conteudo?formato=original\|pdf` | **S3.** Conteúdo do documento para o modal. Retorna binário. Com `formato=pdf`, converte quando necessário. Bloqueado para sigilosos sem perfil. |
+| `GET` | `/documentos/{origem}/{id}/conteudo?requerimento={idRequerimento}&formato=pdf\|original` | **S3.** Conteúdo do documento para o modal (binário, em streaming). `formato=pdf` (padrão) converte quando necessário. Acesso conferido a cada requisição, mesmo com cache (D55). Detalhes abaixo. |
 
 Resposta de `GET /requerimentos/{id}/documentos`:
 
@@ -165,6 +165,21 @@ Resposta de `GET /requerimentos/{id}/documentos`:
   - `tipoArquivo` vem da extensão; o tipo real (conteúdo) só é conhecido ao obter o arquivo e é conferido ao gerar o dossiê.
   - Os selecionados não são um total da API: a tela conta os itens marcados; ao abrir, são os de `bloqueio` `null` (`total − indisponiveis − naoPdf − sigilosos bloqueados para o perfil`, sem contar duas vezes quem tem mais de um motivo; vale o `bloqueio` de cada item). Por isso "145 documentos · 71 vigentes" podia vir com "144 selecionados": os sem efeito também são selecionáveis, e "vigentes" nunca foi o total selecionável.
 - **A chave do arquivo nunca é retornada** (RNF09); testado percorrendo as respostas.
+
+### Conteúdo para o modal (S3)
+
+`GET /documentos/{origem}/{id}/conteudo?requerimento={idRequerimento}&formato=pdf|original`
+
+- **Acesso antes de tudo, a cada requisição** (também quando o arquivo já está no cache): RN07 no requerimento (Operador de outro interessado, 403 `NAO_INTERESSADO`; requerimento inexistente, 404); o documento é **relido da lista do requerimento** no servidor e `origem` + `id` precisam estar nela (os ids se repetem entre origens; origem inválida, id inexistente ou de outro requerimento: 404 `NAO_ENCONTRADO`); sigiloso sem perfil, 403 `DOCUMENTO_SIGILOSO`; indisponível (chave `"0"`), 404. Nada é baixado antes dessas checagens.
+- `requerimento` é o `idRequerimento` do item da lista (D55). Obrigatório.
+- `formato=original`: o arquivo como veio. `Content-Type` pelo tipo real (conteúdo, não nome). PDF e imagem vêm `inline`; todo o resto (inclusive HTML, que o navegador executaria) vem como `attachment`.
+- `formato=pdf` (padrão): o PDF, se já for PDF; senão convertido com o **mesmo conversor e os mesmos parâmetros do dossiê** (planilha, texto e HTML pelo LibreOffice; PNG e JPG pelo PDFBox), com o cabeçalho `X-Vistas-Convertido-De` (ex.: `XLSX`). Tipo sem conversão (compactado, não reconhecido) ou conversão desligada: 415 `FORMATO_NAO_SUPORTADO`.
+- Cabeçalhos: `Content-Disposition` com nome seguro (só o nome, sem caminho, caractere de controle, aspas, `;` nem ponto inicial; até 150 caracteres; na versão em PDF, extensão trocada por `.pdf`), `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`, `Referrer-Policy: no-referrer`.
+- **Cache** em `VISTAS_DOSSIE_DIRETORIO/visualizacao`, uma pasta por `(origem, id)` com o original e o PDF: vale `VISUALIZACAO_TTL_MINUTOS` (10) desde a gravação; acima de `VISUALIZACAO_CACHE_MAX_MB` (500) saem os mais antigos. Limpeza no intervalo da expiração dos dossiês e esvaziamento na subida. Duas requisições do mesmo documento esperam uma pela outra (uma só obtenção e uma só conversão). Uma falha de conversão mantém o original no cache: a nova tentativa não baixa de novo.
+- **Fila de conversões do modal**: até `VISUALIZACAO_CONVERSOES_SIMULTANEAS` (2) em paralelo e `VISUALIZACAO_FILA_CONVERSOES` (4) esperando; além disso, 429 `MUITAS_CONVERSOES`. PDF e arquivo em cache não entram na fila.
+- Streaming do disco para o cliente; o arquivo nunca é carregado inteiro na memória.
+- Falhas (`ProblemDetail`): arquivo não encontrado no repositório, 404 `NAO_ENCONTRADO`; credencial recusada, 502 `CREDENCIAL_ARQUIVOS_RECUSADA`; repositório fora do ar ou não configurado, 502 `REPOSITORIO_DE_ARQUIVOS_INDISPONIVEL`; tempo limite da obtenção ou da conversão, 504 `TEMPO_LIMITE_EXCEDIDO`; senha, 422 `DOCUMENTO_PROTEGIDO_POR_SENHA`; corrompido, 422 `DOCUMENTO_CORROMPIDO`; limites (páginas, tamanho, megapixels, planilha vazia), 422 `CONVERSAO_RECUSADA`; conversor indisponível, 503 `CONVERSOR_INDISPONIVEL`. A mensagem (`detail`) é o motivo em português, sem chave, URL nem token.
+- **A chave do arquivo e o token nunca aparecem** no corpo nem nos cabeçalhos; testado percorrendo as respostas (sucesso e falha).
 
 ## Dossiê
 
@@ -307,11 +322,19 @@ Todo erro segue `ProblemDetail` com `errorCode` estável e `correlationId` (head
 | 409 | `DOSSIE_SEM_ARQUIVO` | Arquivo inexistente: o pedido aguarda decisão, foi cancelado ou ainda está em andamento |
 | 409 | `DOSSIE_SEM_DECISAO_PENDENTE` | Continuação pedida para um dossiê que não está em `PENDENTE_DECISAO` (S2.2) |
 | 410 | `DOSSIE_EXPIRADO` | Dossiê expirado ou já baixado (o arquivo foi apagado) |
+| 415 | `FORMATO_NAO_SUPORTADO` | Conteúdo do modal: tipo sem conversão para PDF ou conversão desligada (S3) |
+| 422 | `DOCUMENTO_PROTEGIDO_POR_SENHA` | Conteúdo do modal: documento protegido por senha (S3) |
+| 422 | `DOCUMENTO_CORROMPIDO` | Conteúdo do modal: arquivo corrompido ou ilegível pelo conversor (S3) |
+| 422 | `CONVERSAO_RECUSADA` | Conteúdo do modal: conversão acima dos limites (páginas, tamanho, megapixels) ou planilha vazia (S3) |
+| 429 | `MUITAS_CONVERSOES` | Fila de conversões do modal cheia (S3) |
 | 403 | `TICKET_INVALIDO` | Ticket de download inexistente, já usado, vencido, de outro pedido ou de outro usuário (D49) |
 | 502 | `CREDENCIAL_ARQUIVOS_RECUSADA` | API de arquivos recusou a credencial (na geração assíncrona vira `erro.codigo` do pedido) |
+| 502 | `REPOSITORIO_DE_ARQUIVOS_INDISPONIVEL` | Conteúdo do modal: API de arquivos fora do ar, não configurada ou com resposta inesperada (S3) |
+| 503 | `CONVERSOR_INDISPONIVEL` | Conteúdo do modal: LibreOffice ausente ou indisponível (S3) |
+| 504 | `TEMPO_LIMITE_EXCEDIDO` | Conteúdo do modal: tempo limite da obtenção ou da conversão (S3) |
 | 503 | `SIGA_INDISPONIVEL` | Banco do SIGA indisponível |
 | 500 | `ERRO_INTERNO` | Demais erros |
 
-`405` (método não permitido) e `415` (tipo de conteúdo não suportado) usam o `errorCode` `PARAMETRO_INVALIDO` com o status correspondente; um código próprio pode ser criado depois. Erros de validação trazem `campos` (`campo` e `mensagem`). Sem `SIGA_DB_URL`, ou com o SIGA fora do ar, toda consulta responde `503 SIGA_INDISPONIVEL`. Coluna inexistente ou falta de permissão no SIGA aparecem como `500 ERRO_INTERNO`, sem detalhe técnico na resposta.
+`405` (método não permitido) e `415` de corpo da requisição com tipo não suportado usam o `errorCode` `PARAMETRO_INVALIDO` com o status correspondente; um código próprio pode ser criado depois. Erros de validação trazem `campos` (`campo` e `mensagem`). Sem `SIGA_DB_URL`, ou com o SIGA fora do ar, toda consulta responde `503 SIGA_INDISPONIVEL`. Coluna inexistente ou falta de permissão no SIGA aparecem como `500 ERRO_INTERNO`, sem detalhe técnico na resposta.
 
 Listas paginadas (busca por interessado, auditoria) usam `PageResponse<T>`.

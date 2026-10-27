@@ -86,6 +86,12 @@ vistas:
     saida-max-mb: ${CONVERSAO_SAIDA_MAX_MB:500}
     # Pasta do LibreOffice (a que contém program/soffice). Vazia = localizar nos caminhos padrão.
     office-home: ${CONVERSAO_OFFICE_HOME:}
+  # Modal de visualização (S3): cache da versão em PDF (em VISTAS_DOSSIE_DIRETORIO/visualizacao) e fila de conversões.
+  visualizacao:
+    ttl-minutos: ${VISUALIZACAO_TTL_MINUTOS:10}
+    cache-max-mb: ${VISUALIZACAO_CACHE_MAX_MB:500}
+    conversoes-simultaneas: ${VISUALIZACAO_CONVERSOES_SIMULTANEAS:2}
+    fila-de-conversoes: ${VISUALIZACAO_FILA_CONVERSOES:4}
   # API de arquivos do Licenciamento. URL vazia = não configurada: a geração falha com esse motivo, a listagem não.
   arquivos:
     url: ${LICENCIAMENTO_API_URL:}

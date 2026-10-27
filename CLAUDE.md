@@ -54,7 +54,7 @@ git diff --check
 
 `acesso`, `consulta`, `documento`, `dossie`, `auditoria` e `configuracao` são os módulos de negócio. `integration.{siga,licenciamento,scorp,arrecadacao}` são adapters externos. `config` e `shared` são transversais (`shared` não é depósito de código sem dono). O dono de uma funcionalidade é o módulo que define o significado de negócio dela; a tabela completa está em `docs/13-padroes-tecnicos.md`.
 
-Camadas por módulo: `api` (controller + `api.dto`) → `application` (casos de uso + portas) → `domain` (sem Spring Web, JPA, JDBC ou tipos de `integration.*`); `infrastructure` implementa as portas. Crie só os pacotes que o fluxo usa, sem placeholders vazios. `consulta` e `documento` não têm `infrastructure/`, porque as portas deles são implementadas por `integration.*`.
+Camadas por módulo: `api` (controller + `api.dto`) → `application` (casos de uso + portas) → `domain` (sem Spring Web, JPA, JDBC ou tipos de `integration.*`); `infrastructure` implementa as portas. Crie só os pacotes que o fluxo usa, sem placeholders vazios. `consulta` não tem `infrastructure/` e `documento` só tem `infrastructure/agendamento/` (limpeza do cache do modal, S3): as portas deles são implementadas por `integration.*`.
 
 Entre módulos, a comunicação acontece só por caso de uso ou porta publicada (ex.: `auditoria` publica `RegistrarEvento`). Nunca use DTO HTTP, entidade, repository ou DTO de integração de outro módulo.
 

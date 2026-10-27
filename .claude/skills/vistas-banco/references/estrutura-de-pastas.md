@@ -87,7 +87,7 @@ api/
 
 Regras:
 
-- `consulta` e `documento` não têm `infrastructure/`: quem implementa suas portas são os pacotes `integration.*`.
+- `consulta` não tem `infrastructure/`: quem implementa suas portas são os pacotes `integration.*`. `documento` também não tem adapter de porta próprio; desde a S3 tem só `infrastructure/agendamento/` (limpeza do cache do modal).
 - `dto/` de `integration.*` é interno ao pacote; nunca aparece em módulo de negócio.
 - A configuração do datasource do SIGA fica em `integration/siga/` (só ele pode usar `javax.sql` e Spring JDBC). Testes de integração dele usam Testcontainers com o recorte do SIGA em `src/test/resources/sql/siga/`.
 - Testes espelham os pacotes de `main`. Fixtures só em `src/test`.
