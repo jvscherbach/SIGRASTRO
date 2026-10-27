@@ -31,7 +31,7 @@ Pacote raiz `br.gov.mt.sema.vistas` (nome do projeto provisório).
 | `acesso` | usuários, perfis, vínculo do interessado (RN07), autenticação (simulada no protótipo) |
 | `consulta` | busca de requerimento/processo, dados de exibição, situação, tarefa atual |
 | `documento` | lista de documentos, vigência, sigilo, deduplicação, geometrias, conteúdo para visualização |
-| `dossie` | pedidos de geração, fila, conversão, montagem do PDF, expiração, regra "completo ou nenhum" |
+| `dossie` | pedidos de geração, fila, conversão, montagem do PDF, expiração, regra "nada incompleto sem decisão" (RN09) e continuação |
 | `auditoria` | registro (somente inclusão) e consulta de eventos de documentos e de acessos |
 | `configuracao` | parâmetros administráveis |
 | `integration.siga` | **único** lugar que conhece tabelas, colunas, SQL e enums do banco do SIGA |

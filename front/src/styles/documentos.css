@@ -43,3 +43,13 @@ tbody tr.bloqueado td:not(:first-child){opacity:.62}
 .previa header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
 .previa iframe{flex:1;border:0;width:100%;background:#5d6758}
 @media(max-width:640px){.d-head,.d-body,.d-foot{padding-left:18px;padding-right:18px}.previa{inset:8px}.selbar{bottom:8px}}
+/* Gaveta: pedido à espera de decisão (S2.2) */
+.gaveta-interrompida .decisao{display:grid;gap:6px;min-width:0}
+.gaveta-interrompida .decisao p{margin:0}
+.falhas{list-style:none;margin:2px 0;padding:0;display:grid;gap:4px;max-height:180px;overflow:auto}
+.falhas li{display:grid;gap:1px;min-width:0}
+.falhas li b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.falhas li span{font-size:11px;opacity:.85}
+.step.off{opacity:.6}
+.step.off .tx b{text-decoration:line-through}
+.decisao-botoes{justify-content:flex-end;gap:8px}

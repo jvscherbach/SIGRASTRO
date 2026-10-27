@@ -68,7 +68,7 @@ O protótipo é considerado bem-sucedido se, para um conjunto de processos escol
 
 1. o dossiê é gerado sem erro;
 2. as planilhas aparecem no PDF legíveis, sem cortes de colunas que impeçam a leitura;
-3. se algum documento selecionado não puder ser incluído, a geração é interrompida com erro e nenhum dossiê incompleto é entregue;
+3. se algum documento selecionado não puder ser incluído, nenhum dossiê incompleto é entregue sem decisão explícita do usuário; quando ele decide remover, o PDF registra o documento e o motivo em "Documentos não incluídos" (S2.2);
 4. a lista de documentos inclui os itens que a Vista atual não exibe (ver [04 — Modelo de dados](04-modelo-de-dados.md)).
 
 A lista de processos de teste será mantida em `docs/casos-de-teste.md`, a ser criado.

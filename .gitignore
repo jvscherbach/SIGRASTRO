@@ -2,6 +2,8 @@
 .env.local
 .env.*
 !.env.*.example
+# Token da API de arquivos montado no container (LICENCIAMENTO_API_TOKEN_FILE)
+.secrets/
 
 # Java / Maven
 api/target/

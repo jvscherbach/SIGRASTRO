@@ -47,7 +47,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * e pasta temporária própria. As chaves e o token abaixo são marcadores que NUNCA podem aparecer numa resposta.
  */
 @SpringBootTest(properties = {"vistas.demo.senha=senha-de-teste", "vistas.datasource.siga.url=",
-        "vistas.arquivos.url=", "vistas.arquivos.token=TOKEN-ARQUIVOS-DE-TESTE"})
+        "vistas.arquivos.url=", "vistas.arquivos.token=TOKEN-ARQUIVOS-DE-TESTE", "vistas.dossie.espaco-minimo-mb=0"})
 @AutoConfigureMockMvc
 public abstract class BaseHttpDeDocumentos {
 
@@ -120,7 +120,7 @@ public abstract class BaseHttpDeDocumentos {
             String chave = chamada.getArgument(0);
             Path destino = chamada.getArgument(1);
             Files.write(destino, conteudos.getOrDefault(chave, PdfsDeTeste.bytes(1, "documento " + chave.hashCode())));
-            return null;
+            return 1;
         }).when(arquivos).baixar(anyString(), any(Path.class));
     }
 

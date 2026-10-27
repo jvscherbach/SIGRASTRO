@@ -149,7 +149,7 @@ Resposta de `GET /requerimentos/{id}/documentos`:
       "bloqueio": null
     }
   ],
-  "totais": { "total": 55, "vigentes": 48, "naoPdf": 6, "tipoNaoInformado": 1, "indisponiveis": 2, "sigilosos": 3 }
+  "totais": { "total": 55, "vigentes": 48, "semEfeito": 5, "naoPdf": 6, "tipoNaoInformado": 1, "indisponiveis": 2, "sigilosos": 3 }
 }
 ```
 
@@ -157,9 +157,12 @@ Resposta de `GET /requerimentos/{id}/documentos`:
 - `situacao`: `VIGENTE`, `SUBSTITUIDO` ou `INDISPONIVEL` (RN01). Não é exibida como coluna.
 - `tipoArquivo`: `PDF`, `PLANILHA`, `TEXTO`, `IMAGEM`, `GEOMETRIA`, `COMPACTADO` ou `DESCONHECIDO` (pela extensão do nome do arquivo; sem extensão ou extensão não reconhecida é `DESCONHECIDO`).
 - `bloqueio` (por que o documento não pode ser selecionado): `null`, `NAO_PDF` (conversão na S3; `DESCONHECIDO` não recebe `NAO_PDF`), `INDISPONIVEL` ou `SIGILOSO` (sem perfil). Precedência: indisponível, sigiloso, não PDF.
-- `selecionavelPorPadrao`: pré-seleção do domínio: só PDF, vigente e sem bloqueio (`DESCONHECIDO` fica fora). Documento substituído em PDF não é pré-selecionado, mas pode ser marcado manualmente.
+- `selecionavelPorPadrao` (S2.2, RN13): significa "selecionável" e é a seleção inicial: `true` exatamente quando `bloqueio` é `null`. Entram vigentes e sem efeito (substituídos), de qualquer tipo, inclusive `DESCONHECIDO`.
 - `acessivel`: `false` quando o documento é sigiloso e o perfil não o acessa (Operador). Nesse caso o documento vem **mascarado**: `titulo` = "Documento sigiloso" e `nomeArquivo`, `extensao` e `tipoArquivo` são `null` (RF20).
-- `totais`: contagem de toda a lista (`naoPdf` conta os bloqueados por `NAO_PDF`, `tipoNaoInformado` conta os de tipo `DESCONHECIDO` (não entram em `naoPdf`) e `vigentes`, os de situação `VIGENTE`).
+- `totais`: contagem de toda a lista, depois da consolidação (RN05, RN11 e geometrias fora).
+  - Por situação, excludentes, somam o total: `total = vigentes + semEfeito + indisponiveis`. `vigentes` conta `VIGENTE` (sem `DATA_FIM`, chave válida); `semEfeito` conta `SUBSTITUIDO` (`DATA_FIM` preenchida, chave válida); `indisponiveis` conta `INDISPONIVEL` (chave nula, vazia ou `"0"`), qualquer que seja a `DATA_FIM`.
+  - Recortes que cruzam as situações: `naoPdf` (extensão conhecida que não é PDF; não entra em `tipoNaoInformado`), `tipoNaoInformado` (tipo `DESCONHECIDO`) e `sigilosos`.
+  - Os selecionados não são um total da API: a tela conta os itens marcados; ao abrir, são os de `bloqueio` `null` (`total − indisponiveis − naoPdf − sigilosos bloqueados para o perfil`, sem contar duas vezes quem tem mais de um motivo; vale o `bloqueio` de cada item). Por isso "145 documentos · 71 vigentes" podia vir com "144 selecionados": os sem efeito também são selecionáveis, e "vigentes" nunca foi o total selecionável.
 - **A chave do arquivo nunca é retornada** (RNF09); testado percorrendo as respostas.
 
 ## Dossiê
@@ -168,8 +171,11 @@ Resposta de `GET /requerimentos/{id}/documentos`:
 |---|---|---|
 | `POST` | `/dossies` | Cria um pedido de geração. Retorna `202` com `{ "id": "..." }` (UUID aleatório). |
 | `GET` | `/dossies/{id}` | Andamento do pedido. |
-| `GET` | `/dossies/{id}/arquivo?disposicao=inline\|attachment` | PDF final. `inline` para pré-visualização (o arquivo continua), `attachment` para download (**o arquivo é apagado ao fim do download**, RNF05). `Content-Disposition` com o nome do RF18: `dossie-processo-<numero>-<ano>.pdf` (protocolado) ou `dossie-requerimento-<numero>-<ano>.pdf`. |
-| `DELETE` | `/dossies/{id}` | Cancela o pedido em andamento ou descarta o arquivo já gerado (idempotente, 204). |
+| `GET` | `/dossies/{id}/arquivo?disposicao=inline|attachment` | PDF final (capa com "N documentos incluídos de M listados" e, logo após o sumário, a seção "Documentos não incluídos" com o motivo de cada um; S2.2, docs/06).\|attachment` | PDF final. `inline` para pré-visualização (o arquivo continua), `attachment` para download (**o arquivo é apagado ao fim do download**, RNF05). `Content-Disposition` com o nome do RF18: `dossie-processo-<numero>-<ano>.pdf` (protocolado) ou `dossie-requerimento-<numero>-<ano>.pdf`. |
+| `POST` | `/dossies/{id}/arquivo/ticket` | Dossiê grande (S2.2, D49): devolve `{ "ticket": "...", "expiraEm": "..." }`, com 256 bits aleatórios (base64url), de **uso único**, válido por **60 s** e preso ao pedido e ao usuário. Não é o token de sessão; o servidor guarda só o resumo SHA-256; nunca vai para log. Mesmas regras do arquivo: 404 sem acesso, 409 sem arquivo, 410 expirado. `Cache-Control: no-store`. |
+| `GET` | `/dossies/{id}/arquivo?disposicao=attachment&ticket=...` | Download direto pelo navegador, em streaming e **sem cabeçalho de sessão** (o filtro de autenticação deixa passar só esta rota com `ticket`). Ticket inexistente, já usado, vencido, de outro pedido ou apresentado com a sessão de outro usuário: `403 TICKET_INVALIDO` (o ticket é consumido na primeira tentativa). `inline` com ticket: 400. Ao fim do download completo, o arquivo e o diretório do pedido são apagados (como no `attachment` comum). Resposta com `Referrer-Policy: no-referrer`; o nginx não registra essa rota no log de acesso e não a bufferiza. |
+| `POST` | `/dossies/{id}/continuacao` | Decide um pedido em `PENDENTE_DECISAO` (S2.2): `{ "acao": "TENTAR_NOVAMENTE" }` refaz **só** os documentos com problema; `{ "acao": "REMOVER_E_CONTINUAR" }` os marca `REMOVIDO` e monta com os já obtidos. Nada já obtido é baixado de novo. `202`; `409 DOSSIE_SEM_DECISAO_PENDENTE` fora de `PENDENTE_DECISAO`; `400 PARAMETRO_INVALIDO` para ação desconhecida ou `REMOVER_E_CONTINUAR` sem nenhum documento obtido. Substitui os "novos `POST`" da S2. |
+| `DELETE` | `/dossies/{id}` | Cancela o pedido em qualquer situação não terminal e apaga o diretório do pedido (documentos já obtidos e PDF final); idempotente, 204. |
 
 Só quem criou o pedido (e Gestor e Administrador) acessa o `{id}`; para os demais o pedido **não existe** (404 `NAO_ENCONTRADO`).
 
@@ -200,39 +206,50 @@ Resposta do `GET /dossies/{id}`:
 ```json
 {
   "id": "6f0c3c0e-5f0e-4c7e-9a52-2b1f0f5d8a11",
-  "status": "PROCESSANDO",
+  "status": "OBTENDO",
   "total": 55,
   "processados": 21,
   "erro": null,
+  "falhas": [],
   "paginas": null,
   "expiraEm": "2026-10-19T18:30:00",
   "itens": [
-    { "origem": "DOCUMENTO_PROCESSO", "id": "804328", "titulo": "RG e CPF", "situacao": "OK" },
-    { "origem": "COMPLEMENTACAO", "id": "900118", "titulo": "Resposta da complementação", "situacao": "OBTENDO" }
+    { "origem": "DOCUMENTO_PROCESSO", "id": "804328", "titulo": "RG e CPF", "situacao": "OK", "tentativas": 2 },
+    { "origem": "COMPLEMENTACAO", "id": "900118", "titulo": "Resposta da complementação", "situacao": "OBTENDO", "tentativas": 0 }
   ]
 }
 ```
 
-- `status`: `PENDENTE`, `PROCESSANDO`, `CONCLUIDO`, `FALHA`, `CANCELADO` ou `EXPIRADO`.
-- `itens[].situacao` (RF16): `AGUARDANDO`, `OBTENDO`, `OK` ou `FALHA`. A ordem é a cronológica (RN03).
+- `status` (S2.2): `AGUARDANDO` (na fila), `OBTENDO`, `PENDENTE_DECISAO` (há documentos com problema; nada é entregue até a decisão), `MONTANDO`, `CONCLUIDO`, `CANCELADO` ou `EXPIRADO`. Não existe mais `FALHA` como estado final. O front para o polling em `CONCLUIDO`, `PENDENTE_DECISAO`, `CANCELADO` e `EXPIRADO`.
+- `itens[].situacao` (RF16): `AGUARDANDO`, `OBTENDO`, `OK`, `FALHA` ou `REMOVIDO`. A ordem é a cronológica (RN03). `itens[].motivo` aparece em `FALHA` e continua no item `REMOVIDO` (é o motivo que o PDF registra em "Documentos não incluídos", docs/06).
+- `processados`: itens resolvidos (`OK` ou `REMOVIDO`). **Não volta a zero** numa continuação: os já obtidos continuam contando.
+- `falhas` (S2.2): a lista completa dos itens em `FALHA` (`origem`, `id`, `titulo`, `motivo`), que a decisão vai refazer ou remover.
+- `erro`: motivo **geral**, só quando não é de um documento: credencial recusada (com `codigo`) ou falha na montagem. Falha de documento fica em `falhas`.
+- `expiraEm` (S2.2): conta desde a **última atividade** (criação, cada documento processado, decisão, conclusão), inclusive enquanto o pedido espera a decisão.
+- `itens[].tentativas` (S2.2): pedidos feitos à API de arquivos para o item (0 = nenhum ainda; mais de 1 = houve nova tentativa automática, docs/05). Não traz chave nem URL.
 - `paginas`: total de páginas do PDF final (só em `CONCLUIDO`). `expiraEm`: horário de Cuiabá, sem fuso.
-- `GET /dossies/{id}/arquivo`: 409 `DOSSIE_SEM_ARQUIVO` se não há arquivo (em andamento, falha, cancelado); 410 `DOSSIE_EXPIRADO` se expirou ou já foi baixado; 400 se `disposicao` for outra.
+- `tamanhoBytes` e `entregaPorTicket` (S2.2, só em `CONCLUIDO`): o tamanho do PDF final e se ele passa de `DOSSIE_BLOB_MAX_MB` (padrão 150). Abaixo do limite, o front baixa e pré-visualiza por `Blob`; acima, a pré-visualização some (com aviso) e o download usa o ticket (D49).
+- `GET /dossies/{id}/arquivo`: 409 `DOSSIE_SEM_ARQUIVO` se não há arquivo (em andamento, aguardando decisão, cancelado); 410 `DOSSIE_EXPIRADO` se expirou ou já foi baixado; 400 se `disposicao` for outra.
 
-Em `FALHA`, `erro` traz o documento e o motivo, e `GET /dossies/{id}/arquivo` retorna 409 (não há arquivo):
+Em `PENDENTE_DECISAO` por falha de documento, `falhas` traz cada documento e o motivo, e `GET /dossies/{id}/arquivo` retorna 409 (não há arquivo):
 
 ```json
-"erro": { "origem": "COMPLEMENTACAO", "id": "900118", "titulo": "Resposta da complementação", "motivo": "tempo limite excedido ao obter o arquivo" }
+"falhas": [
+  { "origem": "COMPLEMENTACAO", "id": "900118", "titulo": "Resposta da complementação", "motivo": "tempo limite excedido ao obter o arquivo" }
+]
 ```
 
-Quando a API de arquivos recusa a credencial (401/403), a geração inteira é interrompida e o erro traz o código (sem o valor do token):
+Quando a API de arquivos recusa a credencial (401/403), a obtenção para na hora (os já obtidos são mantidos), o pedido vai para `PENDENTE_DECISAO` e `erro` traz o código (sem o valor do token):
 
 ```json
 "erro": { "origem": "DOCUMENTO_PROCESSO", "id": "804328", "titulo": "RG e CPF", "motivo": "Token da API de arquivos expirado ou recusado: capture um novo token.", "codigo": "CREDENCIAL_ARQUIVOS_RECUSADA" }
 ```
 
-Motivos possíveis: tempo limite excedido ao obter o arquivo; arquivo não encontrado no repositório; repositório de arquivos indisponível; API de arquivos não configurada; o documento está protegido por senha; o arquivo está corrompido; o arquivo não tem páginas; o arquivo não é um PDF válido.
+Motivos possíveis: tempo limite excedido ao obter o arquivo; tempo total máximo excedido ao obter o arquivo; espaço em disco insuficiente; arquivo não encontrado no repositório; repositório de arquivos indisponível; API de arquivos não configurada; o documento está protegido por senha; o arquivo está corrompido; o arquivo não tem páginas; o arquivo não é um PDF válido.
 
-Para tentar de novo, o cliente envia um novo `POST /dossies` (com ou sem o documento que falhou). **Auditoria** é da S5: nenhum evento é registrado na S2.
+Falha na montagem (rara: os documentos já foram validados) também deixa o pedido em `PENDENTE_DECISAO`, com `erro.motivo` "falha ao montar o dossiê: …" e `falhas` vazia. `TENTAR_NOVAMENTE` refaz só a montagem.
+
+Para continuar, o cliente usa `POST /dossies/{id}/continuacao` (acima), **não** um novo `POST /dossies`: com credencial nova (token por arquivo, docs/05), `TENTAR_NOVAMENTE` obtém só o que falta. **Auditoria** é da S5: nenhum evento é registrado na S2.
 
 ## Auditoria
 
@@ -286,8 +303,10 @@ Todo erro segue `ProblemDetail` com `errorCode` estável e `correlationId` (head
 | 403 | `DOCUMENTO_SIGILOSO` | Documento sigiloso para perfil não autorizado |
 | 403 | `NAO_INTERESSADO` | Operador sem vínculo com o processo/requerimento |
 | 404 | `NAO_ENCONTRADO` | Requerimento, processo, documento, dossiê ou evento inexistente |
-| 409 | `DOSSIE_SEM_ARQUIVO` | Arquivo inexistente: a geração falhou, foi cancelada ou ainda está em andamento |
+| 409 | `DOSSIE_SEM_ARQUIVO` | Arquivo inexistente: o pedido aguarda decisão, foi cancelado ou ainda está em andamento |
+| 409 | `DOSSIE_SEM_DECISAO_PENDENTE` | Continuação pedida para um dossiê que não está em `PENDENTE_DECISAO` (S2.2) |
 | 410 | `DOSSIE_EXPIRADO` | Dossiê expirado ou já baixado (o arquivo foi apagado) |
+| 403 | `TICKET_INVALIDO` | Ticket de download inexistente, já usado, vencido, de outro pedido ou de outro usuário (D49) |
 | 502 | `CREDENCIAL_ARQUIVOS_RECUSADA` | API de arquivos recusou a credencial (na geração assíncrona vira `erro.codigo` do pedido) |
 | 503 | `SIGA_INDISPONIVEL` | Banco do SIGA indisponível |
 | 500 | `ERRO_INTERNO` | Demais erros |

@@ -63,7 +63,11 @@ vistas:
     diretorio: ${VISTAS_DOSSIE_DIRETORIO:/var/tmp/vistas}
     ttl-minutos: ${DOSSIE_TTL_MINUTOS:30}
     threads: ${DOSSIE_THREADS:2}
-    download-timeout-segundos: ${DOWNLOAD_TIMEOUT_SEGUNDOS:60}
+    download-timeout-segundos: ${DOWNLOAD_TIMEOUT_SEGUNDOS:120}
+    download-total-maximo-segundos: ${DOWNLOAD_TOTAL_MAXIMO_SEGUNDOS:900}
+    espaco-minimo-mb: ${DOSSIE_ESPACO_MINIMO_MB:2048}
+    # Acima disto (MB) o download vai por ticket, em streaming, sem pré-visualização (S2.2).
+    blob-max-mb: ${DOSSIE_BLOB_MAX_MB:150}
     sumario: ${DOSSIE_SUMARIO:true}
     marcadores: ${DOSSIE_MARCADORES:true}
     numeracao: ${DOSSIE_NUMERACAO:true}
@@ -71,6 +75,8 @@ vistas:
   arquivos:
     url: ${LICENCIAMENTO_API_URL:}
     token: ${LICENCIAMENTO_API_TOKEN:}
+    # Caminho de um arquivo com o token (S2.2): relido a cada pedido e tem precedência sobre o token acima.
+    token-file: ${LICENCIAMENTO_API_TOKEN_FILE:}
     # bearer (padrão) ou cookie; vazio também vale como bearer.
     auth-mode: ${LICENCIAMENTO_API_AUTH_MODE:bearer}
     cookie-name: ${LICENCIAMENTO_API_COOKIE_NAME:}

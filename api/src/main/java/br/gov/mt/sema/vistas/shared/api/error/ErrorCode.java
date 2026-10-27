@@ -11,7 +11,9 @@ public enum ErrorCode {
     NAO_INTERESSADO(HttpStatus.FORBIDDEN, "Acesso negado"),
     NAO_ENCONTRADO(HttpStatus.NOT_FOUND, "Não encontrado"),
     DOSSIE_SEM_ARQUIVO(HttpStatus.CONFLICT, "Dossiê sem arquivo"),
+    DOSSIE_SEM_DECISAO_PENDENTE(HttpStatus.CONFLICT, "Dossiê sem decisão pendente"),
     DOSSIE_EXPIRADO(HttpStatus.GONE, "Dossiê expirado"),
+    TICKET_INVALIDO(HttpStatus.FORBIDDEN, "Ticket de download inválido"),
     CREDENCIAL_ARQUIVOS_RECUSADA(HttpStatus.BAD_GATEWAY, "Credencial de arquivos recusada"),
     SIGA_INDISPONIVEL(HttpStatus.SERVICE_UNAVAILABLE, "SIGA indisponível"),
     ERRO_INTERNO(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno");

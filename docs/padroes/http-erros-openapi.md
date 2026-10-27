@@ -17,15 +17,17 @@
 | 403 | `DOCUMENTO_SIGILOSO` | Documento sigiloso para perfil não autorizado |
 | 403 | `NAO_INTERESSADO` | Operador sem vínculo com o processo/requerimento (RN07) |
 | 404 | `NAO_ENCONTRADO` | Requerimento, processo, documento, dossiê ou evento inexistente |
-| 409 | `DOSSIE_SEM_ARQUIVO` | Download de dossiê cuja geração falhou (RN09) |
+| 409 | `DOSSIE_SEM_ARQUIVO` | Download de dossiê sem arquivo (aguarda decisão, cancelado ou em andamento; RN09) |
+| 409 | `DOSSIE_SEM_DECISAO_PENDENTE` | Continuação de dossiê que não está em `PENDENTE_DECISAO` (S2.2) |
 | 410 | `DOSSIE_EXPIRADO` | Dossiê expirado |
+| 403 | `TICKET_INVALIDO` | Ticket de download direto inválido, usado, vencido, de outro pedido ou usuário (S2.2) |
 | 502 | `CREDENCIAL_ARQUIVOS_RECUSADA` | API de arquivos recusou a credencial (token expirado) |
 | 503 | `SIGA_INDISPONIVEL` | Banco do SIGA indisponível |
 | 500 | `ERRO_INTERNO` | Demais erros |
 
 `405` (método não permitido) e `415` (tipo de conteúdo não suportado) usam o `errorCode` `PARAMETRO_INVALIDO` com o status HTTP correspondente (decisão da S0, até haver código próprio). Erro de validação traz a lista `campos` (`campo` + `mensagem`); parâmetro inválido apontado pelo domínio (`ParametroInvalidoException` com campo) também.
 
-A falha de um documento durante a geração **não** é erro HTTP da requisição de geração (que é assíncrona): fica no status `FALHA` do pedido, com `erro` (documento e motivo).
+A falha de um documento durante a geração **não** é erro HTTP da requisição de geração (que é assíncrona): fica no andamento do pedido, que vai para `PENDENTE_DECISAO` com `falhas` (documento e motivo) e, para credencial recusada ou falha na montagem, `erro` (S2.2). A decisão é `POST /dossies/{id}/continuacao`.
 
 ## Correlação
 

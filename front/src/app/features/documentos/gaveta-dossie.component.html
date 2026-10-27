@@ -4,7 +4,8 @@
       <div>
         <span class="eyebrow">Dossiê em PDF</span>
         <h2 id="gaveta-titulo" style="margin-top: 4px">{{ titulo() }}</h2>
-        <p>{{ total() }} documento(s) em ordem cronológica · capa e sumário com marcadores.</p>
+        <p>{{ total() }} documento(s) · capa e sumário com marcadores.</p>
+        <p class="ordem-cronologica">O dossiê segue sempre a ordem cronológica.</p>
       </div>
       <button
         type="button"
@@ -29,25 +30,29 @@
           </div>
         }
 
-        @if (status() === 'FALHA' && erroDoDossie(); as erro) {
+        @if (status() === 'PENDENTE_DECISAO') {
           <div class="alert gaveta-interrompida" role="alert" style="margin: 0 0 16px">
             <app-icone nome="alert" />
-            @if (tokenRecusado()) {
-              <span>
-                <b>Token da API de arquivos expirado ou recusado.</b> Capture um novo token e tente novamente.<br />
-                A geração foi interrompida e nenhum arquivo foi gerado.
-              </span>
-            } @else if (erro.titulo) {
-              <span>
-                <b>{{ erro.titulo }}</b> não pôde ser incluído: {{ erro.motivo }}.<br />
-                A geração foi interrompida e nenhum arquivo foi gerado, para não entregar um dossiê incompleto.
-              </span>
-            } @else {
-              <span>
-                {{ erro.motivo }}.<br />
-                A geração foi interrompida e nenhum arquivo foi gerado.
-              </span>
-            }
+            <div class="decisao">
+              @if (tokenRecusado()) {
+                <p class="decisao-token">
+                  <b>Token da API de arquivos expirado ou recusado.</b> {{ mensagemDeToken }}
+                </p>
+              } @else if (erroDoDossie(); as erro) {
+                <p class="decisao-geral">{{ erro.motivo }}.</p>
+              }
+              @if (falhas().length && !tokenRecusado()) {
+                <p>{{ falhas().length === 1 ? 'Este documento não pôde ser obtido:' : 'Estes documentos não puderam ser obtidos:' }}</p>
+                <ul class="falhas" aria-label="Documentos com problema">
+                  @for (falha of falhas(); track falha.origem + ':' + falha.id) {
+                    <li><b>{{ falha.titulo }}</b> <span>{{ falha.motivo }}</span></li>
+                  }
+                </ul>
+              }
+              <p class="decisao-nota">
+                {{ obtidos() }} documento(s) já obtido(s) e mantido(s): não serão baixados de novo. Nada é entregue sem a sua decisão.
+              </p>
+            </div>
           </div>
         }
 
@@ -55,32 +60,34 @@
           <span class="estado-rotulo">
             @if (fase() === 'enviando') {
               Enviando pedido…
-            } @else if (vencido() || status() === 'EXPIRADO') {
-              Expirado
             } @else {
-              @switch (status()) {
-                @case ('CONCLUIDO') { Concluído }
-                @case ('FALHA') { Interrompido }
-                @case ('CANCELADO') { Cancelado }
-                @case ('PENDENTE') { Na fila }
-                @default { Processando }
-              }
-              · {{ processados() }}/{{ total() }}
+              {{ rotuloDoStatus() }} · {{ processados() }}/{{ total() }}
             }
           </span>
           <b>{{ percentual() }}%</b>
         </div>
-        <div class="bar" [class.done]="status() === 'CONCLUIDO'" [class.fail]="status() === 'FALHA'">
+        <div class="bar" [class.done]="status() === 'CONCLUIDO'" [class.fail]="status() === 'PENDENTE_DECISAO'">
           <i [style.width.%]="percentual()"></i>
         </div>
 
         @if (status() === 'CONCLUIDO' && !vencido()) {
-          @if (baixado()) {
+          @if (baixadoDireto()) {
+            <div class="note lime gaveta-nota" style="margin-top: 12px">
+              <app-icone nome="download" />
+              <span>Download entregue ao navegador. Quando ele terminar, o arquivo é descartado do servidor: para baixar outra vez, gere o dossiê de novo.</span>
+            </div>
+          } @else if (baixado()) {
             <div class="note lime gaveta-nota" style="margin-top: 12px">
               <app-icone nome="download" />
               <span>Arquivo baixado. Ele foi descartado do servidor: gere o dossiê de novo para baixar outra vez.</span>
             </div>
           } @else {
+            @if (entregaPorTicket()) {
+              <div class="note amber gaveta-nota gaveta-grande" style="margin-top: 12px">
+                <app-icone nome="info" />
+                <span>Dossiê grande ({{ tamanhoEmMb() }} MB): a pré-visualização fica desligada e o download vai direto pelo navegador.</span>
+              </div>
+            }
             <div class="note lime gaveta-nota" style="margin-top: 12px">
               <app-icone nome="clock" />
               <span>
@@ -113,7 +120,7 @@
               <span class="st"><app-icone [nome]="iconeDoItem(item.situacao)" [class.spin]="item.situacao === 'OBTENDO'" /></span>
               <span class="tx">
                 <b>{{ item.titulo }}</b>
-                <small>{{ rotuloDoItem(item.situacao) }}</small>
+                <small>{{ rotuloDoItem(item.situacao, item.motivo) }}</small>
               </span>
             </li>
           }
@@ -129,17 +136,22 @@
           <button type="button" class="btn primary" (click)="tentarNovamente()"><app-icone nome="refresh" />Tentar novamente</button>
         }
         <button type="button" class="btn quiet" (click)="fechar.emit()">Fechar</button>
-      } @else if (status() === 'FALHA') {
-        @if (podeRemover()) {
-          <button type="button" class="btn quiet" (click)="removerEGerar()">Remover documento e gerar</button>
-        } @else {
-          <span></span>
-        }
-        <button type="button" class="btn primary" (click)="tentarNovamente()"><app-icone nome="refresh" />Tentar novamente</button>
+      } @else if (status() === 'PENDENTE_DECISAO') {
+        <button type="button" class="btn quiet" [disabled]="ocupado()" (click)="cancelarGeracao()">Cancelar</button>
+        <div class="row wrap decisao-botoes">
+          @if (podeRemover()) {
+            <button type="button" class="btn" [disabled]="ocupado()" (click)="removerEGerar()">{{ rotuloRemover() }}</button>
+          }
+          <button type="button" class="btn primary" [disabled]="ocupado()" (click)="tentarNovamente()">
+            <app-icone nome="refresh" />{{ rotuloTentar() }}
+          </button>
+        </div>
       } @else if (status() === 'CONCLUIDO' && !vencido() && !baixado()) {
         <button type="button" class="btn quiet" (click)="fechar.emit()">Fechar</button>
         <div class="row">
-          <button type="button" class="btn" [disabled]="ocupado()" (click)="previsualizar()"><app-icone nome="eye" />Pré-visualizar</button>
+          @if (!entregaPorTicket()) {
+            <button type="button" class="btn" [disabled]="ocupado()" (click)="previsualizar()"><app-icone nome="eye" />Pré-visualizar</button>
+          }
           <button type="button" class="btn primary" [disabled]="ocupado()" (click)="baixar()"><app-icone nome="download" />Baixar PDF</button>
         </div>
       } @else if (emAndamento()) {

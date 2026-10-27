@@ -13,6 +13,9 @@ class ParametrosDoDossieDoAmbiente implements ParametrosDoDossie {
     private final int ttlMinutos;
     private final int threads;
     private final int downloadTimeoutSegundos;
+    private final int downloadTotalMaximoSegundos;
+    private final long espacoMinimoMb;
+    private final long blobMaxMb;
     private final boolean sumario;
     private final boolean marcadores;
     private final boolean numeracao;
@@ -21,7 +24,10 @@ class ParametrosDoDossieDoAmbiente implements ParametrosDoDossie {
     ParametrosDoDossieDoAmbiente(
             @Value("${vistas.dossie.ttl-minutos:30}") int ttlMinutos,
             @Value("${vistas.dossie.threads:2}") int threads,
-            @Value("${vistas.dossie.download-timeout-segundos:60}") int downloadTimeoutSegundos,
+            @Value("${vistas.dossie.download-timeout-segundos:120}") int downloadTimeoutSegundos,
+            @Value("${vistas.dossie.download-total-maximo-segundos:900}") int downloadTotalMaximoSegundos,
+            @Value("${vistas.dossie.espaco-minimo-mb:2048}") long espacoMinimoMb,
+            @Value("${vistas.dossie.blob-max-mb:150}") long blobMaxMb,
             @Value("${vistas.dossie.sumario:true}") boolean sumario,
             @Value("${vistas.dossie.marcadores:true}") boolean marcadores,
             @Value("${vistas.dossie.numeracao:true}") boolean numeracao,
@@ -29,6 +35,9 @@ class ParametrosDoDossieDoAmbiente implements ParametrosDoDossie {
         this.ttlMinutos = ttlMinutos;
         this.threads = threads;
         this.downloadTimeoutSegundos = downloadTimeoutSegundos;
+        this.downloadTotalMaximoSegundos = downloadTotalMaximoSegundos;
+        this.espacoMinimoMb = espacoMinimoMb;
+        this.blobMaxMb = blobMaxMb;
         this.sumario = sumario;
         this.marcadores = marcadores;
         this.numeracao = numeracao;
@@ -48,6 +57,21 @@ class ParametrosDoDossieDoAmbiente implements ParametrosDoDossie {
     @Override
     public int downloadTimeoutSegundos() {
         return downloadTimeoutSegundos;
+    }
+
+    @Override
+    public int downloadTotalMaximoSegundos() {
+        return downloadTotalMaximoSegundos;
+    }
+
+    @Override
+    public long espacoMinimoMb() {
+        return espacoMinimoMb;
+    }
+
+    @Override
+    public long blobMaxMb() {
+        return blobMaxMb;
     }
 
     @Override

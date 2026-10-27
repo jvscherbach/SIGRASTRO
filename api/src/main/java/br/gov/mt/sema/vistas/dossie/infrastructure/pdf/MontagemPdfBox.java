@@ -10,6 +10,7 @@ import java.util.List;
 import br.gov.mt.sema.vistas.dossie.application.port.FalhaNoDocumentoException;
 import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie;
 import br.gov.mt.sema.vistas.dossie.domain.DadosDaCapa;
+import br.gov.mt.sema.vistas.dossie.domain.DocumentoNaoIncluido;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.io.IOUtils;
@@ -36,7 +37,8 @@ import org.slf4j.LoggerFactory;
  * Uma montagem de dossiê com PDFBox 3 (uma instância por geração: as fontes não são compartilhadas entre threads) (docs/06). Páginas dos documentos entram por {@code importPage} (tamanho, rotação,
  * anotações e links preservados; nada é forçado para A4, RNF06). Tudo vive em arquivos temporários: os documentos de
  * origem são abertos com cache em disco e ficam abertos até o PDF final ser salvo (o PDFBox compartilha os objetos
- * entre origem e destino), mas só um dossiê por thread de geração.
+ * entre origem e destino), mas só um dossiê por thread de geração. Medido com 20 PDFs de ~48 MB: pico de heap de
+ * ~130 MB, inclusive com -Xmx256m, sem precisar montar em lotes (docs/10, R26; DesempenhoDaMontagemTest).
  *
  * Capa e sumário são páginas A4 desenhadas aqui; o sumário tem paginação própria (linhas fixas por página), então a
  * página inicial de cada documento é determinística e conhecida antes de importar qualquer página.
@@ -47,30 +49,44 @@ class MontagemPdfBox implements MontadorDoDossie {
     private static final Logger log = LoggerFactory.getLogger(MontadorPdfBox.class);
 
     static final int LINHAS_POR_PAGINA_DO_SUMARIO = 38;
+    /** Cada documento não incluído ocupa duas linhas (dados e motivo). */
+    static final int ITENS_POR_PAGINA_DOS_NAO_INCLUIDOS = 22;
+    static final String TITULO_DOS_NAO_INCLUIDOS = "Documentos não incluídos";
     private static final float TAMANHO_DO_RODAPE = 9f;
     private static final float MARGEM_DO_RODAPE = 20f;
     private static final float ALTURA_DA_LINHA = 16f;
     private static final DateTimeFormatter DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    static final String SEM_DATA = "sem data";
+    static final String NOTA_SEM_DATA =
+            "Documentos \"sem data\" não têm data registrada na origem e aparecem ao final, por origem e id.";
     private static final DateTimeFormatter DATA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm");
 
     private final PDType1Font normal = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
     private final PDType1Font negrito = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
 
     @Override
-    public int montar(DadosDaCapa capa, List<DocumentoParaMontagem> documentos, OpcoesDeMontagem opcoes, Path destino) {
+    public int montar(DadosDaCapa capa, List<DocumentoParaMontagem> documentos, Inventario inventario,
+            OpcoesDeMontagem opcoes, Path destino) {
         List<PDDocument> abertos = new ArrayList<>();
         try (PDDocument saida = new PDDocument(IOUtils.createTempFileOnlyStreamCache())) {
             PDPage paginaDaCapa = paginaA4(saida);
-            desenharCapa(saida, paginaDaCapa, capa, documentos.size());
+            desenharCapa(saida, paginaDaCapa, capa, documentos.size(), inventario.listados());
 
             int paginasDoSumario = opcoes.sumario() ? Math.max(1, ceilDiv(documentos.size(), LINHAS_POR_PAGINA_DO_SUMARIO)) : 0;
             List<PDPage> paginasDoSumarioA4 = new ArrayList<>();
             for (int i = 0; i < paginasDoSumario; i++) {
                 paginasDoSumarioA4.add(paginaA4(saida));
             }
+            // "Documentos não incluídos" logo após o sumário (omitida se vazia), com paginação própria.
+            List<DocumentoNaoIncluido> fora = inventario.naoIncluidos();
+            int paginasDosNaoIncluidos = ceilDiv(fora.size(), ITENS_POR_PAGINA_DOS_NAO_INCLUIDOS);
+            List<PDPage> paginasDosNaoIncluidosA4 = new ArrayList<>();
+            for (int i = 0; i < paginasDosNaoIncluidos; i++) {
+                paginasDosNaoIncluidosA4.add(paginaA4(saida));
+            }
             // Número (1 = capa) da primeira página de cada documento.
             int[] inicio = new int[documentos.size()];
-            int proxima = 2 + paginasDoSumario;
+            int proxima = 2 + paginasDoSumario + paginasDosNaoIncluidos;
             for (int i = 0; i < documentos.size(); i++) {
                 inicio[i] = proxima;
                 proxima += documentos.get(i).paginas();
@@ -83,8 +99,12 @@ class MontagemPdfBox implements MontadorDoDossie {
             if (opcoes.sumario()) {
                 desenharSumario(saida, paginasDoSumarioA4, documentos, inicio);
             }
+            if (!fora.isEmpty()) {
+                desenharNaoIncluidos(saida, paginasDosNaoIncluidosA4, fora);
+            }
             if (opcoes.marcadores()) {
-                criarMarcadores(saida, documentos, inicio, paginasDoSumario > 0);
+                criarMarcadores(saida, documentos, inicio, paginasDoSumario > 0,
+                        fora.isEmpty() ? null : paginasDosNaoIncluidosA4.get(0));
             }
             if (opcoes.numeracao()) {
                 numerar(saida);
@@ -162,7 +182,7 @@ class MontagemPdfBox implements MontadorDoDossie {
 
     // --- capa
 
-    private void desenharCapa(PDDocument saida, PDPage pagina, DadosDaCapa capa, int quantidadeDeDocumentos)
+    private void desenharCapa(PDDocument saida, PDPage pagina, DadosDaCapa capa, int incluidos, int listados)
             throws IOException {
         float x = 60f;
         float largura = pagina.getMediaBox().getWidth() - 2 * x;
@@ -185,7 +205,7 @@ class MontagemPdfBox implements MontadorDoDossie {
             y = campo(c, "Tipo de processo", capa.tipoProcesso(), x, y, largura);
             y = campo(c, "Situação", capa.situacao(), x, y, largura);
             y = campo(c, "Data de abertura", capa.abertura() == null ? null : capa.abertura().format(DATA), x, y, largura);
-            y = campo(c, "Documentos neste dossiê", String.valueOf(quantidadeDeDocumentos), x, y, largura);
+            y = campo(c, "Documentos neste dossiê", incluidosDeListados(incluidos, listados), x, y, largura);
             y -= 6f;
             y = lista(c, "Objetivos", capa.objetivos(), x, y, largura);
             y = lista(c, "Finalidades e atividades", capa.atividades(), x, y, largura);
@@ -257,12 +277,16 @@ class MontagemPdfBox implements MontadorDoDossie {
                 for (int i = primeiro; i < ultimo; i++) {
                     DocumentoParaMontagem d = documentos.get(i);
                     LocalDateTime data = d.data();
-                    texto(c, data == null ? "s/d" : data.format(DATA), normal, 9f, colData, y, 0f);
+                    texto(c, data == null ? SEM_DATA : data.format(DATA), normal, 9f, colData, y, 0f);
                     texto(c, TextoPdf.cortar(normal, d.titulo(), 9f, colOrigem - colTitulo - 8f), normal, 9f, colTitulo, y, 0f);
                     texto(c, TextoPdf.cortar(normal, d.origem(), 9f, colPaginaDireita - 40f - colOrigem), normal, 9f, colOrigem, y, 0f);
                     String numero = String.valueOf(inicio[i]);
                     texto(c, numero, normal, 9f, colPaginaDireita - TextoPdf.largura(normal, numero, 9f), y, 0f);
                     y -= ALTURA_DA_LINHA;
+                }
+                // A nota fica no rodapé da última página do sumário: não ocupa linha, então a paginação não muda.
+                if (p == paginas.size() - 1 && documentos.stream().anyMatch(d -> d.data() == null)) {
+                    texto(c, NOTA_SEM_DATA, normal, 8f, colData, 60f, 0f);
                 }
             }
             adicionarLinks(saida, pagina, primeiro(p), Math.min(documentos.size(), primeiro(p) + LINHAS_POR_PAGINA_DO_SUMARIO), inicio);
@@ -292,15 +316,66 @@ class MontagemPdfBox implements MontadorDoDossie {
         }
     }
 
+    // --- documentos não incluídos (S2.2)
+
+    /** "N documentos incluídos de M listados"; sem inventário (M menor que N), M = N. */
+    static String incluidosDeListados(int incluidos, int listados) {
+        int total = Math.max(incluidos, listados);
+        return incluidos + (incluidos == 1 ? " documento incluído" : " documentos incluídos") + " de " + total
+                + (total == 1 ? " listado" : " listados");
+    }
+
+    /**
+     * Uma entrada por documento fora do dossiê, em duas linhas (data, título, origem e id; depois o motivo), com
+     * {@link #ITENS_POR_PAGINA_DOS_NAO_INCLUIDOS} por página: o número de páginas é conhecido antes de desenhar.
+     */
+    private void desenharNaoIncluidos(PDDocument saida, List<PDPage> paginas, List<DocumentoNaoIncluido> fora)
+            throws IOException {
+        float colData = 50f;
+        float colTitulo = 120f;
+        float colOrigem = 365f;
+        float colId = 545f;
+        for (int p = 0; p < paginas.size(); p++) {
+            try (PDPageContentStream c = new PDPageContentStream(saida, paginas.get(p))) {
+                float y = 790f;
+                y = texto(c, TITULO_DOS_NAO_INCLUIDOS, negrito, 16f, colData, y, 20f);
+                y = texto(c, "Documentos listados no requerimento que não fazem parte deste dossiê, e o motivo.",
+                        normal, 9f, colData, y, 20f);
+                texto(c, "Data", negrito, 9f, colData, y, 0f);
+                texto(c, "Documento", negrito, 9f, colTitulo, y, 0f);
+                texto(c, "Origem", negrito, 9f, colOrigem, y, 0f);
+                texto(c, "Id", negrito, 9f, colId - TextoPdf.largura(negrito, "Id", 9f), y, 0f);
+                y -= 20f;
+                int primeiro = p * ITENS_POR_PAGINA_DOS_NAO_INCLUIDOS;
+                int ultimo = Math.min(fora.size(), primeiro + ITENS_POR_PAGINA_DOS_NAO_INCLUIDOS);
+                for (int i = primeiro; i < ultimo; i++) {
+                    DocumentoNaoIncluido d = fora.get(i);
+                    texto(c, d.data() == null ? SEM_DATA : d.data().format(DATA), normal, 9f, colData, y, 0f);
+                    texto(c, TextoPdf.cortar(normal, d.titulo(), 9f, colOrigem - colTitulo - 8f), normal, 9f, colTitulo, y, 0f);
+                    String id = TextoPdf.cortar(normal, d.id(), 9f, 60f);
+                    texto(c, TextoPdf.cortar(normal, d.origem(), 9f, colId - 70f - colOrigem), normal, 9f, colOrigem, y, 0f);
+                    texto(c, id, normal, 9f, colId - TextoPdf.largura(normal, id, 9f), y, 0f);
+                    y -= 12f;
+                    texto(c, TextoPdf.cortar(normal, "Motivo: " + d.motivo(), 8f, colId - colTitulo), normal, 8f,
+                            colTitulo, y, 0f);
+                    y -= 16f;
+                }
+            }
+        }
+    }
+
     // --- marcadores
 
-    private void criarMarcadores(PDDocument saida, List<DocumentoParaMontagem> documentos, int[] inicio, boolean comSumario)
-            throws IOException {
+    private void criarMarcadores(PDDocument saida, List<DocumentoParaMontagem> documentos, int[] inicio, boolean comSumario,
+            PDPage naoIncluidos) throws IOException {
         PDDocumentOutline contorno = new PDDocumentOutline();
         saida.getDocumentCatalog().setDocumentOutline(contorno);
         contorno.addLast(item("Capa", saida.getPage(0)));
         if (comSumario) {
             contorno.addLast(item("Sumário", saida.getPage(1)));
+        }
+        if (naoIncluidos != null) {
+            contorno.addLast(item(TITULO_DOS_NAO_INCLUIDOS, naoIncluidos));
         }
         for (int i = 0; i < documentos.size(); i++) {
             contorno.addLast(item(documentos.get(i).titulo(), saida.getPage(inicio[i] - 1)));

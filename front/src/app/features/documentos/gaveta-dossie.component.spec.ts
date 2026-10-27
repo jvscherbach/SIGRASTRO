@@ -15,10 +15,11 @@ const REFS: ReferenciaDocumento[] = [
 function andamento(sobre: Partial<AndamentoDossie> = {}): AndamentoDossie {
   return {
     id: 'pedido-1',
-    status: 'PROCESSANDO',
+    status: 'OBTENDO',
     total: 3,
     processados: 1,
     erro: null,
+    falhas: [],
     paginas: null,
     expiraEm: '2026-10-21T11:30:00',
     itens: [
@@ -38,13 +39,13 @@ const CONCLUIDO = andamento({
 });
 
 const FALHA = andamento({
-  status: 'FALHA',
-  processados: 1,
-  erro: { origem: 'JUNTADA', id: '900118', titulo: 'Ofício juntado', motivo: 'tempo limite excedido ao obter o arquivo' },
+  status: 'PENDENTE_DECISAO',
+  processados: 2,
+  falhas: [{ origem: 'JUNTADA', id: '900118', titulo: 'Ofício juntado', motivo: 'tempo limite excedido ao obter o arquivo' }],
   itens: [
     { origem: 'DOCUMENTO_PROCESSO', id: '804328', titulo: 'Requerimento assinado', situacao: 'OK' },
-    { origem: 'JUNTADA', id: '900118', titulo: 'Ofício juntado', situacao: 'FALHA' },
-    { origem: 'IMOVEL', id: '31', titulo: 'Matrícula', situacao: 'AGUARDANDO' },
+    { origem: 'JUNTADA', id: '900118', titulo: 'Ofício juntado', situacao: 'FALHA', motivo: 'tempo limite excedido ao obter o arquivo' },
+    { origem: 'IMOVEL', id: '31', titulo: 'Matrícula', situacao: 'OK' },
   ],
 });
 
@@ -62,6 +63,9 @@ describe('GavetaDossieComponent', () => {
     andamento: ReturnType<typeof vi.fn>;
     arquivo: ReturnType<typeof vi.fn>;
     cancelar: ReturnType<typeof vi.fn>;
+    continuar: ReturnType<typeof vi.fn>;
+    ticket: ReturnType<typeof vi.fn>;
+    urlDeDownloadDireto: ReturnType<typeof vi.fn>;
   };
   let fixture: ComponentFixture<GavetaDossieComponent>;
   let raiz: HTMLElement;
@@ -102,6 +106,11 @@ describe('GavetaDossieComponent', () => {
       andamento: vi.fn(() => of(andamento())),
       arquivo: vi.fn(),
       cancelar: vi.fn(() => of(undefined)),
+      continuar: vi.fn(() => of(undefined)),
+      ticket: vi.fn(),
+      urlDeDownloadDireto: vi.fn(
+        (id: string, ticket: string) => `/api/dossies/${id}/arquivo?disposicao=attachment&ticket=${ticket}`,
+      ),
     };
     URL.createObjectURL = vi.fn(() => 'blob:http://localhost/previa-1');
     URL.revokeObjectURL = vi.fn();
@@ -120,6 +129,12 @@ describe('GavetaDossieComponent', () => {
       expect(api.andamento).toHaveBeenCalledWith('pedido-1');
     });
 
+    it('avisa que o dossiê segue sempre a ordem cronológica (a ordem da tabela não muda o PDF)', () => {
+      abrir();
+
+      expect(texto()).toContain('O dossiê segue sempre a ordem cronológica.');
+    });
+
     it('enquanto o pedido é enviado mostra "Enviando pedido…" e a lista da seleção', () => {
       api.criar.mockReturnValue(new Subject());
       abrir();
@@ -132,7 +147,7 @@ describe('GavetaDossieComponent', () => {
       abrir();
 
       expect(texto()).toContain('Gerando dossiê');
-      expect(texto()).toContain('Processando · 1/3');
+      expect(texto()).toContain('Obtendo documentos · 1/3');
       expect(texto()).toContain('33%');
       expect(passos()).toEqual([
         { titulo: 'Requerimento assinado', situacao: 'OK' },
@@ -145,7 +160,7 @@ describe('GavetaDossieComponent', () => {
     });
 
     it('pendente aparece como "Na fila"', () => {
-      api.andamento.mockReturnValue(of(andamento({ status: 'PENDENTE', processados: 0 })));
+      api.andamento.mockReturnValue(of(andamento({ status: 'AGUARDANDO', processados: 0 })));
       abrir();
 
       expect(texto()).toContain('Na fila');
@@ -168,11 +183,11 @@ describe('GavetaDossieComponent', () => {
       }
     });
 
-    it('para ao chegar a um estado final (concluído, falha, cancelado, expirado)', async () => {
-      for (const status of ['CONCLUIDO', 'FALHA', 'CANCELADO', 'EXPIRADO'] as const) {
+    it('para ao chegar a um estado que depende do usuário (concluído, aguardando decisão, cancelado, expirado)', async () => {
+      for (const status of ['CONCLUIDO', 'PENDENTE_DECISAO', 'CANCELADO', 'EXPIRADO'] as const) {
         TestBed.resetTestingModule();
         api.andamento.mockClear();
-        api.andamento.mockReturnValue(of(andamento({ status, erro: status === 'FALHA' ? FALHA.erro : null })));
+        api.andamento.mockReturnValue(of(andamento({ status, falhas: status === 'PENDENTE_DECISAO' ? FALHA.falhas : [] })));
         abrir();
 
         await avancar(60_000);
@@ -347,67 +362,240 @@ describe('GavetaDossieComponent', () => {
     });
   });
 
-  describe('interrompido (RN09)', () => {
-    beforeEach(() => api.andamento.mockReturnValue(of(FALHA)));
+  describe('dossiê grande (acima de DOSSIE_BLOB_MAX_MB, D49)', () => {
+    const GRANDE = { ...CONCLUIDO, tamanhoBytes: 400 * 1024 * 1024, entregaPorTicket: true };
 
-    it('informa o documento e o motivo e que nenhum arquivo foi gerado', () => {
+    beforeEach(() => {
+      api.andamento.mockReturnValue(of(GRANDE));
+      api.ticket.mockReturnValue(of({ ticket: 'TICKET-DE-TESTE', expiraEm: '2026-10-21T11:01:00' }));
+    });
+
+    it('sem pré-visualização e com aviso do tamanho', () => {
       abrir();
 
-      expect(texto()).toContain('Geração interrompida');
-      expect(texto()).toContain('Ofício juntado não pôde ser incluído: tempo limite excedido ao obter o arquivo.');
-      expect(texto()).toContain('nenhum arquivo foi gerado');
-      expect(texto()).toContain('Interrompido · 1/3');
-      expect(passos().map((p) => p.situacao)).toEqual(['OK', 'FALHA', 'AGUARDANDO']);
+      expect(botao('Pré-visualizar')).toBeUndefined();
+      expect(botao('Baixar PDF')).toBeTruthy();
+      expect(texto()).toContain('Dossiê grande (400 MB): a pré-visualização fica desligada');
+    });
+
+    it('"Baixar PDF" pede um ticket e entrega a URL ao navegador, sem Blob', () => {
+      const urls: string[] = [];
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+        urls.push(this.getAttribute('href')!);
+      });
+      abrir();
+
+      botao('Baixar PDF')!.click();
+      fixture.detectChanges();
+
+      expect(api.ticket).toHaveBeenCalledWith('pedido-1');
+      expect(api.arquivo).not.toHaveBeenCalled();
+      expect(URL.createObjectURL).not.toHaveBeenCalled();
+      expect(urls).toEqual(['/api/dossies/pedido-1/arquivo?disposicao=attachment&ticket=TICKET-DE-TESTE']);
+      expect(texto()).toContain('Download entregue ao navegador');
+      expect(botao('Gerar novamente')).toBeTruthy();
+    });
+
+    it('ticket recusado (410) mostra que expirou', () => {
+      api.ticket.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 410, error: { errorCode: 'DOSSIE_EXPIRADO' } })));
+      abrir();
+
+      botao('Baixar PDF')!.click();
+      fixture.detectChanges();
+
+      expect(texto()).toContain('Dossiê expirado');
+    });
+
+    it('abaixo do limite continua por Blob, com pré-visualização', () => {
+      api.andamento.mockReturnValue(of({ ...CONCLUIDO, tamanhoBytes: 1024, entregaPorTicket: false }));
+      abrir();
+
+      expect(botao('Pré-visualizar')).toBeTruthy();
+      expect(texto()).not.toContain('Dossiê grande');
+    });
+  });
+
+  describe('aguardando decisão (RN09, S2.2)', () => {
+    const DUAS_FALHAS = andamento({
+      status: 'PENDENTE_DECISAO',
+      processados: 1,
+      falhas: [
+        { origem: 'JUNTADA', id: '900118', titulo: 'Ofício juntado', motivo: 'tempo limite excedido ao obter o arquivo' },
+        { origem: 'IMOVEL', id: '31', titulo: 'Matrícula', motivo: 'arquivo não encontrado no repositório' },
+      ],
+      itens: [
+        { origem: 'DOCUMENTO_PROCESSO', id: '804328', titulo: 'Requerimento assinado', situacao: 'OK' },
+        { origem: 'JUNTADA', id: '900118', titulo: 'Ofício juntado', situacao: 'FALHA', motivo: 'tempo limite excedido ao obter o arquivo' },
+        { origem: 'IMOVEL', id: '31', titulo: 'Matrícula', situacao: 'FALHA', motivo: 'arquivo não encontrado no repositório' },
+      ],
+    });
+    const falhasNaTela = () =>
+      Array.from(raiz.querySelectorAll('.falhas li')).map(
+        (li) => `${li.querySelector('b')!.textContent} — ${li.querySelector('span')!.textContent}`,
+      );
+
+    beforeEach(() => api.andamento.mockReturnValue(of(DUAS_FALHAS)));
+
+    it('lista cada documento com problema e o motivo, mantém os obtidos e não entrega nada', () => {
+      abrir();
+
+      expect(texto()).toContain('Documentos com problema');
+      expect(falhasNaTela()).toEqual([
+        'Ofício juntado — tempo limite excedido ao obter o arquivo',
+        'Matrícula — arquivo não encontrado no repositório',
+      ]);
+      expect(texto()).toContain('1 documento(s) já obtido(s) e mantido(s): não serão baixados de novo');
+      expect(texto()).toContain('Aguardando sua decisão · 1/3');
+      expect(passos().map((p) => p.situacao)).toEqual(['OK', 'FALHA', 'FALHA']);
+      expect(texto()).toContain('Falhou: tempo limite excedido ao obter o arquivo');
       expect(botao('Pré-visualizar')).toBeUndefined();
       expect(botao('Baixar PDF')).toBeUndefined();
     });
 
-    it('"Tentar novamente" é um novo POST com a mesma seleção', () => {
+    it('os botões dizem quantos documentos a decisão afeta', () => {
+      abrir();
+
+      expect(botao('Tentar novamente os 2 com problema')).toBeTruthy();
+      expect(botao('Remover os 2 com problema e gerar')).toBeTruthy();
+      expect(botao('Cancelar')).toBeTruthy();
+    });
+
+    it('no singular: "o 1 com problema"', () => {
+      api.andamento.mockReturnValue(of(FALHA));
+      abrir();
+
+      expect(botao('Tentar novamente o 1 com problema')).toBeTruthy();
+      expect(botao('Remover o 1 com problema e gerar')).toBeTruthy();
+    });
+
+    it('"Tentar novamente" continua o mesmo pedido (sem novo POST) e volta a acompanhar', () => {
       abrir();
       api.criar.mockClear();
+      api.andamento.mockClear();
+      api.andamento.mockReturnValue(of(CONCLUIDO));
 
       botao('Tentar novamente')!.click();
+      fixture.detectChanges();
 
-      expect(api.criar).toHaveBeenCalledTimes(1);
-      expect(api.criar).toHaveBeenCalledWith(101, REFS);
+      expect(api.continuar).toHaveBeenCalledWith('pedido-1', 'TENTAR_NOVAMENTE');
+      expect(api.criar).not.toHaveBeenCalled();
+      expect(api.andamento).toHaveBeenCalledTimes(1);
+      expect(texto()).toContain('Dossiê pronto');
       expect(removidos).toEqual([]);
     });
 
-    it('"Remover documento e gerar" envia a seleção sem o documento que falhou e avisa a tela', () => {
+    it('"Remover" decide REMOVER_E_CONTINUAR, avisa a tela de cada documento que saiu e mostra os removidos', () => {
       abrir();
-      api.criar.mockClear();
+      api.andamento.mockReturnValue(
+        of({
+          ...CONCLUIDO,
+          itens: DUAS_FALHAS.itens.map((i) => (i.situacao === 'FALHA' ? { ...i, situacao: 'REMOVIDO' as const } : i)),
+        }),
+      );
 
-      botao('Remover documento e gerar')!.click();
+      botao('Remover os 2 com problema e gerar')!.click();
+      fixture.detectChanges();
 
-      expect(api.criar).toHaveBeenCalledWith(101, [
-        { origem: 'DOCUMENTO_PROCESSO', id: '804328' },
+      expect(api.continuar).toHaveBeenCalledWith('pedido-1', 'REMOVER_E_CONTINUAR');
+      expect(api.criar).toHaveBeenCalledTimes(1);
+      expect(removidos).toEqual([
+        { origem: 'JUNTADA', id: '900118' },
         { origem: 'IMOVEL', id: '31' },
       ]);
-      expect(removidos).toEqual([{ origem: 'JUNTADA', id: '900118' }]);
+      expect(passos().map((p) => p.situacao)).toEqual(['OK', 'REMOVIDO', 'REMOVIDO']);
+      expect(texto()).toContain('Removido: tempo limite excedido ao obter o arquivo');
     });
 
-    it('a remoção vale para as tentativas seguintes (a seleção encolhe de verdade)', () => {
+    it('"Cancelar" chama DELETE e mostra o cancelamento', () => {
       abrir();
-      botao('Remover documento e gerar')!.click();
-      api.andamento.mockReturnValue(of(FALHA));
-      api.criar.mockClear();
+      api.andamento.mockReturnValue(of(andamento({ status: 'CANCELADO' })));
+
+      botao('Cancelar')!.click();
+      fixture.detectChanges();
+
+      expect(api.cancelar).toHaveBeenCalledWith('pedido-1');
+      expect(api.continuar).not.toHaveBeenCalled();
+      expect(texto()).toContain('Geração cancelada');
+    });
+
+    it('o progresso não volta a zero depois da decisão', () => {
+      abrir();
+      api.andamento.mockReturnValue(of(andamento({ status: 'OBTENDO', processados: 1 })));
 
       botao('Tentar novamente')!.click();
+      fixture.detectChanges();
 
-      expect((api.criar.mock.calls[0][1] as ReferenciaDocumento[]).length).toBe(2);
+      expect(texto()).toContain('Obtendo documentos · 1/3');
+      expect(texto()).not.toContain('0/3');
     });
 
-    it('com um documento só não há o que remover', () => {
-      abrir([REFS[1]]);
+    it('decisão recusada pelo servidor (409) mostra a mensagem e mantém os botões', () => {
+      api.continuar.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status: 409, error: { errorCode: 'DOSSIE_SEM_DECISAO_PENDENTE' } })),
+      );
+      abrir();
 
-      expect(botao('Remover documento e gerar')).toBeUndefined();
+      botao('Tentar novamente')!.click();
+      fixture.detectChanges();
+
+      expect(raiz.querySelector('.gaveta-erro')!.textContent).toContain('não está mais aguardando decisão');
       expect(botao('Tentar novamente')).toBeTruthy();
+    });
+
+    it('enquanto a decisão é enviada os botões ficam desabilitados', () => {
+      api.continuar.mockReturnValue(new Subject());
+      abrir();
+
+      botao('Tentar novamente')!.click();
+      fixture.detectChanges();
+
+      expect(botao('Tentar novamente')!.disabled).toBe(true);
+      expect(botao('Remover')!.disabled).toBe(true);
+    });
+
+    it('sair da tela com a decisão pendente não deixa inscrição pendurada', () => {
+      const decisao = new Subject<void>();
+      api.continuar.mockReturnValue(decisao);
+      abrir();
+
+      botao('Tentar novamente')!.click();
+      expect(decisao.observed).toBe(true);
+      fixture.destroy();
+
+      expect(decisao.observed).toBe(false);
+    });
+
+    it('sem nenhum documento obtido não há o que remover', () => {
+      api.andamento.mockReturnValue(
+        of({ ...DUAS_FALHAS, processados: 0, itens: DUAS_FALHAS.itens.map((i) => ({ ...i, situacao: 'FALHA' as const })) }),
+      );
+      abrir();
+
+      expect(botao('Remover')).toBeUndefined();
+      expect(botao('Tentar novamente os 3 com problema')).toBeTruthy();
+    });
+
+    it('falha na montagem mostra o motivo geral', () => {
+      api.andamento.mockReturnValue(
+        of(
+          andamento({
+            status: 'PENDENTE_DECISAO',
+            processados: 3,
+            erro: { origem: null, id: null, titulo: null, motivo: 'falha inesperada ao montar o dossiê' },
+            itens: CONCLUIDO.itens,
+          }),
+        ),
+      );
+      abrir();
+
+      expect(texto()).toContain('falha inesperada ao montar o dossiê.');
+      expect(raiz.querySelector('.falhas')).toBeNull();
     });
   });
 
   describe('token da API de arquivos recusado', () => {
     const recusado = andamento({
-      status: 'FALHA',
+      status: 'PENDENTE_DECISAO',
       erro: {
         origem: 'DOCUMENTO_PROCESSO',
         id: '804328',
@@ -415,17 +603,42 @@ describe('GavetaDossieComponent', () => {
         motivo: 'Token da API de arquivos expirado ou recusado: capture um novo token.',
         codigo: 'CREDENCIAL_ARQUIVOS_RECUSADA',
       },
+      falhas: [
+        {
+          origem: 'JUNTADA',
+          id: '900118',
+          titulo: 'Ofício juntado',
+          motivo: 'Token da API de arquivos expirado ou recusado: capture um novo token.',
+        },
+      ],
+      processados: 1,
+      itens: [
+        { origem: 'DOCUMENTO_PROCESSO', id: '804328', titulo: 'Requerimento assinado', situacao: 'OK' },
+        { origem: 'JUNTADA', id: '900118', titulo: 'Ofício juntado', situacao: 'FALHA' },
+        { origem: 'IMOVEL', id: '31', titulo: 'Matrícula', situacao: 'AGUARDANDO' },
+      ],
     });
 
-    it('orienta a capturar um novo token, sem citar valor e sem oferecer a remoção do documento', () => {
+    it('orienta a atualizar o arquivo do token e conta também os ainda não tentados, sem citar valor', () => {
       api.andamento.mockReturnValue(of(recusado));
       abrir();
 
       expect(texto()).toContain('Token da API de arquivos expirado ou recusado.');
-      expect(texto()).toContain('Capture um novo token e tente novamente.');
-      expect(botao('Remover documento e gerar')).toBeUndefined();
-      expect(botao('Tentar novamente')).toBeTruthy();
+      expect(texto()).toContain('Capture um novo token, atualize o arquivo do token e clique em Tentar novamente.');
+      expect(raiz.querySelector('.falhas')).toBeNull();
+      expect(botao('Tentar novamente os 2 com problema')).toBeTruthy();
+      expect(botao('Remover os 2 com problema e gerar')).toBeTruthy();
       expect(raiz.innerHTML).not.toMatch(/Bearer|eyJ/);
+    });
+
+    it('com token novo, "Tentar novamente" continua só os pendentes', () => {
+      api.andamento.mockReturnValue(of(recusado));
+      abrir();
+
+      botao('Tentar novamente')!.click();
+
+      expect(api.continuar).toHaveBeenCalledWith('pedido-1', 'TENTAR_NOVAMENTE');
+      expect(api.criar).toHaveBeenCalledTimes(1);
     });
   });
 

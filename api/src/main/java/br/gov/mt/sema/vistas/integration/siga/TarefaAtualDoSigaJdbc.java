@@ -1,6 +1,5 @@
 package br.gov.mt.sema.vistas.integration.siga;
 
-import java.sql.Timestamp;
 import java.util.List;
 
 import br.gov.mt.sema.vistas.consulta.application.TarefaAtualDoRequerimento;
@@ -36,7 +35,7 @@ class TarefaAtualDoSigaJdbc implements TarefaAtualDoRequerimento {
         try {
             List<TarefaLinha> linhas = jdbc.query(sql, new MapSqlParameterSource("idRequerimento", idRequerimento),
                     (rs, n) -> new TarefaLinha(rs.getString("NOME_TAREFA"),
-                            criadaEm(rs.getTimestamp("CRIADA_EM")), rs.getString("FLUXO"),
+                            DataHoraDoSiga.ler(rs, "CRIADA_EM"), rs.getString("FLUXO"),
                             rs.getString("SITUACAO_RESPONSAVEL"), rs.getString("NOME_RESPONSAVEL")));
             if (linhas.isEmpty()) {
                 return TarefaAtual.semTarefa();
@@ -47,10 +46,6 @@ class TarefaAtualDoSigaJdbc implements TarefaAtualDoRequerimento {
             log.warn("Não foi possível ler a tarefa atual do requerimento {}: {}", idRequerimento, e.getMessage());
             return TarefaAtual.indisponivel();
         }
-    }
-
-    private static java.time.LocalDateTime criadaEm(Timestamp valor) {
-        return valor == null ? null : valor.toLocalDateTime();
     }
 
     /** Situação desconhecida ou fora do esperado vira "não identificado": nunca expõe o dado cru. */

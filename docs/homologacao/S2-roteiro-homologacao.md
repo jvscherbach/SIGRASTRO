@@ -1,4 +1,4 @@
-# Roteiro de homologação da S2 (revisado na S2.1) — documentos, token e dossiê em PDF
+# Roteiro de homologação da S2 (revisado na S2.1 e na S2.2) — documentos, token e dossiê em PDF
 
 **Quem executa:** o responsável pelo projeto, manualmente. O desenvolvimento (Claude Code) **nunca** se conecta ao banco real do SIGA, à API de arquivos nem ao SCORP (D27, D34). Tudo o que foi provado até aqui usa portas falsas, `MockMvc`, um servidor HTTP local de teste, Oracle 23 Free por Testcontainers e Playwright com a API simulada. O que **só você** pode provar está neste roteiro: as tabelas e colunas de documentos do SIGA real, os índices, o token, os arquivos reais e o tempo de geração.
 
@@ -413,13 +413,13 @@ Registre a conclusão em P21 de [`docs/10`](../10-pendencias-e-riscos.md).
 
 ## 6. Geração real
 
-Para cada um dos 3 requerimentos (ou para os de `casos-de-teste.md`): **Gerar dossiê** com a pré-seleção, abrir o PDF e conferir:
+Para cada um dos 3 requerimentos (ou para os de `casos-de-teste.md`): **Gerar dossiê** com a seleção inicial (desde a S2.2, todos os selecionáveis), abrir o PDF e conferir:
 
 | Item | Esperado | OK? |
 |---|---|---|
-| Capa | "Dossiê do Processo N/AAAA" (ou "Requerimento"), interessado, CPF/CNPJ, tipo de processo, situação, abertura, objetivos e atividades, quantidade de documentos, data/hora e usuário; acentos corretos | [ ] |
+| Capa | "Dossiê do Processo N/AAAA" (ou "Requerimento"), interessado, CPF/CNPJ, tipo de processo, situação, abertura, objetivos e atividades, "N documentos incluídos de M listados" (S2.2), data/hora e usuário; acentos corretos | [ ] |
 | Sumário | uma linha por documento (data, título, origem, página inicial) e a página inicial confere com o documento | [ ] |
-| Marcadores | um por documento, mais "Capa" e "Sumário", levando à página certa | [ ] |
+| Marcadores | um por documento, mais "Capa", "Sumário" e, se houver, "Documentos não incluídos" (S2.2), levando à página certa | [ ] |
 | Numeração | "Página X de Y" no rodapé, a partir da 2ª página, inclusive em páginas em paisagem ou giradas | [ ] |
 | Ordem | cronológica pela data da própria origem; sem data ao final | [ ] |
 | Tamanho e rotação | cada página mantém o tamanho e a rotação do original (nada forçado para A4) | [ ] |
@@ -431,16 +431,19 @@ Anote em `casos-de-teste.md`, para cada caso: resultado, **tempo de geração**,
 
 ## 7. Falhas
 
+Desde a S2.2 as falhas são **coletadas**: a geração vai até o fim, o pedido fica "Documentos com problema" (`PENDENTE_DECISAO`) e nada é entregue até a decisão. A decisão continua o mesmo pedido sem baixar de novo o que já foi obtido (detalhes no passo 10).
+
 | Cenário | Como provocar | Esperado | OK? |
 |---|---|---|---|
-| Token vazio | `LICENCIAMENTO_API_TOKEN=` e subir de novo | Gaveta: "Token da API de arquivos expirado ou recusado. Capture um novo token"; nenhum arquivo; sem "Remover documento" | [ ] |
-| Token expirado | token antigo | idem | [ ] |
-| Tempo limite | `DOWNLOAD_TIMEOUT_SEGUNDOS=1` e subir de novo (requerimento com PDF grande) | "Geração interrompida": documento e motivo "tempo limite excedido ao obter o arquivo"; nenhum PDF; os documentos seguintes ficam "Aguardando" | [ ] |
-| Tentar novamente | com o timeout normal (`60`), clicar em **Tentar novamente** | gera o dossiê completo | [ ] |
-| Remover documento e gerar | provocar a falha de novo e clicar em **Remover documento e gerar** | gera sem o documento, que também sai da seleção da tela | [ ] |
-| Sem a API de arquivos | `LICENCIAMENTO_API_URL=` | a lista funciona; a geração falha com "API de arquivos não configurada" | [ ] |
-| Tipo não informado que não é PDF | documento sem extensão (ou de nome em branco) cujo arquivo não é PDF, marcado e gerado | "Geração interrompida": documento e motivo "o arquivo não é um PDF (tipo detectado: X); a conversão chega na próxima etapa"; nenhum PDF entregue (RN09) | [ ] |
+| Token vazio | `LICENCIAMENTO_API_TOKEN=` (ou arquivo do token vazio) e subir de novo | a obtenção para; gaveta: "Token da API de arquivos expirado ou recusado. Capture um novo token, atualize o arquivo do token e clique em Tentar novamente."; nenhum arquivo | [ ] |
+| Token expirado | token antigo | idem; os já obtidos ficam guardados | [ ] |
+| Tempo limite | `DOWNLOAD_TIMEOUT_SEGUNDOS=1` e subir de novo (requerimento com PDF grande) | o item mostra "Falhou: tempo limite excedido ao obter o arquivo" depois de 3 tentativas (`tentativas` = 3 no andamento); os demais continuam sendo obtidos; nenhum PDF entregue | [ ] |
+| Tentar novamente | depois de uma recusa de token, trocar o arquivo do token (passo 10.5; mudar variável recria o container e perde o pedido em memória) e clicar em **Tentar novamente os N com problema** | só os com problema são obtidos de novo; o progresso não volta a zero; o dossiê sai completo | [ ] |
+| Remover e gerar | provocar a falha de novo e clicar em **Remover os N com problema e gerar** | gera sem eles; aparecem como "Removido" na gaveta e em "Documentos não incluídos" no PDF; saem também da seleção da tela | [ ] |
+| Sem a API de arquivos | `LICENCIAMENTO_API_URL=` | a lista funciona; cada documento falha com "API de arquivos não configurada" | [ ] |
+| Tipo não informado que não é PDF | documento sem extensão (ou de nome em branco) cujo arquivo não é PDF | "Falhou: o arquivo não é um PDF (tipo detectado: X)…"; nada entregue sem decisão (RN09) | [ ] |
 | Tipo não informado que é PDF | documento sem extensão cujo arquivo é PDF | entra no dossiê normalmente | [ ] |
+| Pouco disco | `DOSSIE_ESPACO_MINIMO_MB` maior que o espaço livre do volume | cada documento falha com "espaço em disco insuficiente", sem chamar a API | [ ] |
 
 - [ ] OK / [ ] Falhou — observação:
 
@@ -486,6 +489,81 @@ Repita 404, 403 e 503 no celular (DevTools, largura 390 px). **Não declare reso
 
 - [ ] OK / [ ] Falhou — observação:
 
-## 10. Registro do resultado
+## 10. S2.2 — seleção total, ordem, continuação, token por arquivo e dossiê grande
+
+Use os mesmos 3 requerimentos do passo 5 (marcadores `<REQUERIMENTO_1>` a `<REQUERIMENTO_3>`), com o token real e a API de arquivos real (uso normal, **sem** o `compose.verificacao.yaml`).
+
+### 10.1 Tudo selecionado ao abrir
+
+Para cada requerimento, abra o detalhe e confira a linha da seção Documentos: "N documento(s) · V vigente(s) · S sem efeito · I indisponível(is)".
+
+| Requerimento | N | V | S | I | V + S + I = N? | Selecionados ao abrir | = N − I − não PDF − sigilosos bloqueados? | OK? |
+|---|---|---|---|---|---|---|---|---|
+| `<REQUERIMENTO_1>` | | | | | [ ] | | [ ] | [ ] |
+| `<REQUERIMENTO_2>` | | | | | [ ] | | [ ] | [ ] |
+| `<REQUERIMENTO_3>` | | | | | [ ] | | [ ] | [ ] |
+
+Os sem efeito e os de tipo não informado vêm marcados; indisponíveis, não PDF e (para o Operador) sigilosos ficam desmarcados e bloqueados.
+
+### 10.2 Um documento que falha: só ele é refeito e o progresso não volta a zero
+
+1. Provoque uma falha num só documento **sem precisar recriar o container** (o pedido fica em memória e se perde ao recriar): por exemplo, selecione um documento sem extensão cujo arquivo não é PDF.
+2. **Gerar dossiê**: a geração vai até o fim, e a gaveta mostra "Documentos com problema", a lista com o documento e o motivo e "Aguardando sua decisão · X/N" (X = obtidos).
+3. Clique em **Tentar novamente o 1 com problema**.
+4. Confira: o contador continua de X/N (não volta a 0/N) e só aquele documento volta a "Obtendo". Ele falha de novo, porque o problema é do arquivo, mas os demais não são baixados outra vez. Para ver um "Tentar novamente" que **resolve**, use o token por arquivo (10.5): a credencial é trocada sem recriar o container.
+
+- [ ] OK / [ ] Falhou — observação:
+
+### 10.3 "Remover e gerar": seção "Documentos não incluídos" e capa
+
+Provoque a falha de novo e clique em **Remover o 1 com problema e gerar**. No PDF:
+
+| Item | Esperado | OK? |
+|---|---|---|
+| Capa | "N documentos incluídos de M listados", com M igual ao N da linha de totais (10.1) | [ ] |
+| Seção | logo após o sumário, "Documentos não incluídos" com o removido ("removido pelo usuário após falha: …") e os indisponíveis, não PDF e desmarcados, cada um com data (ou "sem data"), título, origem, id e motivo | [ ] |
+| Sumário e marcadores | a página inicial de cada documento continua certa depois da seção; marcador "Documentos não incluídos" | [ ] |
+| Gaveta | o documento aparece como "Removido" e sai da seleção da tabela | [ ] |
+
+- [ ] OK / [ ] Falhou — observação:
+
+### 10.4 Ordem cronológica do PDF contra a tabela
+
+Num requerimento que tenha **documentos com a mesma data** e **um sem data**: ordene a tabela por Documento (ou filtre) antes de gerar, e confira no sumário:
+
+| Esperado | OK? |
+|---|---|
+| a ordem do PDF é a da tabela ordenada por **Data** crescente (não a da ordenação escolhida) | [ ] |
+| datas iguais: desempate pela origem (processo, requerimento, complementação, imóvel, representante legal, responsável técnico) e depois pelo id numérico | [ ] |
+| o documento sem data aparece no fim como "sem data", com a nota no rodapé do sumário | [ ] |
+| um documento criado perto da meia-noite aparece no mesmo dia na tela e no sumário | [ ] |
+
+- [ ] OK / [ ] Falhou — observação:
+
+### 10.5 Trocar o token pelo arquivo, sem recriar o container
+
+1. Configure o token por arquivo (README, "Token por arquivo"): `.secrets/token-arquivos`, a linha do `compose.local.yaml` descomentada e `LICENCIAMENTO_API_TOKEN_FILE=/run/secrets-vistas/token-arquivos` no `.env.local`. Suba uma vez.
+2. Grave no arquivo um token **expirado** (ou um texto qualquer) com um editor de texto. Não use `echo`, porque o token fica no histórico do shell. Gere um dossiê: a obtenção para com "Capture um novo token, atualize o arquivo do token e clique em Tentar novamente.".
+3. Capture um token novo (passo 4.1), grave-o no mesmo arquivo **sem** reiniciar nada e clique em **Tentar novamente os N com problema**.
+4. Confira: o pedido continua (os documentos obtidos antes da recusa não são baixados de novo) e o dossiê sai completo. Nos logs (`docker compose ... logs api`) não aparece o token nem o caminho do arquivo.
+
+- [ ] OK / [ ] Falhou — observação:
+
+### 10.6 Dossiê grande: tempo, tamanho e disco
+
+Escolha o maior requerimento disponível (de preferência acima de 150 MB de PDFs).
+
+1. Enquanto gera, meça o disco do pedido (sem imprimir nada sensível):
+
+```bash
+docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml exec -T api du -sh /var/tmp/vistas
+```
+
+2. Anote em [`casos-de-teste.md`](../casos-de-teste.md), na tabela "Dossiê grande (S2.2)": documentos, soma dos arquivos, tempo até "Dossiê pronto", tamanho do PDF, maior uso de `/var/tmp/vistas` e se o download foi por ticket.
+3. Acima de 150 MB, confira: sem **Pré-visualizar**, aviso "Dossiê grande (N MB)", e **Baixar PDF** baixando direto pelo navegador (o download aparece na barra de downloads com o nome `dossie-processo-N-AAAA.pdf`). Depois que o download terminar, um novo **Baixar** responde que o dossiê expirou.
+
+- [ ] OK / [ ] Falhou — observação:
+
+## 11. Registro do resultado
 
 Preencha a seção **"Validação da S2"** de [`docs/14`](../14-plano-de-sprints.md) (requerimento, falha hoje, documentos SIGA × Vistas, dossiê, páginas, tempo, bate/não bate), anote os casos em [`casos-de-teste.md`](../casos-de-teste.md) e abra pendência em [`docs/10`](../10-pendencias-e-riscos.md) para o que não bater. Itens resolvidos aqui (P04, P05, P08, P09, P10) saem das pendências.

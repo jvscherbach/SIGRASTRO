@@ -75,6 +75,27 @@ describe('documentos.logic', () => {
       expect(ordenar(lista, ORDEM_PADRAO).map((d) => d.id)).toEqual(['9', '4', '10', '3']);
     });
 
+    it('empate de data segue o servidor: origem (ordem do docs/04), depois id numérico; sem data por origem também', () => {
+      const t = '2025-04-02T14:00:00';
+      const empate = [
+        documento({ id: '10', origem: 'IMOVEL', data: t }),
+        documento({ id: '10', origem: 'DOCUMENTO_PROCESSO', data: t }),
+        documento({ id: '3', origem: 'COMPLEMENTACAO', data: null }),
+        documento({ id: '9', origem: 'DOCUMENTO_PROCESSO', data: t }),
+        documento({ id: '4', origem: 'DOCUMENTO_PROCESSO', data: null }),
+        documento({ id: '1', origem: 'DOCUMENTO_REQUERIMENTO', data: '2025-04-02T13:59:59' }),
+      ];
+
+      expect(ordenar(empate, ORDEM_PADRAO).map(chaveDe)).toEqual([
+        'DOCUMENTO_REQUERIMENTO:1',
+        'DOCUMENTO_PROCESSO:9',
+        'DOCUMENTO_PROCESSO:10',
+        'IMOVEL:10',
+        'DOCUMENTO_PROCESSO:4',
+        'COMPLEMENTACAO:3',
+      ]);
+    });
+
     it('data decrescente também deixa o sem data ao final', () => {
       expect(ordenar(lista, { campo: 'data', direcao: -1 }).map((d) => d.id)).toEqual(['10', '4', '9', '3']);
     });
@@ -105,15 +126,15 @@ describe('documentos.logic', () => {
   });
 
   describe('seleção', () => {
-    it('só o que a API marca como selecionável por padrão entra na pré-seleção', () => {
+    it('só o que a API marca como selecionável por padrão entra na seleção inicial', () => {
       const sel = selecaoPadrao([
         ...lista,
-        documento({ id: '5', situacao: 'SUBSTITUIDO', selecionavelPorPadrao: false }),
+        documento({ id: '5', situacao: 'SUBSTITUIDO', }),
         documento({ id: '6', situacao: 'INDISPONIVEL', bloqueio: 'INDISPONIVEL', selecionavelPorPadrao: false }),
         documento({ id: '7', sigiloso: true, acessivel: false, bloqueio: 'SIGILOSO', selecionavelPorPadrao: false }),
       ]);
 
-      expect(Array.from(sel).sort()).toEqual(['DOCUMENTO_PROCESSO:10', 'DOCUMENTO_PROCESSO:3', 'JUNTADA:9']);
+      expect(Array.from(sel).sort()).toEqual(['DOCUMENTO_PROCESSO:10', 'DOCUMENTO_PROCESSO:3', 'DOCUMENTO_PROCESSO:5', 'JUNTADA:9']);
     });
 
     it('bloqueado não é selecionável; substituído em PDF é (manualmente)', () => {

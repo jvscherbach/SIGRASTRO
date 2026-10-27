@@ -13,6 +13,7 @@ function resposta(itens: DocumentoItem[]): DocumentosResposta {
     totais: {
       total: itens.length,
       vigentes: itens.filter((d) => d.situacao === 'VIGENTE').length,
+      semEfeito: itens.filter((d) => d.situacao === 'SUBSTITUIDO').length,
       naoPdf: itens.filter((d) => d.bloqueio === 'NAO_PDF').length,
       tipoNaoInformado: itens.filter((d) => d.tipoArquivo === 'DESCONHECIDO').length,
       indisponiveis: itens.filter((d) => d.situacao === 'INDISPONIVEL').length,
@@ -24,7 +25,7 @@ function resposta(itens: DocumentoItem[]): DocumentosResposta {
 const PLANILHA = (sobre: Partial<DocumentoItem> = {}) =>
   documento({ id: '4', titulo: 'Cálculo', nomeArquivo: 'calculo.xlsx', extensao: 'xlsx', tipoArquivo: 'PLANILHA', bloqueio: 'NAO_PDF', selecionavelPorPadrao: false, data: '2025-04-04T10:00:00', ...sobre });
 const INDISPONIVEL = documento({ id: '5', titulo: 'Perdido', nomeArquivo: 'perdido.pdf', situacao: 'INDISPONIVEL', bloqueio: 'INDISPONIVEL', selecionavelPorPadrao: false, data: '2025-04-05T10:00:00' });
-const SUBSTITUIDO = documento({ id: '6', titulo: 'Antigo', nomeArquivo: 'antigo.pdf', origem: 'DOCUMENTO_REQUERIMENTO', origemDescricao: 'Documento do requerimento', situacao: 'SUBSTITUIDO', selecionavelPorPadrao: false, data: '2025-03-30T10:00:00' });
+const SUBSTITUIDO = documento({ id: '6', titulo: 'Antigo', nomeArquivo: 'antigo.pdf', origem: 'DOCUMENTO_REQUERIMENTO', origemDescricao: 'Documento do requerimento', situacao: 'SUBSTITUIDO', data: '2025-03-30T10:00:00' });
 const SIGILOSO_MASCARADO = documento({
   id: '7',
   titulo: 'Documento sigiloso',
@@ -170,18 +171,18 @@ describe('DocumentosSecaoComponent', () => {
       expect(raiz.querySelector('.nao-pdf')!.textContent).toContain('1 documento(s) não são PDF e entram no dossiê a partir da próxima etapa');
     });
 
-    it('tipo não informado: etiqueta, selecionável, fora da pré-seleção, linha própria no aviso e sem contar como não PDF', () => {
+    it('tipo não informado: etiqueta, selecionável, já selecionado, linha própria no aviso e sem contar como não PDF', () => {
       TestBed.resetTestingModule();
-      const semTipo = documento({ id: '8', titulo: 'Planta', nomeArquivo: null, extensao: '', tipoArquivo: 'DESCONHECIDO', selecionavelPorPadrao: false, data: '2025-04-08T10:00:00' });
+      const semTipo = documento({ id: '8', titulo: 'Planta', nomeArquivo: null, extensao: '', tipoArquivo: 'DESCONHECIDO', data: '2025-04-08T10:00:00' });
       abrir([BASE[0], semTipo]);
       const linha = linhaDe('Planta');
 
       expect(linha.textContent).toContain('tipo não informado');
       expect(caixa(linha).disabled).toBe(false);
-      expect(caixa(linha).checked).toBe(false);
+      expect(caixa(linha).checked).toBe(true);
       caixa(linha).click();
       fixture.detectChanges();
-      expect(caixa(linhaDe('Planta')).checked).toBe(true);
+      expect(caixa(linhaDe('Planta')).checked).toBe(false);
       expect(raiz.querySelector('.tipo-nao-informado')!.textContent).toContain('1 documento(s) sem tipo informado: o tipo é conferido ao gerar o dossiê');
       expect(raiz.querySelector('.nao-pdf')).toBeNull();
     });
@@ -203,15 +204,15 @@ describe('DocumentosSecaoComponent', () => {
       expect(linha.querySelector('.lock')).not.toBeNull();
     });
 
-    it('substituído em PDF: aparece sem pré-seleção e pode ser marcado manualmente', () => {
+    it('substituído em PDF: vem selecionado e pode ser desmarcado', () => {
       const linha = linhaDe('Antigo');
 
-      expect(caixa(linha).checked).toBe(false);
+      expect(caixa(linha).checked).toBe(true);
       expect(caixa(linha).disabled).toBe(false);
       expect(linha.textContent).toContain('versão substituída');
       caixa(linha).click();
       fixture.detectChanges();
-      expect(caixa(linhaDe('Antigo')).checked).toBe(true);
+      expect(caixa(linhaDe('Antigo')).checked).toBe(false);
     });
 
     it('não há ação "Visualizar" nesta etapa', () => {
@@ -223,22 +224,28 @@ describe('DocumentosSecaoComponent', () => {
   describe('seleção', () => {
     beforeEach(() => abrir());
 
-    it('começa com a pré-seleção do domínio: só PDF vigente sem bloqueio', () => {
-      expect(marcados()).toEqual(['Requerimento assinado', 'Ofício']);
-      expect(selecionadosNaBarra()).toBe('2');
+    it('começa com todos os selecionáveis marcados (vigentes e sem efeito)', () => {
+      expect(marcados()).toEqual(['Antigo', 'Requerimento assinado', 'Ofício']);
+      expect(selecionadosNaBarra()).toBe('3');
+    });
+
+    it('totais por situação somam o total (vigentes + sem efeito + indisponíveis)', () => {
+      expect(raiz.querySelector('.dash-sec-head p')!.textContent).toContain(
+        '6 documento(s) · 4 vigente(s) · 1 sem efeito · 1 indisponível(is)',
+      );
     });
 
     it('seleção individual atualiza o contador', () => {
       caixa(linhaDe('Antigo')).click();
       fixture.detectChanges();
 
-      expect(selecionadosNaBarra()).toBe('3');
+      expect(selecionadosNaBarra()).toBe('2');
       caixa(linhaDe('Ofício')).click();
       fixture.detectChanges();
-      expect(selecionadosNaBarra()).toBe('2');
+      expect(selecionadosNaBarra()).toBe('1');
     });
 
-    it('"Limpar seleção" zera e "Seleção padrão" restaura a pré-seleção', () => {
+    it('"Limpar seleção" zera e "Seleção padrão" volta a marcar todos os selecionáveis', () => {
       botao('Limpar seleção').click();
       fixture.detectChanges();
       expect(marcados()).toEqual([]);
@@ -248,11 +255,13 @@ describe('DocumentosSecaoComponent', () => {
       fixture.detectChanges();
       botao('Seleção padrão').click();
       fixture.detectChanges();
-      expect(marcados()).toEqual(['Requerimento assinado', 'Ofício']);
+      expect(marcados()).toEqual(['Antigo', 'Requerimento assinado', 'Ofício']);
     });
 
     it('selecionar todos marca só o que pode ser selecionado (não os bloqueados) e desmarcar tira todos', () => {
-      const todos = raiz.querySelector<HTMLInputElement>('thead input[type=checkbox]')!;
+      botao('Limpar seleção').click();
+      fixture.detectChanges();
+      const todos =raiz.querySelector<HTMLInputElement>('thead input[type=checkbox]')!;
       todos.click();
       fixture.detectChanges();
       expect(marcados()).toEqual(['Antigo', 'Requerimento assinado', 'Ofício']);
@@ -283,7 +292,7 @@ describe('DocumentosSecaoComponent', () => {
       digitar('ofício');
       digitar('');
 
-      expect(marcados()).toEqual(['Requerimento assinado', 'Ofício']);
+      expect(marcados()).toEqual(['Antigo', 'Requerimento assinado', 'Ofício']);
     });
   });
 
@@ -352,9 +361,6 @@ describe('DocumentosSecaoComponent', () => {
   describe('Operador com documento sigiloso', () => {
     it('o sigiloso vem mascarado e bloqueado e nunca entra na seleção que vai para a gaveta', () => {
       abrir();
-      const todos = raiz.querySelector<HTMLInputElement>('thead input[type=checkbox]')!;
-      todos.click();
-      fixture.detectChanges();
       botao('Gerar dossiê').click();
       fixture.detectChanges();
 
@@ -387,6 +393,7 @@ describe('DocumentosSecaoComponent', () => {
       expect(criar).toHaveBeenCalledWith(101, [
         { origem: 'DOCUMENTO_PROCESSO', id: '1' },
         { origem: 'JUNTADA', id: '2' },
+        { origem: 'DOCUMENTO_REQUERIMENTO', id: '6' },
       ]);
       expect(document.body.querySelector('app-gaveta-dossie')).not.toBeNull();
 

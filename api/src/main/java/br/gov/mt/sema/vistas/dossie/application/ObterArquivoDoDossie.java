@@ -1,28 +1,78 @@
 package br.gov.mt.sema.vistas.dossie.application;
 
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.LocalDateTime;
 
+import br.gov.mt.sema.vistas.acesso.application.UsuarioAtual;
+import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
+import br.gov.mt.sema.vistas.dossie.application.port.TicketsDeDownload;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
 import br.gov.mt.sema.vistas.dossie.domain.StatusDossie;
+import br.gov.mt.sema.vistas.dossie.domain.TicketDeDownload;
 import br.gov.mt.sema.vistas.shared.application.exception.DossieExpiradoException;
 import br.gov.mt.sema.vistas.shared.application.exception.DossieSemArquivoException;
+import br.gov.mt.sema.vistas.shared.application.exception.TicketInvalidoException;
 import org.springframework.stereotype.Service;
 
 /**
- * Entrega o PDF final. 409 se não há arquivo (em andamento, falha ou cancelado), 410 se expirou ou já foi baixado.
- * O arquivo é apagado quando o download (attachment) termina por inteiro (RNF05).
+ * Entrega o PDF final. 409 se não há arquivo (em andamento, à espera de decisão ou cancelado), 410 se expirou ou já
+ * foi baixado. O arquivo é apagado quando o download (attachment) termina por inteiro (RNF05).
+ *
+ * <p>Dossiê grande (S2.2, D49): o navegador baixa direto, sem cabeçalho de sessão, com um ticket de uso único emitido
+ * por {@link EmitirTicketDeDownload}. O ticket é consumido na primeira tentativa, válida ou não.
  */
 @Service
 public class ObterArquivoDoDossie {
 
     private final LocalizarPedido localizar;
+    private final ParametrosDoDossie parametros;
+    private final TicketsDeDownload tickets;
+    private final UsuarioAtual usuarioAtual;
+    private final Clock relogio;
 
-    public ObterArquivoDoDossie(LocalizarPedido localizar) {
+    public ObterArquivoDoDossie(LocalizarPedido localizar, ParametrosDoDossie parametros, TicketsDeDownload tickets,
+            UsuarioAtual usuarioAtual, Clock relogio) {
         this.localizar = localizar;
+        this.parametros = parametros;
+        this.tickets = tickets;
+        this.usuarioAtual = usuarioAtual;
+        this.relogio = relogio;
     }
 
     public ArquivoDoDossie executar(String id) {
-        PedidoDeDossie pedido = localizar.executar(id);
+        return arquivoDe(localizar.executar(id));
+    }
+
+    /**
+     * Pelo ticket: inexistente, já usado, vencido, de outro pedido ou apresentado por outro usuário autenticado dá 403
+     * {@code TICKET_INVALIDO}, sem dizer qual.
+     */
+    public ArquivoDoDossie executarPorTicket(String id, String ticket) {
+        TicketDeDownload valido = tickets.consumir(ticket == null || ticket.isBlank() ? null : TicketDeDownload.resumo(ticket))
+                .orElseThrow(TicketInvalidoException::new);
+        if (!valido.idPedido().equals(id) || valido.venceu(LocalDateTime.now(relogio))) {
+            throw new TicketInvalidoException();
+        }
+        if (usuarioAtual.talvez().filter(u -> !u.login().equals(valido.login())).isPresent()) {
+            throw new TicketInvalidoException();
+        }
+        return arquivoDe(localizar.semUsuario(id));
+    }
+
+    /** Chamado quando o download terminou por inteiro: o arquivo (e o diretório do pedido) não precisa mais existir. */
+    public void concluirDownload(ArquivoDoDossie arquivo) {
+        PedidoDeDossie pedido = localizar.semUsuario(arquivo.id());
+        if (pedido.expirar()) {
+            ArquivosTemporarios.apagarPasta(ArquivosTemporarios.pastaDo(parametros, pedido));
+        }
+    }
+
+    public void concluirDownload(String id) {
+        concluirDownload(executar(id));
+    }
+
+    private static ArquivoDoDossie arquivoDe(PedidoDeDossie pedido) {
         StatusDossie status = pedido.status();
         if (status == StatusDossie.EXPIRADO) {
             throw new DossieExpiradoException();
@@ -34,16 +84,10 @@ public class ObterArquivoDoDossie {
         return new ArquivoDoDossie(pedido.id(), arquivo, pedido.capa().nomeDoArquivo(), pedido.tamanhoBytes());
     }
 
-    /** Chamado quando o download terminou por inteiro: o arquivo não precisa mais existir. */
-    public void concluirDownload(String id) {
-        PedidoDeDossie pedido = localizar.executar(id);
-        ArquivosTemporarios.apagarArquivo(pedido.expirar());
-    }
-
     private static String mensagem(StatusDossie status) {
         return switch (status) {
-            case PENDENTE, PROCESSANDO -> "O dossiê ainda está sendo gerado.";
-            case FALHA -> "A geração falhou e nenhum arquivo foi gerado.";
+            case AGUARDANDO, OBTENDO, MONTANDO -> "O dossiê ainda está sendo gerado.";
+            case PENDENTE_DECISAO -> "Há documentos com problema: decida se tenta de novo ou remove antes de montar.";
             default -> "Não há arquivo para este dossiê.";
         };
     }

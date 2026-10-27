@@ -15,16 +15,18 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
 
 import { mensagemDoErro } from '../../core/mensagens-erro';
-import { baixarBlob, nomeDoContentDisposition } from '../../shared/arquivo-local';
+import { baixarBlob, baixarDireto, nomeDoContentDisposition } from '../../shared/arquivo-local';
 import { agoraEmCuiaba, formatarDataHora, minutosAte } from '../../shared/formato';
 import { IconeComponent } from '../../shared/icone.component';
 import { DossiesApiService } from './documentos-api.service';
 import {
+  AcaoDeContinuacao,
   AndamentoDossie,
   ErroDossie,
   ReferenciaDocumento,
   STATUS_FINAIS,
   SituacaoItemDossie,
+  StatusDossie,
 } from './documentos.models';
 
 /** Consulta do andamento: começa em 1 s e cresce 50% a cada resposta, até 5 s. */
@@ -63,8 +65,11 @@ export class GavetaDossieComponent implements OnInit {
   protected readonly fase = signal<Fase>('enviando');
   protected readonly andamento = signal<AndamentoDossie | null>(null);
   protected readonly mensagemDeErro = signal('');
+  protected readonly mensagemDeToken = MENSAGEM_DE_TOKEN;
   protected readonly ocupado = signal(false);
   protected readonly baixado = signal(false);
+  /** O download foi entregue ao navegador (dossiê grande): o término não é visto daqui. */
+  protected readonly baixadoDireto = signal(false);
   protected readonly vencido = signal(false);
   protected readonly previa = signal<{ url: string; seguro: SafeResourceUrl } | null>(null);
   protected readonly agora = signal(agoraEmCuiaba());
@@ -91,10 +96,24 @@ export class GavetaDossieComponent implements OnInit {
   );
   protected readonly erroDoDossie = computed<ErroDossie | null>(() => this.andamento()?.erro ?? null);
   protected readonly tokenRecusado = computed(() => this.erroDoDossie()?.codigo === CREDENCIAL_RECUSADA);
-  protected readonly podeRemover = computed(() => {
-    const erro = this.erroDoDossie();
-    return !!erro?.origem && !!erro.id && !this.tokenRecusado() && this.selecao.length > 1;
-  });
+  protected readonly falhas = computed(() => this.andamento()?.falhas ?? []);
+  /**
+   * Itens que a decisão vai refazer ou remover: os não resolvidos (em falha e, com a credencial recusada, também os
+   * que nem chegaram a ser tentados). É o N dos botões.
+   */
+  protected readonly comProblema = computed(() =>
+    this.status() === 'PENDENTE_DECISAO'
+      ? (this.andamento()?.itens ?? []).filter((i) => i.situacao !== 'OK' && i.situacao !== 'REMOVIDO').length
+      : 0,
+  );
+  protected readonly obtidos = computed(() => (this.andamento()?.itens ?? []).filter((i) => i.situacao === 'OK').length);
+  /** Remover só faz sentido com algum documento já obtido para montar (o servidor recusa o contrário). */
+  protected readonly podeRemover = computed(() => this.comProblema() > 0 && this.obtidos() > 0);
+  protected readonly rotuloTentar = computed(() => rotuloDaDecisao('Tentar novamente', this.comProblema(), ''));
+  protected readonly rotuloRemover = computed(() => rotuloDaDecisao('Remover', this.comProblema(), ' e gerar'));
+  /** Acima de DOSSIE_BLOB_MAX_MB: sem pré-visualização, download direto por ticket (D49). */
+  protected readonly entregaPorTicket = computed(() => !!this.andamento()?.entregaPorTicket);
+  protected readonly tamanhoEmMb = computed(() => Math.round((this.andamento()?.tamanhoBytes ?? 0) / (1024 * 1024)));
   protected readonly expiraAs = computed(() => formatarDataHora(this.andamento()?.expiraEm));
   protected readonly minutosRestantes = computed(() => {
     this.agora();
@@ -120,6 +139,7 @@ export class GavetaDossieComponent implements OnInit {
     this.andamento.set(null);
     this.mensagemDeErro.set('');
     this.baixado.set(false);
+    this.baixadoDireto.set(false);
     this.vencido.set(false);
     this.descartarPrevia();
     this.pedidoCriado.set(false);
@@ -220,20 +240,45 @@ export class GavetaDossieComponent implements OnInit {
     this.consultar();
   }
 
-  /** Novo POST com a mesma seleção (RN09: a tentativa interrompida não deixa nada para continuar). */
+  /**
+   * Pedido à espera de decisão: continua o mesmo pedido, refazendo só os documentos com problema (S2.2). Sem pedido
+   * (o POST falhou), envia um novo.
+   */
   protected tentarNovamente(): void {
-    this.iniciar();
+    if (this.pedido && this.status() === 'PENDENTE_DECISAO') {
+      this.decidir('TENTAR_NOVAMENTE');
+    } else {
+      this.iniciar();
+    }
   }
 
+  /** Remove os documentos com problema e monta com os já obtidos; a tabela deixa de selecioná-los. */
   protected removerEGerar(): void {
-    const erro = this.erroDoDossie();
-    if (!erro?.origem || !erro.id) {
+    const removidos = this.falhas().map((f) => ({ origem: f.origem, id: f.id }));
+    this.selecao = this.selecao.filter((r) => !removidos.some((x) => x.origem === r.origem && x.id === r.id));
+    removidos.forEach((removido) => this.documentoRemovido.emit(removido));
+    this.decidir('REMOVER_E_CONTINUAR');
+  }
+
+  private decidir(acao: AcaoDeContinuacao): void {
+    if (!this.pedido) {
       return;
     }
-    const removido = { origem: erro.origem, id: erro.id };
-    this.selecao = this.selecao.filter((r) => r.origem !== removido.origem || r.id !== removido.id);
-    this.documentoRemovido.emit(removido);
-    this.iniciar();
+    this.parar();
+    this.acao?.unsubscribe();
+    this.mensagemDeErro.set('');
+    this.ocupado.set(true);
+    this.acao = this.api.continuar(this.pedido, acao).subscribe({
+      next: () => {
+        this.ocupado.set(false);
+        this.intervalo = INTERVALO_INICIAL_MS;
+        this.consultar();
+      },
+      error: (erro: unknown) => {
+        this.ocupado.set(false);
+        this.mensagemDeErro.set(mensagemDaGaveta(erro));
+      },
+    });
   }
 
   protected cancelarGeracao(): void {
@@ -279,6 +324,10 @@ export class GavetaDossieComponent implements OnInit {
     if (!this.pedido) {
       return;
     }
+    if (this.entregaPorTicket()) {
+      this.baixarDireto(this.pedido);
+      return;
+    }
     this.ocupado.set(true);
     this.acao = this.api.arquivo(this.pedido, 'attachment').subscribe({
       next: (resposta) => {
@@ -288,6 +337,24 @@ export class GavetaDossieComponent implements OnInit {
         // O servidor apaga o arquivo ao fim do download (RNF05): nova pré-visualização ou novo download exigem gerar de novo.
         this.baixado.set(true);
         this.descartarPrevia();
+      },
+      error: (erro: unknown) => this.falhaDeArquivo(erro),
+    });
+  }
+
+  /**
+   * Dossiê grande (D49): pede um ticket de uso único e deixa o navegador baixar em streaming, sem Blob. O servidor
+   * apaga o arquivo quando o download termina por inteiro.
+   */
+  private baixarDireto(pedido: string): void {
+    this.ocupado.set(true);
+    this.acao?.unsubscribe();
+    this.acao = this.api.ticket(pedido).subscribe({
+      next: ({ ticket }) => {
+        this.ocupado.set(false);
+        baixarDireto(this.api.urlDeDownloadDireto(pedido, ticket));
+        this.baixadoDireto.set(true);
+        this.baixado.set(true);
       },
       error: (erro: unknown) => this.falhaDeArquivo(erro),
     });
@@ -312,49 +379,93 @@ export class GavetaDossieComponent implements OnInit {
   // --- apresentação
 
   protected iconeDoItem(situacao: SituacaoItemDossie): string {
-    return { AGUARDANDO: 'clock', OBTENDO: 'refresh', OK: 'check', FALHA: 'alert' }[situacao];
+    return { AGUARDANDO: 'clock', OBTENDO: 'refresh', OK: 'check', FALHA: 'alert', REMOVIDO: 'close' }[situacao];
   }
 
   protected classeDoItem(situacao: SituacaoItemDossie): string {
-    return { AGUARDANDO: '', OBTENDO: 'run', OK: 'ok', FALHA: 'err' }[situacao];
+    return { AGUARDANDO: '', OBTENDO: 'run', OK: 'ok', FALHA: 'err', REMOVIDO: 'off' }[situacao];
   }
 
-  protected rotuloDoItem(situacao: SituacaoItemDossie): string {
-    return {
-      AGUARDANDO: 'Aguardando',
-      OBTENDO: 'Obtendo arquivo…',
-      OK: 'Incluído',
-      FALHA: 'Falhou',
-    }[situacao];
+  /** Situação do item, com o motivo quando falhou ou foi removido. */
+  protected rotuloDoItem(situacao: SituacaoItemDossie, motivo?: string | null): string {
+    const rotulo = ROTULO_DO_ITEM[situacao];
+    return motivo && (situacao === 'FALHA' || situacao === 'REMOVIDO') ? `${rotulo}: ${motivo}` : rotulo;
   }
 
   protected titulo(): string {
     if (this.fase() === 'erro') {
       return 'Não foi possível gerar';
     }
-    if (this.vencido() || this.status() === 'EXPIRADO') {
-      return 'Dossiê expirado';
+    if (this.vencido()) {
+      return TITULO_DO_STATUS.EXPIRADO;
     }
-    switch (this.status()) {
-      case 'CONCLUIDO':
-        return 'Dossiê pronto';
-      case 'FALHA':
-        return 'Geração interrompida';
-      case 'CANCELADO':
-        return 'Geração cancelada';
-      default:
-        return 'Gerando dossiê';
+    const status = this.status();
+    return status ? TITULO_DO_STATUS[status] : TITULO_DO_STATUS.AGUARDANDO;
+  }
+
+  /** Rótulo da barra de progresso. */
+  protected rotuloDoStatus(): string {
+    if (this.vencido()) {
+      return ROTULO_DO_STATUS.EXPIRADO;
     }
+    const status = this.status();
+    return status ? ROTULO_DO_STATUS[status] : ROTULO_DO_STATUS.AGUARDANDO;
   }
 
   /** Itens da lista: os do andamento, ou — antes da primeira resposta — a seleção enviada. */
-  protected itens(): { chave: string; titulo: string; situacao: SituacaoItemDossie }[] {
+  protected itens(): { chave: string; titulo: string; situacao: SituacaoItemDossie; motivo?: string }[] {
     const andamento = this.andamento();
     if (andamento) {
-      return andamento.itens.map((i) => ({ chave: `${i.origem}:${i.id}`, titulo: i.titulo, situacao: i.situacao }));
+      return andamento.itens.map((i) => ({
+        chave: `${i.origem}:${i.id}`,
+        titulo: i.titulo,
+        situacao: i.situacao,
+        motivo: i.motivo,
+      }));
     }
     return this.selecao.map((r) => ({ chave: `${r.origem}:${r.id}`, titulo: `Documento ${r.id}`, situacao: 'AGUARDANDO' }));
   }
+}
+
+// --- mapa de mensagens da gaveta (S2.2)
+
+/** Título da gaveta por situação do pedido. */
+export const TITULO_DO_STATUS: Record<StatusDossie, string> = {
+  AGUARDANDO: 'Gerando dossiê',
+  OBTENDO: 'Gerando dossiê',
+  MONTANDO: 'Gerando dossiê',
+  PENDENTE_DECISAO: 'Documentos com problema',
+  CONCLUIDO: 'Dossiê pronto',
+  CANCELADO: 'Geração cancelada',
+  EXPIRADO: 'Dossiê expirado',
+};
+
+/** Rótulo da barra de progresso por situação do pedido. */
+export const ROTULO_DO_STATUS: Record<StatusDossie, string> = {
+  AGUARDANDO: 'Na fila',
+  OBTENDO: 'Obtendo documentos',
+  MONTANDO: 'Montando o PDF',
+  PENDENTE_DECISAO: 'Aguardando sua decisão',
+  CONCLUIDO: 'Concluído',
+  CANCELADO: 'Cancelado',
+  EXPIRADO: 'Expirado',
+};
+
+export const ROTULO_DO_ITEM: Record<SituacaoItemDossie, string> = {
+  AGUARDANDO: 'Aguardando',
+  OBTENDO: 'Obtendo arquivo…',
+  OK: 'Obtido',
+  FALHA: 'Falhou',
+  REMOVIDO: 'Removido',
+};
+
+/** Orientação quando a API de arquivos recusa o token (sem citar valor algum). */
+export const MENSAGEM_DE_TOKEN =
+  'Capture um novo token, atualize o arquivo do token e clique em Tentar novamente.';
+
+/** "Tentar novamente os 2 com problema", "Remover o 1 com problema e gerar". */
+export function rotuloDaDecisao(acao: string, quantidade: number, final: string): string {
+  return `${acao} ${quantidade === 1 ? 'o 1' : `os ${quantidade}`} com problema${final}`;
 }
 
 /** Mensagem da gaveta a partir do errorCode (token recusado orienta a capturar outro, sem citar valor algum). */

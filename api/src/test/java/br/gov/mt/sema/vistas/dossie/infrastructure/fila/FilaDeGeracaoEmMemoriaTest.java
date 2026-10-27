@@ -25,6 +25,16 @@ class FilaDeGeracaoEmMemoriaTest {
             }
 
             @Override
+            public int downloadTotalMaximoSegundos() {
+                return 900;
+            }
+
+            @Override
+            public long espacoMinimoMb() {
+                return 0;
+            }
+
+            @Override
             public int downloadTimeoutSegundos() {
                 return 60;
             }

@@ -61,7 +61,7 @@ class SistemasExternosForaDoArHttpTest {
 
     @Nested
     @SpringBootTest(properties = {"vistas.demo.senha=senha-de-teste", "vistas.datasource.siga.url=", "vistas.arquivos.url=",
-            "vistas.dossie.diretorio=${java.io.tmpdir}/vistas-teste-externos"})
+            "vistas.dossie.diretorio=${java.io.tmpdir}/vistas-teste-externos", "vistas.dossie.espaco-minimo-mb=0"})
     @AutoConfigureMockMvc
     class TudoVazio extends Base {
         @Test
@@ -81,7 +81,7 @@ class SistemasExternosForaDoArHttpTest {
 
     @Nested
     @SpringBootTest(properties = {"vistas.demo.senha=senha-de-teste", "vistas.datasource.siga.url=", "vistas.arquivos.url=",
-            "vistas.arquivos.token=", "vistas.dossie.diretorio=${java.io.tmpdir}/vistas-teste-externos"})
+            "vistas.arquivos.token=", "vistas.dossie.diretorio=${java.io.tmpdir}/vistas-teste-externos", "vistas.dossie.espaco-minimo-mb=0"})
     @AutoConfigureMockMvc
     class SoAApiDeArquivosVazia extends Base {
 
@@ -121,9 +121,9 @@ class SistemasExternosForaDoArHttpTest {
             await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
                 String andamento = mvc.perform(get("/api/dossies/" + id).header("Authorization", autorizacao))
                         .andReturn().getResponse().getContentAsString();
-                assertThat(json.readTree(andamento).get("status").asText()).isEqualTo("FALHA");
-                assertThat(json.readTree(andamento).at("/erro/motivo").asText()).isEqualTo("API de arquivos não configurada");
-                assertThat(json.readTree(andamento).at("/erro/id").asText()).isEqualTo("1");
+                assertThat(json.readTree(andamento).get("status").asText()).isEqualTo("PENDENTE_DECISAO");
+                assertThat(json.readTree(andamento).at("/falhas/0/motivo").asText()).isEqualTo("API de arquivos não configurada");
+                assertThat(json.readTree(andamento).at("/falhas/0/id").asText()).isEqualTo("1");
             });
         }
     }

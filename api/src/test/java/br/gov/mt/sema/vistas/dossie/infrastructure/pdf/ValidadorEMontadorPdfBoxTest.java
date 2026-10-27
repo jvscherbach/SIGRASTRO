@@ -10,11 +10,14 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TimeZone;
 
 import br.gov.mt.sema.vistas.dossie.application.port.FalhaNoDocumentoException;
 import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie.DocumentoParaMontagem;
+import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie.Inventario;
 import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie.OpcoesDeMontagem;
 import br.gov.mt.sema.vistas.dossie.domain.DadosDaCapa;
+import br.gov.mt.sema.vistas.dossie.domain.DocumentoNaoIncluido;
 import br.gov.mt.sema.vistas.testsupport.PdfsDeTeste;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -178,7 +181,40 @@ class ValidadorEMontadorPdfBoxTest {
             // capa = 1, sumário = 2, documentos começam na 3: Oficio (3-4), Planta (5-7), Sem data (8)
             assertThat(sumario).containsPattern("02/04/2025\\s+Oficio\\s+Documento do processo\\s+3");
             assertThat(sumario).containsPattern("02/04/2025\\s+Planta\\s+Documento do processo\\s+5");
-            assertThat(sumario).containsPattern("s/d\\s+Sem data\\s+Juntada\\s+8");
+            assertThat(sumario).containsPattern("sem data\\s+Sem data\\s+Juntada\\s+8");
+            assertThat(sumario).contains("aparecem ao final, por origem e id");
+        }
+    }
+
+    @Test
+    void semDocumentoSemDataNaoHaNotaNoSumario() throws IOException {
+        Path saida = pasta.resolve("dossie.pdf");
+        montador.montar(capa(), List.of(doc("Oficio", 1, PDRectangle.A4, 0)), TUDO, saida);
+
+        try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+            assertThat(texto(pdf, 2, 2)).doesNotContain("sem data").doesNotContain("aparecem ao final");
+        }
+    }
+
+    @Test
+    void horariosDeBordaNaoDeslocamODiaNoSumarioComJvmEmUtc() throws IOException {
+        TimeZone original = TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+        try {
+            Path um = PdfsDeTeste.criarA4(pasta.resolve("um.pdf"), 1, "um");
+            Path saida = pasta.resolve("dossie.pdf");
+            montador.montar(capa(), List.of(
+                    new DocumentoParaMontagem("Noite", "Juntada", LocalDateTime.of(2025, 4, 1, 23, 30), um, 1),
+                    new DocumentoParaMontagem("Madrugada", "Juntada", LocalDateTime.of(2025, 4, 2, 0, 30), um, 1)),
+                    TUDO, saida);
+
+            try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+                String sumario = texto(pdf, 2, 2);
+                assertThat(sumario).containsPattern("01/04/2025\\s+Noite");
+                assertThat(sumario).containsPattern("02/04/2025\\s+Madrugada");
+            }
+        } finally {
+            TimeZone.setDefault(original);
         }
     }
 
@@ -213,6 +249,125 @@ class ValidadorEMontadorPdfBoxTest {
                     .filter(PDAnnotationLink.class::isInstance).map(PDAnnotationLink.class::cast).toList();
             assertThat(links).hasSize(2);
         }
+    }
+
+    // --- documentos não incluídos (S2.2)
+
+    private static Inventario inventario(int listados, DocumentoNaoIncluido... fora) {
+        return new Inventario(listados, List.of(fora));
+    }
+
+    private static final DocumentoNaoIncluido REMOVIDO = new DocumentoNaoIncluido(1, "Complementação", "900118",
+            "Resposta da complementação", LocalDateTime.of(2025, 4, 1, 8, 0),
+            DocumentoNaoIncluido.removido("tempo limite excedido ao obter o arquivo"));
+    private static final DocumentoNaoIncluido INDISPONIVEL = new DocumentoNaoIncluido(3, "Imóvel", "31", "Matrícula",
+            LocalDateTime.of(2025, 4, 3, 8, 0), DocumentoNaoIncluido.INDISPONIVEL);
+    private static final DocumentoNaoIncluido NAO_PDF = new DocumentoNaoIncluido(4, "Documento do processo", "804330",
+            "Cálculo de vazão", null, DocumentoNaoIncluido.NAO_PDF);
+
+    private List<String> marcadores(PDDocument pdf, List<Integer> paginas) throws IOException {
+        List<String> titulos = new ArrayList<>();
+        for (PDOutlineItem item : pdf.getDocumentCatalog().getDocumentOutline().children()) {
+            titulos.add(item.getTitle());
+            paginas.add(pdf.getPages().indexOf(item.findDestinationPage(pdf)));
+        }
+        return titulos;
+    }
+
+    @Test
+    void secaoDeNaoIncluidosVemLogoAposOSumarioComOrigemIdTituloDataEMotivo() throws IOException {
+        Path saida = pasta.resolve("dossie.pdf");
+
+        int total = montador.montar(capa(), List.of(doc("Oficio", 2, PDRectangle.A4, 0), doc("Planta", 1, PDRectangle.A4, 0)),
+                inventario(5, REMOVIDO, INDISPONIVEL, NAO_PDF), TUDO, saida);
+
+        // capa (1), sumário (2), não incluídos (3), Oficio (4-5), Planta (6)
+        assertThat(total).isEqualTo(6);
+        try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+            assertThat(texto(pdf, 1, 1)).contains("2 documentos incluídos de 5 listados");
+            assertThat(texto(pdf, 2, 2)).containsPattern("Oficio\\s+Documento do processo\\s+4")
+                    .containsPattern("Planta\\s+Documento do processo\\s+6");
+            String secao = texto(pdf, 3, 3);
+            assertThat(secao).contains("Documentos não incluídos");
+            assertThat(secao).containsPattern("01/04/2025\\s+Resposta da complementação\\s+Complementação\\s+900118");
+            assertThat(secao).contains("Motivo: removido pelo usuário após falha: tempo limite excedido ao obter o arquivo");
+            assertThat(secao).containsPattern("03/04/2025\\s+Matrícula\\s+Imóvel\\s+31");
+            assertThat(secao).contains("Motivo: indisponível (chave do arquivo inválida)");
+            assertThat(secao).containsPattern("sem data\\s+Cálculo de vazão");
+            assertThat(secao).contains("Motivo: não é PDF: aguardando conversão");
+            assertThat(secao.indexOf("Resposta da complementação")).isLessThan(secao.indexOf("Matrícula"));
+            assertThat(texto(pdf, 4, 4)).contains("Oficio");
+
+            List<Integer> paginas = new ArrayList<>();
+            assertThat(marcadores(pdf, paginas)).containsExactly("Capa", "Sumário", "Documentos não incluídos", "Oficio",
+                    "Planta");
+            assertThat(paginas).containsExactly(0, 1, 2, 3, 5);
+            assertThat(texto(pdf, 3, 3)).contains("Página 3 de 6");
+        }
+    }
+
+    @Test
+    void semNaoIncluidosASecaoEOmitidaEACapaMostraTodosOsListados() throws IOException {
+        Path saida = pasta.resolve("dossie.pdf");
+
+        int total = montador.montar(capa(), List.of(doc("Oficio", 1, PDRectangle.A4, 0)), inventario(1), TUDO, saida);
+
+        assertThat(total).isEqualTo(3);
+        try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+            assertThat(texto(pdf, 1, 3)).doesNotContain("Documentos não incluídos");
+            assertThat(texto(pdf, 1, 1)).contains("1 documento incluído de 1 listado");
+            List<Integer> paginas = new ArrayList<>();
+            assertThat(marcadores(pdf, paginas)).containsExactly("Capa", "Sumário", "Oficio");
+            assertThat(paginas).containsExactly(0, 1, 2);
+        }
+    }
+
+    @Test
+    void secaoTemPaginacaoPropriaEDeterministica() throws IOException {
+        List<DocumentoNaoIncluido> fora = new ArrayList<>();
+        for (int i = 1; i <= MontagemPdfBox.ITENS_POR_PAGINA_DOS_NAO_INCLUIDOS + 1; i++) {
+            fora.add(new DocumentoNaoIncluido(i, "Juntada", String.valueOf(i), "Fora " + i, null,
+                    DocumentoNaoIncluido.NAO_SELECIONADO));
+        }
+        Path saida = pasta.resolve("dossie.pdf");
+
+        int total = montador.montar(capa(), List.of(doc("Oficio", 1, PDRectangle.A4, 0)),
+                new Inventario(1 + fora.size(), fora), TUDO, saida);
+
+        // capa, sumário, 2 páginas da seção (22 + 1), Oficio na 5
+        assertThat(total).isEqualTo(5);
+        try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+            assertThat(texto(pdf, 2, 2)).containsPattern("Oficio\\s+Documento do processo\\s+5");
+            assertThat(texto(pdf, 3, 3)).contains("Fora 22 ").doesNotContain("Fora 23");
+            assertThat(texto(pdf, 4, 4)).contains("Fora 23").contains("Documentos não incluídos");
+            assertThat(texto(pdf, 1, 1)).contains("1 documento incluído de 24 listados");
+            List<Integer> paginas = new ArrayList<>();
+            marcadores(pdf, paginas);
+            assertThat(paginas).containsExactly(0, 1, 2, 4);
+        }
+    }
+
+    @Test
+    void semSumarioASecaoVemLogoAposACapaEContinuaObrigatoria() throws IOException {
+        Path saida = pasta.resolve("dossie.pdf");
+
+        int total = montador.montar(capa(), List.of(doc("Oficio", 1, PDRectangle.A4, 0)), inventario(2, INDISPONIVEL),
+                new OpcoesDeMontagem(false, true, true), saida);
+
+        assertThat(total).isEqualTo(3);
+        try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+            assertThat(texto(pdf, 2, 2)).contains("Documentos não incluídos").doesNotContain("Sumário");
+            List<Integer> paginas = new ArrayList<>();
+            assertThat(marcadores(pdf, paginas)).containsExactly("Capa", "Documentos não incluídos", "Oficio");
+            assertThat(paginas).containsExactly(0, 1, 2);
+        }
+    }
+
+    @Test
+    void textoDaCapaParaIncluidosEListados() {
+        assertThat(MontagemPdfBox.incluidosDeListados(8, 10)).isEqualTo("8 documentos incluídos de 10 listados");
+        assertThat(MontagemPdfBox.incluidosDeListados(1, 1)).isEqualTo("1 documento incluído de 1 listado");
+        assertThat(MontagemPdfBox.incluidosDeListados(3, 0)).as("sem inventário").isEqualTo("3 documentos incluídos de 3 listados");
     }
 
     @Test

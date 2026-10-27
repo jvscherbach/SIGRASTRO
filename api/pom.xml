@@ -22,6 +22,8 @@
     <springdoc.version>2.8.17</springdoc.version>
     <archunit.version>1.5.1</archunit.version>
     <pdfbox.version>3.0.5</pdfbox.version>
+    <!-- -Dtestes.excluidos= -Dgroups=desempenho liga o teste de desempenho -->
+    <testes.excluidos>desempenho</testes.excluidos>
   </properties>
 
   <dependencies>
@@ -86,6 +88,14 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- Teste de desempenho (gera ~2 GB em disco) desligado por padrão; ver docs/10, R26. -->
+          <excludedGroups>${testes.excluidos}</excludedGroups>
+        </configuration>
       </plugin>
     </plugins>
   </build>

@@ -95,12 +95,13 @@ class ConexaoDoSigaLiberadaTest {
             conexoesAtivasVistasNoDownload.put(chave, dataSource.getHikariPoolMXBean().getActiveConnections());
             downloads.incrementAndGet();
             gravar(destino, "pdf");
+            return 1;
         };
         ValidadorDePdf validador = arquivo -> {
             conexoesAtivasVistasNoDownload.put("validacao-" + arquivo.getFileName(), dataSource.getHikariPoolMXBean().getActiveConnections());
             return 1;
         };
-        MontadorDoDossie montador = (capa, docs, opcoes, destino) -> {
+        MontadorDoDossie montador = (capa, docs, inventario, opcoes, destino) -> {
             conexoesAtivasVistasNoDownload.put("montagem", dataSource.getHikariPoolMXBean().getActiveConnections());
             gravar(destino, "dossie");
             return docs.size() + 1;
@@ -139,6 +140,16 @@ class ConexaoDoSigaLiberadaTest {
             }
 
             @Override
+            public int downloadTotalMaximoSegundos() {
+                return 900;
+            }
+
+            @Override
+            public long espacoMinimoMb() {
+                return 0;
+            }
+
+            @Override
             public int downloadTimeoutSegundos() {
                 return 60;
             }
@@ -164,7 +175,7 @@ class ConexaoDoSigaLiberadaTest {
             }
         };
         java.time.Clock relogio = java.time.Clock.systemDefaultZone();
-        GeradorDeDossie gerador = new GeradorDeDossie(arquivos, validador, montador, parametros, relogio);
+        GeradorDeDossie gerador = new GeradorDeDossie(arquivos, validador, montador, parametros, d -> Long.MAX_VALUE, relogio);
         CriarDossie criar = new CriarDossie(obterRequerimento, selecao, atual, repositorio, Runnable::run, gerador,
                 parametros, relogio);
 

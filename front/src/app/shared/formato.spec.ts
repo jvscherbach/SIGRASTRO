@@ -52,6 +52,14 @@ describe('datas', () => {
     expect(formatarData('')).toBe('—');
     expect(formatarDataHora('lixo')).toBe('—');
   });
+
+  it('horários de borda não mudam de dia, qualquer que seja o fuso do navegador', () => {
+    expect(formatarData('2025-04-01T23:30:00')).toBe('01/04/2025');
+    expect(formatarData('2025-04-01T23:30')).toBe('01/04/2025');
+    expect(formatarData('2025-04-02T00:30:00')).toBe('02/04/2025');
+    expect(formatarDataHora('2025-04-01T23:30:00')).toBe('01/04/2025 23:30');
+    expect(formatarDataHora('2025-04-02T00:30')).toBe('02/04/2025 00:30');
+  });
 });
 
 describe('tomDaSituacao', () => {

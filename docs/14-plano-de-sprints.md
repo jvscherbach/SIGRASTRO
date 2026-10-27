@@ -26,6 +26,7 @@ Objetivo do protótipo: comprovar, com processos reais, que (1) os processos que
 | S0 | Fundação | `api` e `front` sobem no Docker; ArchUnit, erros e correlação funcionando |
 | S1 | Consulta | Buscar por requerimento/processo e ver dados reais e tarefa atual |
 | S2 | Documentos e dossiê PDF | Listar todos os documentos e gerar o dossiê de **PDFs** de um processo real |
+| S2.1 / S2.2 | Ajustes da S2 | Documentos da Vista do SIGA (S2.1); seleção total, ordem garantida, falhas coletadas com continuação, PDF com os não incluídos e dossiê grande por ticket (S2.2) |
 | S3 | Conversão e visualização | Planilhas, textos e imagens convertidos dentro do dossiê; modal e pré-visualização |
 | S4 | Regras de acesso | Perfis, sigilo, interessado, geometrias e tela "Dossiês gerados" |
 | S5 | Gestão | Auditoria (documentos e acessos) e configurações, em memória |
@@ -165,6 +166,40 @@ Aceite:
 
 **Estado:** implementada e testada sem sistema externo real; **a homologação com o SIGA real é do responsável** (`homologacao/S2-roteiro-homologacao.md`).
 
+
+## S2.2 — Seleção total, ordem garantida e geração que continua de onde parou
+
+**Motivação:** homologação da S2/S2.1 com três processos reais. Documentos de tipo não informado ficavam fora da primeira geração; "Tentar novamente" e "Remover documento e gerar" reiniciavam o dossiê inteiro; arquivos de ~50 MB davam tempo limite; o PDF não registrava o que ficou de fora. O dossiê é usado em processos jurídicos, então a ordem por data e a transparência são obrigatórias.
+
+**Forma de trabalho (nova):** 10 blocos, cada um com testes, documentação e ponto de commit próprios, revisados e commitados um a um pelo responsável.
+
+| Bloco | Entrega | Commit sugerido |
+|---|---|---|
+| 1 | Seleção total dos selecionáveis (RN13, D47); totais `vigentes · sem efeito · indisponíveis` que somam o total | `feat(documentos)` |
+| 2 | Ordem cronológica sempre do servidor (`DATA_DOC` completo, sem data ao final, empate por origem e id numérico); datas lidas sem passar pelo fuso da JVM nem do navegador; "sem data" e nota no sumário; aviso na gaveta | `fix(dossie)` |
+| 3 | Download robusto: conexão 10 s, inatividade (`DOWNLOAD_TIMEOUT_SEGUNDOS`, 120), teto total (`DOWNLOAD_TOTAL_MAXIMO_SEGUNDOS`, 900), até 2 novas tentativas (tempo limite, 503, queda de conexão), tentativas no item, checagem de disco (`DOSSIE_ESPACO_MINIMO_MB`) | `feat(licenciamento)` |
+| 4 | Token por arquivo (`LICENCIAMENTO_API_TOKEN_FILE`), relido a cada pedido e tentativa, com precedência; montagem de `./.secrets/` documentada; variável esvaziada na verificação | `feat(licenciamento)` |
+| 5 | Falhas coletadas, `PENDENTE_DECISAO` e `POST /dossies/{id}/continuacao` (`TENTAR_NOVAMENTE`, `REMOVER_E_CONTINUAR`) sem baixar de novo o que já foi obtido; TTL desde a última atividade; RN09 reescrita (D48) | `feat(dossie)` |
+| 6 | Seção "Documentos não incluídos" no PDF (motivo de cada um) e capa "N documentos incluídos de M listados" | `feat(dossie)` |
+| 7 | Gaveta para o pedido pendente: lista de falhas, "Tentar novamente / Remover os N com problema", Cancelar, progresso preservado, mensagem do token por arquivo | `feat(front)` |
+| 8 | Montagem medida com 20 PDFs de ~48 MB: 4,7 s, pico de heap de ~130 MB (13% de 1 GB; 54% de 256 MB), sem lotes (R26) | `perf(dossie)` |
+| 9 | Dossiê grande (acima de `DOSSIE_BLOB_MAX_MB`, 150): download direto por ticket de uso único (D49), sem pré-visualização; nginx sem log nem buffer nessa rota | `feat(dossie)` |
+| 10 | Roteiro de homologação da S2.2 (passos 7 e 10), casos de teste, P21 (diferença esperada pelo SCORP), coerência dos docs e verificação final | `docs(homologacao)` |
+
+**Estado:** implementada e testada **sem sistema externo real** (portas falsas, servidor HTTP local, Oracle 23 Free por Testcontainers, Playwright com API simulada). Verificação final: `./mvnw -B clean verify`, front (build, Vitest, e2e) e Compose com os três arquivos, com as variáveis externas vazias dentro do container. **A homologação com o SIGA, o token e os arquivos reais é do responsável** (passo 10 de `homologacao/S2-roteiro-homologacao.md`; resultados em `casos-de-teste.md`).
+
+### Validação da S2.2
+
+**PENDENTE: homologação manual pelo responsável.**
+
+| Verificação (roteiro, passo 10) | Resultado |
+|---|---|
+| 10.1 Tudo selecionado; totais somam | |
+| 10.2 Só o documento com falha é refeito; progresso não volta a zero | |
+| 10.3 "Remover e gerar": seção e capa | |
+| 10.4 Ordem do PDF contra a tabela | |
+| 10.5 Token trocado pelo arquivo, sem recriar o container | |
+| 10.6 Dossiê grande: tempo, tamanho e disco | |
 
 ## S3 — Conversão e visualização
 

@@ -171,7 +171,8 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
                 .andExpect(jsonPath("$.status").value("CONCLUIDO"))
                 .andExpect(jsonPath("$.total").value(2))
                 .andExpect(jsonPath("$.processados").value(2))
-                .andExpect(jsonPath("$.paginas").value(4)) // capa + sumário + 2 páginas de documento
+                // capa + sumário + "Documentos não incluídos" (4 dos 6 listados ficaram fora) + 2 páginas de documento
+                .andExpect(jsonPath("$.paginas").value(5))
                 .andExpect(jsonPath("$.erro").doesNotExist())
                 .andExpect(jsonPath("$.expiraEm", not(emptyOrNullString())))
                 .andExpect(jsonPath("$.itens", hasSize(2)))
@@ -189,7 +190,7 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
         mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PENDENTE"))
+                .andExpect(jsonPath("$.status").value("AGUARDANDO"))
                 .andExpect(jsonPath("$.processados").value(0))
                 .andExpect(jsonPath("$.itens[0].situacao").value("AGUARDANDO"));
         mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
@@ -198,19 +199,22 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     }
 
     @Test
-    void andamentoDeFalhaTrazDocumentoEMotivoENenhumArquivo() throws Exception {
+    void andamentoAguardandoDecisaoTrazAsFalhasComMotivoENenhumArquivo() throws Exception {
         Mockito.doThrow(new FalhaNoDocumentoException("tempo limite excedido ao obter o arquivo"))
                 .when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
         String id = criarComSucesso("gestor.demo");
 
         mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
-                .andExpect(jsonPath("$.status").value("FALHA"))
+                .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
                 .andExpect(jsonPath("$.processados").value(1))
-                .andExpect(jsonPath("$.erro.origem").value("COMPLEMENTACAO"))
-                .andExpect(jsonPath("$.erro.id").value("900118"))
-                .andExpect(jsonPath("$.erro.titulo").value("oficio.pdf"))
-                .andExpect(jsonPath("$.erro.motivo").value("tempo limite excedido ao obter o arquivo"))
-                .andExpect(jsonPath("$.erro.codigo").doesNotExist())
+                .andExpect(jsonPath("$.erro").doesNotExist())
+                .andExpect(jsonPath("$.falhas", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$.falhas[0].origem").value("COMPLEMENTACAO"))
+                .andExpect(jsonPath("$.falhas[0].id").value("900118"))
+                .andExpect(jsonPath("$.falhas[0].titulo").value("oficio.pdf"))
+                .andExpect(jsonPath("$.falhas[0].motivo").value("tempo limite excedido ao obter o arquivo"))
+                .andExpect(jsonPath("$.itens[1].motivo").value("tempo limite excedido ao obter o arquivo"))
+                .andExpect(jsonPath("$.itens[0].motivo").doesNotExist())
                 .andExpect(jsonPath("$.itens[0].situacao").value("OK"))
                 .andExpect(jsonPath("$.itens[1].situacao").value("FALHA"));
         mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
@@ -219,12 +223,12 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     }
 
     @Test
-    void credencialRecusadaViraFalhaComCodigoESemOTokenNaResposta() throws Exception {
+    void credencialRecusadaAguardaDecisaoComCodigoESemOTokenNaResposta() throws Exception {
         Mockito.doThrow(new CredencialArquivosRecusadaException()).when(arquivos).baixar(anyString(), any(Path.class));
         String id = criarComSucesso("gestor.demo");
 
         String resposta = mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
-                .andExpect(jsonPath("$.status").value("FALHA"))
+                .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
                 .andExpect(jsonPath("$.erro.codigo").value("CREDENCIAL_ARQUIVOS_RECUSADA"))
                 .andExpect(jsonPath("$.erro.motivo").value("Token da API de arquivos expirado ou recusado: capture um novo token."))
                 .andReturn().getResponse().getContentAsString();
@@ -238,9 +242,9 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
         String id = criarComSucesso("gestor.demo");
 
         mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
-                .andExpect(jsonPath("$.status").value("FALHA"))
-                .andExpect(jsonPath("$.erro.motivo").value("o arquivo não é um PDF (tipo detectado: HTML); a conversão chega na próxima etapa"))
-                .andExpect(jsonPath("$.erro.id").value("804328"));
+                .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
+                .andExpect(jsonPath("$.falhas[0].motivo").value("o arquivo não é um PDF (tipo detectado: HTML); a conversão chega na próxima etapa"))
+                .andExpect(jsonPath("$.falhas[0].id").value("804328"));
     }
 
     private void comDocumentoDeTipoDesconhecido() {
@@ -266,12 +270,94 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
         String id = idDe(criar("gestor.demo", 101, "DOCUMENTO_PROCESSO", "804328", "IMOVEL", "31").andExpect(status().isAccepted()));
 
         mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
-                .andExpect(jsonPath("$.status").value("FALHA"))
-                .andExpect(jsonPath("$.erro.origem").value("IMOVEL"))
-                .andExpect(jsonPath("$.erro.motivo").value(
+                .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
+                .andExpect(jsonPath("$.falhas[0].origem").value("IMOVEL"))
+                .andExpect(jsonPath("$.falhas[0].motivo").value(
                         "o arquivo não é um PDF (tipo detectado: ZIP ou documento do Office (docx, xlsx)); a conversão chega na próxima etapa"));
         mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
                 .andExpect(status().isConflict());
+    }
+
+    // --- continuação (S2.2)
+
+    private org.springframework.test.web.servlet.ResultActions continuar(String login, String id, String acao)
+            throws Exception {
+        return mvc.perform(post("/api/dossies/" + id + "/continuacao").header("Authorization", bearer(login))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"acao\":\"" + acao + "\"}"));
+    }
+
+    @Test
+    void tentarNovamenteResponde202EObtemSoOQueFalhou() throws Exception {
+        Mockito.doThrow(new FalhaNoDocumentoException("tempo limite excedido ao obter o arquivo"))
+                .when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
+        String id = criarComSucesso("gestor.demo");
+        Mockito.clearInvocations(arquivos);
+        Mockito.doAnswer(chamada -> {
+            java.nio.file.Files.write(chamada.<Path>getArgument(1), br.gov.mt.sema.vistas.testsupport.PdfsDeTeste.bytes(1, "novo"));
+            return 1;
+        }).when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
+
+        String resposta = continuar("gestor.demo", id, "TENTAR_NOVAMENTE").andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+
+        verify(arquivos, Mockito.times(1)).baixar(anyString(), any(Path.class));
+        verify(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+                .andExpect(jsonPath("$.status").value("CONCLUIDO"))
+                .andExpect(jsonPath("$.processados").value(2))
+                .andExpect(jsonPath("$.falhas", hasSize(0)));
+        for (String segredo : SEGREDOS) {
+            assertThat(resposta).doesNotContain(segredo);
+        }
+    }
+
+    @Test
+    void removerEContinuarMontaSemBaixarDeNovo() throws Exception {
+        Mockito.doThrow(new FalhaNoDocumentoException("arquivo não encontrado no repositório"))
+                .when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
+        String id = criarComSucesso("gestor.demo");
+        Mockito.clearInvocations(arquivos);
+
+        continuar("gestor.demo", id, "REMOVER_E_CONTINUAR").andExpect(status().isAccepted());
+
+        verify(arquivos, never()).baixar(anyString(), any(Path.class));
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+                .andExpect(jsonPath("$.status").value("CONCLUIDO"))
+                .andExpect(jsonPath("$.itens[1].situacao").value("REMOVIDO"));
+    }
+
+    @Test
+    void continuacaoSemDecisaoPendenteEh409() throws Exception {
+        String id = criarComSucesso("gestor.demo");
+
+        continuar("gestor.demo", id, "TENTAR_NOVAMENTE")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("DOSSIE_SEM_DECISAO_PENDENTE"));
+    }
+
+    @Test
+    void continuacaoComAcaoInvalidaEh400() throws Exception {
+        Mockito.doThrow(new FalhaNoDocumentoException("arquivo não encontrado no repositório"))
+                .when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
+        String id = criarComSucesso("gestor.demo");
+
+        continuar("gestor.demo", id, "REINICIAR")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("PARAMETRO_INVALIDO"));
+    }
+
+    @Test
+    void continuacaoDePedidoDeOutroUsuarioEh404ParaOperador() throws Exception {
+        Mockito.doThrow(new FalhaNoDocumentoException("arquivo não encontrado no repositório"))
+                .when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
+        String id = criarComSucesso("gestor.demo");
+
+        continuar("operador.demo", id, "TENTAR_NOVAMENTE")
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("NAO_ENCONTRADO"));
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+                .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"));
     }
 
     @Test
@@ -318,6 +404,126 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
         // inline não consome o arquivo: pode ser lido de novo
         mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void pdfDoOperadorRegistraOsNaoIncluidosComMotivoSemRevelarOSigilosoNemChaves() throws Exception {
+        String id = idDe(criar("operador.demo", 101, "DOCUMENTO_PROCESSO", "804328").andExpect(status().isAccepted()));
+
+        byte[] pdf = mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("operador.demo")))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+
+        try (org.apache.pdfbox.pdmodel.PDDocument documento = org.apache.pdfbox.Loader.loadPDF(pdf)) {
+            String texto = new org.apache.pdfbox.text.PDFTextStripper().getText(documento);
+            assertThat(texto).contains("1 documento incluído de 6 listados", "Documentos não incluídos",
+                    "não selecionado pelo usuário", "indisponível (chave do arquivo inválida)",
+                    "não é PDF: aguardando conversão", "sigiloso: o perfil de quem gerou não tem acesso",
+                    "Documento sigiloso", "Antigo", "oficio.pdf", "Planilha", "Perdido");
+            assertThat(texto).doesNotContain("Laudo reservado", "laudo-reservado");
+            for (String segredo : SEGREDOS) {
+                assertThat(texto).doesNotContain(segredo);
+            }
+        }
+    }
+
+    // --- ticket de download (S2.2, D49)
+
+    private String emitirTicket(String usuario, String id) throws Exception {
+        String resposta = mvc.perform(post("/api/dossies/" + id + "/arquivo/ticket").header("Authorization", bearer(usuario)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.ticket").isString())
+                .andExpect(jsonPath("$.expiraEm").isString())
+                .andReturn().getResponse().getContentAsString();
+        return json.readTree(resposta).get("ticket").asText();
+    }
+
+    @Test
+    void ticketBaixaSemCabecalhoDeSessaoUmaVezSoEDepoisOArquivoSome() throws Exception {
+        String id = criarComSucesso("gestor.demo");
+        String ticket = emitirTicket("gestor.demo", id);
+
+        MvcResult resultado = mvc.perform(get("/api/dossies/" + id + "/arquivo")
+                        .param("disposicao", "attachment").param("ticket", ticket))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                .andExpect(header().string("Content-Disposition", startsWith("attachment")))
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("Referrer-Policy", "no-referrer"))
+                .andReturn();
+        byte[] pdf = resultado.getResponse().getContentAsByteArray();
+        assertThat(new String(pdf, 0, 5, StandardCharsets.ISO_8859_1)).isEqualTo("%PDF-");
+        assertThat(resultado.getResponse().getContentLength()).isEqualTo(pdf.length);
+
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").param("disposicao", "attachment").param("ticket", ticket))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("TICKET_INVALIDO"));
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
+                .andExpect(status().isGone());
+    }
+
+    @Test
+    void ticketDeOutroPedidoOuInventadoEh403ESemTicketContinuaExigindoSessao() throws Exception {
+        String primeiro = criarComSucesso("gestor.demo");
+        String segundo = criarComSucesso("gestor.demo");
+        String ticket = emitirTicket("gestor.demo", primeiro);
+
+        mvc.perform(get("/api/dossies/" + segundo + "/arquivo").param("disposicao", "attachment").param("ticket", ticket))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.errorCode").value("TICKET_INVALIDO"));
+        mvc.perform(get("/api/dossies/" + primeiro + "/arquivo").param("disposicao", "attachment").param("ticket", "inventado"))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/dossies/" + primeiro + "/arquivo").param("disposicao", "attachment"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void ticketApresentadoComASessaoDeOutroUsuarioEh403() throws Exception {
+        String id = criarComSucesso("gestor.demo");
+        String ticket = emitirTicket("gestor.demo", id);
+
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("admin.demo"))
+                        .param("disposicao", "attachment").param("ticket", ticket))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.errorCode").value("TICKET_INVALIDO"));
+    }
+
+    @Test
+    void ticketSoServeParaAttachment() throws Exception {
+        String id = criarComSucesso("gestor.demo");
+        String ticket = emitirTicket("gestor.demo", id);
+
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").param("disposicao", "inline").param("ticket", ticket))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void operadorNaoEmiteTicketDePedidoAlheio() throws Exception {
+        String id = criarComSucesso("gestor.demo");
+
+        mvc.perform(post("/api/dossies/" + id + "/arquivo/ticket").header("Authorization", bearer("operador.demo")))
+                .andExpect(status().isNotFound());
+        mvc.perform(post("/api/dossies/" + id + "/arquivo/ticket"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void oTicketSoApareceNaRespostaDoProprioPost() throws Exception {
+        String id = criarComSucesso("gestor.demo");
+        String ticket = emitirTicket("gestor.demo", id);
+
+        String andamento = mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+                .andExpect(jsonPath("$.entregaPorTicket").value(false))
+                .andExpect(jsonPath("$.tamanhoBytes").isNumber())
+                .andReturn().getResponse().getContentAsString();
+        MvcResult arquivo = mvc.perform(get("/api/dossies/" + id + "/arquivo").param("disposicao", "attachment")
+                .param("ticket", ticket)).andReturn();
+        String repetido = mvc.perform(get("/api/dossies/" + id + "/arquivo").param("disposicao", "attachment")
+                .param("ticket", ticket)).andReturn().getResponse().getContentAsString();
+
+        assertThat(andamento).doesNotContain(ticket);
+        assertThat(repetido).doesNotContain(ticket);
+        assertThat(new String(arquivo.getResponse().getContentAsByteArray(), StandardCharsets.ISO_8859_1)).doesNotContain(ticket);
+        arquivo.getResponse().getHeaderNames().forEach(nome ->
+                assertThat(arquivo.getResponse().getHeader(nome)).doesNotContain(ticket));
     }
 
     @Test

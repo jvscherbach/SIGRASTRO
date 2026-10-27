@@ -53,7 +53,7 @@ docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml -f co
 Antes de qualquer chamada, confirme **dentro do container** (sem imprimir valores) que cada variável está vazia; a saída tem de ser `vazia` em todas:
 
 ```bash
-for v in SIGA_DB_URL SIGA_DB_USER SIGA_DB_PASSWORD LICENCIAMENTO_API_URL LICENCIAMENTO_API_TOKEN LICENCIAMENTO_API_COOKIE_NAME SCORP_API_URL; do
+for v in SIGA_DB_URL SIGA_DB_USER SIGA_DB_PASSWORD LICENCIAMENTO_API_URL LICENCIAMENTO_API_TOKEN LICENCIAMENTO_API_TOKEN_FILE LICENCIAMENTO_API_COOKIE_NAME SCORP_API_URL; do
   docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml -f compose.verificacao.yaml exec -T api sh -c "[ -z \"\$$v\" ] && echo $v: vazia || echo $v: PREENCHIDA"
 done
 ```
@@ -195,18 +195,29 @@ LICENCIAMENTO_API_TOKEN=O_TOKEN_CAPTURADO
 
 2. Como capturar o token (procedimento completo no passo 4 de [docs/homologacao/S2-roteiro-homologacao.md](docs/homologacao/S2-roteiro-homologacao.md)): entre no SIGA Licenciamento, abra a Vista de um processo, abra o DevTools do navegador (aba **Network**), visualize um documento e copie o valor do cabeçalho `Authorization` (sem a palavra `Bearer`).
 3. **Os acessos ficam registrados no nome de quem capturou o token.** Use só na sua máquina e nunca versione nem envie o token.
-4. Suba de novo (passo 3 do Tutorial 1). O token **expira**; quando isso acontecer, a geração mostra "Token da API de arquivos expirado ou recusado. Capture um novo token": capture outro, troque no `.env.local` e suba de novo.
+4. Suba de novo (passo 3 do Tutorial 1). O token **expira**; quando isso acontecer, a geração mostra "Token da API de arquivos expirado ou recusado. Capture um novo token": capture outro, troque no `.env.local` e suba de novo. Para trocar **sem recriar o container**, use o token por arquivo (abaixo).
+
+### Token por arquivo (sem reiniciar o container)
+
+Com `LICENCIAMENTO_API_TOKEN_FILE` definida, a `api` lê o token de um arquivo **a cada pedido e a cada nova tentativa**. Ela tem precedência sobre `LICENCIAMENTO_API_TOKEN`. Trocar o token é só reescrever o arquivo.
+
+1. Crie a pasta `.secrets/` na raiz do projeto (já está no `.gitignore`) e, dentro dela, o arquivo `token-arquivos` contendo **só o token**, sem a palavra `Bearer`. Uma quebra de linha no final é ignorada.
+2. Em `compose.local.yaml`, descomente a linha `- ./.secrets:/run/secrets-vistas:ro` do serviço `api`.
+3. No `.env.local`, acrescente `LICENCIAMENTO_API_TOKEN_FILE=/run/secrets-vistas/token-arquivos`. O caminho é o de **dentro do container**.
+4. Suba uma vez (passo 3 do Tutorial 1). Quando o token expirar, capture outro e grave por cima de `.secrets/token-arquivos`. Na gaveta, clique em **Tentar novamente**: a próxima chamada já usa o token novo.
+
+Arquivo ausente ou vazio: a geração falha com "API de arquivos não configurada". O valor do token e o caminho do arquivo nunca aparecem em log, erro ou resposta.
 
 Sem `LICENCIAMENTO_API_URL` a lista de documentos funciona normalmente e a geração falha com o motivo "API de arquivos não configurada".
 
 ### Usar a lista de documentos e gerar
 
 1. Na **Consulta**, abra um requerimento ou processo. Abaixo do objeto aparece a seção **Documentos**, com todos os documentos de todas as origens, em ordem cronológica.
-2. Os **PDFs vigentes já vêm marcados**. Documentos que não são PDF (planilhas, textos, imagens) aparecem bloqueados, com "conversão disponível em breve" (entram na próxima etapa); indisponíveis ficam esmaecidos; os sigilosos aparecem mascarados para o Operador.
-3. Use a **busca**, o **filtro de origem** e a **ordenação** (clique em Documento, Origem ou Data). "Seleção padrão" volta à pré-seleção; "Limpar seleção" desmarca tudo; a caixa do cabeçalho marca os documentos listados.
+2. **Todos os documentos selecionáveis já vêm marcados** (vigentes e sem efeito, inclusive os de tipo não informado). Documentos que não são PDF (planilhas, textos, imagens) aparecem bloqueados, com "conversão disponível em breve" (entram na próxima etapa); indisponíveis ficam esmaecidos; os sigilosos aparecem mascarados para o Operador. A linha da seção mostra "N documentos · V vigentes · S sem efeito · I indisponíveis".
+3. Use a **busca**, o **filtro de origem** e a **ordenação** (clique em Documento, Origem ou Data). A ordenação da tabela não muda o dossiê, que segue sempre a ordem cronológica do servidor. "Seleção padrão" volta a marcar todos os selecionáveis; "Limpar seleção" desmarca tudo; a caixa do cabeçalho marca os documentos listados.
 4. Clique em **Gerar dossiê**. A gaveta mostra o progresso e a situação de cada documento. Pode fechá-la: a geração continua no servidor.
-5. Ao concluir, **Pré-visualizar** abre o PDF sem baixar e **Baixar PDF** salva o arquivo (`dossie-processo-N-AAAA.pdf`). O arquivo é apagado do servidor depois do download ou em 30 minutos.
-6. Se algum documento falhar, **nenhum arquivo é gerado** (o dossiê é completo ou não existe): a gaveta diz qual documento e por quê, e oferece **Tentar novamente** ou **Remover documento e gerar**.
+5. Ao concluir, **Pré-visualizar** abre o PDF sem baixar e **Baixar PDF** salva o arquivo (`dossie-processo-N-AAAA.pdf`). Logo após o sumário, o PDF lista os "Documentos não incluídos" e o motivo, e a capa diz "N documentos incluídos de M listados". Acima de 150 MB (`DOSSIE_BLOB_MAX_MB`) a pré-visualização fica desligada e o navegador baixa o arquivo direto. O arquivo é apagado do servidor depois do download ou em 30 minutos sem atividade.
+6. Se algum documento falhar, **nada é entregue sem a sua decisão**: a geração vai até o fim, a gaveta lista cada documento com problema e o motivo, e oferece **Tentar novamente os N com problema**, **Remover os N com problema e gerar** ou **Cancelar**. Nenhuma das opções baixa de novo o que já foi obtido.
 
 ## Tutorial 2 — Rodar sem Docker (desenvolvimento)
 

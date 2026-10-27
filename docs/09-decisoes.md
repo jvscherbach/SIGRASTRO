@@ -81,7 +81,7 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 
 ## D11 — Lista completa com situação
 
-**Decisão:** listar todos os documentos, inclusive substituídos e indisponíveis, com a situação calculada. Os vigentes vêm pré-selecionados.
+**Decisão:** listar todos os documentos, inclusive substituídos e indisponíveis, com a situação calculada. Os vigentes vêm pré-selecionados (desde a S2.2, todos os selecionáveis: D47).
 **Motivo:** o operador decide o conteúdo do dossiê com visibilidade total.
 
 ## D12 — Dossiê completo ou nenhum
@@ -89,6 +89,7 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 **Decisão:** se qualquer documento selecionado falhar, a geração é interrompida com erro e nenhum arquivo é entregue. Não há página substituta nem relatório de geração no fim do dossiê. *(Substitui a decisão anterior de página substituta.)*
 **Motivo:** o dossiê deve conter exatamente o que foi pedido; entregar parcialmente poderia ser tomado como completo.
 **Consequência:** falhas transitórias (ex.: tempo limite) exigem nova tentativa; o usuário pode remover o documento por decisão explícita.
+**Revista na S2.2 (D48):** o princípio (nada incompleto sem decisão) continua; a interrupção na primeira falha e o descarte de tudo deixaram de valer.
 
 ## D16 — Geometrias à parte e compactados desconsiderados
 
@@ -208,7 +209,7 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 
 ## D38 — Geração: documentos em sequência, `DOSSIE_THREADS` gerações simultâneas
 
-**Decisão:** dentro de um pedido os arquivos são obtidos um a um, na ordem cronológica; o executor limitado a `DOSSIE_THREADS` (padrão 2) roda pedidos diferentes ao mesmo tempo, então o total de downloads simultâneos nunca passa desse número. A primeira falha interrompe e descarta tudo (RN09). Os PDFs são abertos com cache em arquivos temporários (PDFBox 3) e ficam abertos até o PDF final ser salvo, porque o PDFBox compartilha objetos entre origem e destino.
+**Decisão:** dentro de um pedido os arquivos são obtidos um a um, na ordem cronológica; o executor limitado a `DOSSIE_THREADS` (padrão 2) roda pedidos diferentes ao mesmo tempo, então o total de downloads simultâneos nunca passa desse número. A primeira falha interrompe e descarta tudo (RN09). **Desde a S2.2 (D48):** a sequência continua, mas as falhas são coletadas e a obtenção segue até o fim; só a credencial recusada para na hora. Os PDFs são abertos com cache em arquivos temporários (PDFBox 3) e ficam abertos até o PDF final ser salvo, porque o PDFBox compartilha objetos entre origem e destino.
 **Motivo:** a regra "completo ou nenhum" fica determinística (os seguintes nunca são processados) e a memória é limitada. Se o tempo de geração pesar, a S3 avalia obter em paralelo dentro do pedido.
 
 ## D39 — Pedidos em memória: o registro sobrevive um pouco ao vencimento
@@ -241,15 +242,35 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 ## D44 — Extensão desconhecida: tipo `DESCONHECIDO`
 
 **Contexto:** os nomes vêm sem tipo e sem extensão garantida (a complementação usa `TITULO`; o imóvel pode ter nome em branco).
-**Decisão:** sem extensão ou com extensão não reconhecida o `tipoArquivo` é `DESCONHECIDO` (substitui `OUTRO`). O documento aparece, é selecionável (se vigente, com chave válida e acessível pelo perfil), fica fora da pré-seleção, mostra a etiqueta "tipo não informado" e não recebe o bloqueio `NAO_PDF`. Ao baixar, o validador confere a assinatura `%PDF-`: PDF segue normal; senão a falha é do documento ("o arquivo não é um PDF (tipo detectado: X); a conversão chega na próxima etapa") e vale a RN09. Os totais ganham `tipoNaoInformado`.
+**Decisão:** sem extensão ou com extensão não reconhecida o `tipoArquivo` é `DESCONHECIDO` (substitui `OUTRO`). O documento aparece, é selecionável (se vigente, com chave válida e acessível pelo perfil), fica fora da pré-seleção (desde a S2.2 entra na seleção inicial: D47), mostra a etiqueta "tipo não informado" e não recebe o bloqueio `NAO_PDF`. Ao baixar, o validador confere a assinatura `%PDF-`: PDF segue normal; senão a falha é do documento ("o arquivo não é um PDF (tipo detectado: X); a conversão chega na próxima etapa") e vale a RN09. Os totais ganham `tipoNaoInformado`.
 **Motivo:** não esconder documento por falta de extensão nem deixar entrar no dossiê o que não é PDF.
 
 ## D45 — Pré-seleção é conveniência do SIGA Vistas
 
-**Decisão:** a Vista não pré-seleciona nada; o SIGA Vistas mantém a pré-seleção de **PDF vigente, sem bloqueio**.
+**Decisão:** a Vista não pré-seleciona nada; o SIGA Vistas mantém a pré-seleção de **PDF vigente, sem bloqueio**. **Substituída pela D47 (S2.2).**
 **Motivo:** gerar o dossiê comum com um clique; o usuário ajusta a seleção.
 
 ## D46 — Deduplicação por chave diverge da Vista
 
 **Decisão:** a Vista não deduplica; o SIGA Vistas sim (RN05), para não repetir páginas no dossiê. Precedência: a ordem das origens na tabela de docs/04. Chave `"0"` ou vazia nunca deduplica. RL e RT não duplicam por construção do SQL.
 **Motivo:** o dossiê é um PDF único; repetir o mesmo arquivo só o infla.
+
+## D47 — Seleção total dos selecionáveis (S2.2)
+
+**Contexto:** na homologação da S2/S2.1, documentos de tipo não informado ficavam fora da primeira geração, e a tela do 769/2025 mostrava "145 documentos · 71 vigentes" com "144 selecionados", o que parecia não fechar. O dossiê responde a processos jurídicos: o padrão é incluir tudo o que pode entrar.
+**Decisão:** `selecionavelPorPadrao` passa a significar "selecionável" (sem `bloqueio`): vigentes e sem efeito, de qualquer tipo, inclusive `DESCONHECIDO`, vêm selecionados (RN13). Continuam fora: indisponíveis, não PDF por extensão conhecida e sigilosos para o Operador. Os totais ganham `semEfeito`, e a tela mostra `N documentos · V vigentes · S sem efeito · I indisponíveis` (somam N). Substitui a D45 e o trecho "fica fora da pré-seleção" da D44.
+**Motivo:** a Vista lista os "sem efeito" e permite incluí-los; deixar de fora por padrão já produziu dossiê incompleto. Com a soma explícita, o total de selecionados é conferível.
+
+## D48 — Falhas coletadas e continuação sem reiniciar (S2.2)
+
+**Contexto:** na homologação da S2/S2.1, com arquivos de ~50 MB, "Tentar novamente" e "Remover documento e gerar" reiniciavam o dossiê inteiro (novo `POST`), baixando de novo o que já tinha dado certo.
+**Decisão:** a geração percorre todos os documentos e coleta as falhas; com falha, o pedido fica em `PENDENTE_DECISAO` com a lista completa e nada é entregue. Os arquivos obtidos ficam no diretório do pedido. A decisão é `POST /dossies/{id}/continuacao` (`TENTAR_NOVAMENTE` refaz só os com problema; `REMOVER_E_CONTINUAR` os marca `REMOVIDO` e monta). Credencial recusada para a obtenção na hora e também espera decisão. O estado `FALHA` deixa de existir; o TTL conta desde a última atividade, inclusive na espera. Só quem criou o pedido, Gestor e Administrador decidem (os demais recebem 404); fora de `PENDENTE_DECISAO`, 409 `DOSSIE_SEM_DECISAO_PENDENTE`. Revê a D12 (RN09 reescrita em docs/02).
+**Motivo:** manter a regra "nada incompleto sem decisão explícita" sem pagar de novo o download do que já foi obtido; com credencial nova (token por arquivo), só o que falta é obtido.
+**Consequência:** o disco guarda os documentos de um pedido parado até a decisão, o cancelamento ou o TTL (dimensionamento em docs/12). A lista de documentos não incluídos no PDF é do bloco 6; a interface completa da decisão, do bloco 7.
+
+## D49 — Download de dossiê grande por ticket de uso único (S2.2)
+
+**Contexto:** com arquivos de ~50 MB, um dossiê passa fácil de centenas de MB. Baixar por `Blob` (o front segura o arquivo inteiro na memória do navegador antes de salvar) e pré-visualizar num `iframe` deixam de ser viáveis. O token de sessão não pode ir para a URL.
+**Decisão:** abaixo de `DOSSIE_BLOB_MAX_MB` (padrão 150) nada muda: Blob e pré-visualização. Acima, o andamento indica `entregaPorTicket`. O front pede `POST /dossies/{id}/arquivo/ticket` e abre `GET /dossies/{id}/arquivo?disposicao=attachment&ticket=...` direto, para o navegador baixar em streaming. O ticket tem 256 bits aleatórios, é de uso único, vale 60 s e fica preso ao pedido e ao usuário. O servidor guarda só o resumo SHA-256; ticket inválido dá 403 `TICKET_INVALIDO` sem dizer o motivo. A rota com ticket é a única que o filtro deixa passar sem Bearer; se vier Bearer, ele precisa ser do mesmo usuário. O ticket não vai para log: a aplicação não registra a query string, e o nginx desliga o log de acesso dessa rota e reduz o de erro a `crit`. A resposta leva `Referrer-Policy: no-referrer`. A pré-visualização some acima do limite, com aviso.
+**Motivo:** download em streaming de arquivos grandes sem expor a sessão. Com uso único e 60 s, um ticket que fique no histórico do navegador não serve para nada.
+**Consequência:** a página não vê o fim do download feito pelo navegador; ela avisa que o arquivo é descartado quando o download termina. O ticket fica na URL (histórico do navegador e eventuais proxies intermediários fora do nginx do projeto); a mitigação é o uso único e a validade curta.

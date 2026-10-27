@@ -3,7 +3,9 @@ package br.gov.mt.sema.vistas.dossie.application;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import br.gov.mt.sema.vistas.acesso.application.UsuarioAtual;
@@ -14,12 +16,14 @@ import br.gov.mt.sema.vistas.consulta.domain.Identificacao;
 import br.gov.mt.sema.vistas.consulta.domain.ObjetoDoRequerimento;
 import br.gov.mt.sema.vistas.consulta.domain.Requerimento;
 import br.gov.mt.sema.vistas.documento.application.ReferenciaDeDocumento;
+import br.gov.mt.sema.vistas.documento.application.SelecaoParaDossie;
 import br.gov.mt.sema.vistas.documento.application.SelecionarDocumentosParaDossie;
 import br.gov.mt.sema.vistas.documento.domain.Documento;
 import br.gov.mt.sema.vistas.dossie.application.port.FilaDeGeracao;
 import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.RepositorioDePedidos;
 import br.gov.mt.sema.vistas.dossie.domain.DadosDaCapa;
+import br.gov.mt.sema.vistas.dossie.domain.DocumentoNaoIncluido;
 import br.gov.mt.sema.vistas.dossie.domain.ItemDoPedido;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
 import org.springframework.stereotype.Service;
@@ -59,19 +63,44 @@ public class CriarDossie {
         Usuario usuario = usuarioAtual.obter();
         // 404 e RN07 primeiro: quem não pode acessar o requerimento não descobre nada sobre os documentos.
         DetalheDoRequerimento detalhe = requerimentos.executar(idRequerimento);
-        List<Documento> escolhidos = selecao.executar(idRequerimento, documentos);
+        SelecaoParaDossie selecionados = selecao.executarComInventario(idRequerimento, documentos);
+
+        // Posição de cada documento na lista cronológica: a seção "Documentos não incluídos" segue a mesma ordem.
+        List<Documento> listagem = new ArrayList<>(selecionados.escolhidos());
+        selecionados.naoSelecionados().forEach(n -> listagem.add(n.documento()));
+        listagem.sort(Documento.ORDEM_CRONOLOGICA);
+        Map<Documento, Integer> posicoes = new IdentityHashMap<>();
+        for (int i = 0; i < listagem.size(); i++) {
+            posicoes.put(listagem.get(i), i);
+        }
 
         LocalDateTime agora = LocalDateTime.now(relogio);
         List<ItemDoPedido> itens = new ArrayList<>();
-        for (Documento d : escolhidos) {
+        for (Documento d : selecionados.escolhidos()) {
             itens.add(new ItemDoPedido(d.origem().name(), d.origem().descricao(), d.id(), d.titulo(), d.data(),
-                    d.chaveDoArquivo()));
+                    d.chaveDoArquivo(), posicoes.get(d)));
+        }
+        List<DocumentoNaoIncluido> naoSelecionados = new ArrayList<>();
+        for (SelecaoParaDossie.NaoSelecionado n : selecionados.naoSelecionados()) {
+            Documento d = n.documento();
+            naoSelecionados.add(new DocumentoNaoIncluido(posicoes.get(d), d.origem().descricao(), d.id(), n.titulo(),
+                    d.data(), motivo(n.motivo())));
         }
         PedidoDeDossie pedido = new PedidoDeDossie(UUID.randomUUID().toString(), usuario.login(), idRequerimento,
-                capa(detalhe, usuario, agora), itens, agora, agora.plusMinutes(parametros.ttlMinutos()));
+                capa(detalhe, usuario, agora), itens, naoSelecionados, selecionados.listados(), agora,
+                agora.plusMinutes(parametros.ttlMinutos()));
         pedidos.salvar(pedido);
         fila.submeter(() -> gerador.processar(pedido));
         return pedido.id();
+    }
+
+    private static String motivo(SelecaoParaDossie.Motivo motivo) {
+        return switch (motivo) {
+            case NAO_SELECIONADO -> DocumentoNaoIncluido.NAO_SELECIONADO;
+            case INDISPONIVEL -> DocumentoNaoIncluido.INDISPONIVEL;
+            case NAO_PDF -> DocumentoNaoIncluido.NAO_PDF;
+            case SIGILOSO -> DocumentoNaoIncluido.SIGILOSO;
+        };
     }
 
     private static DadosDaCapa capa(DetalheDoRequerimento detalhe, Usuario usuario, LocalDateTime agora) {

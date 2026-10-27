@@ -1,4 +1,4 @@
-import { baixarBlob, nomeDoContentDisposition } from './arquivo-local';
+import { baixarBlob, baixarDireto, nomeDoContentDisposition } from './arquivo-local';
 
 describe('nomeDoContentDisposition', () => {
   it('lê o filename* codificado (RFC 5987)', () => {
@@ -39,5 +39,23 @@ describe('baixarBlob', () => {
     expect(document.querySelector('a[download]')).toBeNull();
     await new Promise((resolver) => setTimeout(resolver, 5));
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:http://localhost/x');
+  });
+});
+
+describe('baixarDireto', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('deixa o navegador baixar pela URL do ticket, sem Blob e sem deixar âncora no documento', () => {
+    URL.createObjectURL = vi.fn();
+    const cliques: { href: string; rel: string }[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      cliques.push({ href: this.getAttribute('href')!, rel: this.rel });
+    });
+
+    baixarDireto('/api/dossies/abc/arquivo?disposicao=attachment&ticket=t1');
+
+    expect(cliques).toEqual([{ href: '/api/dossies/abc/arquivo?disposicao=attachment&ticket=t1', rel: 'noopener noreferrer' }]);
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(document.querySelector('a[download]')).toBeNull();
   });
 });

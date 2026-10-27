@@ -1,6 +1,7 @@
 package br.gov.mt.sema.vistas.acesso.api;
 
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 import br.gov.mt.sema.vistas.acesso.application.ObterUsuarioAtual;
 import br.gov.mt.sema.vistas.acesso.domain.Usuario;
@@ -20,7 +21,10 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-/** Autenticação simulada do protótipo: exige Bearer em /api/**, exceto no login. */
+/**
+ * Autenticação simulada do protótipo: exige Bearer em /api/**, exceto no login e no download de dossiê por ticket (o
+ * ticket de uso único é conferido pelo caso de uso; com Bearer presente, ele também vale e precisa ser do mesmo usuário).
+ */
 @Component
 @Order(CorrelationIdFilter.ORDEM + 10)
 public class AutenticacaoFilter extends OncePerRequestFilter {
@@ -31,6 +35,8 @@ public class AutenticacaoFilter extends OncePerRequestFilter {
     private static final String PREFIXO_API = "/api/";
     private static final String LOGIN = "/api/auth/login";
     private static final String BEARER = "Bearer ";
+    private static final Pattern DOWNLOAD_POR_TICKET =
+            Pattern.compile("/api/dossies/[^/]+/arquivo");
 
     private final ObterUsuarioAtual obterUsuarioAtual;
     private final ObjectMapper json;
@@ -53,6 +59,11 @@ public class AutenticacaoFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String token = extrairToken(request);
+        if (token == null && downloadPorTicket(request)) {
+            // O navegador baixa o dossiê grande direto, sem cabeçalho de sessão: quem confere é o ticket de uso único (D49).
+            chain.doFilter(request, response);
+            return;
+        }
         try {
             Usuario usuario = obterUsuarioAtual.porToken(token);
             request.setAttribute(ATRIBUTO_USUARIO, usuario);
@@ -62,6 +73,13 @@ public class AutenticacaoFilter extends OncePerRequestFilter {
             return;
         }
         chain.doFilter(request, response);
+    }
+
+    /** GET /api/dossies/{id}/arquivo com o parâmetro ticket. */
+    static boolean downloadPorTicket(HttpServletRequest request) {
+        String caminho = request.getRequestURI().substring(request.getContextPath().length());
+        return HttpMethod.GET.matches(request.getMethod()) && DOWNLOAD_POR_TICKET.matcher(caminho).matches()
+                && request.getParameter("ticket") != null;
     }
 
     private static String extrairToken(HttpServletRequest request) {

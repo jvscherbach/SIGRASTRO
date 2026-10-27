@@ -2,7 +2,6 @@ package br.gov.mt.sema.vistas.integration.siga;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -142,7 +141,6 @@ class RequerimentosDoSigaJdbc implements RequerimentosDoSiga {
     }
 
     private static LocalDateTime data(ResultSet rs, String coluna) throws SQLException {
-        Timestamp valor = rs.getTimestamp(coluna);
-        return valor == null ? null : valor.toLocalDateTime();
+        return DataHoraDoSiga.ler(rs, coluna);
     }
 }

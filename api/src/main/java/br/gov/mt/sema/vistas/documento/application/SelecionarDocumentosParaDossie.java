@@ -34,6 +34,11 @@ public class SelecionarDocumentosParaDossie {
     }
 
     public List<Documento> executar(long idRequerimento, List<ReferenciaDeDocumento> referencias) {
+        return executarComInventario(idRequerimento, referencias).escolhidos();
+    }
+
+    /** Como {@link #executar}, mais o que ficou fora da seleção e o motivo (S2.2, seção "Documentos não incluídos"). */
+    public SelecaoParaDossie executarComInventario(long idRequerimento, List<ReferenciaDeDocumento> referencias) {
         acesso.executar(idRequerimento);
         if (referencias == null || referencias.isEmpty()) {
             throw new ParametroInvalidoException("documentos", "Selecione ao menos um documento.");
@@ -61,7 +66,27 @@ public class SelecionarDocumentosParaDossie {
         }
         List<Documento> ordenados = new ArrayList<>(escolhidos);
         ordenados.sort(Documento.ORDEM_CRONOLOGICA);
-        return ordenados;
+        List<SelecaoParaDossie.NaoSelecionado> fora = new ArrayList<>();
+        for (Documento documento : lista) {
+            if (!escolhidos.contains(documento)) {
+                boolean acessivel = !documento.sigiloso() || podeVerSigilosos;
+                fora.add(new SelecaoParaDossie.NaoSelecionado(documento,
+                        acessivel ? documento.titulo() : DocumentoListado.TITULO_MASCARADO,
+                        motivo(documento.bloqueio(podeVerSigilosos))));
+            }
+        }
+        return new SelecaoParaDossie(ordenados, fora, lista.size());
+    }
+
+    private static SelecaoParaDossie.Motivo motivo(Bloqueio bloqueio) {
+        if (bloqueio == null) {
+            return SelecaoParaDossie.Motivo.NAO_SELECIONADO;
+        }
+        return switch (bloqueio) {
+            case INDISPONIVEL -> SelecaoParaDossie.Motivo.INDISPONIVEL;
+            case NAO_PDF -> SelecaoParaDossie.Motivo.NAO_PDF;
+            case SIGILOSO -> SelecaoParaDossie.Motivo.SIGILOSO;
+        };
     }
 
     private static Optional<Documento> localizar(List<Documento> lista, ReferenciaDeDocumento referencia) {

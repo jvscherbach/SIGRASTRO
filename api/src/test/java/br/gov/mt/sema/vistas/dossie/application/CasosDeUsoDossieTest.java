@@ -33,6 +33,7 @@ import br.gov.mt.sema.vistas.consulta.domain.Requerimento;
 import br.gov.mt.sema.vistas.consulta.domain.Situacao;
 import br.gov.mt.sema.vistas.consulta.domain.TarefaAtual;
 import br.gov.mt.sema.vistas.documento.application.ReferenciaDeDocumento;
+import br.gov.mt.sema.vistas.documento.application.SelecaoParaDossie;
 import br.gov.mt.sema.vistas.documento.application.SelecionarDocumentosParaDossie;
 import br.gov.mt.sema.vistas.documento.domain.Documento;
 import br.gov.mt.sema.vistas.documento.domain.OrigemDocumento;
@@ -42,15 +43,20 @@ import br.gov.mt.sema.vistas.dossie.application.Fakes.Montador;
 import br.gov.mt.sema.vistas.dossie.application.Fakes.Parametros;
 import br.gov.mt.sema.vistas.dossie.application.Fakes.RelogioControlado;
 import br.gov.mt.sema.vistas.dossie.application.Fakes.Repositorio;
+import br.gov.mt.sema.vistas.dossie.application.Fakes.Tickets;
 import br.gov.mt.sema.vistas.dossie.application.Fakes.Validador;
+import br.gov.mt.sema.vistas.dossie.domain.DocumentoNaoIncluido;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
 import br.gov.mt.sema.vistas.dossie.domain.StatusDossie;
 import br.gov.mt.sema.vistas.shared.application.exception.DocumentoSigilosoException;
 import br.gov.mt.sema.vistas.shared.application.exception.DossieExpiradoException;
+import br.gov.mt.sema.vistas.shared.application.exception.CredencialArquivosRecusadaException;
 import br.gov.mt.sema.vistas.shared.application.exception.DossieSemArquivoException;
+import br.gov.mt.sema.vistas.shared.application.exception.DossieSemDecisaoPendenteException;
 import br.gov.mt.sema.vistas.shared.application.exception.NaoInteressadoException;
 import br.gov.mt.sema.vistas.shared.application.exception.ParametroInvalidoException;
 import br.gov.mt.sema.vistas.shared.application.exception.RecursoNaoEncontradoException;
+import br.gov.mt.sema.vistas.shared.application.exception.TicketInvalidoException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -76,6 +82,10 @@ class CasosDeUsoDossieTest {
     private CancelarDossie cancelar;
     private ConsultarDossie consultar;
     private LimparDossies limpar;
+    private ContinuarDossie continuar;
+    private Tickets tickets;
+    private EmitirTicketDeDownload emitirTicket;
+    private Montador montador;
 
     @BeforeEach
     void preparar() {
@@ -83,6 +93,9 @@ class CasosDeUsoDossieTest {
         UsuarioAtual atual = new UsuarioAtual() {
             @Override
             public Usuario obter() {
+                if (usuario == null) {
+                    throw new br.gov.mt.sema.vistas.shared.application.exception.NaoAutenticadoException("sem sessão");
+                }
                 return usuario;
             }
 
@@ -96,12 +109,16 @@ class CasosDeUsoDossieTest {
         arquivos = new Arquivos();
         parametros = new Parametros(pasta);
         relogio = new RelogioControlado();
-        GeradorDeDossie gerador = new GeradorDeDossie(arquivos, new Validador(), new Montador(), parametros, relogio);
-        localizar = new LocalizarPedido(repositorio, atual, relogio);
+        montador = new Montador();
+        GeradorDeDossie gerador = new GeradorDeDossie(arquivos, new Validador(), montador, parametros, d -> Long.MAX_VALUE, relogio);
+        localizar = new LocalizarPedido(repositorio, atual, parametros, relogio);
         criar = new CriarDossie(requerimentos, selecao, atual, repositorio, fila, gerador, parametros, relogio);
-        obterArquivo = new ObterArquivoDoDossie(localizar);
-        cancelar = new CancelarDossie(localizar);
-        consultar = new ConsultarDossie(localizar);
+        tickets = new Tickets();
+        obterArquivo = new ObterArquivoDoDossie(localizar, parametros, tickets, atual, relogio);
+        emitirTicket = new EmitirTicketDeDownload(obterArquivo, tickets, atual, relogio);
+        cancelar = new CancelarDossie(localizar, parametros);
+        continuar = new ContinuarDossie(localizar, fila, gerador, parametros, relogio);
+        consultar = new ConsultarDossie(localizar, parametros);
         limpar = new LimparDossies(repositorio, parametros, relogio);
 
         Requerimento requerimento = new Requerimento(101, "3331/2025", "2825/2025", "Requerimento de Outorga",
@@ -112,9 +129,14 @@ class CasosDeUsoDossieTest {
                 List.of(), new AtividadeLicenciamento("Mineração", "Extração de areia"));
         when(requerimentos.executar(101)).thenReturn(new DetalheDoRequerimento(requerimento, objeto,
                 PrioridadeAtendimento.de(List.of()), TarefaAtual.semTarefa()));
-        when(selecao.executar(anyLong(), anyList())).thenReturn(List.of(
+        when(selecao.executarComInventario(anyLong(), anyList())).thenReturn(sem(List.of(
                 Documento.deLinha(OrigemDocumento.DOCUMENTO_PROCESSO, "1", 101, "K1", "Requerimento", "r.pdf", D1, null, 0),
-                Documento.deLinha(OrigemDocumento.COMPLEMENTACAO, "2", 101, "K2", null, "oficio.pdf", D1.plusDays(1), null, 0)));
+                Documento.deLinha(OrigemDocumento.COMPLEMENTACAO, "2", 101, "K2", null, "oficio.pdf", D1.plusDays(1), null, 0))));
+    }
+
+    /** Seleção em que tudo o que foi listado foi escolhido. */
+    private static SelecaoParaDossie sem(List<Documento> escolhidos) {
+        return new SelecaoParaDossie(escolhidos, List.of(), escolhidos.size());
     }
 
     private static List<ReferenciaDeDocumento> refs() {
@@ -135,7 +157,7 @@ class CasosDeUsoDossieTest {
 
         assertThat(UUID.fromString(id)).isNotNull();
         PedidoDeDossie pedido = repositorio.buscar(id).orElseThrow();
-        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE);
+        assertThat(pedido.status()).isEqualTo(StatusDossie.AGUARDANDO);
         assertThat(pedido.login()).isEqualTo("gestor.demo");
         assertThat(pedido.itens()).extracting(i -> i.origem() + "/" + i.id() + ":" + i.titulo())
                 .containsExactly("DOCUMENTO_PROCESSO/1:Requerimento", "COMPLEMENTACAO/2:oficio.pdf");
@@ -182,7 +204,7 @@ class CasosDeUsoDossieTest {
 
         // o requerimento e a seleção foram lidos uma vez, na criação; a geração (executada pela fila) não os relê
         verify(requerimentos, times(1)).executar(101);
-        verify(selecao, times(1)).executar(anyLong(), anyList());
+        verify(selecao, times(1)).executarComInventario(anyLong(), anyList());
         assertThat(arquivos.baixadas).containsExactly("K1", "K2");
     }
 
@@ -195,15 +217,15 @@ class CasosDeUsoDossieTest {
         assertThatThrownBy(() -> criar.executar(404, refs())).isInstanceOf(RecursoNaoEncontradoException.class);
 
         assertThat(repositorio.todos()).isEmpty();
-        verify(selecao, never()).executar(anyLong(), any());
+        verify(selecao, never()).executarComInventario(anyLong(), any());
     }
 
     @Test
     void selecaoInvalidaOuSigilosaNaoCriaPedido() {
-        doThrow(new ParametroInvalidoException("documentos", "inválido")).when(selecao).executar(anyLong(), anyList());
+        doThrow(new ParametroInvalidoException("documentos", "inválido")).when(selecao).executarComInventario(anyLong(), anyList());
         assertThatThrownBy(() -> criar.executar(101, refs())).isInstanceOf(ParametroInvalidoException.class);
 
-        doThrow(new DocumentoSigilosoException()).when(selecao).executar(anyLong(), anyList());
+        doThrow(new DocumentoSigilosoException()).when(selecao).executarComInventario(anyLong(), anyList());
         assertThatThrownBy(() -> criar.executar(101, refs())).isInstanceOf(DocumentoSigilosoException.class);
 
         assertThat(repositorio.todos()).isEmpty();
@@ -262,7 +284,7 @@ class CasosDeUsoDossieTest {
     }
 
     @Test
-    void arquivoEm409QuandoEmAndamentoOuFalhouOuCancelado() {
+    void arquivoEm409QuandoEmAndamentoOuAguardandoDecisaoOuCancelado() {
         fila.adiar = true;
         String emAndamento = criar.executar(101, refs());
         assertThatThrownBy(() -> obterArquivo.executar(emAndamento)).isInstanceOf(DossieSemArquivoException.class);
@@ -270,7 +292,7 @@ class CasosDeUsoDossieTest {
         fila.adiar = false;
         arquivos.comportamentos.put("K1", Arquivos.falhaDoDocumento("arquivo não encontrado no repositório"));
         String falho = criar.executar(101, refs());
-        assertThat(consultar.executar(falho).status()).isEqualTo(StatusDossie.FALHA);
+        assertThat(consultar.executar(falho).status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
         assertThatThrownBy(() -> obterArquivo.executar(falho)).isInstanceOf(DossieSemArquivoException.class);
 
         cancelar.executar(emAndamento);
@@ -285,6 +307,7 @@ class CasosDeUsoDossieTest {
         obterArquivo.concluirDownload(pedido.id());
 
         assertThat(caminho).doesNotExist();
+        assertThat(pasta.resolve(pedido.id())).as("o diretório do pedido some com o download").doesNotExist();
         assertThat(pedido.status()).isEqualTo(StatusDossie.EXPIRADO);
         assertThatThrownBy(() -> obterArquivo.executar(pedido.id())).isInstanceOf(DossieExpiradoException.class);
     }
@@ -299,6 +322,130 @@ class CasosDeUsoDossieTest {
 
         assertThat(caminho).doesNotExist();
         assertThat(consultar.executar(pedido.id()).status()).isEqualTo(StatusDossie.EXPIRADO);
+    }
+
+    // --- ticket de download (S2.2, D49)
+
+    @Test
+    void ticketTem256BitsAleatoriosEOServidorGuardaSoOResumo() {
+        PedidoDeDossie pedido = criarPedido();
+
+        EmitirTicketDeDownload.TicketEmitido emitido = emitirTicket.executar(pedido.id());
+        EmitirTicketDeDownload.TicketEmitido outro = emitirTicket.executar(pedido.id());
+
+        assertThat(java.util.Base64.getUrlDecoder().decode(emitido.ticket())).hasSize(32);
+        assertThat(emitido.ticket()).isNotEqualTo(outro.ticket());
+        assertThat(emitido.expiraEm()).isEqualTo(LocalDateTime.now(relogio).plusSeconds(60));
+        assertThat(tickets.guardados).hasSize(2).doesNotContainKey(emitido.ticket())
+                .containsKey(br.gov.mt.sema.vistas.dossie.domain.TicketDeDownload.resumo(emitido.ticket()));
+        assertThat(tickets.guardados.values()).allSatisfy(t -> {
+            assertThat(t.idPedido()).isEqualTo(pedido.id());
+            assertThat(t.login()).isEqualTo("gestor.demo");
+        });
+        assertThat(emitido.toString()).doesNotContain(emitido.ticket());
+    }
+
+    @Test
+    void ticketValeUmaVezSoMesmoSemUsuarioNaRequisicao() {
+        PedidoDeDossie pedido = criarPedido();
+        String ticket = emitirTicket.executar(pedido.id()).ticket();
+        usuario = null;
+
+        assertThat(obterArquivo.executarPorTicket(pedido.id(), ticket).caminho()).exists();
+        assertThatThrownBy(() -> obterArquivo.executarPorTicket(pedido.id(), ticket))
+                .isInstanceOf(TicketInvalidoException.class);
+    }
+
+    @Test
+    void ticketVencidoEhInvalido() {
+        PedidoDeDossie pedido = criarPedido();
+        String ticket = emitirTicket.executar(pedido.id()).ticket();
+        relogio.avancarSegundos(59);
+        String outro = emitirTicket.executar(pedido.id()).ticket();
+        relogio.avancarSegundos(1);
+
+        assertThatThrownBy(() -> obterArquivo.executarPorTicket(pedido.id(), ticket))
+                .isInstanceOf(TicketInvalidoException.class);
+        assertThat(obterArquivo.executarPorTicket(pedido.id(), outro)).isNotNull();
+    }
+
+    @Test
+    void ticketDeOutroPedidoEhInvalidoEFicaConsumido() {
+        PedidoDeDossie primeiro = criarPedido();
+        PedidoDeDossie segundo = criarPedido();
+        String ticket = emitirTicket.executar(primeiro.id()).ticket();
+
+        assertThatThrownBy(() -> obterArquivo.executarPorTicket(segundo.id(), ticket))
+                .isInstanceOf(TicketInvalidoException.class);
+        assertThatThrownBy(() -> obterArquivo.executarPorTicket(primeiro.id(), ticket))
+                .isInstanceOf(TicketInvalidoException.class);
+    }
+
+    @Test
+    void ticketApresentadoPorOutroUsuarioAutenticadoEhInvalido() {
+        PedidoDeDossie pedido = criarPedido();
+        String ticket = emitirTicket.executar(pedido.id()).ticket();
+        usuario = new Usuario("admin.demo", "Admin", Perfil.ADMIN, null, true);
+
+        assertThatThrownBy(() -> obterArquivo.executarPorTicket(pedido.id(), ticket))
+                .isInstanceOf(TicketInvalidoException.class);
+    }
+
+    @Test
+    void ticketInexistenteOuVazioEhInvalido() {
+        PedidoDeDossie pedido = criarPedido();
+
+        for (String ticket : new String[] {"nao-existe", "", null}) {
+            assertThatThrownBy(() -> obterArquivo.executarPorTicket(pedido.id(), ticket))
+                    .isInstanceOf(TicketInvalidoException.class);
+        }
+    }
+
+    @Test
+    void ticketSoSaiComArquivoEParaQuemAcessaOPedido() {
+        fila.adiar = true;
+        String emAndamento = criar.executar(101, refs());
+        assertThatThrownBy(() -> emitirTicket.executar(emAndamento)).isInstanceOf(DossieSemArquivoException.class);
+
+        fila.adiar = false;
+        PedidoDeDossie doGestor = criarPedido();
+        usuario = new Usuario("outro.operador", "Outro", Perfil.OPERADOR, "98.765.432/0001-10", true);
+        assertThatThrownBy(() -> emitirTicket.executar(doGestor.id())).isInstanceOf(RecursoNaoEncontradoException.class);
+        assertThat(tickets.guardados).isEmpty();
+    }
+
+    @Test
+    void downloadPorTicketConcluidoApagaODiretorioEDepoisEh410() {
+        PedidoDeDossie pedido = criarPedido();
+        String ticket = emitirTicket.executar(pedido.id()).ticket();
+        usuario = null;
+
+        ObterArquivoDoDossie.ArquivoDoDossie arquivo = obterArquivo.executarPorTicket(pedido.id(), ticket);
+        obterArquivo.concluirDownload(arquivo);
+
+        assertThat(pasta.resolve(pedido.id())).doesNotExist();
+        usuario = new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true);
+        assertThatThrownBy(() -> emitirTicket.executar(pedido.id())).isInstanceOf(DossieExpiradoException.class);
+    }
+
+    @Test
+    void andamentoIndicaEntregaPorTicketAcimaDoLimite() {
+        PedidoDeDossie pedido = criarPedido();
+        assertThat(consultar.executar(pedido.id()).entregaPorTicket()).isFalse();
+        assertThat(consultar.executar(pedido.id()).tamanhoBytes()).isEqualTo(pedido.tamanhoBytes());
+
+        parametros.blobMaxMb = 0;
+
+        assertThat(consultar.executar(pedido.id()).entregaPorTicket()).isTrue();
+    }
+
+    @Test
+    void andamentoSemArquivoNaoTemTamanhoNemTicket() {
+        fila.adiar = true;
+        String id = criar.executar(101, refs());
+
+        assertThat(consultar.executar(id).tamanhoBytes()).isNull();
+        assertThat(consultar.executar(id).entregaPorTicket()).isFalse();
     }
 
     // --- cancelamento
@@ -359,14 +506,20 @@ class CasosDeUsoDossieTest {
     }
 
     @Test
-    void falhaTambemEEsquecidaDepoisDaRetencao() {
+    void pendenteDeDecisaoSemAtividadeExpiraApagaODiretorioEDepoisEEsquecido() {
         arquivos.comportamentos.put("K1", Arquivos.falhaDoDocumento("arquivo não encontrado no repositório"));
         String id = criar.executar(101, refs());
-        assertThat(repositorio.buscar(id)).isPresent();
+        PedidoDeDossie pedido = repositorio.buscar(id).orElseThrow();
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+        assertThat(pasta.resolve(id)).as("o documento obtido fica no disco").isDirectoryContaining("glob:**.pdf");
 
-        relogio.avancarMinutos(30 + LimparDossies.RETENCAO_DO_REGISTRO_MINUTOS + 1);
+        relogio.avancarMinutos(31);
+        assertThat(limpar.expirarVencidos()).isEqualTo(1);
+        assertThat(pedido.status()).isEqualTo(StatusDossie.EXPIRADO);
+        assertThat(pasta.resolve(id)).doesNotExist();
+
+        relogio.avancarMinutos(LimparDossies.RETENCAO_DO_REGISTRO_MINUTOS);
         limpar.expirarVencidos();
-
         assertThat(repositorio.buscar(id)).isEmpty();
     }
 
@@ -395,5 +548,291 @@ class CasosDeUsoDossieTest {
         try (var filhos = Files.list(pasta)) {
             assertThat(filhos.toList()).isEmpty();
         }
+    }
+
+    // --- continuação (S2.2): coleta falhas e continua de onde parou
+
+    /** 10 documentos em ordem cronológica (ids 1 a 10, chaves K1 a K10). */
+    private void dezDocumentos() {
+        List<Documento> dez = new java.util.ArrayList<>();
+        for (int i = 1; i <= 10; i++) {
+            dez.add(Documento.deLinha(OrigemDocumento.DOCUMENTO_PROCESSO, String.valueOf(i), 101, "K" + i, "Doc " + i,
+                    "d" + i + ".pdf", D1.plusDays(i), null, 0));
+        }
+        when(selecao.executarComInventario(anyLong(), anyList())).thenReturn(sem(dez));
+    }
+
+    private PedidoDeDossie pedidoComFalhasEm3E7() {
+        dezDocumentos();
+        arquivos.comportamentos.put("K3", Arquivos.falhaDoDocumento("arquivo não encontrado no repositório"));
+        arquivos.comportamentos.put("K7", Arquivos.falhaDoDocumento("tempo limite excedido ao obter o arquivo"));
+        return criarPedido();
+    }
+
+    private long vezesBaixada(String chave) {
+        return arquivos.baixadas.stream().filter(chave::equals).count();
+    }
+
+    @Test
+    void dezDocumentosComDoisFalhandoObtemOsOitoUmaVezSoEAguardaDecisao() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+        assertThat(arquivos.baixadas).as("não para na primeira falha").hasSize(10);
+        for (int i = 1; i <= 10; i++) {
+            assertThat(vezesBaixada("K" + i)).as("K" + i).isEqualTo(1);
+        }
+        AndamentoDoDossie andamento = consultar.executar(pedido.id());
+        assertThat(andamento.falhas()).extracting(f -> f.id() + ":" + f.motivo()).containsExactly(
+                "3:arquivo não encontrado no repositório", "7:tempo limite excedido ao obter o arquivo");
+        assertThat(andamento.processados()).isEqualTo(8);
+        assertThat(montador.titulosMontados).as("nada é entregue sem decisão").isEmpty();
+        assertThatThrownBy(() -> obterArquivo.executar(pedido.id())).isInstanceOf(DossieSemArquivoException.class);
+    }
+
+    @Test
+    void tentarNovamenteChamaSoOsDoisQueFalharamEConclui() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+        arquivos.comportamentos.clear();
+        arquivos.baixadas.clear();
+
+        continuar.executar(pedido.id(), "TENTAR_NOVAMENTE");
+
+        assertThat(arquivos.baixadas).containsExactly("K3", "K7");
+        assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
+        assertThat(montador.titulosMontados).singleElement().asList().hasSize(10);
+        assertThat(montador.titulosMontados.get(0)).containsExactly("Doc 1", "Doc 2", "Doc 3", "Doc 4", "Doc 5",
+                "Doc 6", "Doc 7", "Doc 8", "Doc 9", "Doc 10");
+    }
+
+    @Test
+    void tentarNovamenteQueFalhaDeNovoVoltaParaADecisaoSemRebaixarOsObtidos() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+        arquivos.comportamentos.remove("K3");
+        arquivos.baixadas.clear();
+
+        continuar.executar(pedido.id(), "TENTAR_NOVAMENTE");
+
+        assertThat(arquivos.baixadas).containsExactly("K3", "K7");
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+        assertThat(consultar.executar(pedido.id()).falhas()).extracting(AndamentoDoDossie.Item::id).containsExactly("7");
+        assertThat(pedido.processados()).isEqualTo(9);
+    }
+
+    @Test
+    void removerEContinuarNaoBaixaNadaDeNovoEMontaOsOitoEmOrdemCronologica() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+        arquivos.baixadas.clear();
+
+        continuar.executar(pedido.id(), "REMOVER_E_CONTINUAR");
+
+        assertThat(arquivos.baixadas).as("nenhum download novo").isEmpty();
+        assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
+        assertThat(montador.titulosMontados).singleElement().isEqualTo(List.of("Doc 1", "Doc 2", "Doc 4", "Doc 5",
+                "Doc 6", "Doc 8", "Doc 9", "Doc 10"));
+        assertThat(pedido.itens()).extracting(i -> i.id() + ":" + i.situacao()).contains("3:REMOVIDO", "7:REMOVIDO");
+        assertThat(pedido.processados()).as("removidos contam como resolvidos").isEqualTo(10);
+    }
+
+    @Test
+    void removidosENaoSelecionadosChegamAoMontadorEmOrdemComMotivoEOTotalListado() {
+        List<Documento> dez = new java.util.ArrayList<>();
+        for (int i = 1; i <= 10; i++) {
+            dez.add(Documento.deLinha(OrigemDocumento.DOCUMENTO_PROCESSO, String.valueOf(i), 101, "K" + i, "Doc " + i,
+                    "d" + i + ".pdf", D1.plusDays(i), null, 0));
+        }
+        // Doc 0 (mais antigo que todos) é indisponível; Doc 11 (mais novo) foi desmarcado pelo usuário.
+        Documento indisponivel = Documento.deLinha(OrigemDocumento.IMOVEL, "0", 101, "0", "Doc 0", "d0.pdf", D1, null, 0);
+        Documento desmarcado = Documento.deLinha(OrigemDocumento.DOCUMENTO_PROCESSO, "11", 101, "K11", "Doc 11",
+                "d11.pdf", D1.plusDays(11), null, 0);
+        when(selecao.executarComInventario(anyLong(), anyList())).thenReturn(new SelecaoParaDossie(dez, List.of(
+                new SelecaoParaDossie.NaoSelecionado(desmarcado, "Doc 11", SelecaoParaDossie.Motivo.NAO_SELECIONADO),
+                new SelecaoParaDossie.NaoSelecionado(indisponivel, "Doc 0", SelecaoParaDossie.Motivo.INDISPONIVEL)), 12));
+        arquivos.comportamentos.put("K3", Arquivos.falhaDoDocumento("arquivo não encontrado no repositório"));
+        PedidoDeDossie pedido = criarPedido();
+
+        continuar.executar(pedido.id(), "REMOVER_E_CONTINUAR");
+
+        assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
+        assertThat(montador.inventarios).singleElement().satisfies(inventario -> {
+            assertThat(inventario.listados()).isEqualTo(12);
+            assertThat(inventario.naoIncluidos()).extracting(d -> d.id() + ":" + d.motivo()).containsExactly(
+                    "0:indisponível (chave do arquivo inválida)",
+                    "3:removido pelo usuário após falha: arquivo não encontrado no repositório",
+                    "11:não selecionado pelo usuário");
+            assertThat(inventario.naoIncluidos()).extracting(DocumentoNaoIncluido::origem)
+                    .containsExactly("Imóvel", "Documento do processo", "Documento do processo");
+        });
+        assertThat(montador.titulosMontados.get(0)).hasSize(9);
+    }
+
+    @Test
+    void semNadaForaOInventarioVemVazioComOsListados() {
+        criarPedido();
+
+        assertThat(montador.inventarios).singleElement().satisfies(inventario -> {
+            assertThat(inventario.listados()).isEqualTo(2);
+            assertThat(inventario.naoIncluidos()).isEmpty();
+        });
+    }
+
+    @Test
+    void oProgressoNaoVoltaAZeroDepoisDaDecisao() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+        fila.adiar = true;
+
+        continuar.executar(pedido.id(), "TENTAR_NOVAMENTE");
+
+        assertThat(pedido.status()).isEqualTo(StatusDossie.AGUARDANDO);
+        assertThat(consultar.executar(pedido.id()).processados()).isEqualTo(8);
+        assertThat(pedido.itens()).extracting(i -> i.id() + ":" + i.situacao()).contains("3:AGUARDANDO", "7:AGUARDANDO",
+                "1:OK", "10:OK");
+    }
+
+    @Test
+    void credencialRecusadaNoMeioPreservaOsObtidosEComCredencialNovaSoOsPendentesSaoObtidos() {
+        dezDocumentos();
+        arquivos.comportamentos.put("K4", destino -> {
+            throw new CredencialArquivosRecusadaException();
+        });
+        PedidoDeDossie pedido = criarPedido();
+
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+        assertThat(pedido.erro().codigo()).isEqualTo("CREDENCIAL_ARQUIVOS_RECUSADA");
+        assertThat(arquivos.baixadas).containsExactly("K1", "K2", "K3", "K4");
+        assertThat(pedido.processados()).isEqualTo(3);
+
+        // credencial nova (o token por arquivo foi trocado): só os pendentes são obtidos
+        arquivos.comportamentos.clear();
+        arquivos.baixadas.clear();
+        continuar.executar(pedido.id(), "TENTAR_NOVAMENTE");
+
+        assertThat(arquivos.baixadas).containsExactly("K4", "K5", "K6", "K7", "K8", "K9", "K10");
+        assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
+        assertThat(pedido.erro()).isNull();
+    }
+
+    @Test
+    void removerSemNenhumDocumentoObtidoEhParametroInvalido() {
+        arquivos.comportamentos.put("K1", destino -> {
+            throw new CredencialArquivosRecusadaException();
+        });
+        PedidoDeDossie pedido = criarPedido();
+
+        assertThatThrownBy(() -> continuar.executar(pedido.id(), "REMOVER_E_CONTINUAR"))
+                .isInstanceOf(ParametroInvalidoException.class);
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+    }
+
+    @Test
+    void ttlContaDesdeAUltimaAtividadeInclusiveNaEsperaPorDecisao() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+        LocalDateTime decisaoPendenteDesde = LocalDateTime.now(relogio);
+        assertThat(pedido.expiraEm()).isEqualTo(decisaoPendenteDesde.plusMinutes(30));
+
+        relogio.avancarMinutos(29);
+        assertThat(consultar.executar(pedido.id()).status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+
+        // nova ação (que falha de novo): o prazo recomeça
+        continuar.executar(pedido.id(), "TENTAR_NOVAMENTE");
+        assertThat(pedido.expiraEm()).isEqualTo(LocalDateTime.now(relogio).plusMinutes(30));
+        relogio.avancarMinutos(29);
+        assertThat(limpar.expirarVencidos()).isZero();
+        assertThat(consultar.executar(pedido.id()).status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+
+        relogio.avancarMinutos(2);
+        assertThat(consultar.executar(pedido.id()).status()).isEqualTo(StatusDossie.EXPIRADO);
+        assertThat(pasta.resolve(pedido.id())).doesNotExist();
+        assertThatThrownBy(() -> continuar.executar(pedido.id(), "TENTAR_NOVAMENTE"))
+                .isInstanceOf(DossieSemDecisaoPendenteException.class);
+    }
+
+    @Test
+    void cancelarPedidoAguardandoDecisaoApagaODiretorio() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+        assertThat(pasta.resolve(pedido.id())).exists();
+
+        cancelar.executar(pedido.id());
+
+        assertThat(pedido.status()).isEqualTo(StatusDossie.CANCELADO);
+        assertThat(pasta.resolve(pedido.id())).doesNotExist();
+        assertThatThrownBy(() -> continuar.executar(pedido.id(), "REMOVER_E_CONTINUAR"))
+                .isInstanceOf(DossieSemDecisaoPendenteException.class);
+    }
+
+    @Test
+    void cancelarDepoisDaDecisaoAntesDeAFilaRodarApagaODiretorioENaoBaixaNada() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+        fila.adiar = true;
+        continuar.executar(pedido.id(), "TENTAR_NOVAMENTE");
+        arquivos.baixadas.clear();
+
+        cancelar.executar(pedido.id());
+        fila.pendentes.forEach(Runnable::run);
+
+        assertThat(pedido.status()).isEqualTo(StatusDossie.CANCELADO);
+        assertThat(arquivos.baixadas).isEmpty();
+        assertThat(pasta.resolve(pedido.id())).doesNotExist();
+    }
+
+    @Test
+    void aoConcluirSoOPdfFinalFicaNoDiretorioMesmoDepoisDeUmaContinuacao() throws IOException {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+        arquivos.comportamentos.clear();
+
+        continuar.executar(pedido.id(), "TENTAR_NOVAMENTE");
+
+        try (var arquivosDoPedido = Files.list(pasta.resolve(pedido.id()))) {
+            assertThat(arquivosDoPedido.map(p -> p.getFileName().toString())).containsExactly("dossie.pdf");
+        }
+    }
+
+    @Test
+    void concluidoTambemTemODiretorioApagadoAoCancelarEAoExpirar() {
+        PedidoDeDossie cancelado = criarPedido();
+        cancelar.executar(cancelado.id());
+        assertThat(pasta.resolve(cancelado.id())).doesNotExist();
+
+        PedidoDeDossie vencido = criarPedido();
+        relogio.avancarMinutos(31);
+        limpar.expirarVencidos();
+        assertThat(pasta.resolve(vencido.id())).doesNotExist();
+    }
+
+    @Test
+    void continuacaoForaDePendenteDeDecisaoEh409() {
+        PedidoDeDossie concluido = criarPedido();
+        assertThatThrownBy(() -> continuar.executar(concluido.id(), "TENTAR_NOVAMENTE"))
+                .isInstanceOf(DossieSemDecisaoPendenteException.class);
+
+        fila.adiar = true;
+        String naFila = criar.executar(101, refs());
+        assertThatThrownBy(() -> continuar.executar(naFila, "REMOVER_E_CONTINUAR"))
+                .isInstanceOf(DossieSemDecisaoPendenteException.class);
+    }
+
+    @Test
+    void acaoDesconhecidaOuVaziaEhParametroInvalido() {
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+
+        for (String acao : new String[] {"REINICIAR", "", null, "tentar_novamente"}) {
+            assertThatThrownBy(() -> continuar.executar(pedido.id(), acao)).isInstanceOf(ParametroInvalidoException.class);
+        }
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+    }
+
+    @Test
+    void soQuemCriouGestorEAdminDecidem() {
+        usuario = new Usuario("operador.demo", "Operador Demo", Perfil.OPERADOR, "12.345.678/0001-90", true);
+        PedidoDeDossie pedido = pedidoComFalhasEm3E7();
+
+        usuario = new Usuario("outro.operador", "Outro", Perfil.OPERADOR, "98.765.432/0001-10", true);
+        assertThatThrownBy(() -> continuar.executar(pedido.id(), "TENTAR_NOVAMENTE"))
+                .isInstanceOf(RecursoNaoEncontradoException.class);
+        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
+
+        usuario = new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true);
+        continuar.executar(pedido.id(), "REMOVER_E_CONTINUAR");
+        assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
     }
 }

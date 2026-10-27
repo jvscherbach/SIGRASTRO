@@ -41,13 +41,27 @@ const DATA_HORA = new Intl.DateTimeFormat('pt-BR', {
   minute: '2-digit',
 });
 
-/** A API entrega data e hora sem fuso (horário de Cuiabá); o navegador mostra o mesmo relógio. */
+/** Data e hora sem fuso, como a API entrega (relógio de Cuiabá): "2025-04-01T23:30" ou com segundos. */
+const DATA_HORA_SEM_FUSO = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?)?$/;
+
+/**
+ * A API entrega data e hora sem fuso (horário de Cuiabá). O texto é lido campo a campo, sem passar pelo fuso do
+ * navegador: um documento das 23:30 aparece no mesmo dia em qualquer fuso (S2.2).
+ */
 export function formatarData(iso: string | null | undefined): string {
+  const m = iso ? DATA_HORA_SEM_FUSO.exec(iso) : null;
+  if (m) {
+    return `${m[3]}/${m[2]}/${m[1]}`;
+  }
   const data = iso ? new Date(iso) : null;
   return data && !Number.isNaN(data.getTime()) ? DATA.format(data) : '—';
 }
 
 export function formatarDataHora(iso: string | null | undefined): string {
+  const m = iso ? DATA_HORA_SEM_FUSO.exec(iso) : null;
+  if (m) {
+    return `${m[3]}/${m[2]}/${m[1]} ${m[4] ?? '00'}:${m[5] ?? '00'}`;
+  }
   const data = iso ? new Date(iso) : null;
   return data && !Number.isNaN(data.getTime()) ? DATA_HORA.format(data).replace(',', '') : '—';
 }

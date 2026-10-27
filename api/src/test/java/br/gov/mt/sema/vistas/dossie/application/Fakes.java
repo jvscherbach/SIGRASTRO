@@ -19,15 +19,18 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import br.gov.mt.sema.vistas.dossie.application.port.ArquivosDoRepositorio;
+import br.gov.mt.sema.vistas.dossie.application.port.EspacoEmDisco;
 import br.gov.mt.sema.vistas.dossie.application.port.FalhaNoDocumentoException;
 import br.gov.mt.sema.vistas.dossie.application.port.FilaDeGeracao;
 import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.RepositorioDePedidos;
+import br.gov.mt.sema.vistas.dossie.application.port.TicketsDeDownload;
 import br.gov.mt.sema.vistas.dossie.application.port.ValidadorDePdf;
 import br.gov.mt.sema.vistas.dossie.domain.DadosDaCapa;
 import br.gov.mt.sema.vistas.dossie.domain.ItemDoPedido;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
+import br.gov.mt.sema.vistas.dossie.domain.TicketDeDownload;
 
 /** Portas falsas dos testes do dossiê. Os "PDFs" são texto: o que importa aqui é o fluxo, não o PDF. */
 final class Fakes {
@@ -41,6 +44,10 @@ final class Fakes {
 
         void avancarMinutos(long minutos) {
             agora = agora.plusSeconds(minutos * 60);
+        }
+
+        void avancarSegundos(long segundos) {
+            agora = agora.plusSeconds(segundos);
         }
 
         @Override
@@ -65,6 +72,8 @@ final class Fakes {
         boolean sumario = true;
         boolean marcadores = true;
         boolean numeracao = true;
+        long espacoMinimoMb = 2048;
+        long blobMaxMb = 150;
         final Path diretorio;
 
         Parametros(Path diretorio) {
@@ -82,8 +91,23 @@ final class Fakes {
         }
 
         @Override
+        public int downloadTotalMaximoSegundos() {
+            return 900;
+        }
+
+        @Override
+        public long espacoMinimoMb() {
+            return espacoMinimoMb;
+        }
+
+        @Override
         public int downloadTimeoutSegundos() {
             return 60;
+        }
+
+        @Override
+        public long blobMaxMb() {
+            return blobMaxMb;
         }
 
         @Override
@@ -136,12 +160,15 @@ final class Fakes {
         final List<String> baixadas = new ArrayList<>();
         final Map<String, Consumer<Path>> comportamentos = new HashMap<>();
         Consumer<String> aoBaixar = chave -> { };
+        /** Tentativas que o repositório informa por chave (padrão: 1). */
+        final Map<String, Integer> tentativas = new HashMap<>();
 
         @Override
-        public void baixar(String chave, Path destino) {
+        public int baixar(String chave, Path destino) {
             baixadas.add(chave);
             aoBaixar.accept(chave);
             comportamentos.getOrDefault(chave, Arquivos::paginas1).accept(destino);
+            return tentativas.getOrDefault(chave, 1);
         }
 
         static void paginas1(Path destino) {
@@ -159,6 +186,40 @@ final class Fakes {
         }
     }
 
+    /** Tickets de download em memória, como o adapter (uso único por {@code remove}). */
+    static final class Tickets implements TicketsDeDownload {
+        final Map<String, TicketDeDownload> guardados = new ConcurrentHashMap<>();
+
+        @Override
+        public void guardar(String resumo, TicketDeDownload ticket) {
+            guardados.put(resumo, ticket);
+        }
+
+        @Override
+        public Optional<TicketDeDownload> consumir(String resumo) {
+            return Optional.ofNullable(resumo == null ? null : guardados.remove(resumo));
+        }
+
+        @Override
+        public int descartarVencidos(LocalDateTime agora) {
+            int antes = guardados.size();
+            guardados.values().removeIf(t -> t.venceu(agora));
+            return antes - guardados.size();
+        }
+    }
+
+    /** Espaço livre controlado pelo teste (padrão: muito espaço); guarda os diretórios consultados. */
+    static final class Espaco implements EspacoEmDisco {
+        long livre = Long.MAX_VALUE;
+        final List<Path> consultas = new ArrayList<>();
+
+        @Override
+        public long livreEmBytes(Path diretorio) {
+            consultas.add(diretorio);
+            return livre;
+        }
+    }
+
     /** Lê "paginas=N"; "invalido" vira falha do documento. */
     static final class Validador implements ValidadorDePdf {
         @Override
@@ -173,13 +234,16 @@ final class Fakes {
 
     static class Montador implements MontadorDoDossie {
         final List<List<String>> titulosMontados = new ArrayList<>();
+        final List<Inventario> inventarios = new ArrayList<>();
         RuntimeException falha;
 
         @Override
-        public int montar(DadosDaCapa capa, List<DocumentoParaMontagem> documentos, OpcoesDeMontagem opcoes, Path destino) {
+        public int montar(DadosDaCapa capa, List<DocumentoParaMontagem> documentos, Inventario inventario,
+                OpcoesDeMontagem opcoes, Path destino) {
             if (falha != null) {
                 throw falha;
             }
+            inventarios.add(inventario);
             titulosMontados.add(documentos.stream().map(DocumentoParaMontagem::titulo).toList());
             gravar(destino, "DOSSIE " + capa.titulo());
             return 1 + documentos.stream().mapToInt(DocumentoParaMontagem::paginas).sum();

@@ -25,6 +25,8 @@ export interface DocumentoItem {
 export interface TotaisDocumentos {
   total: number;
   vigentes: number;
+  /** Substituídos: chave válida e `DATA_FIM` preenchida. */
+  semEfeito: number;
   naoPdf: number;
   /** Sem extensão ou extensão não reconhecida: o tipo real é conferido ao gerar o dossiê. */
   tipoNaoInformado: number;
@@ -42,8 +44,26 @@ export interface ReferenciaDocumento {
   id: string;
 }
 
-export type StatusDossie = 'PENDENTE' | 'PROCESSANDO' | 'CONCLUIDO' | 'FALHA' | 'CANCELADO' | 'EXPIRADO';
-export type SituacaoItemDossie = 'AGUARDANDO' | 'OBTENDO' | 'OK' | 'FALHA';
+/** Situações do pedido (S2.2): falhas deixam o pedido em PENDENTE_DECISAO, sem reiniciar nada. */
+export type StatusDossie =
+  | 'AGUARDANDO'
+  | 'OBTENDO'
+  | 'PENDENTE_DECISAO'
+  | 'MONTANDO'
+  | 'CONCLUIDO'
+  | 'CANCELADO'
+  | 'EXPIRADO';
+export type SituacaoItemDossie = 'AGUARDANDO' | 'OBTENDO' | 'OK' | 'FALHA' | 'REMOVIDO';
+
+export type AcaoDeContinuacao = 'TENTAR_NOVAMENTE' | 'REMOVER_E_CONTINUAR';
+
+/** Documento com problema num pedido que aguarda decisão. */
+export interface FalhaDossie {
+  origem: string;
+  id: string;
+  titulo: string;
+  motivo: string;
+}
 
 export interface ErroDossie {
   origem: string | null;
@@ -59,6 +79,10 @@ export interface ItemAndamento {
   id: string;
   titulo: string;
   situacao: SituacaoItemDossie;
+  /** Pedidos feitos à API de arquivos (S2.2; mais de 1 = houve nova tentativa). */
+  tentativas?: number;
+  /** Só em FALHA. */
+  motivo?: string;
 }
 
 export interface AndamentoDossie {
@@ -66,10 +90,18 @@ export interface AndamentoDossie {
   status: StatusDossie;
   total: number;
   processados: number;
+  /** Motivo geral: credencial recusada (com codigo) ou falha na montagem. */
   erro: ErroDossie | null;
+  /** Itens em FALHA (S2.2). */
+  falhas: FalhaDossie[];
   paginas: number | null;
+  /** Só em CONCLUIDO. */
+  tamanhoBytes?: number | null;
+  /** Acima de DOSSIE_BLOB_MAX_MB: download direto por ticket, sem Blob nem pré-visualização (S2.2, D49). */
+  entregaPorTicket?: boolean;
   expiraEm: string | null;
   itens: ItemAndamento[];
 }
 
-export const STATUS_FINAIS: readonly StatusDossie[] = ['CONCLUIDO', 'FALHA', 'CANCELADO', 'EXPIRADO'];
+/** Estados em que o polling para: o servidor não muda o pedido sem uma ação do usuário. */
+export const STATUS_FINAIS: readonly StatusDossie[] = ['CONCLUIDO', 'PENDENTE_DECISAO', 'CANCELADO', 'EXPIRADO'];

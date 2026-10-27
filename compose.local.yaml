@@ -10,6 +10,10 @@ services:
       - "8081:8080"
     volumes:
       - dossies-tmp:/var/tmp/vistas
+      # Token da API de arquivos por arquivo (S2.2, docs/05): crie ./.secrets/token-arquivos (fora do git),
+      # descomente a linha abaixo e defina no .env.local LICENCIAMENTO_API_TOKEN_FILE=/run/secrets-vistas/token-arquivos.
+      # Para trocar o token basta reescrever o arquivo: a api relê a cada pedido, sem recriar o container.
+      # - ./.secrets:/run/secrets-vistas:ro
 
   front:
     ports:

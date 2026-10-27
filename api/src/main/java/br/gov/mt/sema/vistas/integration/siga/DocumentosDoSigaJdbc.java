@@ -1,7 +1,5 @@
 package br.gov.mt.sema.vistas.integration.siga;
 
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
@@ -68,13 +66,9 @@ class DocumentosDoSigaJdbc implements DocumentosDoRequerimento {
             OrigemDocumento origem = consulta.getKey();
             documentos.addAll(SigaFalhas.traduzir(() -> jdbc.query(consulta.getValue(), id, (rs, n) -> Documento.deLinha(
                     origem, rs.getString("ID"), rs.getLong("ID_REQUERIMENTO"), rs.getString("CHAVE"),
-                    rs.getString("TITULO"), rs.getString("NOME_ARQUIVO"), data(rs.getTimestamp("DATA_DOC")),
-                    data(rs.getTimestamp("DATA_FIM")), rs.getObject("SIGILO")))));
+                    rs.getString("TITULO"), rs.getString("NOME_ARQUIVO"), DataHoraDoSiga.ler(rs, "DATA_DOC"),
+                    DataHoraDoSiga.ler(rs, "DATA_FIM"), rs.getObject("SIGILO")))));
         }
         return documentos;
-    }
-
-    private static LocalDateTime data(Timestamp valor) {
-        return valor == null ? null : valor.toLocalDateTime();
     }
 }

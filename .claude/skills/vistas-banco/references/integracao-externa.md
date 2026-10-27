@@ -20,7 +20,8 @@ Toda dependência de sistema externo vive num pacote `integration.<sistema>`, co
 
 - Cliente `RestClient` para `GET {LICENCIAMENTO_API_URL}/api/arquivo/{chave}`; a chave vai como segmento de caminho codificado inteiro (inclusive `/`). Implementa a porta `ArquivosDoRepositorio` (de `dossie.application.port`).
 - Streaming direto para arquivo temporário; nunca o arquivo inteiro em memória (RNF03); o parcial é apagado em qualquer falha.
-- Timeout de conexão **e de leitura** (sem receber bytes, vale também para o corpo): `DOWNLOAD_TIMEOUT_SEGUNDOS`, lido a cada download (a S5 troca pela configuração).
+- Conexão em 10 s; **inatividade** da leitura (sem receber bytes, vale também para o corpo) em `DOWNLOAD_TIMEOUT_SEGUNDOS`; teto total por documento, somando as novas tentativas, em `DOWNLOAD_TOTAL_MAXIMO_SEGUNDOS`. Lidos a cada download (a S5 troca pela configuração).
+- Novas tentativas (S2.2): até 2 extras (espera de 2 s e 5 s) só para tempo de inatividade, 503 e queda de conexão; nunca para 404, 401 e 403. O adapter devolve o número de tentativas, sem chave nem URL.
 - Dois modos de autenticação: `bearer` (`Authorization: Bearer <token>`, padrão) e `cookie` (`Cookie: <nome>=<token>`).
 - URL ausente **ou vazia** = adapter "arquivos não configurados" (mesmo padrão do SIGA, `ConditionalOnExpression`): o documento falha com "API de arquivos não configurada"; a listagem não depende da API.
 - Chave `"0"` (ou nula/vazia) nunca é requisitada.
