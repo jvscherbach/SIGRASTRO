@@ -37,7 +37,7 @@
 
 | # | Risco | Impacto | Mitigação |
 |---|---|---|---|
-| R01 | Qualidade da conversão de planilhas largas | Critério central de validação | Ajuste de escala por aba. Alternativa: uma página por aba. |
+| R01 | Qualidade da conversão de planilhas largas | Critério central de validação | S3 (bloco 3): cada aba em 1 página de largura, paisagem quando mais larga que alta; abaixo da escala mínima (40%), a aba vai para página única; modo `PAGINA_POR_ABA` como alternativa. Verificado por texto extraído do PDF com planilhas sintéticas; a escala é estimada antes da exportação (o Calc não expõe a que aplica). Escolha do modo na homologação com planilhas reais |
 | R02 | Token pessoal expira durante testes | Interrupção da geração | Erro explícito e orientação para recaptura |
 | R03 | Acessos registrados no CPF de quem capturou o token | Rastreabilidade | Uso local e restrito, declarado na apresentação |
 | R04 | Mudança no modelo de dados do SIGA | Consultas quebram | Concentrar SQL num único componente; em produção, usar views |

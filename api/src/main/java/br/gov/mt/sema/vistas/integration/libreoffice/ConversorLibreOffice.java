@@ -24,6 +24,7 @@ import br.gov.mt.sema.vistas.documento.application.port.ConversorDeDocumentos;
 import br.gov.mt.sema.vistas.documento.application.port.FalhaDeConversaoException;
 import br.gov.mt.sema.vistas.documento.application.port.FalhaDeConversaoException.Motivo;
 import br.gov.mt.sema.vistas.documento.application.port.ParametrosDaConversao;
+import br.gov.mt.sema.vistas.documento.application.port.ResultadoDaConversao;
 import br.gov.mt.sema.vistas.documento.domain.TipoDetectado;
 import br.gov.mt.sema.vistas.documento.domain.TipoReal;
 import com.sun.star.document.MacroExecMode;
@@ -33,7 +34,6 @@ import org.apache.pdfbox.io.IOUtils;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.jodconverter.core.office.OfficeException;
 import org.jodconverter.local.LocalConverter;
-import org.jodconverter.local.filter.NoopFilter;
 import org.jodconverter.local.office.ExistingProcessAction;
 import org.jodconverter.local.office.LocalOfficeManager;
 import org.jodconverter.local.office.LocalOfficeUtils;
@@ -62,6 +62,10 @@ import org.springframework.stereotype.Component;
  * diretório novo ao lado do destino, com nome gerado; nunca se converte do caminho de origem. A saída é validada
  * (tamanho máximo, abre, tem páginas).
  *
+ * <p><b>Planilhas.</b> {@link FiltroDePlanilha} ajusta cada aba antes da exportação (largura, orientação, abas
+ * ocultas, página única); o resultado diz quantas abas foram para página única. O limite de páginas
+ * ({@code CONVERSAO_PAGINAS_MAXIMAS}) vale para qualquer documento convertido.
+ *
  * <p><b>Disponibilidade.</b> Sem LibreOffice (ou sem permissão de execução), {@link #disponivel()} é falso, a
  * conversão falha com "conversor indisponível" e a aplicação sobe normalmente. Falha ao subir o pool deixa o conversor
  * indisponível por {@link #NOVA_PARTIDA_APOS}; depois disso, a próxima conversão tenta de novo.
@@ -85,6 +89,18 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
             "ReadOnly", true,
             "UpdateDocMode", UpdateDocMode.NO_UPDATE,
             "MacroExecutionMode", MacroExecMode.NEVER_EXECUTE);
+
+    /**
+     * Planilhas sem "só leitura": o Calc recusa mostrar aba oculta (CONVERSAO_ABAS_OCULTAS) em documento só leitura. A
+     * cópia de trabalho nunca é gravada, só exportada para PDF; macro e vínculo continuam bloqueados.
+     */
+    private static final Map<String, Object> CARGA_DE_PLANILHA = Map.of(
+            "Hidden", true,
+            "ReadOnly", false,
+            "UpdateDocMode", UpdateDocMode.NO_UPDATE,
+            "MacroExecutionMode", MacroExecMode.NEVER_EXECUTE);
+
+    private static final Set<String> PLANILHAS = Set.of("xls", "xlsx", "ods");
 
     private final ParametrosDaConversao parametros;
     private final File officeHome;
@@ -139,7 +155,7 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
     }
 
     @Override
-    public void converter(Path origem, TipoDetectado tipo, Path destinoPdf) {
+    public ResultadoDaConversao converter(Path origem, TipoDetectado tipo, Path destinoPdf) {
         String extensao = extensao(tipo);
         if (!disponivel()) {
             throw new FalhaDeConversaoException(Motivo.CONVERSOR_INDISPONIVEL);
@@ -158,9 +174,12 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
                 throw new FalhaDeConversaoException(Motivo.PROTEGIDO_POR_SENHA);
             }
             Path saida = pasta.resolve("saida.pdf");
-            executar(pool, entrada, saida);
-            validarSaida(saida);
+            FiltroDePlanilha planilha = new FiltroDePlanilha(parametros.planilhaModo(), parametros.abasOcultas(),
+                    parametros.planilhaEscalaMinima());
+            executar(pool, entrada, saida, planilha);
+            int paginas = validarSaida(saida);
             Files.move(saida, destinoPdf, StandardCopyOption.REPLACE_EXISTING);
+            return new ResultadoDaConversao(paginas, planilha.abasEmPaginaUnica());
         } catch (IOException e) {
             throw new FalhaDeConversaoException(Motivo.CORROMPIDO, e);
         } finally {
@@ -187,13 +206,13 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
         HtmlSemRecursosExternos.limpar(origem, entrada);
     }
 
-    private void executar(LocalOfficeManager pool, Path entrada, Path saida) {
+    private void executar(LocalOfficeManager pool, Path entrada, Path saida, FiltroDePlanilha planilha) {
         try {
             LocalConverter.builder()
                     .officeManager(pool)
                     .applyDefaultLoadProperties(false)
-                    .loadProperties(CARGA)
-                    .filterChain(NoopFilter.CHAIN)
+                    .loadProperties(PLANILHAS.contains(extensaoDe(entrada)) ? CARGA_DE_PLANILHA : CARGA)
+                    .filterChain(planilha)
                     .build()
                     .convert(entrada.toFile())
                     .to(saida.toFile())
@@ -206,9 +225,17 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
         }
     }
 
+    private static String extensaoDe(Path arquivo) {
+        String nome = arquivo.getFileName().toString();
+        return nome.substring(nome.lastIndexOf('.') + 1);
+    }
+
     static Motivo motivo(OfficeException e) {
         if (Thread.currentThread().isInterrupted() || temCausa(e, InterruptedException.class)) {
             return Motivo.INTERROMPIDA;
+        }
+        if (temCausa(e, FiltroDePlanilha.PlanilhaVaziaException.class)) {
+            return Motivo.PLANILHA_VAZIA;
         }
         if (temCausa(e, PasswordProtectedException.class)) {
             return Motivo.PROTEGIDO_POR_SENHA;
@@ -232,7 +259,8 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
         return false;
     }
 
-    private void validarSaida(Path saida) throws IOException {
+    /** @return páginas do PDF */
+    private int validarSaida(Path saida) throws IOException {
         if (!Files.isRegularFile(saida) || Files.size(saida) == 0) {
             throw new FalhaDeConversaoException(Motivo.SAIDA_VAZIA);
         }
@@ -240,9 +268,14 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
             throw new FalhaDeConversaoException(Motivo.SAIDA_GRANDE_DEMAIS);
         }
         try (PDDocument pdf = Loader.loadPDF(saida.toFile(), IOUtils.createTempFileOnlyStreamCache())) {
-            if (pdf.getNumberOfPages() == 0) {
+            int paginas = pdf.getNumberOfPages();
+            if (paginas == 0) {
                 throw new FalhaDeConversaoException(Motivo.SAIDA_VAZIA);
             }
+            if (paginas > parametros.paginasMaximas()) {
+                throw new FalhaDeConversaoException(Motivo.PAGINAS_DEMAIS);
+            }
+            return paginas;
         }
     }
 

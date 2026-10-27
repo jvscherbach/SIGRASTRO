@@ -59,9 +59,11 @@ Origem desligada some da lista de documentos e não entra no dossiê. A regra de
 | Instâncias do conversor | 2 |
 | Tarefas por instância antes de reiniciar | 50 |
 | Imagem: máximo de megapixels | 100 |
+| Planilha: escala mínima no ajuste à largura (abaixo, a aba vai para página única) | 40% |
+| Máximo de páginas de uma conversão | 2000 |
 | Tamanho máximo do PDF de uma conversão | 500 MB |
 
-Variáveis de ambiente do protótipo (todas opcionais; `.env.local.example`): `CONVERSAO_HABILITADA` (`true`), `CONVERSAO_TIMEOUT_SEGUNDOS` (300), `CONVERSAO_PROCESSOS` (2), `CONVERSAO_TAREFAS_POR_PROCESSO` (50), `CONVERSAO_PLANILHA_MODO` (`LARGURA` ou `PAGINA_POR_ABA`; valor desconhecido cai em `LARGURA`), `CONVERSAO_ABAS_OCULTAS` (`false`), `CONVERSAO_IMAGEM_MAX_MEGAPIXELS` (100) e `CONVERSAO_SAIDA_MAX_MB` (500). Técnica, fora da tela de configurações: `CONVERSAO_OFFICE_HOME` (pasta do LibreOffice, a que contém `program/soffice`; vazia = caminhos padrão). Os valores padrão serão justificados pela medição de desempenho da S3 (bloco 9).
+Variáveis de ambiente do protótipo (todas opcionais; `.env.local.example`): `CONVERSAO_HABILITADA` (`true`), `CONVERSAO_TIMEOUT_SEGUNDOS` (300), `CONVERSAO_PROCESSOS` (2), `CONVERSAO_TAREFAS_POR_PROCESSO` (50), `CONVERSAO_PLANILHA_MODO` (`LARGURA` ou `PAGINA_POR_ABA`; valor desconhecido cai em `LARGURA`), `CONVERSAO_ABAS_OCULTAS` (`false`), `CONVERSAO_IMAGEM_MAX_MEGAPIXELS` (100), `CONVERSAO_PLANILHA_ESCALA_MINIMA` (40, em %), `CONVERSAO_PAGINAS_MAXIMAS` (2000) e `CONVERSAO_SAIDA_MAX_MB` (500). Técnica, fora da tela de configurações: `CONVERSAO_OFFICE_HOME` (pasta do LibreOffice, a que contém `program/soffice`; vazia = caminhos padrão). Os valores padrão serão justificados pela medição de desempenho da S3 (bloco 9).
 
 ### Conexões
 

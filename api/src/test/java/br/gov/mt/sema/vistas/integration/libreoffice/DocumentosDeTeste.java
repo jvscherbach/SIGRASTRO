@@ -131,25 +131,35 @@ final class DocumentosDeTeste {
     }
 
     /**
-     * DOC (Word 97) gerado a partir de um DOCX pelo próprio LibreOffice da máquina, por linha de comando e com perfil
-     * temporário: não há biblioteca livre que escreva DOC do zero.
+     * DOC (Word 97) gerado a partir de um DOCX pelo LibreOffice da máquina: não há biblioteca livre que escreva DOC do
+     * zero.
      */
     static Path doc(Path pasta, String texto, Path officeHome) throws Exception {
-        Path docx = Files.write(pasta.resolve("origem-doc.docx"), docx(texto));
+        return pelaLinhaDeComando(pasta, "origem-doc.docx", docx(texto), "doc", officeHome);
+    }
+
+    /**
+     * Converte {@code conteudo} (gravado como {@code nome}) para {@code formato} pelo {@code soffice} em linha de
+     * comando, com perfil temporário. Serve para gerar DOC e ODS de teste.
+     */
+    static Path pelaLinhaDeComando(Path pasta, String nome, byte[] conteudo, String formato, Path officeHome)
+            throws Exception {
+        Path origem = Files.write(pasta.resolve(nome), conteudo);
         Path perfil = Files.createDirectories(pasta.resolve("perfil-cli"));
         Path soffice = officeHome.resolve("program").resolve("soffice");
         Process processo = new ProcessBuilder(List.of(soffice.toString(),
                 "-env:UserInstallation=" + perfil.toUri(), "--headless", "--norestore",
-                "--convert-to", "doc", "--outdir", pasta.toString(), docx.toString()))
+                "--convert-to", formato, "--outdir", pasta.toString(), origem.toString()))
                 .redirectErrorStream(true).redirectOutput(pasta.resolve("cli.log").toFile()).start();
         if (!processo.waitFor(120, TimeUnit.SECONDS)) {
             processo.destroyForcibly();
-            throw new IllegalStateException("soffice não gerou o DOC de teste a tempo");
+            throw new IllegalStateException("soffice não gerou o arquivo de teste a tempo");
         }
-        Path doc = pasta.resolve("origem-doc.doc");
-        if (!Files.isRegularFile(doc)) {
-            throw new IllegalStateException("soffice não gerou o DOC de teste");
+        String base = nome.substring(0, nome.lastIndexOf('.'));
+        Path gerado = pasta.resolve(base + "." + formato);
+        if (!Files.isRegularFile(gerado)) {
+            throw new IllegalStateException("soffice não gerou o arquivo de teste");
         }
-        return doc;
+        return gerado;
     }
 }

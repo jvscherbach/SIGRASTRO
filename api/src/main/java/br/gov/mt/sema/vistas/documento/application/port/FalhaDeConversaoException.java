@@ -16,6 +16,8 @@ public class FalhaDeConversaoException extends RuntimeException {
         SAIDA_GRANDE_DEMAIS("o PDF convertido excede o tamanho máximo permitido"),
         ENTRADA_GRANDE_DEMAIS("arquivo grande demais para a conversão"),
         INTERROMPIDA("conversão interrompida"),
+        PLANILHA_VAZIA("planilha sem conteúdo imprimível"),
+        PAGINAS_DEMAIS("o PDF convertido excede o número máximo de páginas permitido"),
         FORMATO_NAO_SUPORTADO("formato sem conversão para PDF");
 
         private final String mensagem;

@@ -21,7 +21,8 @@ public interface ConversorDeDocumentos {
      * Converte {@code origem} (do tipo detectado pelo conteúdo) para PDF em {@code destinoPdf}. O arquivo de origem
      * não é alterado; em qualquer falha nada fica no destino nem no diretório de trabalho.
      *
+     * @return páginas geradas e o que foi ajustado nas planilhas
      * @throws FalhaDeConversaoException com o motivo tipado, exibível ao usuário
      */
-    void converter(Path origem, TipoDetectado tipo, Path destinoPdf);
+    ResultadoDaConversao converter(Path origem, TipoDetectado tipo, Path destinoPdf);
 }

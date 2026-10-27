@@ -44,6 +44,16 @@ public record ParametrosDeConversaoDeTeste(boolean habilitada) implements Parame
     }
 
     @Override
+    public int planilhaEscalaMinima() {
+        return 40;
+    }
+
+    @Override
+    public int paginasMaximas() {
+        return 2000;
+    }
+
+    @Override
     public int saidaMaxMb() {
         return 500;
     }

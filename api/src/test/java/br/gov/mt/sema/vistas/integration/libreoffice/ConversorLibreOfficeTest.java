@@ -32,26 +32,75 @@ class ConversorLibreOfficeTest {
     static final File OFFICE_HOME = ConversorLibreOffice.localizar("");
     static final String SEM_SOFFICE = "LibreOffice (soffice) não instalado nesta máquina: testes de conversão pulados";
 
-    record Parametros(boolean habilitada, int timeoutSegundos, int processos, int tarefasPorProcesso)
-            implements ParametrosDaConversao {
+    /**
+     * Parâmetros de teste. Os do pool (timeout, processos, tarefas) valem a partir da subida; os de planilha e os
+     * limites são lidos a cada conversão e podem mudar entre os testes de um mesmo conversor.
+     */
+    static final class Parametros implements ParametrosDaConversao {
+
+        private final boolean habilitada;
+        private final int timeoutSegundos;
+        private final int processos;
+        private final int tarefasPorProcesso;
+        PlanilhaModo planilhaModo = PlanilhaModo.LARGURA;
+        boolean abasOcultas;
+        int planilhaEscalaMinima = 40;
+        int paginasMaximas = 2000;
+
+        Parametros(boolean habilitada, int timeoutSegundos, int processos, int tarefasPorProcesso) {
+            this.habilitada = habilitada;
+            this.timeoutSegundos = timeoutSegundos;
+            this.processos = processos;
+            this.tarefasPorProcesso = tarefasPorProcesso;
+        }
 
         static Parametros padrao() {
             return new Parametros(true, 60, 1, 50);
         }
 
         @Override
+        public boolean habilitada() {
+            return habilitada;
+        }
+
+        @Override
+        public int timeoutSegundos() {
+            return timeoutSegundos;
+        }
+
+        @Override
+        public int processos() {
+            return processos;
+        }
+
+        @Override
+        public int tarefasPorProcesso() {
+            return tarefasPorProcesso;
+        }
+
+        @Override
         public PlanilhaModo planilhaModo() {
-            return PlanilhaModo.LARGURA;
+            return planilhaModo;
         }
 
         @Override
         public boolean abasOcultas() {
-            return false;
+            return abasOcultas;
         }
 
         @Override
         public int imagemMaxMegapixels() {
             return 100;
+        }
+
+        @Override
+        public int planilhaEscalaMinima() {
+            return planilhaEscalaMinima;
+        }
+
+        @Override
+        public int paginasMaximas() {
+            return paginasMaximas;
         }
 
         @Override

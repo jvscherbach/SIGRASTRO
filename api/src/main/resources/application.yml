@@ -80,6 +80,9 @@ vistas:
     planilha-modo: ${CONVERSAO_PLANILHA_MODO:LARGURA}
     abas-ocultas: ${CONVERSAO_ABAS_OCULTAS:false}
     imagem-max-megapixels: ${CONVERSAO_IMAGEM_MAX_MEGAPIXELS:100}
+    # Planilhas no modo LARGURA: abaixo desta escala (%) a aba vai para uma página única, por legibilidade.
+    planilha-escala-minima: ${CONVERSAO_PLANILHA_ESCALA_MINIMA:40}
+    paginas-maximas: ${CONVERSAO_PAGINAS_MAXIMAS:2000}
     saida-max-mb: ${CONVERSAO_SAIDA_MAX_MB:500}
     # Pasta do LibreOffice (a que contém program/soffice). Vazia = localizar nos caminhos padrão.
     office-home: ${CONVERSAO_OFFICE_HOME:}

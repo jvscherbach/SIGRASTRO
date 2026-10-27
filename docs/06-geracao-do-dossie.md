@@ -48,16 +48,28 @@ A obtenção e a conversão podem ser paralelas. A montagem respeita sempre a or
 
 ### Planilhas
 
-Este é o ponto central da validação. Por padrão, o LibreOffice pagina planilhas largas em várias folhas e corta colunas. Antes da exportação:
+Este é o ponto central da validação. Por padrão, o LibreOffice pagina planilhas largas em várias folhas e corta colunas. Desde a S3 (bloco 3), antes da exportação, um filtro do conversor (`FiltroDePlanilha`, em `integration.libreoffice`) prepara a planilha carregada em memória; **o arquivo original nunca é alterado** (a cópia de trabalho só é exportada para PDF). XLS (OLE2), XLSX e ODS passam pelo mesmo caminho e dão o mesmo resultado.
 
-- ajustar cada aba à largura de uma página (`ScaleToPagesX = 1`, `ScaleToPagesY = 0`);
-- orientação paisagem quando a área usada for mais larga que alta;
-- incluir todas as abas, cada uma iniciando em página nova;
-- não imprimir abas ocultas.
+Cada aba que entra no PDF recebe um estilo de página próprio (cópia do estilo dela: margens, cabeçalho e rodapé ficam como no arquivo), conforme `CONVERSAO_PLANILHA_MODO`:
 
-Se o resultado ainda for ilegível (escala muito pequena), a alternativa a avaliar é exportar com a opção de uma página por aba (`SinglePageSheets`), que gera páginas de tamanho personalizado.
+- **`LARGURA` (padrão):** a aba ocupa **1 página de largura** com altura livre (`ScaleToPagesX = 1`, `ScaleToPagesY = 0`), em **paisagem** quando a área impressa é mais larga que alta (senão, retrato), no tamanho de papel do próprio arquivo;
+- **`PAGINA_POR_ABA`:** uma página por aba, do tamanho da área impressa mais margens, cabeçalho e rodapé (a aba inteira numa página). O efeito é o do `SinglePageSheets` da exportação, mas aplicado aba a aba pelo estilo de página, o que permite usá-lo também numa aba só (abaixo). Lado máximo de 5 m (abaixo do limite de 200 polegadas do PDF); acima, a aba é reduzida para caber.
 
-A validação visual será feita com as planilhas reais dos processos de teste.
+**Escala mínima (proteção contra ilegível):** no modo `LARGURA`, se a escala estimada da aba ficar abaixo de `CONVERSAO_PLANILHA_ESCALA_MINIMA` (padrão 40%), **aquela aba** vai para uma página única (como em `PAGINA_POR_ABA`). O conversor devolve quantas abas caíram nesse caso (`ResultadoDaConversao.abasEmPaginaUnica`, com a observação para o sumário) e registra no log só o número da aba, sem nome nem conteúdo.
+
+**Como a escala é medida:** escala = largura útil da página (largura do papel na orientação escolhida, menos as margens esquerda e direita) ÷ largura da área impressa, limitada a 100%. A largura da área impressa é a propriedade `Size` do intervalo de células no Calc (soma das larguras das colunas, sem as ocultas). A área impressa é a área de impressão definida no arquivo (a maior, se houver várias) ou, sem ela, de A1 até o fim da área usada (o Calc imprime a partir de A1). É uma estimativa feita antes da exportação, porque o Calc não expõe a escala que calcula para "ajustar à largura". Exemplos medidos nos testes: 40 colunas de 6 caracteres em A4 paisagem ficam em 1 página; 120 colunas na largura padrão ficam bem abaixo de 40% e vão para página única.
+
+**Conteúdo**
+
+- Abas **ocultas** ficam fora (o Calc não as imprime). Com `CONVERSAO_ABAS_OCULTAS=true`, tornam-se visíveis e entram; se a estrutura da pasta estiver protegida no arquivo, a aba continua fora (registrado no log). Para isso a planilha é carregada sem "só leitura" (o Calc recusa mostrar aba oculta em documento só leitura); macro e vínculo continuam bloqueados.
+- **Linhas e colunas ocultas** não aparecem, como o usuário as vê.
+- Cada aba começa em **página nova**; aba sem célula com conteúdo não gera página.
+- **Área de impressão** definida no arquivo é respeitada.
+- Texto longo com quebra automática sai inteiro; **fórmulas** saem com o valor calculado guardado no arquivo (o Calc não recalcula na abertura de XLSX por padrão).
+- Planilha sem nenhuma célula com conteúdo nas abas que entram: falha do documento **"planilha sem conteúdo imprimível"**, nunca PDF em branco.
+- Mais de `CONVERSAO_PAGINAS_MAXIMAS` páginas (padrão 2000, vale para qualquer documento convertido): falha do documento **"o PDF convertido excede o número máximo de páginas permitido"**. O limite é conferido no PDF gerado; o tempo da exportação é limitado por `CONVERSAO_TIMEOUT_SEGUNDOS`.
+
+Testes objetivos (`ConversaoDePlanilhasTest`, planilhas geradas pelo Apache POI): o texto extraído do PDF contém a última coluna e a última linha, o número de páginas é o esperado e a página está em paisagem quando devido. A escolha entre `LARGURA` e `PAGINA_POR_ABA` é feita na homologação com as planilhas reais dos processos de teste (critério de aceite da S3).
 
 ## Capa
 

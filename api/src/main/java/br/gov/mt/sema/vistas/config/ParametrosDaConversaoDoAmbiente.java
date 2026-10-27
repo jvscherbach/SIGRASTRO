@@ -17,6 +17,8 @@ class ParametrosDaConversaoDoAmbiente implements ParametrosDaConversao {
     private final PlanilhaModo planilhaModo;
     private final boolean abasOcultas;
     private final int imagemMaxMegapixels;
+    private final int planilhaEscalaMinima;
+    private final int paginasMaximas;
     private final int saidaMaxMb;
 
     ParametrosDaConversaoDoAmbiente(
@@ -27,6 +29,8 @@ class ParametrosDaConversaoDoAmbiente implements ParametrosDaConversao {
             @Value("${vistas.conversao.planilha-modo:LARGURA}") String planilhaModo,
             @Value("${vistas.conversao.abas-ocultas:false}") boolean abasOcultas,
             @Value("${vistas.conversao.imagem-max-megapixels:100}") int imagemMaxMegapixels,
+            @Value("${vistas.conversao.planilha-escala-minima:40}") int planilhaEscalaMinima,
+            @Value("${vistas.conversao.paginas-maximas:2000}") int paginasMaximas,
             @Value("${vistas.conversao.saida-max-mb:500}") int saidaMaxMb) {
         this.habilitada = habilitada;
         this.timeoutSegundos = timeoutSegundos;
@@ -35,6 +39,8 @@ class ParametrosDaConversaoDoAmbiente implements ParametrosDaConversao {
         this.planilhaModo = modo(planilhaModo);
         this.abasOcultas = abasOcultas;
         this.imagemMaxMegapixels = imagemMaxMegapixels;
+        this.planilhaEscalaMinima = planilhaEscalaMinima;
+        this.paginasMaximas = paginasMaximas;
         this.saidaMaxMb = saidaMaxMb;
     }
 
@@ -80,6 +86,16 @@ class ParametrosDaConversaoDoAmbiente implements ParametrosDaConversao {
     @Override
     public int imagemMaxMegapixels() {
         return imagemMaxMegapixels;
+    }
+
+    @Override
+    public int planilhaEscalaMinima() {
+        return planilhaEscalaMinima;
+    }
+
+    @Override
+    public int paginasMaximas() {
+        return paginasMaximas;
     }
 
     @Override
