@@ -41,7 +41,7 @@ A obtenção e a conversão podem ser paralelas. A montagem respeita sempre a or
 | PDF corrompido | Falha: interrompe a geração |
 | XLS, XLSX, ODS | Conversão pelo LibreOffice, com ajuste de escala (ver abaixo) |
 | DOC, DOCX, ODT, RTF | Conversão pelo LibreOffice |
-| PNG, JPG, JPEG | Uma página por imagem, ajustada à página sem distorção, com orientação definida pela proporção |
+| PNG, JPG, JPEG | Só PDFBox, sem LibreOffice (S3, bloco 4): uma página por imagem, A4 como base, retrato ou paisagem pela proporção já com a orientação EXIF aplicada, margem de 18 pt, sem distorção. A imagem é reduzida para caber e nunca ampliada além de 150 dpi. PNG com transparência fica sobre fundo branco; o JPEG vai com os bytes originais, sem recompressão. O formato vale pelo conteúdo, não pela extensão. Acima de `CONVERSAO_IMAGEM_MAX_MEGAPIXELS` (100) a imagem é recusada pelas dimensões, antes de decodificar; arquivo ilegível ou truncado também é falha do documento |
 | HTML | Conversão pelo LibreOffice |
 | SHP, KML, KMZ | Não entram no dossiê: download à parte em "Baixar geometrias" (RN10) |
 | ZIP, RAR, 7Z | Desconsiderados (RN11) |
