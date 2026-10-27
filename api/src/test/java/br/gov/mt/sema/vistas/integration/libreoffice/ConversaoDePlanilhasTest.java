@@ -260,6 +260,26 @@ class ConversaoDePlanilhasTest {
         assertThat(paisagem(c.pdf(), 1)).isTrue();
     }
 
+    @Test
+    void planilhaGrandeDemaisParaPaginaUnicaEPaginadaSemPerderLinhas() throws Exception {
+        // R41: 30 mil linhas x 30 colunas largas ficam abaixo da escala mínima; a página única passaria do limite do
+        // LibreOffice (~5 m), que cortava tudo depois das ~1.930 primeiras linhas sem erro.
+        for (PlanilhaModo modo : PlanilhaModo.values()) {
+            parametros.planilhaModo = modo;
+            Path pedido = Files.createTempDirectory(pasta, "grande");
+            Path origem = PlanilhasDeTeste.xlsxGrande(pedido.resolve("origem.xlsx"), 30_000, 30);
+            Path destino = pedido.resolve("saida.pdf");
+
+            ResultadoDaConversao resultado =
+                    conversor.converter(origem, new TipoDetectado(TipoReal.PLANILHA, "xlsx"), destino);
+
+            String texto = texto(destino);
+            assertThat(texto).as(modo.name()).contains("Linha 1 ", "Linha 15000 ", "Linha 30000 ", "Fim da planilha");
+            assertThat(resultado.abasEmPaginaUnica()).as(modo.name()).isZero();
+            assertThat(resultado.paginas()).as(modo.name()).isGreaterThan(4);
+        }
+    }
+
     // ---- apoio ----
 
     private Convertido converter(String extensao, byte[] conteudo) throws IOException {

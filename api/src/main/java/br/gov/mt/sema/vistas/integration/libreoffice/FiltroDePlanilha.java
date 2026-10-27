@@ -63,6 +63,8 @@ final class FiltroDePlanilha implements Filter {
     private final boolean abasOcultas;
     private final int escalaMinima;
     private int abasEmPaginaUnica;
+    private int abasPaginadasPorTamanho;
+    private final java.util.List<String[]> marcasFinais = new java.util.ArrayList<>();
 
     FiltroDePlanilha(PlanilhaModo modo, boolean abasOcultas, int escalaMinima) {
         this.modo = modo;
@@ -73,6 +75,19 @@ final class FiltroDePlanilha implements Filter {
     /** Abas que caíram para página única pela escala mínima, nesta conversão. */
     int abasEmPaginaUnica() {
         return abasEmPaginaUnica;
+    }
+
+    /** Abas que não cabiam numa página única (limite do LibreOffice) e foram paginadas abaixo da escala mínima. */
+    int abasPaginadasPorTamanho() {
+        return abasPaginadasPorTamanho;
+    }
+
+    /**
+     * Por aba, os textos da última linha visível da área impressa (R41): ao menos um precisa aparecer no PDF. Aba cuja
+     * última linha não tem célula de texto fica sem conferência (número pode sair como "###" e não serve de marca).
+     */
+    java.util.List<String[]> marcasFinais() {
+        return marcasFinais;
     }
 
     @Override
@@ -112,11 +127,27 @@ final class FiltroDePlanilha implements Filter {
             Size area = areaImpressa(aba);
             XPropertySet estilo = estiloProprio(estilos, fabrica, propriedades, i);
             if (modo == PlanilhaModo.PAGINA_POR_ABA) {
-                paginaUnica(estilo, area);
-            } else if (!ajustarALargura(estilo, area)) {
-                paginaUnica(estilo, area);
-                abasEmPaginaUnica++;
-                log.info("Planilha: aba {} em página única (escala abaixo de {}%).", i + 1, escalaMinima);
+                if (!paginaUnica(estilo, area)) {
+                    ajustarALargura(estilo, area, true);
+                    abasPaginadasPorTamanho++;
+                    log.info("Planilha: aba {} grande demais para uma página; paginada na largura.", i + 1);
+                }
+            } else if (!ajustarALargura(estilo, area, false)) {
+                if (paginaUnica(estilo, area)) {
+                    abasEmPaginaUnica++;
+                    log.info("Planilha: aba {} em página única (escala abaixo de {}%).", i + 1, escalaMinima);
+                } else {
+                    // A página única passaria do limite do LibreOffice, que cortaria as linhas de baixo sem erro (R41):
+                    // pagina na largura abaixo da escala mínima. Menos legível, nada perdido.
+                    ajustarALargura(estilo, area, true);
+                    abasPaginadasPorTamanho++;
+                    log.info("Planilha: aba {} grande demais para a página única; paginada abaixo de {}%.", i + 1,
+                            escalaMinima);
+                }
+            }
+            String[] marcas = marcasDaUltimaLinha(aba);
+            if (marcas.length > 0) {
+                marcasFinais.add(marcas);
             }
         }
         if (comConteudo == 0) {
@@ -148,6 +179,86 @@ final class FiltroDePlanilha implements Filter {
         return maior;
     }
 
+    /** Linhas acima do fim da área percorridas atrás da última visível; além disso a aba fica sem conferência. */
+    private static final int BUSCA_DA_ULTIMA_LINHA = 10_000;
+
+    /**
+     * Textos das células de texto da última linha visível (não oculta nem filtrada) da área impressa, só das colunas
+     * visíveis. Vazio quando essa linha não tem texto.
+     */
+    private static String[] marcasDaUltimaLinha(XSpreadsheet aba) throws Exception {
+        CellRangeAddress[] areas = UnoRuntime.queryInterface(XPrintAreas.class, aba).getPrintAreas();
+        CellRangeAddress area;
+        if (areas == null || areas.length == 0) {
+            XSheetCellCursor cursor = aba.createCursor();
+            UnoRuntime.queryInterface(XUsedAreaCursor.class, cursor).gotoEndOfUsedArea(false);
+            CellRangeAddress fim = UnoRuntime.queryInterface(XCellRangeAddressable.class, cursor).getRangeAddress();
+            area = new CellRangeAddress(fim.Sheet, 0, 0, fim.EndColumn, fim.EndRow);
+        } else {
+            area = areas[0];
+            for (CellRangeAddress outra : areas) {
+                area = outra.EndRow > area.EndRow ? outra : area;
+            }
+        }
+        com.sun.star.table.XColumnRowRange faixas = UnoRuntime.queryInterface(com.sun.star.table.XColumnRowRange.class, aba);
+        XIndexAccess linhas = UnoRuntime.queryInterface(XIndexAccess.class, faixas.getRows());
+        XIndexAccess colunas = UnoRuntime.queryInterface(XIndexAccess.class, faixas.getColumns());
+        int limite = Math.max(area.StartRow, area.EndRow - BUSCA_DA_ULTIMA_LINHA);
+        for (int linha = area.EndRow; linha >= limite; linha--) {
+            if (!visivel(linhas, linha)) {
+                continue;
+            }
+            java.util.List<String> textos = new java.util.ArrayList<>();
+            for (int coluna = area.StartColumn; coluna <= area.EndColumn; coluna++) {
+                com.sun.star.table.XCell celula = aba.getCellByPosition(coluna, linha);
+                if (celula.getType() != com.sun.star.table.CellContentType.TEXT || !visivel(colunas, coluna)
+                        || !semCorte(aba, colunas, celula, coluna, linha, area.EndColumn)) {
+                    continue;
+                }
+                String texto = UnoRuntime.queryInterface(com.sun.star.text.XText.class, celula).getString();
+                if (texto != null && !texto.isBlank()) {
+                    textos.add(texto);
+                }
+            }
+            return textos.toArray(String[]::new);
+        }
+        return new String[0];
+    }
+
+    /**
+     * O texto sai inteiro no PDF? Com quebra automática, sim. Sem ela, o Calc corta o texto na borda quando a célula
+     * vizinha tem conteúdo (ou na borda da área impressa): só serve como marca o texto alinhado à esquerda (ou padrão)
+     * com a próxima coluna visível da área vazia. Na dúvida, não é marca (evita falso alarme).
+     */
+    private static boolean semCorte(XSpreadsheet aba, XIndexAccess colunas, com.sun.star.table.XCell celula, int coluna,
+            int linha, int ultimaColuna) throws Exception {
+        XPropertySet propriedades = UnoRuntime.queryInterface(XPropertySet.class, celula);
+        if (Boolean.TRUE.equals(propriedades.getPropertyValue("IsTextWrapped"))) {
+            return true;
+        }
+        Object alinhamento = propriedades.getPropertyValue("HoriJustify");
+        if (!com.sun.star.table.CellHoriJustify.STANDARD.equals(alinhamento)
+                && !com.sun.star.table.CellHoriJustify.LEFT.equals(alinhamento)) {
+            return false;
+        }
+        for (int proxima = coluna + 1; proxima <= ultimaColuna; proxima++) {
+            if (visivel(colunas, proxima)) {
+                return aba.getCellByPosition(proxima, linha).getType() == com.sun.star.table.CellContentType.EMPTY;
+            }
+        }
+        return false;
+    }
+
+    private static boolean visivel(XIndexAccess faixa, int indice) throws Exception {
+        XPropertySet propriedades = UnoRuntime.queryInterface(XPropertySet.class, faixa.getByIndex(indice));
+        if (!Boolean.TRUE.equals(propriedades.getPropertyValue("IsVisible"))) {
+            return false;
+        }
+        Object filtrada = propriedades.getPropertySetInfo().hasPropertyByName("IsFiltered")
+                ? propriedades.getPropertyValue("IsFiltered") : Boolean.FALSE;
+        return !Boolean.TRUE.equals(filtrada);
+    }
+
     /** Novo estilo de página só desta aba, com as propriedades do estilo atual dela (margens, cabeçalho, rodapé...). */
     private static XPropertySet estiloProprio(XNameContainer estilos, XMultiServiceFactory fabrica,
             XPropertySet aba, int indice) throws Exception {
@@ -174,8 +285,11 @@ final class FiltroDePlanilha implements Filter {
         return estilo;
     }
 
-    /** Modo LARGURA. Devolve falso quando a escala estimada fica abaixo da mínima (a aba vai para página única). */
-    private boolean ajustarALargura(XPropertySet estilo, Size area) throws Exception {
+    /**
+     * Modo LARGURA. Devolve falso quando a escala estimada fica abaixo da mínima (a aba vai para página única), salvo
+     * com {@code forcar}: aí pagina na largura de qualquer jeito.
+     */
+    private boolean ajustarALargura(XPropertySet estilo, Size area, boolean forcar) throws Exception {
         int largura = (Integer) estilo.getPropertyValue("Width");
         int altura = (Integer) estilo.getPropertyValue("Height");
         boolean paisagem = area.Width > area.Height;
@@ -184,7 +298,7 @@ final class FiltroDePlanilha implements Filter {
         int larguraDaPagina = paisagem ? ladoMaior : ladoMenor;
         int util = larguraDaPagina - margem(estilo, "LeftMargin") - margem(estilo, "RightMargin");
         double escala = Math.min(1.0, util / (double) Math.max(1, area.Width));
-        if (escala * 100 < escalaMinima) {
+        if (escala * 100 < escalaMinima && !forcar) {
             return false;
         }
         estilo.setPropertyValue("IsLandscape", paisagem);
@@ -196,17 +310,25 @@ final class FiltroDePlanilha implements Filter {
         return true;
     }
 
-    /** Página do tamanho da área impressa mais margens e cabeçalho/rodapé, com a aba inteira nela. */
-    private static void paginaUnica(XPropertySet estilo, Size area) throws Exception {
+    /**
+     * Página do tamanho da área impressa mais margens e cabeçalho/rodapé, com a aba inteira nela. Devolve falso, sem mexer
+     * no estilo, quando um lado passaria de {@link #LADO_MAXIMO}: o LibreOffice limita a página a ~5 m e cortaria o
+     * resto sem erro (R41).
+     */
+    private static boolean paginaUnica(XPropertySet estilo, Size area) throws Exception {
         int largura = area.Width + margem(estilo, "LeftMargin") + margem(estilo, "RightMargin");
         int altura = area.Height + margem(estilo, "TopMargin") + margem(estilo, "BottomMargin")
                 + faixa(estilo, "Header") + faixa(estilo, "Footer");
+        if (largura > LADO_MAXIMO || altura > LADO_MAXIMO) {
+            return false;
+        }
         estilo.setPropertyValue("IsLandscape", largura > altura);
-        estilo.setPropertyValue("Width", Math.min(largura, LADO_MAXIMO));
-        estilo.setPropertyValue("Height", Math.min(altura, LADO_MAXIMO));
+        estilo.setPropertyValue("Width", largura);
+        estilo.setPropertyValue("Height", altura);
         estilo.setPropertyValue("ScaleToPages", (short) 0);
         estilo.setPropertyValue("ScaleToPagesX", (short) 1);
         estilo.setPropertyValue("ScaleToPagesY", (short) 1);
+        return true;
     }
 
     private static int margem(XPropertySet estilo, String nome) throws Exception {

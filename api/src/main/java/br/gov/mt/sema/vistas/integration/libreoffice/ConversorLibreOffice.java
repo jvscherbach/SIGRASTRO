@@ -32,6 +32,7 @@ import com.sun.star.document.UpdateDocMode;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.io.IOUtils;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.jodconverter.core.office.OfficeException;
 import org.jodconverter.local.LocalConverter;
 import org.jodconverter.local.office.ExistingProcessAction;
@@ -181,6 +182,7 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
                     parametros.planilhaEscalaMinima());
             executar(pool, entrada, saida, planilha);
             int paginas = validarSaida(saida);
+            conferirUltimasLinhas(saida, planilha.marcasFinais());
             Files.move(saida, destinoPdf, StandardCopyOption.REPLACE_EXISTING);
             return new ResultadoDaConversao(paginas, planilha.abasEmPaginaUnica());
         } catch (IOException e) {
@@ -314,6 +316,33 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
             }
         }
         return false;
+    }
+
+    /**
+     * Planilha (R41): de cada aba conferida, ao menos um texto da última linha visível precisa estar no PDF. Compara sem
+     * espaços, para tolerar quebra de linha dentro da célula. Ausente: o PDF perdeu linhas, falha do documento.
+     */
+    static void conferirUltimasLinhas(Path pdf, List<String[]> marcasPorAba) throws IOException {
+        if (marcasPorAba.isEmpty()) {
+            return;
+        }
+        String texto;
+        try (PDDocument documento = Loader.loadPDF(pdf.toFile(), IOUtils.createTempFileOnlyStreamCache())) {
+            texto = semEspacos(new PDFTextStripper().getText(documento));
+        }
+        for (String[] marcas : marcasPorAba) {
+            boolean alguma = false;
+            for (String marca : marcas) {
+                alguma |= texto.contains(semEspacos(marca));
+            }
+            if (!alguma) {
+                throw new FalhaDeConversaoException(Motivo.PLANILHA_INCOMPLETA);
+            }
+        }
+    }
+
+    private static String semEspacos(String texto) {
+        return texto.replaceAll("\\s+", "");
     }
 
     /** @return páginas do PDF */

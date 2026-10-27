@@ -64,6 +64,38 @@ final class PlanilhasDeTeste {
         return aba;
     }
 
+    /**
+     * XLSX grande gravado em fluxo (POI SXSSF, sem ZIP64: R39): coluna A com "Linha N" e as demais com números, colunas
+     * de 15 caracteres (bem mais largo que uma página: escala abaixo da mínima).
+     */
+    static java.nio.file.Path xlsxGrande(java.nio.file.Path destino, int linhas, int colunas) throws IOException {
+        return xlsxGrande(destino, linhas, colunas, 15, "Linha ");
+    }
+
+    /** Com {@code larguraEmCaracteres} 0, largura padrão; {@code rotulo} antecede o número da linha na coluna A. */
+    static java.nio.file.Path xlsxGrande(java.nio.file.Path destino, int linhas, int colunas, int larguraEmCaracteres,
+            String rotulo) throws IOException {
+        try (org.apache.poi.xssf.streaming.SXSSFWorkbook pasta = new org.apache.poi.xssf.streaming.SXSSFWorkbook(1000);
+                java.io.OutputStream saida = java.nio.file.Files.newOutputStream(destino)) {
+            pasta.setZip64Mode(org.apache.commons.compress.archivers.zip.Zip64Mode.Never);
+            Sheet aba = pasta.createSheet("Dados");
+            for (int c = 0; larguraEmCaracteres > 0 && c < colunas; c++) {
+                aba.setColumnWidth(c, larguraEmCaracteres * 256);
+            }
+            for (int l = 0; l < linhas; l++) {
+                Row linha = aba.createRow(l);
+                linha.createCell(0).setCellValue(rotulo + (l + 1));
+                for (int c = 1; c < colunas; c++) {
+                    linha.createCell(c).setCellValue((l * 31L + c * 17L) % 100_000 / 100.0);
+                }
+            }
+            // Última linha só com texto na coluna A e a vizinha vazia: sai inteira, serve de marca para a conferência.
+            aba.createRow(linhas).createCell(0).setCellValue("Fim da planilha");
+            pasta.write(saida);
+        }
+        return destino;
+    }
+
     static void texto(Sheet aba, int linha, int coluna, String texto) {
         Row r = aba.getRow(linha) == null ? aba.createRow(linha) : aba.getRow(linha);
         r.createCell(coluna).setCellValue(texto);

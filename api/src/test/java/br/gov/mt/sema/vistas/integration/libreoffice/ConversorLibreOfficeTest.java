@@ -194,6 +194,25 @@ class ConversorLibreOfficeTest {
     }
 
     @Test
+    void ultimaLinhaDaPlanilhaAusenteNoPdfFalhaComoPlanilhaIncompleta() throws Exception {
+        // R41: o PDF só chegou até a linha 1930.
+        Path pdf = Files.write(pasta.resolve("cortado.pdf"),
+                br.gov.mt.sema.vistas.testsupport.PdfsDeTeste.bytes(1, "Linha 1930"));
+
+        assertThatThrownBy(() -> ConversorLibreOffice.conferirUltimasLinhas(pdf,
+                List.<String[]>of(new String[] {"Linha 30000"})))
+                .isInstanceOfSatisfying(FalhaDeConversaoException.class,
+                        f -> assertThat(f.motivo()).isEqualTo(Motivo.PLANILHA_INCOMPLETA));
+        // Basta um texto da última linha; espaços não contam (quebra de linha dentro da célula).
+        ConversorLibreOffice.conferirUltimasLinhas(pdf, List.<String[]>of(new String[] {"Linha 30000", "Linha\n1930"}));
+        ConversorLibreOffice.conferirUltimasLinhas(pdf, List.of());
+        // Cada aba conferida precisa da sua marca.
+        assertThatThrownBy(() -> ConversorLibreOffice.conferirUltimasLinhas(pdf,
+                List.<String[]>of(new String[] {"Linha 1930"}, new String[] {"Outra aba"})))
+                .isInstanceOf(FalhaDeConversaoException.class);
+    }
+
+    @Test
     void mensagensDeFalhaSemCaminhoNemNomeDeArquivo() {
         for (Motivo motivo : Motivo.values()) {
             assertThat(new FalhaDeConversaoException(motivo).getMessage())

@@ -59,7 +59,7 @@ Origem desligada some da lista de documentos e não entra no dossiê. A regra de
 | Instâncias do conversor | 2 |
 | Tarefas por instância antes de reiniciar | 50 |
 | Imagem: máximo de megapixels | 100 |
-| Planilha: escala mínima no ajuste à largura (abaixo, a aba vai para página única) | 40% |
+| Planilha: escala mínima no ajuste à largura (abaixo, a aba vai para página única se ela couber no limite do LibreOffice; senão, é paginada na largura, R41) | 40% |
 | Máximo de páginas de uma conversão | 2000 |
 | Tamanho máximo do PDF de uma conversão | 500 MB |
 

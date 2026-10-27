@@ -69,6 +69,11 @@ class DesempenhoDaConversaoTest {
 
     private static final long MB = 1024L * 1024L;
     private static final int LINHAS = 30_000;
+    /**
+     * Marca da última linha, sozinha na coluna A (a vizinha vazia): sai inteira no PDF. "Linha 30000" não serve, porque
+     * na largura padrão da coluna o Calc corta o texto na borda quando a célula ao lado tem conteúdo (R41).
+     */
+    private static final String FIM = "Fim da planilha";
     private static final int COLUNAS = 30;
     private static final int PAGINAS_DO_DOCX = 200;
     private static final int PDFS_NO_MISTO = 6;
@@ -96,9 +101,9 @@ class DesempenhoDaConversaoTest {
                         parametros.tarefasPorProcesso(), parametros.planilhaModo()));
 
         Path xlsx = gerar("planilha-30k.xlsx", () -> xlsxGrande(pasta.resolve("planilha-30k.xlsx")));
-        medir("XLSX 30 mil linhas x 30 colunas", xlsx, "xlsx", "Linha 30000");
+        medir("XLSX 30 mil linhas x 30 colunas", xlsx, "xlsx", FIM);
         Path xls = gerar("planilha-30k.xls", () -> xlsGrande(pasta.resolve("planilha-30k.xls")));
-        medir("XLS equivalente", xls, "xls", "Linha 30000");
+        medir("XLS equivalente", xls, "xls", FIM);
         Path docx = gerar("texto-200.docx", () -> docx(pasta.resolve("texto-200.docx"), PAGINAS_DO_DOCX));
         medir("DOCX de " + PAGINAS_DO_DOCX + " páginas", docx, "docx", "Página " + PAGINAS_DO_DOCX + ", linha 38");
         Path jpg = gerar("foto-20mp.jpg", () -> jpg(pasta.resolve("foto-20mp.jpg"), 5472, 3648));
@@ -155,7 +160,7 @@ class DesempenhoDaConversaoTest {
                 String texto = new org.apache.pdfbox.text.PDFTextStripper().getText(documento);
                 boolean achou = texto.contains(marcaFinal);
                 presente = achou ? "sim" : "NÃO";
-                if (!achou && marcaFinal.startsWith("Linha ")) {
+                if (!achou && marcaFinal.equals(FIM)) {
                     int ultima = 0;
                     java.util.regex.Matcher m = java.util.regex.Pattern.compile("Linha (\\d+)").matcher(texto);
                     while (m.find()) {
@@ -410,6 +415,8 @@ class DesempenhoDaConversaoTest {
                 }
                 saida.write(linha.append("</row>").toString().getBytes(StandardCharsets.UTF_8));
             }
+            saida.write(("<row r=\"" + (linhas + 1) + "\"><c r=\"A" + (linhas + 1) + "\" t=\"inlineStr\"><is><t>" + FIM
+                    + "</t></is></c></row>").getBytes(StandardCharsets.UTF_8));
             saida.write("</sheetData></worksheet>".getBytes(StandardCharsets.UTF_8));
             saida.flush();
             zip.closeEntry();
@@ -448,6 +455,7 @@ class DesempenhoDaConversaoTest {
                     linha.createCell(c).setCellValue(valor(l + 1, c));
                 }
             }
+            aba.createRow(linhas).createCell(0).setCellValue(FIM);
             pasta.write(saida);
         }
     }
