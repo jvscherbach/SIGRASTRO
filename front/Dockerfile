@@ -9,7 +9,7 @@ COPY . .
 RUN npm run build
 
 # ---- runtime ----
-FROM nginx:1.30.6-alpine3.24
+FROM nginx:1.31-alpine3.24
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /build/dist/front/browser /usr/share/nginx/html
