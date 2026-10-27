@@ -12,14 +12,18 @@ RUN ./mvnw -B -q -DskipTests package
 # ---- runtime ----
 FROM eclipse-temurin:21.0.12_8-jre-noble
 
-# LibreOffice headless (Writer e Calc, sem interface gráfica) para a conversão de documentos (S3),
-# fontes básicas e curl para o HEALTHCHECK.
+# LibreOffice headless (Writer e Calc, sem interface gráfica) para a conversão de documentos (S3) e curl para o
+# HEALTHCHECK. Fontes livres para acentuação e compatibilidade métrica com as do Office: Liberation (Arial, Times New
+# Roman, Courier New), Carlito (Calibri), Caladea (Cambria) e DejaVu. O conversor roda como o usuário vistas, com o
+# perfil do LibreOffice no diretório temporário e HOME gravável (/home/vistas) para o cache de fontes.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libreoffice-writer-nogui \
         libreoffice-calc-nogui \
         fonts-liberation \
         fonts-dejavu-core \
+        fonts-crosextra-carlito \
+        fonts-crosextra-caladea \
         fontconfig \
         curl \
     && rm -rf /var/lib/apt/lists/* \

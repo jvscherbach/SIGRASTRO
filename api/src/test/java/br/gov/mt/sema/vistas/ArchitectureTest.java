@@ -25,7 +25,8 @@ class ArchitectureTest {
     private static final String RAIZ = "br.gov.mt.sema.vistas.";
     private static final List<String> MODULOS =
             List.of("acesso", "consulta", "documento", "dossie", "auditoria", "configuracao");
-    private static final List<String> INTEGRACOES = List.of("siga", "licenciamento", "scorp", "arrecadacao");
+    private static final List<String> INTEGRACOES =
+            List.of("siga", "licenciamento", "scorp", "arrecadacao", "libreoffice");
 
     private static final String[] SQL = {"java.sql..", "javax.sql..", "org.springframework.jdbc.."};
     private static final String[] HTTP = {"org.springframework.web.client..", "java.net.http..", "java.net.HttpURLConnection"};
@@ -130,6 +131,13 @@ class ArchitectureTest {
     static final ArchRule integration_siga_nao_fala_http =
             noClasses().that().resideInAPackage(RAIZ + "integration.siga..")
                     .should().dependOnClassesThat().resideInAnyPackage(HTTP)
+                    .allowEmptyShould(true);
+
+    // S3: o LibreOffice (JODConverter, UNO) e a limpeza de HTML (jsoup) só em integration.libreoffice.
+    @ArchTest
+    static final ArchRule libreoffice_somente_em_integration_libreoffice =
+            noClasses().that().resideOutsideOfPackage(RAIZ + "integration.libreoffice..")
+                    .should().dependOnClassesThat().resideInAnyPackage("org.jodconverter..", "com.sun.star..", "org.jsoup..")
                     .allowEmptyShould(true);
 
     // S2 (RNF09): a chave do arquivo nunca chega à camada HTTP (nem por método, nem por campo de DTO).

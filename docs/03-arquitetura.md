@@ -50,6 +50,7 @@ Monólito modular por domínio. Regras completas em [13 — Padrões técnicos](
 | `integration.licenciamento` | Cliente da API de arquivos |
 | `integration.scorp` | Cliente do SCORP (documentos pessoais) |
 | `integration.arrecadacao` | Taxas (desativado) |
+| `integration.libreoffice` | Conversor de documentos para PDF (LibreOffice headless via JODConverter, S3; ver [05](05-integracoes.md)) |
 
 `config` e `shared` são transversais (configuração técnica, erros, correlação, paginação).
 
@@ -98,7 +99,7 @@ O arquivo `.env.local` não é versionado e é opcional na Sprint 0 e 1 (a `api`
 | `DOSSIE_TTL_MINUTOS` | Expiração dos arquivos gerados (padrão 30) |
 | `DOSSIE_THREADS` | Gerações simultâneas (padrão 2) |
 | `DOWNLOAD_TIMEOUT_SEGUNDOS` | Timeout por arquivo (padrão 60) |
-| `CONVERSAO_TIMEOUT_SEGUNDOS` | Timeout por conversão (padrão 120) |
+| `CONVERSAO_*` | Conversão para PDF pelo LibreOffice (S3): chave de segurança, timeout por conversão (padrão 300), processos e tarefas por processo; lista completa em [12 — Configurações](12-configuracoes.md) |
 
 ## Usuários de banco
 

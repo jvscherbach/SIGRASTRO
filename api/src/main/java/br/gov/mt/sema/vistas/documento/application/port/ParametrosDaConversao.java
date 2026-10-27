@@ -27,6 +27,9 @@ public interface ParametrosDaConversao {
     /** Acima disto (megapixels) a imagem é recusada, sem decodificar. */
     int imagemMaxMegapixels();
 
+    /** Tamanho máximo (MB) do PDF gerado por uma conversão; acima, falha do documento. */
+    int saidaMaxMb();
+
     enum PlanilhaModo {
         /** Cada aba ajustada a uma página de largura. */
         LARGURA,

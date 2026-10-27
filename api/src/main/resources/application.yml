@@ -80,6 +80,9 @@ vistas:
     planilha-modo: ${CONVERSAO_PLANILHA_MODO:LARGURA}
     abas-ocultas: ${CONVERSAO_ABAS_OCULTAS:false}
     imagem-max-megapixels: ${CONVERSAO_IMAGEM_MAX_MEGAPIXELS:100}
+    saida-max-mb: ${CONVERSAO_SAIDA_MAX_MB:500}
+    # Pasta do LibreOffice (a que contém program/soffice). Vazia = localizar nos caminhos padrão.
+    office-home: ${CONVERSAO_OFFICE_HOME:}
   # API de arquivos do Licenciamento. URL vazia = não configurada: a geração falha com esse motivo, a listagem não.
   arquivos:
     url: ${LICENCIAMENTO_API_URL:}

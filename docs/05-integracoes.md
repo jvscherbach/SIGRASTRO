@@ -81,6 +81,31 @@ Os arquivos retornados pelo SCORP são obtidos pelo mesmo endpoint `/api/arquivo
 
 Falha no SCORP não impede a listagem. Os documentos de origem `SCORP` aparecem como indisponíveis, com aviso.
 
+## LibreOffice — conversor de documentos (`integration.libreoffice`, S3)
+
+Não é um sistema de rede: é o LibreOffice headless instalado na imagem da `api`, controlado pelo JODConverter 4.4.9 (módulo local, sem o starter do Spring). Converte textos (DOC, DOCX, ODT, RTF), HTML e planilhas para PDF pela porta `ConversorDeDocumentos` (de `documento.application.port`), usada pelo dossiê e pela visualização com os mesmos parâmetros. Imagens não passam por aqui (PDFBox, bloco 4 da S3). Os documentos são de terceiros e tratados como **hostis**.
+
+**Processos**
+
+- Pool de `CONVERSAO_PROCESSOS` instâncias do `soffice`, em portas livres do loopback (`127.0.0.1`), sobe na **primeira conversão**: instâncias da aplicação que nunca convertem (como os contextos de teste) não abrem processo.
+- Cada instância tem **perfil próprio e descartável**, cópia do perfil-modelo seguro, dentro do diretório de trabalho da aplicação (`<java.io.tmpdir>/vistas-conversor-<id>`), apagado ao parar. Na imagem, `java.io.tmpdir` é `/tmp` e o usuário é `vistas` (sem root), com `HOME` gravável.
+- Reinício a cada `CONVERSAO_TAREFAS_POR_PROCESSO` tarefas. Tarefa acima de `CONVERSAO_TIMEOUT_SEGUNDOS` falha com "tempo limite" e o processo é encerrado à força e reiniciado; espera na fila acima do mesmo tempo também é "tempo limite".
+- **Sem órfãos:** ao parar (inclusive ao desligar a aplicação), os processos que restarem são encerrados à força. O diretório de trabalho guarda o processo dono (pid e instante de início); na subida do pool, os processos e diretórios de uma execução anterior cujo dono morreu são encerrados e apagados.
+- Processo morto no meio de uma tarefa: a tarefa falha e o pool sobe outro processo; a próxima funciona.
+
+**Segurança**
+
+- Propriedades de carga: oculto, só leitura, `MacroExecutionMode = NEVER_EXECUTE`, `UpdateDocMode = NO_UPDATE`; nenhum filtro de atualização (o `RefreshFilter` padrão do JODConverter fica desligado).
+- Perfil-modelo: segurança de macro no nível máximo, macros e conteúdo ativo desligados, vínculos nunca atualizados (Calc e Writer), vínculos de documento não confiável bloqueados (`BlockUntrustedRefererLinks`) e **proxy manual para uma porta fechada do próprio container** (`127.0.0.1:9`, sem exceções), local pt-BR.
+- **HTML:** limpo antes da conversão (jsoup, lista permitida): saem `script`, `iframe`, `object`, `embed`, `link`, `base`, `meta` e formulários; imagem só embutida (`data:`); estilo com `url(`, `@import` ou escape é descartado. Referência remota vira conteúdo ausente, não requisição. HTML acima de 20 MB é recusado ("arquivo grande demais para a conversão").
+- As duas camadas foram conferidas separadamente: o LibreOffice padrão **busca** `<img>` e `<link>` remotos ao converter HTML; com o perfil seguro e sem a limpeza, e com a limpeza e sem o perfil, o servidor de teste não recebe nada.
+- A entrada é copiada para um diretório novo ao lado do destino (no diretório do pedido), com nome gerado (`entrada.<extensão do tipo detectado>`); nunca se converte do caminho de origem nem se usa o nome do usuário. O diretório é apagado em sucesso e em falha.
+- Saída validada: tamanho até `CONVERSAO_SAIDA_MAX_MB`, abre no PDFBox e tem páginas.
+
+**Falhas tipadas** (`FalhaDeConversaoException.Motivo`; mensagem em português, sem caminho, nome de arquivo nem dado do documento): protegido por senha, corrompido, tempo limite, conversor indisponível, saída vazia, saída grande demais, entrada grande demais, interrompida, formato sem conversão. DOCX/XLSX criptografados são reconhecidos pelo contêiner OLE2 com `EncryptedPackage` antes de chegar ao LibreOffice (que abortaria a detecção de tipo e pareceria arquivo corrompido); DOC/XLS antigos e ODF com senha são reconhecidos pelo próprio LibreOffice.
+
+**Disponibilidade:** `soffice` ausente ou sem permissão de execução (procurado nos caminhos padrão, ou em `CONVERSAO_OFFICE_HOME`), `CONVERSAO_HABILITADA=false` ou falha ao subir o pool: "conversor indisponível", e a aplicação sobe normalmente. Depois de uma falha ao subir, a próxima tentativa acontece após 1 minuto.
+
 ## Arrecadação — DAR
 
 **NÃO CONFIRMADO.** O SIGA gera um ZIP de DARs por requerimento a partir do sistema de Arrecadação. Antes de incluir no protótipo, é preciso identificar:

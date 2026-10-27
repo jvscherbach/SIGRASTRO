@@ -42,4 +42,9 @@ public record ParametrosDeConversaoDeTeste(boolean habilitada) implements Parame
     public int imagemMaxMegapixels() {
         return 100;
     }
+
+    @Override
+    public int saidaMaxMb() {
+        return 500;
+    }
 }

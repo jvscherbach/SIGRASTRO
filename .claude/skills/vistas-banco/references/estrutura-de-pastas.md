@@ -46,7 +46,7 @@ api/
     │   │   │   └── domain/
     │   │   ├── documento/
     │   │   │   ├── api/ (dto/)
-    │   │   │   ├── application/           # portas implementadas por integration.siga/licenciamento/scorp
+    │   │   │   ├── application/           # portas implementadas por integration.siga/licenciamento/scorp/libreoffice
     │   │   │   └── domain/
     │   │   ├── dossie/
     │   │   │   ├── api/ (dto/)
@@ -55,7 +55,6 @@ api/
     │   │   │   └── infrastructure/
     │   │   │       ├── memoria/           # fila e pedidos
     │   │   │       ├── pdf/               # PDFBox
-    │   │   │       ├── conversao/         # LibreOffice (JODConverter)
     │   │   │       ├── armazenamento/     # disco temporário
     │   │   │       └── agendamento/       # limpeza de expirados e órfãos
     │   │   ├── auditoria/
@@ -71,7 +70,8 @@ api/
     │   │   └── integration/
     │   │       ├── siga/                  # único pacote com SQL do SIGA (JDBC)
     │   │       ├── licenciamento/ (dto/)  # API de arquivos
-    │   │       └── scorp/ (dto/)          # documentos pessoais
+    │   │       ├── scorp/ (dto/)          # documentos pessoais
+    │   │       └── libreoffice/           # conversor de documentos (JODConverter, S3)
     │   └── resources/
     │       ├── application.yml
     │       ├── application-local.yml

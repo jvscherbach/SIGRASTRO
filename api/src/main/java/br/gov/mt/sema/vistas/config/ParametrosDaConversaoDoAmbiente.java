@@ -17,6 +17,7 @@ class ParametrosDaConversaoDoAmbiente implements ParametrosDaConversao {
     private final PlanilhaModo planilhaModo;
     private final boolean abasOcultas;
     private final int imagemMaxMegapixels;
+    private final int saidaMaxMb;
 
     ParametrosDaConversaoDoAmbiente(
             @Value("${vistas.conversao.habilitada:true}") boolean habilitada,
@@ -25,7 +26,8 @@ class ParametrosDaConversaoDoAmbiente implements ParametrosDaConversao {
             @Value("${vistas.conversao.tarefas-por-processo:50}") int tarefasPorProcesso,
             @Value("${vistas.conversao.planilha-modo:LARGURA}") String planilhaModo,
             @Value("${vistas.conversao.abas-ocultas:false}") boolean abasOcultas,
-            @Value("${vistas.conversao.imagem-max-megapixels:100}") int imagemMaxMegapixels) {
+            @Value("${vistas.conversao.imagem-max-megapixels:100}") int imagemMaxMegapixels,
+            @Value("${vistas.conversao.saida-max-mb:500}") int saidaMaxMb) {
         this.habilitada = habilitada;
         this.timeoutSegundos = timeoutSegundos;
         this.processos = processos;
@@ -33,6 +35,7 @@ class ParametrosDaConversaoDoAmbiente implements ParametrosDaConversao {
         this.planilhaModo = modo(planilhaModo);
         this.abasOcultas = abasOcultas;
         this.imagemMaxMegapixels = imagemMaxMegapixels;
+        this.saidaMaxMb = saidaMaxMb;
     }
 
     /** Valor desconhecido cai no padrão LARGURA, que nunca corta colunas. */
@@ -77,5 +80,10 @@ class ParametrosDaConversaoDoAmbiente implements ParametrosDaConversao {
     @Override
     public int imagemMaxMegapixels() {
         return imagemMaxMegapixels;
+    }
+
+    @Override
+    public int saidaMaxMb() {
+        return saidaMaxMb;
     }
 }

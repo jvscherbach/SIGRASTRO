@@ -22,6 +22,9 @@
     <springdoc.version>2.8.17</springdoc.version>
     <archunit.version>1.5.1</archunit.version>
     <pdfbox.version>3.0.5</pdfbox.version>
+    <jodconverter.version>4.4.9</jodconverter.version>
+    <jsoup.version>1.21.1</jsoup.version>
+    <poi.version>5.4.1</poi.version>
     <!-- -Dtestes.excluidos= -Dgroups=desempenho liga o teste de desempenho -->
     <testes.excluidos>desempenho</testes.excluidos>
   </properties>
@@ -58,6 +61,19 @@
       <artifactId>pdfbox</artifactId>
       <version>${pdfbox.version}</version>
     </dependency>
+    <!-- Conversão (S3): JODConverter sem o starter (o starter 4.4 é de Spring Boot 2.7); o -lo traz as bibliotecas
+         UNO do LibreOffice (MPL 2.0). Só integration.libreoffice usa (ArchitectureTest). -->
+    <dependency>
+      <groupId>org.jodconverter</groupId>
+      <artifactId>jodconverter-local-lo</artifactId>
+      <version>${jodconverter.version}</version>
+    </dependency>
+    <!-- Limpeza do HTML antes da conversão: nada de recurso externo (S3). -->
+    <dependency>
+      <groupId>org.jsoup</groupId>
+      <artifactId>jsoup</artifactId>
+      <version>${jsoup.version}</version>
+    </dependency>
 
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -72,6 +88,13 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>oracle-free</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Documentos Office sintéticos (inclusive criptografados) gerados nos testes de conversão. -->
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>${poi.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>

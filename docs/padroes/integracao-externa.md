@@ -35,6 +35,13 @@ Toda dependência de sistema externo vive num pacote `integration.<sistema>`, co
 - O pacote leva o nome do sistema (SCORP). Na lista de documentos do usuário, a origem é exibida como "Pessoal"; nas telas técnicas (conexões, auditoria de acessos) usa-se "SCORP".
 - Falha nesta integração não impede a listagem dos demais documentos.
 
+## `integration.libreoffice` — conversor de documentos (S3)
+
+- Implementa `ConversorDeDocumentos` (de `documento.application.port`): textos (DOC, DOCX, ODT, RTF), HTML e planilhas para PDF. Imagens não passam por aqui.
+- **Único** pacote que usa JODConverter e as bibliotecas UNO (`org.jodconverter..`, `com.sun.star..`) e a limpeza de HTML (`org.jsoup..`); o `ArchitectureTest` fiscaliza.
+- Não é sistema externo de rede: é um processo local (`soffice`) que recebe documentos de terceiros, tratados como **hostis**. Macro nunca executada, vínculo nunca atualizado, rede bloqueada pelo perfil, HTML limpo antes, cópia de trabalho com nome gerado, timeout com encerramento forçado e nenhum processo órfão (detalhes em `docs/05`).
+- Falha tipada (`FalhaDeConversaoException` com `Motivo`); mensagens em português, sem caminho interno. `soffice` ausente = conversor indisponível, e a aplicação sobe.
+
 ## `integration.arrecadacao` — taxas
 
 - Desativado por configuração até a forma de obtenção ser confirmada. Não criar código especulativo.

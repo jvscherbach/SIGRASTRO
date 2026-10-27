@@ -38,6 +38,7 @@ Pacote raiz `br.gov.mt.sema.vistas` (nome do projeto provisório).
 | `integration.licenciamento` | cliente da API de arquivos do Licenciamento (`/api/arquivo/{chave}`) |
 | `integration.scorp` | cliente do SCORP (documentos pessoais de interessado, representantes e responsáveis técnicos) |
 | `integration.arrecadacao` | taxas/DAR (desativado até a forma de obtenção ser confirmada) |
+| `integration.libreoffice` | conversor de documentos para PDF (LibreOffice headless via JODConverter); **único** lugar que usa JODConverter, UNO e jsoup |
 
 `config` (configuração técnica do Spring) e `shared` (erro comum, correlação, paginação, IDs técnicos) são transversais, não módulos de negócio. `shared` não é depósito de código sem dono.
 
@@ -89,6 +90,17 @@ O dono é o módulo que define o **significado de negócio**. Ex.: "quais docume
 
 - **`@playwright/test`** (devDependency do `front`, versão fixa, D35): testes e2e com API simulada; fora das imagens de produção, `npm audit` em 0.
 - **`org.apache.pdfbox:pdfbox`** (produção, `api`), prevista desde a S0 como stack do PDF.
+- **S3, conversão** (todas gratuitas e de código aberto, sem copyleft forte; versões fixas no `pom.xml`):
+
+| Dependência | Versão | Licença | Escopo | Uso |
+|---|---|---|---|---|
+| `org.jodconverter:jodconverter-local-lo` (traz `jodconverter-local` e `jodconverter-core`) | 4.4.9 | Apache 2.0 | produção | controle do LibreOffice headless. O `jodconverter-spring-boot-starter` 4.4 é de Spring Boot 2.7 (auto-configuração por `spring.factories`) e **não** é usado: o adapter monta o `LocalOfficeManager` |
+| `org.libreoffice:libreoffice` (bibliotecas UNO, transitiva do `-lo`) | 24.8.4 | MPL 2.0 (copyleft fraco, por arquivo; uso sem modificação) | produção | ponte Java–LibreOffice |
+| `com.google.code.gson:gson` (transitiva do `jodconverter-core`, versão do Spring Boot) | gerenciada | Apache 2.0 | produção | registro de formatos do JODConverter |
+| `org.jsoup:jsoup` | 1.21.1 | MIT | produção | limpeza do HTML antes da conversão |
+| `org.apache.poi:poi-ooxml` | 5.4.1 | Apache 2.0 | **teste** | documentos Office sintéticos (inclusive criptografados) |
+| LibreOffice (`libreoffice-writer-nogui`, `libreoffice-calc-nogui`, Ubuntu 24.04) | do repositório da distribuição | MPL 2.0 | imagem da `api` | conversor |
+| Fontes `fonts-liberation`, `fonts-dejavu-core`, `fonts-crosextra-carlito`, `fonts-crosextra-caladea` | do repositório da distribuição | SIL OFL 1.1 / licença livre do DejaVu | imagem da `api` | acentuação e métrica compatível com Arial, Times, Calibri e Cambria |
 
 ## Integração contínua
 
