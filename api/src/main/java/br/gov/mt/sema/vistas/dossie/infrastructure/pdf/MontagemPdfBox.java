@@ -53,7 +53,12 @@ class MontagemPdfBox implements MontadorDoDossie {
     static final int ITENS_POR_PAGINA_DOS_NAO_INCLUIDOS = 22;
     static final String TITULO_DOS_NAO_INCLUIDOS = "Documentos não incluídos";
     private static final float TAMANHO_DO_RODAPE = 9f;
+    /** Distância da base do número de página à borda inferior (como a página é exibida), em pontos. */
     private static final float MARGEM_DO_RODAPE = 20f;
+    /** Distância do fim do número de página à borda direita (como a página é exibida), em pontos. */
+    static final float MARGEM_DIREITA_DO_RODAPE = 28f;
+    /** Folga do fundo branco em volta do número, em pontos. */
+    private static final float FOLGA_DO_FUNDO_DO_RODAPE = 2f;
     private static final float ALTURA_DA_LINHA = 16f;
     private static final DateTimeFormatter DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     static final String SEM_DATA = "sem data";
@@ -434,8 +439,10 @@ class MontagemPdfBox implements MontadorDoDossie {
     }
 
     /**
-     * O rodapé fica no centro da borda inferior <em>como a página é exibida</em>: a caixa usada é a de recorte e a
-     * posição e o sentido do texto acompanham a rotação, em vez de uma coordenada fixa.
+     * O número fica no <b>canto inferior direito</b> <em>como a página é exibida</em>, alinhado à direita pela margem: a
+     * caixa usada é a de recorte e a posição e o sentido do texto acompanham a rotação, em vez de uma coordenada fixa.
+     * Atrás do texto vai um retângulo branco só do tamanho dele (mais {@value #FOLGA_DO_FUNDO_DO_RODAPE} pt de folga),
+     * para o número não colidir com texto ou imagem do documento na mesma região.
      */
     void rodape(PDDocument saida, PDPage pagina, String texto) throws IOException {
         PDRectangle caixa = pagina.getCropBox();
@@ -443,18 +450,26 @@ class MontagemPdfBox implements MontadorDoDossie {
         float y0 = caixa.getLowerLeftY();
         float x1 = caixa.getUpperRightX();
         float y1 = caixa.getUpperRightY();
-        float cx = (x0 + x1) / 2f;
-        float cy = (y0 + y1) / 2f;
         String seguro = TextoPdf.seguro(normal, texto);
         float largura = TextoPdf.largura(normal, seguro, TAMANHO_DO_RODAPE);
         int rotacao = ((pagina.getRotation() % 360) + 360) % 360;
+        // A origem é o início da linha de base do texto, que corre da esquerda para a direita da página exibida.
         Matrix matriz = switch (rotacao) {
-            case 90 -> Matrix.getRotateInstance(Math.toRadians(90), x1 - MARGEM_DO_RODAPE, cy - largura / 2f);
-            case 180 -> Matrix.getRotateInstance(Math.toRadians(180), cx + largura / 2f, y1 - MARGEM_DO_RODAPE);
-            case 270 -> Matrix.getRotateInstance(Math.toRadians(270), x0 + MARGEM_DO_RODAPE, cy + largura / 2f);
-            default -> Matrix.getTranslateInstance(cx - largura / 2f, y0 + MARGEM_DO_RODAPE);
+            case 90 -> Matrix.getRotateInstance(Math.toRadians(90), x1 - MARGEM_DO_RODAPE, y1 - MARGEM_DIREITA_DO_RODAPE - largura);
+            case 180 -> Matrix.getRotateInstance(Math.toRadians(180), x0 + MARGEM_DIREITA_DO_RODAPE + largura, y1 - MARGEM_DO_RODAPE);
+            case 270 -> Matrix.getRotateInstance(Math.toRadians(270), x0 + MARGEM_DO_RODAPE, y0 + MARGEM_DIREITA_DO_RODAPE + largura);
+            default -> Matrix.getTranslateInstance(x1 - MARGEM_DIREITA_DO_RODAPE - largura, y0 + MARGEM_DO_RODAPE);
         };
         try (PDPageContentStream c = new PDPageContentStream(saida, pagina, PDPageContentStream.AppendMode.APPEND, true, true)) {
+            c.saveGraphicsState();
+            c.transform(matriz);
+            c.setNonStrokingColor(1f, 1f, 1f);
+            float abaixo = TAMANHO_DO_RODAPE * 0.25f + FOLGA_DO_FUNDO_DO_RODAPE;
+            float acima = TAMANHO_DO_RODAPE * 0.78f + FOLGA_DO_FUNDO_DO_RODAPE;
+            c.addRect(-FOLGA_DO_FUNDO_DO_RODAPE, -abaixo, largura + 2 * FOLGA_DO_FUNDO_DO_RODAPE, abaixo + acima);
+            c.fill();
+            c.restoreGraphicsState();
+            c.setNonStrokingColor(0f, 0f, 0f);
             c.beginText();
             c.setFont(normal, TAMANHO_DO_RODAPE);
             c.setTextMatrix(matriz);

@@ -55,7 +55,7 @@ Depois de obter cada arquivo, o pipeline (`PreparadorDePdf`, no `dossie`) decide
 - **PDFBox 3 em disco:** `Loader.loadPDF` sobre `File` com cache em arquivos temporários; páginas importadas com `importPage` (tamanho, rotação, anotações e links preservados; **nada é forçado para A4**, RNF06). Formulários interativos são achatados com tratamento de erro (falha ao achatar não interrompe). Os documentos de origem ficam abertos até o PDF final ser salvo (o PDFBox compartilha objetos).
 - **Capa** (RF12) e **sumário** são páginas A4 desenhadas com a fonte padrão do PDFBox (WinAnsi): o que a fonte não codifica vira `?` (acentos, `º`, `ç` funcionam).
 - **Sumário determinístico:** uma linha por documento (data, título, origem, página inicial), com **38 linhas por página**; a página inicial de cada documento é conhecida antes de importar qualquer página (capa = 1, sumário = próximas, documentos em seguida). Cada linha é um link para a página do documento.
-- **Marcadores** (`PDDocumentOutline`): "Capa", "Sumário" e um por documento. **Numeração** "Página X de Y" a partir da primeira página após a capa (X é o número físico), posicionada pela **caixa de recorte e pela rotação** de cada página (testado nas quatro rotações). Os três respeitam os parâmetros ligado/desligado.
+- **Marcadores** (`PDDocumentOutline`): "Capa", "Sumário" e um por documento. **Numeração** "Página X de Y" no canto inferior direito a partir da primeira página após a capa (X é o número físico), posicionada pela **caixa de recorte e pela rotação** de cada página (testado nas quatro rotações e em tamanhos de página diferentes). Os três respeitam os parâmetros ligado/desligado.
 - **Expiração:** `DOSSIE_TTL_MINUTOS` (30) desde a última atividade (S2.2; até a S2.1, a partir da conclusão); o diretório do pedido é apagado ao fim do download (`attachment`) ou ao vencer (limpeza a cada 5 min e verificação a cada leitura); na subida, as pastas de pedido sobrando são apagadas (a fila é em memória).
 
 ## Tipos de arquivo
@@ -177,7 +177,9 @@ Não há relatório de geração ao final do dossiê; o que ficou de fora está 
 
 ## Numeração de páginas
 
-Numeração "Página X de Y" no rodapé, a partir da primeira página após a capa. A posição é calculada pelo tamanho e pela rotação de cada página, não por coordenada fixa.
+Numeração **"Página X de Y" no canto inferior direito** (S3.1, D59), a partir da primeira página após a capa (a capa é a página 1, sem número; X é o número físico). O texto é **alinhado à direita**: o fim dele fica a 28 pt da borda direita e a base a 20 pt da borda inferior, **como a página é exibida**. A posição é calculada pela caixa de recorte e pela rotação de cada página (0, 90, 180 e 270), não por coordenada fixa, e o texto acompanha o sentido da página. Vale para todas as páginas numeradas: PDFs originais, convertidos e seções geradas (sumário, "Documentos não incluídos").
+
+Atrás do número vai um **retângulo branco só do tamanho do texto** (folga de 2 pt), para ele não colidir com texto ou imagem do documento na mesma região. Efeito: se um PDF original desenha algo exatamente nesse cantinho (por exemplo, a numeração própria dele), o trecho de ~60 x 13 pt fica coberto; margens inferiores comuns (acima de 36 pt) não são tocadas. O conteúdo do documento não é alterado; o retângulo é desenhado por cima, no PDF do dossiê. Cada página numerada tem uma única numeração: a das planilhas convertidas, do Calc, foi removida (D59).
 
 ## Preservação do conteúdo
 

@@ -108,7 +108,7 @@ Para cada um dos 3 requerimentos: **Gerar dossiê** com a seleção inicial, **P
 | Marcadores | o marcador do convertido traz "(convertido de …)" e leva à página certa | [ ] |
 | Nota de rodapé | aba de planilha que foi para página única traz "*" no sumário e a nota explicando | [ ] |
 | Capa | "N documentos incluídos de M listados; K convertidos para PDF", com K = convertidos de fato | [ ] |
-| Numeração | "Página X de Y" em todas as páginas a partir da 2ª, inclusive nas convertidas em paisagem | [ ] |
+| Numeração | **uma única** numeração por página, "Página X de Y" no **canto inferior direito**, a partir da 2ª página, inclusive nas convertidas em paisagem e nas giradas; nenhum "Página 1" do Calc nas planilhas; o fundo branco do número não esconde nada do documento | [ ] |
 | Documentos não incluídos | a seção lista os desmarcados, indisponíveis e sigilosos, com o motivo; **nenhum** motivo "não é PDF: aguardando conversão" para os convertíveis | [ ] |
 | Mesmo resultado do modal | o documento convertido no dossiê tem o mesmo número de páginas e o mesmo conteúdo da versão vista no modal | [ ] |
 | Tamanho e rotação | os PDFs originais mantêm tamanho e rotação (nada forçado para A4) | [ ] |
