@@ -123,6 +123,8 @@ class NumeracaoComPlanilhaConvertidaTest {
             inicio = Math.min(inicio, c.getXDirAdj());
             fim = Math.max(fim, c.getXDirAdj() + c.getWidthDirAdj());
         }
+        assertThat(daNumeracao).as("negrito, página %d", pagina)
+                .allSatisfy(c -> assertThat(c.getFont().getName()).containsIgnoringCase("Bold"));
         assertThat(larguraExibida - fim).as("margem direita, página %d", pagina).isBetween(26f, 30f);
         assertThat(inicio).as("à direita do centro, página %d", pagina).isGreaterThan(larguraExibida / 2);
         assertThat(alturaExibida - daNumeracao.get(0).getYDirAdj()).as("margem inferior, página %d", pagina)

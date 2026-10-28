@@ -557,6 +557,97 @@ class ValidadorEMontadorPdfBoxTest {
     }
 
     @Test
+    void numeroEmNegritoSemRetanguloNemCorBrancaENadaDoConteudoCoberto() throws IOException {
+        Path saida = pasta.resolve("dossie.pdf");
+        montador.montar(capa(), List.of(doc("Oficio", 1, PDRectangle.A4, 0)), new OpcoesDeMontagem(false, false, true), saida);
+
+        try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+            PDPage pagina = pdf.getPage(1);
+            // O que o rodapé acrescentou é o último fluxo de conteúdo da página.
+            org.apache.pdfbox.pdmodel.common.PDStream ultimo = null;
+            for (java.util.Iterator<org.apache.pdfbox.pdmodel.common.PDStream> it = pagina.getContentStreams(); it.hasNext();) {
+                ultimo = it.next();
+            }
+            assertThat(ultimo).isNotNull();
+            List<Object> itens = new org.apache.pdfbox.pdfparser.PDFStreamParser(ultimo.toByteArray()).parse();
+            List<String> operadores = itens.stream()
+                    .filter(org.apache.pdfbox.contentstream.operator.Operator.class::isInstance)
+                    .map(o -> ((org.apache.pdfbox.contentstream.operator.Operator) o).getName()).toList();
+            assertThat(operadores).as("sem retângulo nem preenchimento: só texto").doesNotContain("re", "f", "F", "f*");
+            assertThat(operadores).contains("Tj");
+            // Cor do texto: preto (0 0 0 rg), nunca branco.
+            int cor = operadores.indexOf("rg");
+            assertThat(cor).isGreaterThanOrEqualTo(0);
+            int posicaoDoRg = itens.indexOf(itens.stream().filter(org.apache.pdfbox.contentstream.operator.Operator.class::isInstance)
+                    .filter(o -> ((org.apache.pdfbox.contentstream.operator.Operator) o).getName().equals("rg")).findFirst().orElseThrow());
+            for (int k = 1; k <= 3; k++) {
+                assertThat(((org.apache.pdfbox.cos.COSNumber) itens.get(posicaoDoRg - k)).floatValue()).isZero();
+            }
+
+            // A fonte do "Página X de Y" é negrito.
+            String numeracao = "Página 2 de 2";
+            List<TextPosition> caracteres = new ArrayList<>();
+            PDFTextStripper extrator = new PDFTextStripper() {
+                @Override
+                protected void processTextPosition(TextPosition texto) {
+                    caracteres.add(texto);
+                    super.processTextPosition(texto);
+                }
+            };
+            extrator.setStartPage(2);
+            extrator.setEndPage(2);
+            assertThat(extrator.getText(pdf)).contains(numeracao);
+            List<TextPosition> daNumeracao = caracteres.subList(caracteres.size() - numeracao.length(), caracteres.size());
+            assertThat(daNumeracao).allSatisfy(c -> assertThat(c.getFont().getName()).containsIgnoringCase("Bold"));
+            // O texto do documento continua extraível.
+            assertThat(texto(pdf, 2, 2)).contains("Oficio");
+        }
+    }
+
+    @Test
+    void paginaComFundoCinzaContinuaCinzaAoRedorDoNumero() throws IOException {
+        for (int rotacao : new int[] {0, 90, 180, 270}) {
+            Path cinza = pasta.resolve("cinza-" + rotacao + ".pdf");
+            try (PDDocument doc = new PDDocument()) {
+                PDPage p = new PDPage(PDRectangle.A4);
+                p.setRotation(rotacao);
+                doc.addPage(p);
+                try (org.apache.pdfbox.pdmodel.PDPageContentStream c = new org.apache.pdfbox.pdmodel.PDPageContentStream(doc, p)) {
+                    c.setNonStrokingColor(0.5f, 0.5f, 0.5f);
+                    c.addRect(0, 0, PDRectangle.A4.getWidth(), PDRectangle.A4.getHeight());
+                    c.fill();
+                }
+                doc.save(cinza.toFile());
+            }
+            Path saida = pasta.resolve("dossie-cinza-" + rotacao + ".pdf");
+            montador.montar(capa(), List.of(new DocumentoParaMontagem("Cinza", "Juntada", D, cinza, 1)),
+                    new OpcoesDeMontagem(false, false, true), saida);
+
+            try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+                BufferedImage imagem = new PDFRenderer(pdf).renderImage(1, 1f);
+                int fundo = imagem.getRGB(imagem.getWidth() / 2, imagem.getHeight() / 2) & 0xFF;
+                int largura = imagem.getWidth();
+                int altura = imagem.getHeight();
+                int maisClaro = 0;
+                int escuros = 0;
+                // Faixa do canto inferior direito: 130 x 45 pt em volta do número, como a página é exibida.
+                for (int y = altura - 45; y < altura; y++) {
+                    for (int x = largura - 130; x < largura; x++) {
+                        int cor = imagem.getRGB(x, y) & 0xFF;
+                        maisClaro = Math.max(maisClaro, cor);
+                        if (cor < fundo - 40) {
+                            escuros++;
+                        }
+                    }
+                }
+                assertThat(escuros).as("o número aparece, rotação %d", rotacao).isGreaterThan(20);
+                assertThat(maisClaro).as("nenhum pixel mais claro que o fundo (nada de retângulo branco), rotação %d", rotacao)
+                        .isLessThanOrEqualTo(fundo + 1);
+            }
+        }
+    }
+
+    @Test
     void cadaPaginaNumeradaTemUmaUnicaNumeracaoESemFundoBrancoQueEscondaOConteudo() throws IOException {
         Path saida = pasta.resolve("dossie.pdf");
         montador.montar(capa(), List.of(doc("Oficio", 3, PDRectangle.A4, 0), doc("Planta", 2, PDRectangle.A4, 0)), TUDO, saida);
@@ -575,7 +666,7 @@ class ValidadorEMontadorPdfBoxTest {
                 assertThat(ocorrencias).as("numerações na página %d", pagina).isEqualTo(1);
                 assertThat(pagina1.matcher(texto).find()).as("numeração solta na página %d", pagina).isFalse();
             }
-            // O texto do documento (o título que o PDF de teste desenha) continua na página, sob o fundo do número.
+            // O texto do documento (o título que o PDF de teste desenha) continua na página, extraível, sem nada por cima.
             assertThat(texto(pdf, 4, 4)).contains("Oficio");
         }
     }
