@@ -71,7 +71,7 @@ h3{font-size:15px}
 .toolbar .search .icon{position:absolute;left:12px;top:11px;width:16px;color:var(--muted)}
 .toolbar .search input{padding:9px 12px 9px 37px;border:1px solid #cfdac8;border-radius:8px;width:100%;font-size:13px;height:40px}
 .toolbar select{border:1px solid #cfdac8;border-radius:8px;color:var(--ink);padding:0 10px;font-size:12px;background:#fff;height:40px}
-.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px}
+.table-wrap{position:relative;overflow:auto;border:1px solid var(--line);border-radius:12px}
 table{border-collapse:collapse;width:100%;font-size:12px}
 th{text-align:left;padding:11px 14px;background:var(--soft-2);color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.65px;font-weight:650;border-bottom:1px solid var(--line);white-space:nowrap}
 th button{background:transparent;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;padding:0;display:inline-flex;gap:4px;align-items:center}
