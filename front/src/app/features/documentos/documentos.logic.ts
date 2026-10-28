@@ -41,6 +41,8 @@ export const ORDEM_DAS_ORIGENS = [
   'IMOVEL',
   'REPRESENTANTE_LEGAL',
   'RESPONSAVEL_TECNICO',
+  // S4: documentos pessoais do SCORP vêm depois das seis origens da Vista no empate de data (RN03).
+  'SCORP',
 ];
 
 const posicaoDaOrigem = (origem: string): number => {

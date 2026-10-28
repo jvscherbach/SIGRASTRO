@@ -430,6 +430,132 @@ describe('DocumentosSecaoComponent', () => {
     });
   });
 
+  describe('documentos pessoais do SCORP (S4)', () => {
+    const PESSOAL = documento({
+      origem: 'SCORP',
+      id: 'a1b2c3d4e5f60718',
+      titulo: 'Procuração',
+      nomeArquivo: 'procuracao.pdf',
+      origemDescricao: 'Pessoal · Representante legal',
+      data: '2025-04-02T10:00:00',
+    });
+    const PESSOAL_INTERESSADO = documento({
+      origem: 'SCORP',
+      id: '0f0e0d0c0b0a0908',
+      titulo: 'Contrato social',
+      nomeArquivo: 'contrato.pdf',
+      origemDescricao: 'Pessoal · Interessado',
+      data: '2025-04-06T10:00:00',
+    });
+    const COM_PESSOAIS = [...BASE, PESSOAL, PESSOAL_INTERESSADO];
+    const comAvisos = (codigo: string) => (r: DocumentosResposta) => ({ ...r, avisos: [{ codigo, mensagem: 'texto da API' }] });
+    const opcoesDeOrigem = () => Array.from(raiz.querySelectorAll<HTMLOptionElement>('select[aria-label="Origem"] option')).map((o) => o.textContent!.trim());
+
+    it('mostra a origem com o papel na coluna e uma opção "Pessoal" no filtro', () => {
+      abrir(COM_PESSOAIS);
+
+      expect(linhaDe('Procuração').textContent).toContain('Pessoal · Representante legal');
+      expect(linhaDe('Contrato social').textContent).toContain('Pessoal · Interessado');
+      expect(opcoesDeOrigem().filter((o) => o.startsWith('Pessoal'))).toEqual(['Pessoal']);
+    });
+
+    it('o filtro "Pessoal" traz os documentos de todos os papéis', () => {
+      abrir(COM_PESSOAIS);
+      const filtro = raiz.querySelector<HTMLSelectElement>('select[aria-label="Origem"]')!;
+      filtro.value = 'SCORP';
+      filtro.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+
+      expect(linhas().map((l) => l.querySelector('b')!.textContent)).toEqual(['Procuração', 'Contrato social']);
+    });
+
+    it('no empate de data, o pessoal vem depois das origens da Vista', () => {
+      const mesmaData = documento({ ...PESSOAL, data: '2025-04-01T10:00:00' });
+      abrir([documento({ id: '1', data: '2025-04-01T10:00:00' }), mesmaData]);
+
+      expect(linhas().map((l) => l.querySelector('b')!.textContent)).toEqual(['Requerimento assinado', 'Procuração']);
+    });
+
+    it('seleção total vale para os pessoais, e o POST /dossies leva a origem SCORP', () => {
+      abrir(COM_PESSOAIS);
+      expect(marcados()).toContain('Procuração');
+
+      botao('Gerar dossiê').click();
+      fixture.detectChanges();
+      const criar = TestBed.inject(DossiesApiService).criar as ReturnType<typeof vi.fn>;
+      expect(criar.mock.calls[0][1]).toContainEqual({ origem: 'SCORP', id: 'a1b2c3d4e5f60718' });
+    });
+
+    it('pessoal sigiloso (SCORP_SIGILO_PADRAO=true) segue o mascaramento do Operador', () => {
+      const sigiloso = documento({ ...PESSOAL, titulo: 'Documento sigiloso', nomeArquivo: null, extensao: null, tipoArquivo: null, sigiloso: true, acessivel: false, bloqueio: 'SIGILOSO', selecionavelPorPadrao: false });
+      abrir([...BASE, sigiloso]);
+
+      const linha = linhas().find((l) => l.textContent!.includes('Pessoal · Representante legal'))!;
+      expect(linha.textContent).toContain('Documento sigiloso');
+      expect(linha.textContent).not.toContain('procuracao');
+      expect(caixa(linha).disabled).toBe(true);
+    });
+
+    it('sem avisos, nenhuma faixa', () => {
+      abrir(COM_PESSOAIS);
+      expect(raiz.querySelector('.aviso-scorp')).toBeNull();
+    });
+
+    it('SCORP_INDISPONIVEL: faixa com texto próprio, sem impedir seleção nem geração', () => {
+      abrir(BASE, comAvisos('SCORP_INDISPONIVEL'));
+
+      const faixa = raiz.querySelector('.aviso-scorp')!;
+      expect(faixa.textContent).toContain('Os documentos pessoais (SCORP) não puderam ser consultados agora. Os demais documentos foram listados.');
+      expect(faixa.textContent).not.toContain('texto da API');
+      expect(selecionadosNaBarra()).toBe('3');
+      expect(botao('Gerar dossiê').disabled).toBe(false);
+    });
+
+    it('SCORP_PARCIAL: texto próprio', () => {
+      abrir(COM_PESSOAIS, comAvisos('SCORP_PARCIAL'));
+      expect(raiz.querySelector('.aviso-scorp')!.textContent).toContain('Parte dos documentos pessoais (SCORP) não pôde ser consultada agora');
+    });
+
+    it('código desconhecido usa a mensagem da API', () => {
+      abrir(BASE, comAvisos('OUTRO'));
+      expect(raiz.querySelector('.aviso-scorp')!.textContent).toContain('texto da API');
+    });
+
+    it('"Consultar novamente" refaz só a lista, mantém a seleção feita e marca os pessoais que voltaram', () => {
+      abrir(BASE, comAvisos('SCORP_INDISPONIVEL'));
+      // desmarca um documento antes de reconsultar
+      caixa(linhaDe('Ofício')).click();
+      fixture.detectChanges();
+      const reconsulta = new Subject<DocumentosResposta>();
+      api.listar.mockReturnValue(reconsulta);
+
+      botao('Consultar novamente').click();
+      fixture.detectChanges();
+      expect(botao('Consultando').disabled).toBe(true);
+      expect(raiz.querySelector('table')).not.toBeNull();
+
+      reconsulta.next(resposta(COM_PESSOAIS));
+      fixture.detectChanges();
+
+      expect(api.listar).toHaveBeenCalledTimes(2);
+      expect(raiz.querySelector('.aviso-scorp')).toBeNull();
+      expect(marcados()).not.toContain('Ofício');
+      expect(marcados()).toEqual(expect.arrayContaining(['Requerimento assinado', 'Procuração', 'Contrato social']));
+    });
+
+    it('"Consultar novamente" com erro mantém a lista e o aviso', () => {
+      abrir(BASE, comAvisos('SCORP_INDISPONIVEL'));
+      api.listar.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 503 })));
+
+      botao('Consultar novamente').click();
+      fixture.detectChanges();
+
+      expect(raiz.querySelector('.aviso-scorp')).not.toBeNull();
+      expect(linhas().length).toBe(6);
+      expect(botao('Consultar novamente').disabled).toBe(false);
+    });
+  });
+
   describe('geometrias (S4, RN10)', () => {
     const KML: GeometriaItem = {
       origem: 'DOCUMENTO_PROCESSO',

@@ -63,9 +63,16 @@ export interface GeometriaComProblema {
   motivo: string;
 }
 
+/** Aviso da lista (S4): SCORP_INDISPONIVEL ou SCORP_PARCIAL. Nunca impede selecionar ou gerar. */
+export interface AvisoDaLista {
+  codigo: string;
+  mensagem: string;
+}
+
 export interface DocumentosResposta {
   itens: DocumentoItem[];
   totais: TotaisDocumentos;
+  avisos?: AvisoDaLista[];
   /** S4: geometrias do requerimento que o perfil pode ver. */
   geometrias?: GeometriaItem[];
 }
