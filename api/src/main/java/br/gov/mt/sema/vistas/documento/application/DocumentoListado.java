@@ -1,5 +1,6 @@
 package br.gov.mt.sema.vistas.documento.application;
 
+import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
 import br.gov.mt.sema.vistas.documento.domain.Documento;
 import br.gov.mt.sema.vistas.documento.domain.Documento.Bloqueio;
 
@@ -9,17 +10,17 @@ import br.gov.mt.sema.vistas.documento.domain.Documento.Bloqueio;
  */
 public record DocumentoListado(Documento documento, boolean acessivel, Bloqueio bloqueio, boolean selecionavelPorPadrao) {
 
-    public static final String TITULO_MASCARADO = "Documento sigiloso";
+    public static final String TITULO_MASCARADO = PoliticaDeAcesso.TITULO_SIGILOSO;
 
     public String titulo() {
-        return acessivel ? documento.titulo() : TITULO_MASCARADO;
+        return PoliticaDeAcesso.mascararTitulo(acessivel, documento.titulo());
     }
 
     public String nomeArquivo() {
-        return acessivel ? documento.nomeArquivo() : null;
+        return PoliticaDeAcesso.mascararDadoDoArquivo(acessivel, documento.nomeArquivo());
     }
 
     public String extensao() {
-        return acessivel ? documento.extensao() : null;
+        return PoliticaDeAcesso.mascararDadoDoArquivo(acessivel, documento.extensao());
     }
 }

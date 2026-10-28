@@ -15,6 +15,18 @@ Tela acessível apenas ao perfil Administrador. Toda alteração gera evento na 
 
 "Só como interessado": processos e requerimentos em que o CPF/CNPJ do usuário é o do interessado (RN07). O Administrador tem acesso irrestrito.
 
+**Regras aplicadas no back-end (S4, RNF10)**, todas decididas pela `PoliticaDeAcesso` (D60):
+
+| Regra | Operador | Gestor | Administrador | Resposta quando nega |
+|---|:---:|:---:|:---:|---|
+| Requerimento ou processo de outro interessado | — | ✓ | ✓ | 403 `NAO_INTERESSADO` (inexistente: 404 `NAO_ENCONTRADO`) |
+| Documento sigiloso: ver título, abrir no modal, incluir no dossiê | — | ✓ | ✓ | 403 `DOCUMENTO_SIGILOSO`; na lista, "Documento sigiloso" sem nome de arquivo nem extensão |
+| Nome do responsável pela tarefa atual (RN12) | — | ✓ | ✓ | campo omitido |
+| Pedido de dossiê criado pelo próprio usuário | ✓ (enquanto for o interessado gravado no pedido) | ✓ | ✓ | 404 `NAO_ENCONTRADO` |
+| Pedido de dossiê de outro usuário | — | ✓ | ✓ | 404 `NAO_ENCONTRADO` (não revela que existe) |
+
+A matriz completa, endpoint por endpoint, está em [07 — API](07-api.md#matriz-de-acesso-por-endpoint).
+
 Códigos: `OPERADOR`, `OPERADOR_SIGILO`, `ADMIN`. Na versão definitiva, a identidade vem da autenticação institucional; o perfil é atribuído nesta tela. Itens de menu sem permissão não são exibidos (RN08).
 
 ## Abas

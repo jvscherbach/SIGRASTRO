@@ -2,7 +2,7 @@ package br.gov.mt.sema.vistas.consulta.application;
 
 import java.util.List;
 
-import br.gov.mt.sema.vistas.acesso.application.ObterRestricaoDeInteressado;
+import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
 import br.gov.mt.sema.vistas.acesso.domain.RestricaoDeInteressado;
 import br.gov.mt.sema.vistas.consulta.domain.CriterioBusca;
 import br.gov.mt.sema.vistas.consulta.domain.Pagina;
@@ -17,21 +17,21 @@ import org.springframework.stereotype.Service;
 public class BuscarRequerimentos {
 
     private final RequerimentosDoSiga siga;
-    private final ObterRestricaoDeInteressado restricaoDoUsuario;
+    private final PoliticaDeAcesso politica;
 
-    public BuscarRequerimentos(RequerimentosDoSiga siga, ObterRestricaoDeInteressado restricaoDoUsuario) {
+    public BuscarRequerimentos(RequerimentosDoSiga siga, PoliticaDeAcesso politica) {
         this.siga = siga;
-        this.restricaoDoUsuario = restricaoDoUsuario;
+        this.politica = politica;
     }
 
     public Pagina<ResumoRequerimento> executar(PedidoDeBusca pedido) {
         CriterioBusca criterio = pedido.paraCriterio();
-        RestricaoDeInteressado restricao = restricaoDoUsuario.paraUsuarioAtual();
+        RestricaoDeInteressado restricao = politica.restricaoDoUsuarioAtual();
 
         if (criterio.apenasNumero()) {
             return criterio.tipo() == TipoBusca.PROCESSO
                     ? buscarPorNumeroDeProcesso(criterio, restricao)
-                    : buscarPorNumeroDeRequerimento(criterio, restricao);
+                    : buscarPorNumeroDeRequerimento(criterio);
         }
         if (restricao.semAcessoAlgum()) {
             return Pagina.vazia(criterio.pagina(), criterio.tamanho());
@@ -41,14 +41,11 @@ public class BuscarRequerimentos {
     }
 
     /** O número do requerimento é exato: 1 resultado ou 404. */
-    private Pagina<ResumoRequerimento> buscarPorNumeroDeRequerimento(CriterioBusca criterio,
-            RestricaoDeInteressado restricao) {
+    private Pagina<ResumoRequerimento> buscarPorNumeroDeRequerimento(CriterioBusca criterio) {
         Requerimento requerimento = siga.buscarPorNumeroDeRequerimento(criterio.numero())
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Requerimento " + criterio.numero().texto() + " não encontrado."));
-        if (!restricao.permite(requerimento.cpfCnpjDoInteressado())) {
-            throw new NaoInteressadoException();
-        }
+        politica.exigirAcessoAoRequerimento(requerimento.cpfCnpjDoInteressado());
         return new Pagina<>(List.of(requerimento.resumo()), 1, 0, criterio.tamanho());
     }
 

@@ -7,6 +7,11 @@ import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.sli
 import java.util.List;
 import java.util.stream.Stream;
 
+import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
+import br.gov.mt.sema.vistas.acesso.application.UsuarioAtual;
+import br.gov.mt.sema.vistas.acesso.domain.Perfil;
+import br.gov.mt.sema.vistas.acesso.domain.RestricaoDeInteressado;
+import br.gov.mt.sema.vistas.acesso.domain.Usuario;
 import br.gov.mt.sema.vistas.documento.domain.Documento;
 import br.gov.mt.sema.vistas.dossie.domain.ItemDoPedido;
 import com.tngtech.archunit.core.domain.JavaClasses;
@@ -152,6 +157,36 @@ class ArchitectureTest {
     static final ArchRule dto_http_sem_campo_de_chave =
             noFields().that().areDeclaredInClassesThat().resideInAPackage("..api.dto..")
                     .should().haveNameMatching("(?i).*chave.*")
+                    .allowEmptyShould(true);
+
+    // S4 (bloco 1, RNF10): só a PoliticaDeAcesso decide acesso. Fora do módulo acesso ninguém lê o perfil nem o CPF/CNPJ
+    // do usuário para decidir, nem aplica a restrição do interessado por conta própria.
+    @ArchTest
+    static final ArchRule decisao_de_acesso_somente_na_politica =
+            noClasses().that().resideOutsideOfPackage(RAIZ + "acesso..")
+                    .should().dependOnClassesThat().belongToAnyOf(Perfil.class)
+                    .orShould().callMethod(Usuario.class, "perfil")
+                    .orShould().callMethod(Usuario.class, "cpfCnpj")
+                    .orShould().callMethod(RestricaoDeInteressado.class, "permite", String.class)
+                    .orShould().callMethod(RestricaoDeInteressado.class, "de", Usuario.class)
+                    .allowEmptyShould(true);
+
+    // S4 (bloco 1): controllers não decidem acesso; delegam ao caso de uso, que pergunta à política.
+    @ArchTest
+    static final ArchRule controllers_nao_decidem_acesso =
+            noClasses().that().resideInAnyPackage(pacotes("api")).and().resideOutsideOfPackage(RAIZ + "acesso..")
+                    .should().dependOnClassesThat().belongToAnyOf(PoliticaDeAcesso.class, UsuarioAtual.class,
+                            RestricaoDeInteressado.class, Usuario.class)
+                    .allowEmptyShould(true);
+
+    // S4 (bloco 1): o módulo acesso não depende dos demais módulos de negócio nem de integration.*.
+    @ArchTest
+    static final ArchRule acesso_nao_depende_dos_demais_modulos =
+            noClasses().that().resideInAPackage(RAIZ + "acesso..")
+                    .should().dependOnClassesThat().resideInAnyPackage(concat(
+                            MODULOS.stream().filter(m -> !m.equals("acesso")).map(m -> RAIZ + m + "..")
+                                    .toArray(String[]::new),
+                            new String[] {RAIZ + "integration.."}))
                     .allowEmptyShould(true);
 
     private static String[] concat(String[]... partes) {

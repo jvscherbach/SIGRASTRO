@@ -1,10 +1,8 @@
 package br.gov.mt.sema.vistas.consulta.application;
 
-import br.gov.mt.sema.vistas.acesso.application.ObterPermissoesDoUsuario;
-import br.gov.mt.sema.vistas.acesso.application.ObterRestricaoDeInteressado;
+import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
 import br.gov.mt.sema.vistas.consulta.domain.Requerimento;
 import br.gov.mt.sema.vistas.consulta.domain.TarefaAtual;
-import br.gov.mt.sema.vistas.shared.application.exception.NaoInteressadoException;
 import br.gov.mt.sema.vistas.shared.application.exception.RecursoNaoEncontradoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,25 +16,20 @@ public class ObterRequerimento {
     private final RequerimentosDoSiga siga;
     private final ObjetoEPrioridadeDoRequerimento objetoEPrioridade;
     private final TarefaAtualDoRequerimento tarefas;
-    private final ObterRestricaoDeInteressado restricaoDoUsuario;
-    private final ObterPermissoesDoUsuario permissoesDoUsuario;
+    private final PoliticaDeAcesso politica;
 
     public ObterRequerimento(RequerimentosDoSiga siga, ObjetoEPrioridadeDoRequerimento objetoEPrioridade,
-            TarefaAtualDoRequerimento tarefas, ObterRestricaoDeInteressado restricaoDoUsuario,
-            ObterPermissoesDoUsuario permissoesDoUsuario) {
+            TarefaAtualDoRequerimento tarefas, PoliticaDeAcesso politica) {
         this.siga = siga;
         this.objetoEPrioridade = objetoEPrioridade;
         this.tarefas = tarefas;
-        this.restricaoDoUsuario = restricaoDoUsuario;
-        this.permissoesDoUsuario = permissoesDoUsuario;
+        this.politica = politica;
     }
 
     public DetalheDoRequerimento executar(long id) {
         Requerimento requerimento = siga.buscarPorId(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Requerimento não encontrado."));
-        if (!restricaoDoUsuario.paraUsuarioAtual().permite(requerimento.cpfCnpjDoInteressado())) {
-            throw new NaoInteressadoException();
-        }
+        politica.exigirAcessoAoRequerimento(requerimento.cpfCnpjDoInteressado());
         // Objeto e prioridade fazem parte do detalhe: se falharem, o detalhe inteiro falha (503 ou 500).
         return new DetalheDoRequerimento(requerimento, objetoEPrioridade.objeto(id),
                 objetoEPrioridade.prioridade(id), tarefaAtual(id));
@@ -54,6 +47,6 @@ public class ObterRequerimento {
             log.warn("Tarefa atual indisponível para o requerimento {}", idRequerimento, e);
             return TarefaAtual.indisponivel();
         }
-        return permissoesDoUsuario.podeVerResponsavelTarefa() ? tarefa : tarefa.semResponsavel();
+        return politica.podeVerResponsavelTarefa() ? tarefa : tarefa.semResponsavel();
     }
 }

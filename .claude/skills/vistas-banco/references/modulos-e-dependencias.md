@@ -24,6 +24,8 @@ Cada módulo materializa **apenas** os pacotes que a funcionalidade usa.
 
 Regras adicionadas na S2 ao `ArchitectureTest`: (a) **HTTP de saída** (`RestClient`, `java.net.http`, `HttpURLConnection`) só em `integration.*`, e nenhum HTTP em `integration.siga`; (b) a **chave do arquivo** (`chaveDoArquivo()` de `Documento` e de `ItemDoPedido`) não é lida por classe de `..api..`, e nenhum campo de `..api.dto..` tem "chave" no nome.
 
+Regras adicionadas na S4 (bloco 1, RNF10): (c) **só a `PoliticaDeAcesso` decide acesso**: fora de `acesso`, nenhuma classe depende de `Perfil` nem chama `Usuario.perfil()`, `Usuario.cpfCnpj()`, `RestricaoDeInteressado.de(...)` ou `RestricaoDeInteressado.permite(...)`; (d) **controllers não decidem acesso**: classes de `..api..` fora de `acesso` não dependem de `PoliticaDeAcesso`, `UsuarioAtual`, `RestricaoDeInteressado` nem `Usuario` (delegam ao caso de uso); (e) o módulo `acesso` não depende dos demais módulos de negócio nem de `integration.*`.
+
 Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTest test` (não precisa de Docker). O teste ignora pacotes vazios e passa a inspecioná-los quando recebem classes.
 
 ## Contratos internos usados no Vistas
@@ -32,7 +34,7 @@ Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTes
 |---|---|---|
 | `dossie` | `documento` | caso de uso que entrega os documentos selecionados já validados (perfil, sigilo, vínculo) |
 | `dossie`, `documento`, `consulta` | `auditoria` | porta `RegistrarEvento` (somente inclusão) |
-| todos | `acesso` | usuário atual, perfil e verificação de vínculo (RN07) |
+| todos | `acesso` | usuário atual e a `PoliticaDeAcesso` (RN07, sigilo, responsável pela tarefa, dono do pedido; S4) |
 | `dossie`, `documento` | `configuracao` | parâmetros vigentes (expiração, origens, timeouts, modo das planilhas) |
 | `documento`, `dossie` | portas implementadas em `integration.*` | obter binário do arquivo, listar documentos pessoais |
 
@@ -42,7 +44,7 @@ Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTes
 |---|---|---|
 | `documento` | `VerificarAcessoAoRequerimento` (existe + RN07) | `consulta.application` |
 | `dossie` | `ObterRequerimento` (dados da capa, com RN07) | `consulta.application` |
-| `documento`, `dossie` | `ObterPermissoesDoUsuario`, `UsuarioAtual` | `acesso.application` |
+| `consulta`, `documento`, `dossie` | `PoliticaDeAcesso` (S4, substitui `ObterPermissoesDoUsuario` e `ObterRestricaoDeInteressado`), `UsuarioAtual` | `acesso.application` |
 | `dossie` | `SelecionarDocumentosParaDossie` (seleção validada, em ordem, com a chave resolvida) | `documento.application` |
 | `integration.siga` | porta `DocumentosDoRequerimento` | `documento.application.port` |
 | `integration.licenciamento` | porta `ArquivosDoRepositorio` | `dossie.application.port` |

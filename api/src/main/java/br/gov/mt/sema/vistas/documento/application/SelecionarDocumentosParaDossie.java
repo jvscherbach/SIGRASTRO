@@ -6,12 +6,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import br.gov.mt.sema.vistas.acesso.application.ObterPermissoesDoUsuario;
+import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
 import br.gov.mt.sema.vistas.consulta.application.VerificarAcessoAoRequerimento;
 import br.gov.mt.sema.vistas.documento.application.port.ParametrosDaConversao;
 import br.gov.mt.sema.vistas.documento.domain.Documento;
 import br.gov.mt.sema.vistas.documento.domain.Documento.Bloqueio;
-import br.gov.mt.sema.vistas.shared.application.exception.DocumentoSigilosoException;
 import br.gov.mt.sema.vistas.shared.application.exception.ParametroInvalidoException;
 import org.springframework.stereotype.Service;
 
@@ -25,14 +24,14 @@ public class SelecionarDocumentosParaDossie {
 
     private final VerificarAcessoAoRequerimento acesso;
     private final ListarDocumentos listagem;
-    private final ObterPermissoesDoUsuario permissoes;
+    private final PoliticaDeAcesso politica;
     private final ParametrosDaConversao conversao;
 
     public SelecionarDocumentosParaDossie(VerificarAcessoAoRequerimento acesso, ListarDocumentos listagem,
-            ObterPermissoesDoUsuario permissoes, ParametrosDaConversao conversao) {
+            PoliticaDeAcesso politica, ParametrosDaConversao conversao) {
         this.acesso = acesso;
         this.listagem = listagem;
-        this.permissoes = permissoes;
+        this.politica = politica;
         this.conversao = conversao;
     }
 
@@ -46,7 +45,7 @@ public class SelecionarDocumentosParaDossie {
         if (referencias == null || referencias.isEmpty()) {
             throw new ParametroInvalidoException("documentos", "Selecione ao menos um documento.");
         }
-        boolean podeVerSigilosos = permissoes.podeVerSigilosos();
+        boolean podeVerSigilosos = politica.podeVerDocumentoSigiloso();
         boolean converte = conversao.habilitada();
         List<Documento> lista = listagem.listaDoRequerimento(idRequerimento);
 
@@ -54,9 +53,7 @@ public class SelecionarDocumentosParaDossie {
         for (ReferenciaDeDocumento referencia : referencias) {
             Documento documento = localizar(lista, referencia).orElseThrow(() -> new ParametroInvalidoException(
                     "documentos", "O documento " + descrever(referencia) + " não pertence ao requerimento."));
-            if (documento.sigiloso() && !podeVerSigilosos) {
-                throw new DocumentoSigilosoException();
-            }
+            politica.exigirAcessoAoDocumento(documento.sigiloso());
             Bloqueio bloqueio = documento.bloqueio(podeVerSigilosos, converte);
             if (bloqueio == Bloqueio.INDISPONIVEL) {
                 throw new ParametroInvalidoException("documentos",
@@ -73,9 +70,9 @@ public class SelecionarDocumentosParaDossie {
         List<SelecaoParaDossie.NaoSelecionado> fora = new ArrayList<>();
         for (Documento documento : lista) {
             if (!escolhidos.contains(documento)) {
-                boolean acessivel = !documento.sigiloso() || podeVerSigilosos;
+                boolean acessivel = politica.podeAcessarDocumento(documento.sigiloso());
                 fora.add(new SelecaoParaDossie.NaoSelecionado(documento,
-                        acessivel ? documento.titulo() : DocumentoListado.TITULO_MASCARADO,
+                        PoliticaDeAcesso.mascararTitulo(acessivel, documento.titulo()),
                         motivo(documento.bloqueio(podeVerSigilosos, converte))));
             }
         }

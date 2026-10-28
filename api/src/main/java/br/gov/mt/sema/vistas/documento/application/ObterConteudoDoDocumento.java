@@ -9,7 +9,7 @@ import java.util.Locale;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import br.gov.mt.sema.vistas.acesso.application.ObterPermissoesDoUsuario;
+import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
 import br.gov.mt.sema.vistas.consulta.application.VerificarAcessoAoRequerimento;
 import br.gov.mt.sema.vistas.documento.application.port.ArquivosDoDocumento;
 import br.gov.mt.sema.vistas.documento.application.port.ConversorDeDocumentos;
@@ -24,7 +24,6 @@ import br.gov.mt.sema.vistas.documento.domain.SituacaoDocumento;
 import br.gov.mt.sema.vistas.documento.domain.TipoDetectado;
 import br.gov.mt.sema.vistas.documento.domain.TipoReal;
 import br.gov.mt.sema.vistas.shared.api.error.ErrorCode;
-import br.gov.mt.sema.vistas.shared.application.exception.DocumentoSigilosoException;
 import br.gov.mt.sema.vistas.shared.application.exception.RecursoNaoEncontradoException;
 import org.springframework.stereotype.Service;
 
@@ -48,7 +47,7 @@ public class ObterConteudoDoDocumento {
 
     private final VerificarAcessoAoRequerimento acesso;
     private final ListarDocumentos listagem;
-    private final ObterPermissoesDoUsuario permissoes;
+    private final PoliticaDeAcesso politica;
     private final ArquivosDoDocumento arquivos;
     private final ConversorDeDocumentos conversorDeDocumentos;
     private final ConversorDeImagens conversorDeImagens;
@@ -59,12 +58,12 @@ public class ObterConteudoDoDocumento {
     private final AtomicInteger admitidas = new AtomicInteger();
 
     public ObterConteudoDoDocumento(VerificarAcessoAoRequerimento acesso, ListarDocumentos listagem,
-            ObterPermissoesDoUsuario permissoes, ArquivosDoDocumento arquivos,
+            PoliticaDeAcesso politica, ArquivosDoDocumento arquivos,
             ConversorDeDocumentos conversorDeDocumentos, ConversorDeImagens conversorDeImagens,
             ParametrosDaConversao conversao, ParametrosDaVisualizacao visualizacao, CacheDeVisualizacao cache) {
         this.acesso = acesso;
         this.listagem = listagem;
-        this.permissoes = permissoes;
+        this.politica = politica;
         this.arquivos = arquivos;
         this.conversorDeDocumentos = conversorDeDocumentos;
         this.conversorDeImagens = conversorDeImagens;
@@ -105,9 +104,7 @@ public class ObterConteudoDoDocumento {
                 .filter(d -> d.origem().name().equals(origem) && d.id().equals(idLimpo))
                 .findFirst()
                 .orElseThrow(() -> new RecursoNaoEncontradoException(NAO_ENCONTRADO));
-        if (documento.sigiloso() && !permissoes.podeVerSigilosos()) {
-            throw new DocumentoSigilosoException();
-        }
+        politica.exigirAcessoAoDocumento(documento.sigiloso());
         if (documento.situacao() == SituacaoDocumento.INDISPONIVEL) {
             throw new RecursoNaoEncontradoException("O arquivo deste documento não está disponível no repositório.");
         }

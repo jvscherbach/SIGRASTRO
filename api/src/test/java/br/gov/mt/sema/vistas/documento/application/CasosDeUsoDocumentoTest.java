@@ -16,8 +16,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.TimeZone;
 
-import br.gov.mt.sema.vistas.acesso.application.ObterPermissoesDoUsuario;
-import br.gov.mt.sema.vistas.acesso.application.ObterRestricaoDeInteressado;
+import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
 import br.gov.mt.sema.vistas.acesso.application.UsuarioAtual;
 import br.gov.mt.sema.vistas.acesso.domain.Perfil;
 import br.gov.mt.sema.vistas.acesso.domain.Usuario;
@@ -67,11 +66,10 @@ class CasosDeUsoDocumentoTest {
                 return "token-de-teste";
             }
         };
-        VerificarAcessoAoRequerimento acesso = new VerificarAcessoAoRequerimento(requerimentos,
-                new ObterRestricaoDeInteressado(atual));
-        ObterPermissoesDoUsuario permissoes = new ObterPermissoesDoUsuario(atual);
-        listar = new ListarDocumentos(acesso, documentos, permissoes, conversao);
-        selecionar = new SelecionarDocumentosParaDossie(acesso, listar, permissoes, conversao);
+        PoliticaDeAcesso politica = new PoliticaDeAcesso(atual);
+        VerificarAcessoAoRequerimento acesso = new VerificarAcessoAoRequerimento(requerimentos, politica);
+        listar = new ListarDocumentos(acesso, documentos, politica, conversao);
+        selecionar = new SelecionarDocumentosParaDossie(acesso, listar, politica, conversao);
         // Os testes da S2.2 descrevem o comportamento só-PDF; os da S3 ligam a conversão.
         when(conversao.habilitada()).thenReturn(false);
 

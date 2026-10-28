@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
 import br.gov.mt.sema.vistas.acesso.application.UsuarioAtual;
 import br.gov.mt.sema.vistas.acesso.domain.Perfil;
 import br.gov.mt.sema.vistas.acesso.domain.Usuario;
@@ -111,7 +112,7 @@ class CasosDeUsoDossieTest {
         relogio = new RelogioControlado();
         montador = new Montador();
         GeradorDeDossie gerador = new GeradorDeDossie(arquivos, Fakes.preparador(new Validador()), montador, parametros, d -> Long.MAX_VALUE, relogio);
-        localizar = new LocalizarPedido(repositorio, atual, parametros, relogio);
+        localizar = new LocalizarPedido(repositorio, new PoliticaDeAcesso(atual), parametros, relogio);
         criar = new CriarDossie(requerimentos, selecao, atual, repositorio, fila, gerador, parametros, relogio);
         tickets = new Tickets();
         obterArquivo = new ObterArquivoDoDossie(localizar, parametros, tickets, atual, relogio);

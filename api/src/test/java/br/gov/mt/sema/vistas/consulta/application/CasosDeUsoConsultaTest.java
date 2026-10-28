@@ -8,8 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import br.gov.mt.sema.vistas.acesso.application.ObterPermissoesDoUsuario;
-import br.gov.mt.sema.vistas.acesso.application.ObterRestricaoDeInteressado;
+import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
 import br.gov.mt.sema.vistas.acesso.application.UsuarioAtual;
 import br.gov.mt.sema.vistas.acesso.domain.Perfil;
 import br.gov.mt.sema.vistas.acesso.domain.Usuario;
@@ -119,9 +118,9 @@ class CasosDeUsoConsultaTest {
                 return "t";
             }
         };
-        ObterRestricaoDeInteressado restricao = new ObterRestricaoDeInteressado(atual);
-        buscar = new BuscarRequerimentos(siga, restricao);
-        obter = new ObterRequerimento(siga, siga, siga, restricao, new ObterPermissoesDoUsuario(atual));
+        PoliticaDeAcesso politica = new PoliticaDeAcesso(atual);
+        buscar = new BuscarRequerimentos(siga, politica);
+        obter = new ObterRequerimento(siga, siga, siga, politica);
     }
 
     private static PedidoDeBusca porNumero(String tipo, String numero) {

@@ -665,7 +665,7 @@ ${mata(700,26,'#14300a',1)}${mata(760,22,'#0f2407',2.6)}
 function render(){
   const navAt=ui.view==='detalhe'?'consulta':ui.view==='auditoria'?'aud-'+ui.audTipo:ui.view;
   document.querySelectorAll('.nav-item[data-nav]').forEach(b=>b.classList.toggle('active',b.dataset.nav===navAt));
-  document.querySelectorAll('[data-lock]').forEach(l=>l.classList.toggle('hidden',!ui.user||pode(l.dataset.lock==='config'?'config':'aud-'+l.dataset.lock)));
+  document.querySelectorAll('[data-lock]').forEach(l=>l.closest('.nav-item').classList.toggle('hidden',!!ui.user&&!pode(l.dataset.lock==='config'?'config':'aud-'+l.dataset.lock)));
   const n=ui.jobs.length,jc=$('#jobs-count');jc.textContent=n;jc.classList.toggle('hidden',!n);
   const crumbs={consulta:'Consulta',detalhe:ui.alvo?`${ident(REQS[ui.alvo.chave]).rot} ${ident(REQS[ui.alvo.chave]).num}`:'',dossies:'Dossiês gerados',auditoria:ui.audTipo==='doc'?'Auditoria / <strong>Documentos':'Auditoria / <strong>Acessos',config:'Configurações'};
   $('#crumbs').innerHTML=ui.view==='detalhe'?`Vistas do Processo / Consulta / <strong>${e(crumbs.detalhe)}</strong>`:(ui.view==='auditoria'?`Vistas do Processo / ${crumbs.auditoria}</strong>`:`Vistas do Processo / <strong>${crumbs[ui.view]||''}</strong>`);

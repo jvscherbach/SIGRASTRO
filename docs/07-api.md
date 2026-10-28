@@ -267,6 +267,37 @@ Falha na montagem (rara: os documentos já foram validados) também deixa o pedi
 
 Para continuar, o cliente usa `POST /dossies/{id}/continuacao` (acima), **não** um novo `POST /dossies`: com credencial nova (token por arquivo, docs/05), `TENTAR_NOVAMENTE` obtém só o que falta. **Auditoria** é da S5: nenhum evento é registrado na S2.
 
+## Matriz de acesso por endpoint
+
+**S4, bloco 1 (RNF10).** Inventário de **todos** os mapeamentos dos controllers, com quem pode chamar e qual regra se aplica. Todas as decisões de perfil, de vínculo com o interessado (RN07), de sigilo (RF20) e de dono do pedido saem de **um lugar**: `acesso.application.PoliticaDeAcesso` (D60). Os casos de uso só perguntam à política; os controllers não decidem acesso (`ArchitectureTest`). Os `errorCode` não mudaram.
+
+Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **Ad** = Administrador (`ADMIN`). "RN07" = Operador só como interessado: requerimento de outro interessado dá 403 `NAO_INTERESSADO`, requerimento inexistente dá 404 `NAO_ENCONTRADO`. "Sigilo" = documento sigiloso para quem não o acessa dá 403 `DOCUMENTO_SIGILOSO` (na lista, aparece mascarado). "Dono" = pedido de dossiê de outro usuário dá **404** para quem não o acessa (não revela que existe).
+
+| Método e rota | Autenticação | Op | Ge | Ad | RN07 | Sigilo | Dono do pedido | Onde a política decide |
+|---|---|:---:|:---:|:---:|---|---|---|---|
+| `POST /auth/login` | pública | ✓ | ✓ | ✓ | — | — | — | — |
+| `GET /auth/me` | sessão | ✓ | ✓ | ✓ | — | — | — | só o próprio usuário |
+| `POST /auth/logout` | sessão | ✓ | ✓ | ✓ | — | — | — | só a própria sessão |
+| `GET /busca` (por número de requerimento) | sessão | ✓ | ✓ | ✓ | 403/404 | — | — | `exigirAcessoAoRequerimento` |
+| `GET /busca` (por número de processo, 1:N) | sessão | ✓ | ✓ | ✓ | filtro na consulta; nenhum dele e o número existe: 403; não existe: 404 | — | — | `restricaoDoUsuarioAtual` |
+| `GET /busca` (por CPF/CNPJ e/ou nome) | sessão | ✓ | ✓ | ✓ | filtro na consulta (total e paginação já filtrados); Operador sem CPF/CNPJ: página vazia | — | — | `restricaoDoUsuarioAtual` |
+| `GET /requerimentos/{id}` | sessão | ✓ | ✓ | ✓ | 403/404 | — | — | `exigirAcessoAoRequerimento`; responsável pela tarefa só para Ge e Ad (`podeVerResponsavelTarefa`, RN12) |
+| `GET /requerimentos/{id}/documentos` | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler os documentos) | listados para todos; para o Op, mascarados e bloqueados | — | `exigirAcessoAoRequerimento`, `podeAcessarDocumento`, `mascararTitulo` |
+| `GET /documentos/{origem}/{id}/conteudo?requerimento=` | sessão | ✓ | ✓ | ✓ | 403/404 do requerimento; origem e id fora do requerimento: 404 | 403 | — | `exigirAcessoAoRequerimento`, `exigirAcessoAoDocumento` (a cada requisição, mesmo com cache) |
+| `POST /dossies` | sessão | ✓ | ✓ | ✓ | 403/404 | 403 se a seleção tiver sigiloso; documento fora do requerimento: 400 `PARAMETRO_INVALIDO` (é corpo da requisição) | o pedido nasce com o login de quem criou | `exigirAcessoAoRequerimento`, `exigirAcessoAoDocumento`; "Documentos não incluídos" com `mascararTitulo` |
+| `GET /dossies/{id}` | sessão | só os seus | todos | todos | o Op perde o pedido se deixar de ser o interessado gravado nele | — | 404 | `podeAcessarPedido` |
+| `GET /dossies/{id}/arquivo` (com sessão) | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` |
+| `POST /dossies/{id}/arquivo/ticket` | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` (o ticket fica preso ao pedido e ao usuário) |
+| `GET /dossies/{id}/arquivo?ticket=` | **ticket** de uso único (sem sessão) | quem recebeu o ticket | idem | idem | conferido ao emitir | — | conferido ao emitir | ticket inválido, usado, vencido, de outro pedido ou com sessão de outro usuário: 403 `TICKET_INVALIDO` |
+| `POST /dossies/{id}/continuacao` | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` |
+| `DELETE /dossies/{id}` | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` |
+
+Fora de `/api`: `GET /actuator/health` (pública, só a situação) e a documentação OpenAPI (`/v3/api-docs`, `/swagger-ui`), desligada por padrão (`OPENAPI_ENABLED=false`) e ligada só no perfil `local`. Toda rota de `/api/**` sem o token responde 401 `NAO_AUTENTICADO`, exceto o login e o download por ticket.
+
+As rotas de **Auditoria** e **Configurações** abaixo ainda **não existem** no código (S5). Quando forem criadas, entram nesta matriz e no `MatrizDeAcessoTest` (bloco 9 da S4), que falha para endpoint sem linha.
+
+**Achados do inventário (bloco 1):** nenhuma rota sem verificação. Dois reforços, registrados em D60: (1) pedido de **outro usuário** passa a exigir explicitamente perfil que acessa qualquer requerimento **e** qualquer sigiloso (antes bastava "não ser restrito ao interessado", o que hoje dá no mesmo, mas não valeria para um perfil futuro restrito ou sem sigilo); (2) o **dono** Operador só acessa o pedido enquanto o interessado gravado no pedido continuar sendo o dele (antes bastava o login).
+
 ## Auditoria
 
 `{tipo}` é `documentos` (perfil `OPERADOR_SIGILO`) ou `acessos` (perfil `ADMIN`). Pedido de um tipo por perfil não autorizado retorna 403.

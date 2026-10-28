@@ -2,7 +2,7 @@ package br.gov.mt.sema.vistas.documento.application;
 
 import java.util.List;
 
-import br.gov.mt.sema.vistas.acesso.application.ObterPermissoesDoUsuario;
+import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
 import br.gov.mt.sema.vistas.consulta.application.VerificarAcessoAoRequerimento;
 import br.gov.mt.sema.vistas.documento.application.port.DocumentosDoRequerimento;
 import br.gov.mt.sema.vistas.documento.application.port.ParametrosDaConversao;
@@ -20,23 +20,23 @@ public class ListarDocumentos {
 
     private final VerificarAcessoAoRequerimento acesso;
     private final DocumentosDoRequerimento documentos;
-    private final ObterPermissoesDoUsuario permissoes;
+    private final PoliticaDeAcesso politica;
     private final ParametrosDaConversao conversao;
 
     public ListarDocumentos(VerificarAcessoAoRequerimento acesso, DocumentosDoRequerimento documentos,
-            ObterPermissoesDoUsuario permissoes, ParametrosDaConversao conversao) {
+            PoliticaDeAcesso politica, ParametrosDaConversao conversao) {
         this.acesso = acesso;
         this.documentos = documentos;
-        this.permissoes = permissoes;
+        this.politica = politica;
         this.conversao = conversao;
     }
 
     public DocumentosListados executar(long idRequerimento) {
         acesso.executar(idRequerimento);
-        boolean podeVerSigilosos = permissoes.podeVerSigilosos();
+        boolean podeVerSigilosos = politica.podeVerDocumentoSigiloso();
         boolean converte = conversao.habilitada();
         return DocumentosListados.de(listaDoRequerimento(idRequerimento).stream()
-                .map(d -> new DocumentoListado(d, !d.sigiloso() || podeVerSigilosos,
+                .map(d -> new DocumentoListado(d, politica.podeAcessarDocumento(d.sigiloso()),
                         d.bloqueio(podeVerSigilosos, converte), d.selecionavelPorPadrao(podeVerSigilosos, converte)))
                 .toList());
     }

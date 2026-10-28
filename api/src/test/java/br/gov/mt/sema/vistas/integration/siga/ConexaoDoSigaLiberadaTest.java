@@ -14,8 +14,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import br.gov.mt.sema.vistas.acesso.application.ObterPermissoesDoUsuario;
-import br.gov.mt.sema.vistas.acesso.application.ObterRestricaoDeInteressado;
+import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
 import br.gov.mt.sema.vistas.acesso.application.UsuarioAtual;
 import br.gov.mt.sema.vistas.acesso.domain.Perfil;
 import br.gov.mt.sema.vistas.acesso.domain.Usuario;
@@ -82,14 +81,13 @@ class ConexaoDoSigaLiberadaTest {
             }
         };
         RequerimentosDoSigaJdbc requerimentos = new RequerimentosDoSigaJdbc(jdbc);
-        ObterRestricaoDeInteressado restricao = new ObterRestricaoDeInteressado(atual);
-        ObterPermissoesDoUsuario permissoes = new ObterPermissoesDoUsuario(atual);
+        PoliticaDeAcesso politica = new PoliticaDeAcesso(atual);
         ObterRequerimento obterRequerimento = new ObterRequerimento(requerimentos,
-                new ObjetoEPrioridadeDoSigaJdbc(jdbc), new TarefaAtualDoSigaJdbc(jdbc), restricao, permissoes);
-        VerificarAcessoAoRequerimento acesso = new VerificarAcessoAoRequerimento(requerimentos, restricao);
+                new ObjetoEPrioridadeDoSigaJdbc(jdbc), new TarefaAtualDoSigaJdbc(jdbc), politica);
+        VerificarAcessoAoRequerimento acesso = new VerificarAcessoAoRequerimento(requerimentos, politica);
         DocumentosDoSigaJdbc documentos = new DocumentosDoSigaJdbc(jdbc, EnumSet.allOf(OrigemDocumento.class));
         SelecionarDocumentosParaDossie selecao = new SelecionarDocumentosParaDossie(acesso,
-                new ListarDocumentos(acesso, documentos, permissoes, ParametrosDeConversaoDeTeste.ligada()), permissoes,
+                new ListarDocumentos(acesso, documentos, politica, ParametrosDeConversaoDeTeste.ligada()), politica,
                 ParametrosDeConversaoDeTeste.ligada());
 
         Map<String, Integer> conexoesAtivasVistasNoDownload = new ConcurrentHashMap<>();
