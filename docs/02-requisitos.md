@@ -16,7 +16,7 @@
 
 | ID | Requisito |
 |---|---|
-| RF06 | Listar todos os documentos do requerimento (a chave é o requerimento, D31), das seis origens da Vista do SIGA (S2.1; SCORP na S4), com os totais (total, vigentes, sem efeito, não PDF, tipo não informado, indisponíveis, sigilosos). A chave de um documento é origem + id. |
+| RF06 | Listar todos os documentos do requerimento (a chave é o requerimento, D31), das seis origens da Vista do SIGA (S2.1) e dos documentos pessoais do SCORP (S4, "Pessoal"; falha do SCORP vira aviso e não impede a lista), com os totais (total, vigentes, sem efeito, não PDF, tipo não informado, indisponíveis, sigilosos). A chave de um documento é origem + id. |
 | RF07 | Para cada documento, exibir: identificador, nome, origem, data e sigilo. A situação (vigente, substituído, indisponível) não é exibida como coluna, só nos totais; documentos indisponíveis ficam bloqueados para seleção, com indicação no nome do arquivo. |
 | RF08 | Permitir ordenar a lista por documento, origem e data, e filtrar por texto e origem. |
 | RF09 | Visualizar qualquer documento em modal. Documentos não-PDF são exibidos já convertidos, quando houver conversão. |

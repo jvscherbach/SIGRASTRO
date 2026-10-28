@@ -87,7 +87,8 @@ class ConexaoDoSigaLiberadaTest {
         VerificarAcessoAoRequerimento acesso = new VerificarAcessoAoRequerimento(requerimentos, politica);
         DocumentosDoSigaJdbc documentos = new DocumentosDoSigaJdbc(jdbc, EnumSet.allOf(OrigemDocumento.class));
         SelecionarDocumentosParaDossie selecao = new SelecionarDocumentosParaDossie(acesso,
-                new ListarDocumentos(acesso, documentos, politica, ParametrosDeConversaoDeTeste.ligada()), politica,
+                new ListarDocumentos(acesso, documentos, politica, ParametrosDeConversaoDeTeste.ligada(),
+                        br.gov.mt.sema.vistas.testsupport.ScorpDeTeste.desligado()), politica,
                 ParametrosDeConversaoDeTeste.ligada());
 
         Map<String, Integer> conexoesAtivasVistasNoDownload = new ConcurrentHashMap<>();

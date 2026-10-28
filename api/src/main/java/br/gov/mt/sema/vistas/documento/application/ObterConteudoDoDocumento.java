@@ -20,6 +20,7 @@ import br.gov.mt.sema.vistas.documento.application.port.ParametrosDaConversao;
 import br.gov.mt.sema.vistas.documento.application.port.ParametrosDaVisualizacao;
 import br.gov.mt.sema.vistas.documento.domain.DetectorDeTipoReal;
 import br.gov.mt.sema.vistas.documento.domain.Documento;
+import br.gov.mt.sema.vistas.documento.domain.OrigemDocumento;
 import br.gov.mt.sema.vistas.documento.domain.SituacaoDocumento;
 import br.gov.mt.sema.vistas.documento.domain.TipoDetectado;
 import br.gov.mt.sema.vistas.documento.domain.TipoReal;
@@ -99,11 +100,14 @@ public class ObterConteudoDoDocumento {
     private Documento documentoAcessivel(long idRequerimento, String origem, String id) {
         acesso.executar(idRequerimento);
         String idLimpo = id == null ? "" : id.trim();
-        List<Documento> lista = listagem.listaDoRequerimento(idRequerimento);
-        Documento documento = lista.stream()
+        ListarDocumentos.ListaDoRequerimento consolidada = listagem.listaComAvisos(idRequerimento);
+        Documento documento = consolidada.documentos().stream()
                 .filter(d -> d.origem().name().equals(origem) && d.id().equals(idLimpo))
                 .findFirst()
-                .orElseThrow(() -> new RecursoNaoEncontradoException(NAO_ENCONTRADO));
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        OrigemDocumento.SCORP.name().equals(origem) && !consolidada.avisos().isEmpty()
+                                ? NAO_ENCONTRADO + " Os documentos pessoais (SCORP) não puderam ser consultados agora."
+                                : NAO_ENCONTRADO));
         politica.exigirAcessoAoDocumento(documento.sigiloso());
         if (documento.situacao() == SituacaoDocumento.INDISPONIVEL) {
             throw new RecursoNaoEncontradoException("O arquivo deste documento não está disponível no repositório.");

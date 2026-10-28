@@ -17,7 +17,7 @@ public record GeometriaResponse(String origem, String id, long idRequerimento, S
     public static GeometriaResponse de(DocumentoListado item) {
         Documento d = item.documento();
         return new GeometriaResponse(d.origem().name(), d.id(), d.idRequerimento(), item.titulo(), item.nomeArquivo(),
-                d.origem().descricao(), d.data(), d.situacao().name(), d.sigiloso(), item.extensao(),
+                d.descricaoDaOrigem(), d.data(), d.situacao().name(), d.sigiloso(), item.extensao(),
                 d.tipoArquivo().name(), null);
     }
 }

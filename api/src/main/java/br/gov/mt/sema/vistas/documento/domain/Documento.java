@@ -1,7 +1,11 @@
 package br.gov.mt.sema.vistas.documento.domain;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.HexFormat;
 
 /**
  * Documento do requerimento. O {@code id} é texto para acomodar origens futuras (SCORP). A chave do arquivo no
@@ -30,9 +34,16 @@ public final class Documento {
     private final LocalDateTime data;
     private final SituacaoDocumento situacao;
     private final boolean sigiloso;
+    private final String complementoDaOrigem;
 
     private Documento(OrigemDocumento origem, String id, long idRequerimento, String chave, String titulo,
             String nomeArquivo, LocalDateTime data, SituacaoDocumento situacao, boolean sigiloso) {
+        this(origem, id, idRequerimento, chave, titulo, nomeArquivo, data, situacao, sigiloso, null);
+    }
+
+    private Documento(OrigemDocumento origem, String id, long idRequerimento, String chave, String titulo,
+            String nomeArquivo, LocalDateTime data, SituacaoDocumento situacao, boolean sigiloso,
+            String complementoDaOrigem) {
         this.origem = origem;
         this.id = id;
         this.idRequerimento = idRequerimento;
@@ -45,6 +56,7 @@ public final class Documento {
         this.data = data;
         this.situacao = situacao;
         this.sigiloso = sigiloso;
+        this.complementoDaOrigem = complementoDaOrigem;
     }
 
     /**
@@ -60,8 +72,38 @@ public final class Documento {
         return new Documento(origem, id, idRequerimento, chave, titulo, nomeArquivo, data, situacao, sigiloso);
     }
 
+    /**
+     * Documento pessoal do SCORP (S4). O {@code id} é estável e não expõe a chave: os 16 primeiros caracteres
+     * hexadecimais do SHA-256 de {@code idCorporativo|chave} (sem chave válida, entram também descrição, nome do arquivo
+     * e data, para não colidir). Título = descrição (ou nome do arquivo); data = {@code dataInicio}; vigência pela
+     * {@code dataFim} e pela chave (RN01). O SCORP não informa sigilo: vale o padrão configurado (P30).
+     */
+    public static Documento pessoal(String idCorporativo, PapelDaPessoa papel, long idRequerimento, String chave,
+            String descricao, String nomeArquivo, LocalDateTime dataInicio, LocalDateTime dataFim, boolean sigiloso) {
+        String base = idCorporativo + "|" + (chave == null ? "" : chave.trim());
+        if (!SituacaoDocumento.chaveValida(chave)) {
+            base += "|" + descricao + "|" + nomeArquivo + "|" + dataInicio;
+        }
+        return new Documento(OrigemDocumento.SCORP, resumo(base), idRequerimento, chave, descricao, nomeArquivo,
+                dataInicio, SituacaoDocumento.calcular(chave, dataFim), sigiloso, papel.descricao());
+    }
+
+    private static String resumo(String texto) {
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256").digest(texto.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash, 0, 8);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     public OrigemDocumento origem() {
         return origem;
+    }
+
+    /** Descrição da origem para a lista: "Pessoal · Interessado" no SCORP; nas demais, a da origem. */
+    public String descricaoDaOrigem() {
+        return complementoDaOrigem == null ? origem.descricao() : origem.descricao() + " · " + complementoDaOrigem;
     }
 
     public String id() {

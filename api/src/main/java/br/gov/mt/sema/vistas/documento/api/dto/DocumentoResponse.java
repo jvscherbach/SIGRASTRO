@@ -13,7 +13,7 @@ public record DocumentoResponse(String origem, String id, long idRequerimento, S
     public static DocumentoResponse de(DocumentoListado item) {
         Documento d = item.documento();
         return new DocumentoResponse(d.origem().name(), d.id(), d.idRequerimento(), item.titulo(), item.nomeArquivo(),
-                d.origem().descricao(), d.data(), d.situacao().name(), d.sigiloso(), item.acessivel(), item.extensao(),
+                d.descricaoDaOrigem(), d.data(), d.situacao().name(), d.sigiloso(), item.acessivel(), item.extensao(),
                 item.acessivel() ? d.tipoArquivo().name() : null, item.selecionavelPorPadrao(),
                 item.bloqueio() == null ? null : item.bloqueio().name());
     }

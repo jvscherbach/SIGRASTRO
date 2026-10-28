@@ -124,7 +124,7 @@ Para o **Operador**, a mesma resposta vem **sem** `tarefaAtual.responsavel` (o c
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/requerimentos/{id}/documentos` | Documentos **do requerimento** (a chave é o requerimento, D31), das seis origens da Vista (S2.1), deduplicados (RN05), sem compactados (RN11), em ordem cronológica (RN03); as geometrias vêm à parte, em `geometrias` (RN10, S4). Aplica a RN07 e o sigilo (D36): Operador de outro interessado, 403 `NAO_INTERESSADO`; requerimento inexistente, 404 `NAO_ENCONTRADO`; SIGA fora do ar, 503 `SIGA_INDISPONIVEL`. |
+| `GET` | `/requerimentos/{id}/documentos` | Documentos **do requerimento** (a chave é o requerimento, D31), das seis origens da Vista (S2.1), deduplicados (RN05), sem compactados (RN11), em ordem cronológica (RN03); as geometrias vêm à parte, em `geometrias` (RN10, S4). Desde a S4 inclui os documentos pessoais do SCORP (origem `SCORP`, "Pessoal"); falha do SCORP vira `avisos`, nunca erro. Aplica a RN07 e o sigilo (D36): Operador de outro interessado, 403 `NAO_INTERESSADO`; requerimento inexistente, 404 `NAO_ENCONTRADO`; SIGA fora do ar, 503 `SIGA_INDISPONIVEL`. |
 | `GET` | `/requerimentos/{id}/geometrias/arquivo` | **S4.** "Baixar geometrias": ZIP com todas as geometrias vigentes que o usuário acessa, tudo ou nada. Detalhes em "Geometrias", abaixo. |
 | `GET` | `/documentos/{origem}/{id}/conteudo?requerimento={idRequerimento}&formato=pdf\|original` | **S3.** Conteúdo do documento para o modal (binário, em streaming). `formato=pdf` (padrão) converte quando necessário. Acesso conferido a cada requisição, mesmo com cache (D55). Detalhes abaixo. |
 
@@ -151,6 +151,7 @@ Resposta de `GET /requerimentos/{id}/documentos`:
     }
   ],
   "totais": { "total": 55, "vigentes": 48, "semEfeito": 5, "naoPdf": 6, "tipoNaoInformado": 1, "indisponiveis": 2, "sigilosos": 3, "convertiveis": 5, "geometrias": 1, "geometriasOmitidas": 0 },
+  "avisos": [],
   "geometrias": [
     {
       "origem": "DOCUMENTO_PROCESSO",
@@ -170,7 +171,8 @@ Resposta de `GET /requerimentos/{id}/documentos`:
 }
 ```
 
-- `id` é **texto** em todo o contrato (`"804328"`), para acomodar o SCORP. `origem` é o código (`DOCUMENTO_PROCESSO`, `DOCUMENTO_REQUERIMENTO`, `COMPLEMENTACAO`, `IMOVEL`, `REPRESENTANTE_LEGAL`, `RESPONSAVEL_TECNICO`) e `origemDescricao`, o texto da tela.
+- `id` é **texto** em todo o contrato (`"804328"`). `origem` é o código (`DOCUMENTO_PROCESSO`, `DOCUMENTO_REQUERIMENTO`, `COMPLEMENTACAO`, `IMOVEL`, `REPRESENTANTE_LEGAL`, `RESPONSAVEL_TECNICO` e, desde a S4, `SCORP`) e `origemDescricao`, o texto da tela. No `SCORP`, `id` são 16 caracteres hexadecimais estáveis (resumo que não expõe a chave) e `origemDescricao` traz o papel: "Pessoal · Interessado", "Pessoal · Representante legal" ou "Pessoal · Responsável técnico" (docs/05).
+- `avisos` (S4): `[{ "codigo": "SCORP_INDISPONIVEL", "mensagem": "Os documentos pessoais (SCORP) não puderam ser consultados agora. Os demais documentos foram listados." }]`, ou `SCORP_PARCIAL` quando só parte das pessoas respondeu. No máximo um aviso do SCORP, sem detalhe técnico. Lista vazia quando está tudo certo ou o SCORP está desligado (`SCORP_API_URL` vazia). O aviso não muda os totais nem bloqueia a seleção.
 - `situacao`: `VIGENTE`, `SUBSTITUIDO` ou `INDISPONIVEL` (RN01). Não é exibida como coluna.
 - `tipoArquivo`: `PDF`, `PLANILHA`, `TEXTO`, `IMAGEM`, `GEOMETRIA`, `COMPACTADO` ou `DESCONHECIDO` (pela extensão do nome do arquivo; sem extensão ou extensão não reconhecida é `DESCONHECIDO`).
 - `bloqueio` (por que o documento não pode ser selecionado): `null`, `NAO_PDF` (extensão conhecida que não é PDF e não é convertível; com `CONVERSAO_HABILITADA=false` ou conversor indisponível, todo não PDF; `DESCONHECIDO` não recebe `NAO_PDF`; planilha, texto e imagem convertíveis só recebem `NAO_PDF` com a conversão desligada, S3), `INDISPONIVEL` ou `SIGILOSO` (sem perfil). Precedência: indisponível, sigiloso, não PDF.
@@ -314,7 +316,7 @@ Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **
 | `GET /busca` (por número de processo, 1:N) | sessão | ✓ | ✓ | ✓ | filtro na consulta; nenhum dele e o número existe: 403; não existe: 404 | — | — | `restricaoDoUsuarioAtual` |
 | `GET /busca` (por CPF/CNPJ e/ou nome) | sessão | ✓ | ✓ | ✓ | filtro na consulta (total e paginação já filtrados); Operador sem CPF/CNPJ: página vazia | — | — | `restricaoDoUsuarioAtual` |
 | `GET /requerimentos/{id}` | sessão | ✓ | ✓ | ✓ | 403/404 | — | — | `exigirAcessoAoRequerimento`; responsável pela tarefa só para Ge e Ad (`podeVerResponsavelTarefa`, RN12) |
-| `GET /requerimentos/{id}/documentos` | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler os documentos) | listados para todos; para o Op, mascarados e bloqueados; geometria sigilosa não aparece para o Op (só `totais.geometriasOmitidas`) | — | `exigirAcessoAoRequerimento`, `podeAcessarDocumento`, `mascararTitulo` |
+| `GET /requerimentos/{id}/documentos` | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler os documentos e de chamar o SCORP) | listados para todos; para o Op, mascarados e bloqueados; geometria sigilosa não aparece para o Op (só `totais.geometriasOmitidas`) | — | `exigirAcessoAoRequerimento`, `podeAcessarDocumento`, `mascararTitulo` |
 | `GET /documentos/{origem}/{id}/conteudo?requerimento=` | sessão | ✓ | ✓ | ✓ | 403/404 do requerimento; origem e id fora do requerimento: 404 | 403 | — | `exigirAcessoAoRequerimento`, `exigirAcessoAoDocumento` (a cada requisição, mesmo com cache) |
 | `GET /requerimentos/{id}/geometrias/arquivo` (S4) | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler os documentos) | sigilosa fica fora do ZIP do Op; só sigilosas: o mesmo 404 de "sem geometrias" | — | `exigirAcessoAoRequerimento`, `podeAcessarDocumento` |
 | `POST /dossies` | sessão | ✓ | ✓ | ✓ | 403/404 | 403 se a seleção tiver sigiloso; documento fora do requerimento: 400 `PARAMETRO_INVALIDO` (é corpo da requisição) | o pedido nasce com o login de quem criou | `exigirAcessoAoRequerimento`, `exigirAcessoAoDocumento`; "Documentos não incluídos" com `mascararTitulo` |

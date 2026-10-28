@@ -90,6 +90,9 @@ class SigaFumacaTest {
     void cadaOrigemDeDocumentoExecutaORealSqlComRequerimentoInexistente() {
         List<String> falhas = new ArrayList<>();
         for (OrigemDocumento origem : OrigemDocumento.values()) {
+            if (!origem.doSiga()) {
+                continue;
+            }
             try {
                 // -1 valida tabela, coluna e junção sem depender de dado; falha vira exceção.
                 new DocumentosDoSigaJdbc(jdbc, EnumSet.of(origem)).listar(-1);
@@ -112,6 +115,9 @@ class SigaFumacaTest {
         List<Documento> lista = new DocumentosDoSigaJdbc(jdbc, EnumSet.allOf(OrigemDocumento.class)).listar(id);
 
         for (OrigemDocumento origem : OrigemDocumento.values()) {
+            if (!origem.doSiga()) {
+                continue;
+            }
             System.out.println("[fumaca] " + origem + ": " + lista.stream().filter(d -> d.origem() == origem).count());
         }
         for (Documento d : lista) {

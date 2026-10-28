@@ -68,7 +68,8 @@ class CasosDeUsoDocumentoTest {
         };
         PoliticaDeAcesso politica = new PoliticaDeAcesso(atual);
         VerificarAcessoAoRequerimento acesso = new VerificarAcessoAoRequerimento(requerimentos, politica);
-        listar = new ListarDocumentos(acesso, documentos, politica, conversao);
+        listar = new ListarDocumentos(acesso, documentos, politica, conversao,
+                br.gov.mt.sema.vistas.testsupport.ScorpDeTeste.desligado());
         selecionar = new SelecionarDocumentosParaDossie(acesso, listar, politica, conversao);
         // Os testes da S2.2 descrevem o comportamento só-PDF; os da S3 ligam a conversão.
         when(conversao.habilitada()).thenReturn(false);

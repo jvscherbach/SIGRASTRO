@@ -6,10 +6,11 @@ import br.gov.mt.sema.vistas.documento.domain.SituacaoDocumento;
 
 /**
  * Lista do requerimento. {@code geometrias} (RN10, S4) fica fora de {@code itens} e de {@code totais}: só as que o perfil
- * acessa; {@code geometriasOmitidas} conta as sigilosas que o Operador não vê (sem nome nem data).
+ * acessa; {@code geometriasOmitidas} conta as sigilosas que o Operador não vê (sem nome nem data). {@code avisos} (S4):
+ * o que não impediu a listagem, como o SCORP fora do ar.
  */
 public record DocumentosListados(List<DocumentoListado> itens, Totais totais, List<DocumentoListado> geometrias,
-        int geometriasOmitidas) {
+        int geometriasOmitidas, List<AvisoDaLista> avisos) {
 
     /**
      * {@code total = vigentes + semEfeito + indisponiveis} (situação, excludentes). {@code naoPdf},
@@ -21,7 +22,8 @@ public record DocumentosListados(List<DocumentoListado> itens, Totais totais, Li
             int indisponiveis, int sigilosos, int convertiveis) {
     }
 
-    static DocumentosListados de(List<DocumentoListado> itens, List<DocumentoListado> geometrias, int geometriasOmitidas) {
+    static DocumentosListados de(List<DocumentoListado> itens, List<DocumentoListado> geometrias, int geometriasOmitidas,
+            List<AvisoDaLista> avisos) {
         int vigentes = 0;
         int semEfeito = 0;
         int naoPdf = 0;
@@ -52,6 +54,7 @@ public record DocumentosListados(List<DocumentoListado> itens, Totais totais, Li
             }
         }
         return new DocumentosListados(List.copyOf(itens), new Totais(itens.size(), vigentes, semEfeito, naoPdf,
-                tipoNaoInformado, indisponiveis, sigilosos, convertiveis), List.copyOf(geometrias), geometriasOmitidas);
+                tipoNaoInformado, indisponiveis, sigilosos, convertiveis), List.copyOf(geometrias), geometriasOmitidas,
+                List.copyOf(avisos));
     }
 }

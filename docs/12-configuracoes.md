@@ -88,6 +88,8 @@ Variáveis de ambiente do protótipo (todas opcionais; `.env.local.example`): `C
 | Conversões do modal em paralelo | 2 |
 | Conversões do modal à espera (fila cheia: 429) | 4 |
 
+**SCORP (S4):** `SCORP_API_URL` (vazia = desligado), `SCORP_API_TOKEN_FILE`, `SCORP_API_AUTH_MODE` e `SCORP_API_COOKIE_NAME` (opcionais; sem elas, valem as da API de arquivos), `SCORP_TIMEOUT_SEGUNDOS` (15), `SCORP_CHAMADAS_SIMULTANEAS` (4) e `SCORP_SIGILO_PADRAO` (`false`; `true` trata todos os documentos pessoais como sigilosos; decisão pendente, P30). A origem também pode ser desligada por `vistas.documentos.origens.scorp=false`. Detalhes em docs/05.
+
 **Geometrias (S4):** `GEOMETRIAS_MAX_MB` (500; soma dos arquivos de um ZIP) e `GEOMETRIAS_MAX_ARQUIVOS` (200); acima, 413 `GEOMETRIAS_GRANDES_DEMAIS`. Usam `DOSSIE_ESPACO_MINIMO_MB`, os tempos de download do dossiê e a pasta `VISTAS_DOSSIE_DIRETORIO/geometrias` (cada download apaga a sua; o pico de espaço é perto de uma vez a soma dos arquivos).
 
 Variáveis de ambiente do protótipo: `VISUALIZACAO_TTL_MINUTOS` (10), `VISUALIZACAO_CACHE_MAX_MB` (500), `VISUALIZACAO_CONVERSOES_SIMULTANEAS` (2) e `VISUALIZACAO_FILA_CONVERSOES` (4). O cache fica em `VISTAS_DOSSIE_DIRETORIO/visualizacao`. A conversão usa os parâmetros de Conversão acima, os mesmos do dossiê; as conversões do modal disputam as mesmas instâncias do LibreOffice que a geração (S3, bloco 6).
