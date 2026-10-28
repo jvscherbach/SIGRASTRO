@@ -5,7 +5,7 @@ import { Observable, firstValueFrom, isObservable, of } from 'rxjs';
 
 import { ToastService } from '../shared/toast.service';
 import { AuthService } from './auth.service';
-import { autenticadoGuard, perfilGuard, visitanteGuard } from './guards';
+import { autenticadoGuard, permissaoGuard, visitanteGuard } from './guards';
 import { Perfil, Usuario } from './usuario.model';
 
 function usuario(perfil: Perfil): Usuario {
@@ -15,7 +15,13 @@ function usuario(perfil: Perfil): Usuario {
     perfil,
     perfilDescricao: perfil,
     cpfCnpj: null,
-    permissoes: { verSigilosos: false, verAuditoriaAcessos: false, acessarConfiguracoes: false, restritoAoInteressado: false, verResponsavelTarefa: false },
+    permissoes: {
+      verSigilosos: perfil !== 'OPERADOR',
+      verAuditoriaAcessos: perfil === 'ADMIN',
+      acessarConfiguracoes: perfil === 'ADMIN',
+      restritoAoInteressado: perfil === 'OPERADOR',
+      verResponsavelTarefa: perfil !== 'OPERADOR',
+    },
   };
 }
 
@@ -81,23 +87,44 @@ describe('guards', () => {
     });
   });
 
-  describe('perfilGuard', () => {
-    it('libera o perfil permitido', async () => {
+  describe('permissaoGuard (RN08)', () => {
+    const configuracoes = { permissao: 'acessarConfiguracoes' };
+    const acessos = { permissao: 'verAuditoriaAcessos' };
+
+    it('libera o Administrador nas telas restritas', async () => {
       atual.set(usuario('ADMIN'));
-      expect(await executar(perfilGuard, { perfis: ['ADMIN'] })).toBe(true);
+      expect(await executar(permissaoGuard, configuracoes)).toBe(true);
+      expect(await executar(permissaoGuard, acessos)).toBe(true);
     });
 
-    it('bloqueia perfil sem permissão, avisa e volta à consulta', async () => {
-      atual.set(usuario('OPERADOR_SIGILO'));
+    for (const perfil of ['OPERADOR', 'OPERADOR_SIGILO'] as Perfil[]) {
+      it(`bloqueia ${perfil}, avisa uma vez e volta à consulta, sem chamar o servidor`, async () => {
+        atual.set(usuario(perfil));
+        restaurar = vi.fn(() => of(true));
 
-      const resultado = await executar(perfilGuard, { perfis: ['ADMIN'] });
+        for (const data of [configuracoes, acessos]) {
+          toast.erro.mockClear();
+          expect(destino(await executar(permissaoGuard, data))).toBe('/consulta');
+          expect(toast.erro).toHaveBeenCalledExactlyOnceWith('Seu perfil não tem permissão para acessar esta área.');
+        }
+        expect(restaurar).not.toHaveBeenCalled();
+      });
+    }
 
-      expect(destino(resultado)).toBe('/consulta');
-      expect(toast.erro).toHaveBeenCalledOnce();
+    it('decide pela permissão do back-end, não pelo nome do perfil', async () => {
+      const gestor = usuario('OPERADOR_SIGILO');
+      atual.set({ ...gestor, permissoes: { ...gestor.permissoes, acessarConfiguracoes: true } });
+      expect(await executar(permissaoGuard, configuracoes)).toBe(true);
+      expect(destino(await executar(permissaoGuard, acessos))).toBe('/consulta');
+    });
+
+    it('bloqueia rota sem permissão declarada (nada liberado por omissão)', async () => {
+      atual.set(usuario('ADMIN'));
+      expect(destino(await executar(permissaoGuard))).toBe('/consulta');
     });
 
     it('bloqueia sem usuário', async () => {
-      expect(destino(await executar(perfilGuard, { perfis: ['ADMIN'] }))).toBe('/consulta');
+      expect(destino(await executar(permissaoGuard, configuracoes))).toBe('/consulta');
     });
   });
 });

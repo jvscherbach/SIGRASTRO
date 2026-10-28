@@ -14,7 +14,7 @@ import {
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
 
-import { mensagemDoErro } from '../../core/mensagens-erro';
+import { mensagemDoCodigo, mensagemDoErro } from '../../core/mensagens-erro';
 import { baixarBlob } from '../../shared/arquivo-local';
 import { IconeComponent } from '../../shared/icone.component';
 import { ConteudoApiService, LIMITE_DO_BLOB_MB } from './documentos-api.service';
@@ -31,7 +31,6 @@ const CODIGOS_SEM_CONVERSAO = new Set([
   'CONVERSAO_RECUSADA',
 ]);
 
-const MENSAGEM_DO_SIGILO = 'Este documento é sigiloso e não está disponível para o seu perfil.';
 
 /**
  * Modal de visualização de um documento (S3, RF14). Busca o PDF pelo HttpClient (token no cabeçalho, nunca na URL),
@@ -100,7 +99,7 @@ export class VisualizadorDocumentoComponent implements OnInit {
     const documento = this.documento();
     if (documento.bloqueio === 'SIGILOSO') {
       this.fase.set('sigiloso');
-      this.mensagem.set(MENSAGEM_DO_SIGILO);
+      this.mensagem.set(mensagemDoCodigo('DOCUMENTO_SIGILOSO'));
       return;
     }
     this.fase.set('carregando');

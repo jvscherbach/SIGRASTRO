@@ -8,6 +8,9 @@ export interface Permissoes {
   verResponsavelTarefa: boolean;
 }
 
+/** Permissão de /auth/me que libera uma tela e o item de menu dela (RN08). */
+export type PermissaoDeTela = keyof Pick<Permissoes, 'verAuditoriaAcessos' | 'acessarConfiguracoes'>;
+
 export interface Usuario {
   login: string;
   nome: string;

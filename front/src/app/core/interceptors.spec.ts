@@ -71,7 +71,7 @@ describe('interceptors', () => {
     it('mostra a mensagem amigável do errorCode, sem o detail técnico', () => {
       falhar('/api/x', 403, { errorCode: 'NAO_INTERESSADO', detail: 'detalhe tecnico interno' });
 
-      expect(toast.erro).toHaveBeenCalledWith('Você não é o interessado deste processo ou requerimento.');
+      expect(toast.erro).toHaveBeenCalledWith('Seu perfil consulta apenas processos e requerimentos em que você é o interessado.');
     });
 
     it('inclui o código de suporte nos erros 5xx', () => {

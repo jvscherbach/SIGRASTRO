@@ -89,7 +89,7 @@
 | RN05 | Documentos presentes em mais de uma tabela com a mesma chave aparecem uma única vez. |
 | RN06 | A sinalização de sigilo considera todas as variações de coluna (`SIGILOSO`, `SIGILO`, `IND_SIGILOSO`). Na dúvida, o documento é tratado como sigiloso. |
 | RN07 | Vínculo: o processo é do interessado. O Operador só acessa processos e requerimentos em que o CPF/CNPJ do seu usuário é o do interessado (`PESSOA.CPF_CNPJ` de `REQUERIMENTO.ID_PESSOA`). Gestor e Administrador acessam todos. |
-| RN08 | Itens de menu de funções que o perfil não pode usar não são exibidos. No protótipo, o item "Acessos" continua visível com cadeado apenas para demonstração. |
+| RN08 | Itens de menu de funções que o perfil não pode usar não são exibidos (decidido pelas `permissoes` de `/auth/me`), e a URL dessas telas é bloqueada no front (aviso e volta à Consulta) e validada de novo no back-end. Desde a S4 não há cadeado de demonstração. |
 | RN09 | Nada incompleto sem decisão explícita (reescrita na S2.2): a geração percorre todos os documentos e coleta as falhas; com falha, o pedido fica em `PENDENTE_DECISAO` e nada é entregue. A decisão — tentar de novo só os documentos com problema, ou removê-los e montar com os já obtidos — não reinicia nada. Credencial recusada (401/403) para a obtenção na hora, preservando o que já foi obtido. Detalhes em docs/06. (Até a S2.1: "completo ou nenhum", a primeira falha interrompia e descartava tudo.) |
 | RN10 | Geometrias (SHP, KML, KMZ) não entram no dossiê: ficam numa seção própria do detalhe, com download à parte ("Baixar geometrias"), registrado na auditoria. |
 | RN11 | Arquivos compactados (ZIP, RAR, 7Z) são desconsiderados: não aparecem na lista nem entram no dossiê. |

@@ -279,7 +279,7 @@ describe('DetalheComponent', () => {
     it('403 NAO_INTERESSADO', () => {
       const t = texto(falha(403, { errorCode: 'NAO_INTERESSADO' }));
 
-      expect(t).toContain('Você não é o interessado deste processo ou requerimento.');
+      expect(t).toContain('Seu perfil consulta apenas processos e requerimentos em que você é o interessado.');
       expect(t).toContain('Voltar para a consulta');
     });
 

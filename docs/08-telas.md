@@ -7,7 +7,21 @@ O protótipo navegável (`prototipo/siga-vistas-prototipo.html`) é a referênci
 - Usuário e senha.
 - Três usuários fixos de demonstração, um por perfil: `operador.demo` (`OPERADOR`), `gestor.demo` (`OPERADOR_SIGILO`, o Gestor) e `admin.demo` (`ADMIN`). Cada um entra com um clique, e também é possível digitar usuário e senha.
 - Indicação visível de que o acesso é simulado.
-- O menu muda conforme o perfil (RN08): o Operador e o Gestor não recebem os itens "Acessos" e "Configurações"; digitar a URL dessas telas é bloqueado (aviso e volta à Consulta). O item "Acessos" com cadeado existia só no protótipo navegável.
+- **Menu e telas por perfil (RN08, S4):** o menu é montado a partir das `permissoes` de `/auth/me` (não do nome do perfil): `verAuditoriaAcessos` libera "Auditoria › Acessos" e `acessarConfiguracoes` libera "Configurações". Resultado por perfil:
+
+  | Item | Operador | Gestor | Administrador |
+  |---|---|---|---|
+  | Consulta | sim | sim | sim |
+  | Dossiês gerados | sim | sim | sim |
+  | Auditoria › Documentos | sim | sim | sim |
+  | Auditoria › Acessos | não | não | sim |
+  | Configurações | não | não | sim |
+
+  - O item sem permissão **não é renderizado** (nada de cadeado: o cadeado de demonstração saiu do protótipo na S4). Auditoria e Configurações continuam "Em construção" (S5) para quem tem permissão.
+  - **Guarda de rota:** digitar ou abrir a URL de uma tela sem permissão mostra o aviso "Seu perfil não tem permissão para acessar esta área." e volta à Consulta. A decisão usa as permissões já carregadas, sem chamada ao servidor; o back-end valida de novo cada endpoint (matriz em [07 — API](07-api.md)).
+  - Entrar com outro usuário (sair e entrar de novo) atualiza o menu sem recarregar a página; sem token, qualquer tela volta ao login.
+  - O aviso do Operador na Consulta ("Seu perfil consulta apenas...") ocupa um espaço reservado também para os demais perfis, para que o quadro do topo tenha a mesma altura em todos.
+  - Mensagens de acesso (`mensagens-erro.ts`, sem dado do recurso): `NAO_INTERESSADO` "Seu perfil consulta apenas processos e requerimentos em que você é o interessado." (na busca por número: "Processo N não tem você como interessado.", com o número digitado pelo próprio usuário); `DOCUMENTO_SIGILOSO` "Este documento é sigiloso e não está disponível para o seu perfil." (lista, modal e gaveta); `PERFIL_SEM_PERMISSAO` "Seu perfil não tem permissão para acessar esta área." (também na guarda de rota).
 
 ## 2. Consulta
 
@@ -141,7 +155,7 @@ Aberto pela ação **Visualizar** de cada linha (todas, menos as indisponíveis;
 Item "Auditoria" no menu, com dois subitens. Detalhes em [11 — Auditoria](11-auditoria.md).
 
 - **Documentos** (todos os perfis): consultas, visualizações, dossiês, falhas e downloads; indicadores de dossiês gerados, eventos com sigilosos e usuários; destaque lateral nos eventos sigilosos. Gestor e Administrador veem tudo e têm o filtro "somente sigilosos". O Operador vê apenas eventos sobre processos e requerimentos vinculados a ele, com nomes de documentos sigilosos mascarados.
-- **Acessos** (somente Administrador): entradas, trocas de perfil, alterações de usuários e de configuração; indicadores de acessos, alterações e usuários. **Regra:** para quem não é Administrador, o item não aparece no menu. No protótipo ele continua visível com cadeado apenas para demonstração.
+- **Acessos** (somente Administrador): entradas, trocas de perfil, alterações de usuários e de configuração; indicadores de acessos, alterações e usuários. **Regra:** para quem não é Administrador, o item não aparece no menu (RN08; sem cadeado de demonstração desde a S4).
 - Em ambas: período, busca, filtros por evento e usuário, gaveta de detalhe e exportação em CSV.
 
 ## 6. Configurações

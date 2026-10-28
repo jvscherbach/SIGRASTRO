@@ -9,7 +9,7 @@ Registro de quem consultou, visualizou, gerou e baixou dossiês, com destaque pa
 - A auditoria é dividida em duas telas:
   - **Documentos:** Gestor e Administrador veem todos os eventos. O Operador vê os eventos, de qualquer usuário, sobre processos e requerimentos vinculados a ele (RN07); nomes de documentos sigilosos aparecem como "Documento sigiloso" e o filtro "somente sigilosos" não é oferecido.
   - **Acessos:** somente Administrador.
-- **Regra:** para quem não é Administrador, o item "Acessos" não aparece no menu (RN08). No protótipo ele continua visível com cadeado apenas para demonstração.
+- **Regra:** para quem não é Administrador, o item "Acessos" não aparece no menu (RN08). O cadeado de demonstração do protótipo saiu na S4.
 
 ## Eventos registrados
 

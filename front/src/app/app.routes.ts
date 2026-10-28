@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
-import { autenticadoGuard, perfilGuard, visitanteGuard } from './core/guards';
+import { autenticadoGuard, permissaoGuard, visitanteGuard } from './core/guards';
 import { ConsultaComponent } from './features/consulta/consulta.component';
 import { DetalheComponent } from './features/detalhe/detalhe.component';
 import { EmConstrucaoComponent } from './features/em-construcao/em-construcao.component';
@@ -52,10 +52,10 @@ export const routes: Routes = [
       {
         path: 'auditoria/acessos',
         component: EmConstrucaoComponent,
-        canActivate: [perfilGuard],
+        canActivate: [permissaoGuard],
         title: 'Auditoria de acessos · SIGA Vistas',
         data: {
-          perfis: ['ADMIN'],
+          permissao: 'verAuditoriaAcessos',
           crumb: ['Auditoria', 'Acessos'],
           titulo: 'Auditoria de acessos',
           descricao: 'Entradas, trocas de perfil e alterações de usuários e de configuração.',
@@ -65,10 +65,10 @@ export const routes: Routes = [
       {
         path: 'configuracoes',
         component: EmConstrucaoComponent,
-        canActivate: [perfilGuard],
+        canActivate: [permissaoGuard],
         title: 'Configurações · SIGA Vistas',
         data: {
-          perfis: ['ADMIN'],
+          permissao: 'acessarConfiguracoes',
           crumb: ['Configurações'],
           titulo: 'Configurações',
           descricao: 'Usuários e perfis, parâmetros do dossiê, conversão, conexões e retenção da auditoria.',
