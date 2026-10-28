@@ -23,6 +23,9 @@ const POR_CODIGO: Record<string, string> = {
   CONVERSOR_INDISPONIVEL: 'O conversor de documentos está indisponível no momento.',
   TEMPO_LIMITE_EXCEDIDO: 'O tempo limite foi excedido. Tente novamente.',
   SIGA_INDISPONIVEL: 'O banco do SIGA está indisponível no momento. Tente novamente em instantes.',
+  GEOMETRIAS_INCOMPLETAS: 'Nenhum arquivo foi baixado: algumas geometrias não puderam ser obtidas.',
+  GEOMETRIAS_GRANDES_DEMAIS:
+    'As geometrias passam do limite de tamanho ou de quantidade para um único download. Nenhum arquivo foi baixado.',
   ERRO_INTERNO: 'Ocorreu um erro inesperado.',
 };
 

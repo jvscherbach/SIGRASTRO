@@ -95,7 +95,15 @@ O requerimento vira processo após o pagamento da taxa e a conclusão do protoco
 
 ### Geometrias
 
-Seção exibida quando houver SHP, KML ou KMZ vigentes: lista dos arquivos (nome, arquivo, origem, data) e ação **Baixar geometrias**, que baixa todos num ZIP. Não entram no dossiê.
+Seção própria logo abaixo de Documentos (S4, RN10), a partir de `geometrias` e `totais.geometriasOmitidas` da mesma chamada da lista (docs/07). Só aparece quando há geometria listada ou omitida.
+
+- **Lista:** nome, arquivo (com o tamanho quando a API o informa), origem e data, em ordem cronológica. Sem caixa de seleção: as geometrias **não** entram na tabela de Documentos, nos totais da seção, na seleção nem no `POST /dossies`. Substituída e indisponível aparecem esmaecidas, com "versão substituída, fora do ZIP" e "arquivo indisponível, fora do ZIP". Para Gestor e Administrador, a sigilosa vem com a marca "Sigilosa".
+- **Baixar geometrias:** só aparece quando há ao menos uma vigente. Baixa o ZIP por `HttpClient` e `Blob` (token no cabeçalho, nunca na URL), com o nome do `Content-Disposition` (`geometrias-processo-<numero>-<ano>.zip`). Enquanto o servidor monta o ZIP, o botão fica "Preparando o ZIP…" e desabilitado, com "Obtendo os arquivos e montando o ZIP. Pode levar alguns instantes."; ao terminar, "Download iniciado: <nome>".
+- **Erros** (no corpo da seção, sem toast, nunca o `detail` técnico), com **Tentar novamente**:
+  - `GEOMETRIAS_INCOMPLETAS` (502/504): "Nenhum arquivo foi baixado: algumas geometrias não puderam ser obtidas." e a lista dos arquivos com problema (`arquivos`: nome no ZIP e motivo);
+  - `GEOMETRIAS_GRANDES_DEMAIS` (413): "As geometrias passam do limite de tamanho ou de quantidade para um único download. Nenhum arquivo foi baixado.";
+  - demais códigos (credencial recusada, `NAO_ENCONTRADO`...) pela mensagem comum de `mensagens-erro.ts`.
+- **Operador:** "N geometria(s) sigilosa(s) não são exibidas para o seu perfil." a partir de `totais.geometriasOmitidas`, sem nome, data ou id. Com só sigilosas, a seção mostra apenas esse aviso, sem tabela e sem botão. O aviso não conta como documento indisponível.
 
 ### Documentos
 

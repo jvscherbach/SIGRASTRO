@@ -48,6 +48,31 @@ export interface OpcoesDaSimulacao {
   comSessao?: boolean;
 }
 
+/** Requerimento fictício (id 101) do detalhe, com dados evidentemente fictícios. */
+export const REQUERIMENTO = {
+  id: 101,
+  identificacao: { rotulo: 'Processo', numero: '2825/2025', protocolado: true },
+  numeroRequerimento: '3331/2025',
+  numeroProcesso: '2825/2025',
+  tipoRequerimento: 'Requerimento de Outorga',
+  prioridade: { codigo: 'NORMAL', descricao: 'Atendimento normal', criterios: [] },
+  situacao: { codigo: 'EM_ANALISE', descricao: 'Em análise' },
+  abertura: '2025-03-31T10:12:00',
+  atualizacao: '2025-04-29T09:14:00',
+  interessado: { nome: 'Associação Residencial Vale Verde', cpfCnpj: '12345678000190' },
+  tipoProcesso: 'Uso de Recursos Hídricos',
+  objeto: {
+    objetivos: ['Consumo humano', 'Irrigação'],
+    finalidadesAtividades: [{ finalidade: 'Abastecimento público', atividade: 'Captação' }],
+    tiposObjetivo: [
+      { tipo: 'SUBTERRANEA', tipoDescricao: 'Subterrânea', objetivo: 'Consumo humano' },
+      { tipo: 'SUPERFICIAL', tipoDescricao: 'Superficial', objetivo: 'Irrigação' },
+    ],
+    atividadeLicenciamento: null,
+  },
+  tarefaAtual: { estado: 'SEM_TAREFA', nome: null, desde: null, fluxo: null },
+};
+
 export type EstadoDaBusca = 'ok' | '400' | '403' | '404' | '503' | 'rede' | 'lento';
 
 export interface ApiSimulada {

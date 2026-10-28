@@ -176,6 +176,10 @@
   }
 </section>
 
+@if (geometrias().length || geometriasOmitidas()) {
+  <app-geometrias-secao [idRequerimento]="idRequerimento()" [geometrias]="geometrias()" [omitidas]="geometriasOmitidas()" />
+}
+
 @if (visualizando(); as aberto) {
   <app-visualizador-documento
     [documento]="aberto"

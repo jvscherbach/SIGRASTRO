@@ -23,6 +23,20 @@ export class DocumentosApiService {
   listar(idRequerimento: number): Observable<DocumentosResposta> {
     return this.http.get<DocumentosResposta>(`/api/requerimentos/${idRequerimento}/documentos`, { context: SEM_AVISO() });
   }
+
+  /**
+   * ZIP com as geometrias (S4, tudo ou nada) como Blob. O token vai no cabeçalho (interceptor), nunca na URL; o nome
+   * vem do Content-Disposition. O erro volta como ProblemDetail (errorCode e, em GEOMETRIAS_INCOMPLETAS, `arquivos`).
+   */
+  baixarGeometrias(idRequerimento: number): Observable<HttpResponse<Blob>> {
+    return this.http
+      .get(`/api/requerimentos/${idRequerimento}/geometrias/arquivo`, {
+        responseType: 'blob',
+        observe: 'response',
+        context: SEM_AVISO(),
+      })
+      .pipe(catchError((erro: unknown) => erroLegivel(erro)));
+  }
 }
 
 /**

@@ -34,11 +34,40 @@ export interface TotaisDocumentos {
   sigilosos: number;
   /** S3: planilhas, textos e imagens convertíveis para PDF que o perfil pode selecionar (0 com a conversão desligada). */
   convertiveis: number;
+  /** S4: tamanho de `geometrias` (fora de todos os totais acima). */
+  geometrias?: number;
+  /** S4: geometrias sigilosas que o perfil não vê (Operador); só a contagem, nunca nome ou data. */
+  geometriasOmitidas?: number;
+}
+
+/** Geometria (SHP, KML, KMZ) em lista própria (S4, RN10): fora da seleção, dos totais e do dossiê. */
+export interface GeometriaItem {
+  origem: string;
+  id: string;
+  idRequerimento: number;
+  titulo: string | null;
+  nomeArquivo: string | null;
+  origemDescricao: string;
+  data: string | null;
+  situacao: SituacaoDocumento;
+  sigiloso: boolean;
+  extensao: string | null;
+  tipoArquivo: TipoArquivo | null;
+  /** Bytes; null enquanto desconhecido (o SIGA não informa). */
+  tamanho: number | null;
+}
+
+/** Arquivo que impediu o ZIP (GEOMETRIAS_INCOMPLETAS): nome no ZIP e motivo exibível, nunca a chave. */
+export interface GeometriaComProblema {
+  nome: string;
+  motivo: string;
 }
 
 export interface DocumentosResposta {
   itens: DocumentoItem[];
   totais: TotaisDocumentos;
+  /** S4: geometrias do requerimento que o perfil pode ver. */
+  geometrias?: GeometriaItem[];
 }
 
 export interface ReferenciaDocumento {

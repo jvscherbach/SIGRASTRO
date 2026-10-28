@@ -23,6 +23,7 @@ import {
 } from './documentos.logic';
 import { DocumentoItem, DocumentosResposta, ReferenciaDocumento } from './documentos.models';
 import { GavetaDossieComponent } from './gaveta-dossie.component';
+import { GeometriasSecaoComponent } from './geometrias-secao.component';
 import { VisualizadorDocumentoComponent } from './visualizador-documento.component';
 
 /**
@@ -33,7 +34,7 @@ import { VisualizadorDocumentoComponent } from './visualizador-documento.compone
 @Component({
   selector: 'app-documentos-secao',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconeComponent, GavetaDossieComponent, VisualizadorDocumentoComponent],
+  imports: [IconeComponent, GavetaDossieComponent, GeometriasSecaoComponent, VisualizadorDocumentoComponent],
   templateUrl: './documentos-secao.component.html',
 })
 export class DocumentosSecaoComponent implements OnInit {
@@ -54,6 +55,9 @@ export class DocumentosSecaoComponent implements OnInit {
 
   protected readonly itens = computed(() => this.resposta()?.itens ?? []);
   protected readonly totais = computed(() => this.resposta()?.totais ?? null);
+  /** Geometrias em lista própria (S4, RN10): nunca entram em itens, na seleção nem no dossiê. */
+  protected readonly geometrias = computed(() => this.resposta()?.geometrias ?? []);
+  protected readonly geometriasOmitidas = computed(() => this.resposta()?.totais.geometriasOmitidas ?? 0);
   protected readonly origens = computed(() => {
     const vistas = new Map<string, string>();
     for (const d of this.itens()) {

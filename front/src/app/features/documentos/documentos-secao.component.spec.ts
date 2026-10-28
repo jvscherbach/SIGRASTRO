@@ -5,7 +5,7 @@ import { NEVER, Subject, of, throwError } from 'rxjs';
 import { ConteudoApiService, DocumentosApiService, DossiesApiService, LIMITE_DO_BLOB_MB } from './documentos-api.service';
 import { DocumentosSecaoComponent } from './documentos-secao.component';
 import { documento } from './documentos.fixtures';
-import { ConteudoRecebido, DocumentoItem, DocumentosResposta } from './documentos.models';
+import { ConteudoRecebido, DocumentoItem, DocumentosResposta, GeometriaItem } from './documentos.models';
 
 function resposta(itens: DocumentoItem[]): DocumentosResposta {
   return {
@@ -55,8 +55,8 @@ describe('DocumentosSecaoComponent', () => {
   let fixture: ComponentFixture<DocumentosSecaoComponent>;
   let raiz: HTMLElement;
 
-  function abrir(itens: DocumentoItem[] = BASE): void {
-    api.listar.mockReturnValue(of(resposta(itens)));
+  function abrir(itens: DocumentoItem[] = BASE, ajuste: (r: DocumentosResposta) => DocumentosResposta = (r) => r): void {
+    api.listar.mockReturnValue(of(ajuste(resposta(itens))));
     TestBed.configureTestingModule({
       imports: [DocumentosSecaoComponent],
       providers: [
@@ -427,6 +427,60 @@ describe('DocumentosSecaoComponent', () => {
       document.body.querySelector<HTMLButtonElement>('app-gaveta-dossie .d-head .icon-btn')!.click();
       fixture.detectChanges();
       expect(document.body.querySelector('app-gaveta-dossie')).toBeNull();
+    });
+  });
+
+  describe('geometrias (S4, RN10)', () => {
+    const KML: GeometriaItem = {
+      origem: 'DOCUMENTO_PROCESSO',
+      id: '900',
+      idRequerimento: 101,
+      titulo: 'Polígono da área',
+      nomeArquivo: 'area.kml',
+      origemDescricao: 'Documento do processo',
+      data: '2025-04-02T09:00:00',
+      situacao: 'VIGENTE',
+      sigiloso: false,
+      extensao: 'kml',
+      tipoArquivo: 'GEOMETRIA',
+      tamanho: null,
+    };
+
+    function abrirCom(geometrias: GeometriaItem[], omitidas = 0): void {
+      abrir(BASE, (r) => ({ ...r, geometrias, totais: { ...r.totais, geometrias: geometrias.length, geometriasOmitidas: omitidas } }));
+    }
+
+    const documentosDaSecao = () => raiz.querySelector('section[aria-label="Documentos"]')!;
+
+    it('sem geometrias, a seção não aparece', () => {
+      abrir();
+      expect(raiz.querySelector('app-geometrias-secao')).toBeNull();
+    });
+
+    it('ficam numa seção própria, fora da tabela, dos totais e da seleção', () => {
+      abrirCom([KML]);
+
+      expect(raiz.querySelector('app-geometrias-secao')!.textContent).toContain('Polígono da área');
+      expect(documentosDaSecao().textContent).not.toContain('Polígono da área');
+      expect(documentosDaSecao().querySelector('.dash-sec-head p')!.textContent).toContain('6 documento(s)');
+      expect(raiz.querySelector('.selbar b')!.textContent).toBe('3');
+    });
+
+    it('o POST /dossies nunca leva uma geometria', () => {
+      abrirCom([KML]);
+      botao('Gerar dossiê').click();
+      fixture.detectChanges();
+
+      const criar = TestBed.inject(DossiesApiService).criar as ReturnType<typeof vi.fn>;
+      const enviados = criar.mock.calls[0][1] as { id: string }[];
+      expect(enviados.map((r) => r.id)).not.toContain('900');
+    });
+
+    it('Operador com só sigilosas omitidas vê o aviso, sem nomes', () => {
+      abrirCom([], 2);
+      const secao = raiz.querySelector('app-geometrias-secao')!;
+      expect(secao.textContent!.replace(/\s+/g, ' ')).toContain('2 geometria(s) sigilosa(s) não são exibidas para o seu perfil.');
+      expect(secao.querySelector('table')).toBeNull();
     });
   });
 
