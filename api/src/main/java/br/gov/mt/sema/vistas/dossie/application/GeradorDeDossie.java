@@ -7,6 +7,8 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import br.gov.mt.sema.vistas.dossie.application.port.ArquivosDoRepositorio;
 import br.gov.mt.sema.vistas.dossie.application.port.EspacoEmDisco;
@@ -15,7 +17,7 @@ import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie.DocumentoParaMontagem;
 import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie.OpcoesDeMontagem;
 import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
-import br.gov.mt.sema.vistas.dossie.application.port.ValidadorDePdf;
+import br.gov.mt.sema.vistas.dossie.application.PreparadorDePdf.PdfPreparado;
 import br.gov.mt.sema.vistas.dossie.domain.ErroDoDossie;
 import br.gov.mt.sema.vistas.dossie.domain.ItemDoPedido;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
@@ -27,8 +29,9 @@ import org.springframework.stereotype.Service;
 
 /**
  * Executa a geração de um pedido (docs/06). Percorre os documentos na ordem cronológica e, para cada um ainda não
- * resolvido, obtém o PDF e o valida, coletando as falhas sem parar na primeira (S2.2). Sem falhas, monta capa,
- * sumário, documentos, marcadores e numeração. Com falhas, o pedido fica em PENDENTE_DECISAO e nada é entregue (RN09):
+ * resolvido, obtém o arquivo e o prepara como PDF ({@link PreparadorDePdf}: validação ou conversão pelo tipo real,
+ * S3), coletando as falhas sem parar na primeira (S2.2). Sem falhas, monta capa, sumário, documentos, marcadores e
+ * numeração; a página inicial de cada documento já é conhecida (conversão antes da montagem). Com falhas, o pedido fica em PENDENTE_DECISAO e nada é entregue (RN09):
  * os arquivos já obtidos ficam no diretório do pedido, e a continuação ({@link ContinuarDossie}) só obtém o que falta.
  * Credencial recusada (401/403) interrompe a obtenção na hora, também em PENDENTE_DECISAO. Esta classe não usa o
  * SIGA (o instantâneo já está no pedido).
@@ -42,16 +45,18 @@ public class GeradorDeDossie {
     static final String FALHA_INESPERADA = "falha inesperada ao obter o documento";
 
     private final ArquivosDoRepositorio arquivos;
-    private final ValidadorDePdf validador;
+    private final PreparadorDePdf preparador;
     private final MontadorDoDossie montador;
     private final ParametrosDoDossie parametros;
     private final EspacoEmDisco espaco;
     private final Clock relogio;
+    /** Thread que está convertendo um documento de cada pedido: o cancelamento a interrompe. */
+    private final Map<String, Thread> convertendo = new ConcurrentHashMap<>();
 
-    public GeradorDeDossie(ArquivosDoRepositorio arquivos, ValidadorDePdf validador, MontadorDoDossie montador,
+    public GeradorDeDossie(ArquivosDoRepositorio arquivos, PreparadorDePdf preparador, MontadorDoDossie montador,
             ParametrosDoDossie parametros, EspacoEmDisco espaco, Clock relogio) {
         this.arquivos = arquivos;
-        this.validador = validador;
+        this.preparador = preparador;
         this.montador = montador;
         this.parametros = parametros;
         this.espaco = espaco;
@@ -93,7 +98,8 @@ public class GeradorDeDossie {
     }
 
     /**
-     * Obtém e valida cada item ainda não resolvido. Falha de um documento fica no item e a obtenção continua.
+     * Obtém e prepara (valida ou converte) cada item ainda não resolvido. Falha de um documento fica no item e a
+     * obtenção continua. O PDF convertido fica no diretório: a continuação nunca o converte de novo.
      *
      * @return o motivo geral se a credencial foi recusada (a obtenção para), ou nulo
      */
@@ -108,16 +114,25 @@ public class GeradorDeDossie {
                 continue;
             }
             Path arquivo = arquivoDoItem(pasta, i);
+            Path original = originalDoItem(pasta, i);
             item.situacao(SituacaoItem.OBTENDO);
             try {
                 exigirEspacoLivre(pasta);
-                try {
-                    item.tentativas(arquivos.baixar(item.chaveDoArquivo(), arquivo));
-                } catch (FalhaNoDocumentoException e) {
-                    item.tentativas(e.tentativas());
-                    throw e;
+                if (Files.isRegularFile(original)) {
+                    // Obtido numa tentativa anterior cuja conversão falhou: não baixa de novo.
+                    item.tentativas(0);
+                } else {
+                    try {
+                        item.tentativas(arquivos.baixar(item.chaveDoArquivo(), original));
+                    } catch (FalhaNoDocumentoException e) {
+                        item.tentativas(e.tentativas());
+                        throw e;
+                    }
                 }
-                item.paginas(validador.validar(arquivo));
+                PdfPreparado pdf = preparar(pedido, original, item, arquivo);
+                item.paginas(pdf.paginas());
+                item.conversao(pdf.convertidoDe(), pdf.abasEmPaginaUnica());
+                ArquivosTemporarios.apagarArquivo(original);
                 item.situacao(SituacaoItem.OK);
             } catch (CredencialArquivosRecusadaException e) {
                 ArquivosTemporarios.apagarArquivo(arquivo);
@@ -131,12 +146,36 @@ public class GeradorDeDossie {
                 log.warn("Dossiê {}: falha no documento {}: {}", pedido.id(), item, e.getMessage());
             } catch (RuntimeException e) {
                 ArquivosTemporarios.apagarArquivo(arquivo);
+                ArquivosTemporarios.apagarArquivo(original);
                 item.falhar(FALHA_INESPERADA);
                 log.error("Dossiê {}: falha inesperada no documento {}", pedido.id(), item, e);
             }
             pedido.registrarAtividade(validade());
         }
         return null;
+    }
+
+    /**
+     * Converte (ou valida) registrando a thread, para que o cancelamento interrompa uma conversão em andamento. A
+     * marca de interrupção não sobra para o próximo pedido da mesma thread.
+     */
+    private PdfPreparado preparar(PedidoDeDossie pedido, Path original, ItemDoPedido item, Path pdf) {
+        convertendo.put(pedido.id(), Thread.currentThread());
+        try {
+            return preparador.preparar(original, item.extensao(), pdf, item.titulo());
+        } finally {
+            convertendo.remove(pedido.id());
+            Thread.interrupted();
+        }
+    }
+
+    /** Interrompe a conversão em andamento do pedido, se houver (cancelamento). */
+    void interromperConversao(String idDoPedido) {
+        // Atômico em relação ao remove: depois que a conversão termina, nenhuma interrupção chega à thread.
+        convertendo.computeIfPresent(idDoPedido, (id, thread) -> {
+            thread.interrupt();
+            return thread;
+        });
     }
 
     private void montar(PedidoDeDossie pedido, Path pasta) {
@@ -148,7 +187,7 @@ public class GeradorDeDossie {
             ItemDoPedido item = pedido.itens().get(i);
             if (item.situacao() == SituacaoItem.OK) {
                 paraMontar.add(new DocumentoParaMontagem(item.titulo(), item.origemDescricao(), item.data(),
-                        arquivoDoItem(pasta, i), item.paginas()));
+                        arquivoDoItem(pasta, i), item.paginas(), item.convertidoDe(), item.abasEmPaginaUnica()));
             }
         }
         Path finalizado = pasta.resolve(ARQUIVO_FINAL);
@@ -163,6 +202,10 @@ public class GeradorDeDossie {
             }
             for (DocumentoParaMontagem documento : paraMontar) {
                 ArquivosTemporarios.apagarArquivo(documento.arquivo());
+            }
+            // Originais guardados de itens removidos depois de uma falha de conversão.
+            for (int i = 0; i < pedido.itens().size(); i++) {
+                ArquivosTemporarios.apagarArquivo(originalDoItem(pasta, i));
             }
         } catch (FalhaNoDocumentoException e) {
             falhaNaMontagem(pedido, finalizado, "falha ao montar o dossiê: " + e.getMessage());
@@ -182,6 +225,14 @@ public class GeradorDeDossie {
     /** Nome estável pela posição no pedido: a continuação encontra o que já foi obtido. */
     private static Path arquivoDoItem(Path pasta, int indice) {
         return pasta.resolve(String.format("%04d.pdf", indice + 1));
+    }
+
+    /**
+     * O arquivo como veio do repositório (S3). Apagado quando o PDF do item fica pronto; guardado quando a conversão
+     * falha, para "Tentar novamente" converter de novo sem baixar de novo.
+     */
+    private static Path originalDoItem(Path pasta, int indice) {
+        return pasta.resolve(String.format("%04d.original", indice + 1));
     }
 
     private LocalDateTime validade() {

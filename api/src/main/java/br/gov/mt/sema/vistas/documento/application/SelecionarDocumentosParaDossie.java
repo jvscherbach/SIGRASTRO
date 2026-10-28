@@ -8,6 +8,7 @@ import java.util.Set;
 
 import br.gov.mt.sema.vistas.acesso.application.ObterPermissoesDoUsuario;
 import br.gov.mt.sema.vistas.consulta.application.VerificarAcessoAoRequerimento;
+import br.gov.mt.sema.vistas.documento.application.port.ParametrosDaConversao;
 import br.gov.mt.sema.vistas.documento.domain.Documento;
 import br.gov.mt.sema.vistas.documento.domain.Documento.Bloqueio;
 import br.gov.mt.sema.vistas.shared.application.exception.DocumentoSigilosoException;
@@ -25,12 +26,14 @@ public class SelecionarDocumentosParaDossie {
     private final VerificarAcessoAoRequerimento acesso;
     private final ListarDocumentos listagem;
     private final ObterPermissoesDoUsuario permissoes;
+    private final ParametrosDaConversao conversao;
 
     public SelecionarDocumentosParaDossie(VerificarAcessoAoRequerimento acesso, ListarDocumentos listagem,
-            ObterPermissoesDoUsuario permissoes) {
+            ObterPermissoesDoUsuario permissoes, ParametrosDaConversao conversao) {
         this.acesso = acesso;
         this.listagem = listagem;
         this.permissoes = permissoes;
+        this.conversao = conversao;
     }
 
     public List<Documento> executar(long idRequerimento, List<ReferenciaDeDocumento> referencias) {
@@ -44,6 +47,7 @@ public class SelecionarDocumentosParaDossie {
             throw new ParametroInvalidoException("documentos", "Selecione ao menos um documento.");
         }
         boolean podeVerSigilosos = permissoes.podeVerSigilosos();
+        boolean converte = conversao.habilitada();
         List<Documento> lista = listagem.listaDoRequerimento(idRequerimento);
 
         Set<Documento> escolhidos = new LinkedHashSet<>();
@@ -53,14 +57,14 @@ public class SelecionarDocumentosParaDossie {
             if (documento.sigiloso() && !podeVerSigilosos) {
                 throw new DocumentoSigilosoException();
             }
-            Bloqueio bloqueio = documento.bloqueio(podeVerSigilosos);
+            Bloqueio bloqueio = documento.bloqueio(podeVerSigilosos, converte);
             if (bloqueio == Bloqueio.INDISPONIVEL) {
                 throw new ParametroInvalidoException("documentos",
                         "O documento " + descrever(referencia) + " está indisponível e não pode entrar no dossiê.");
             }
             if (bloqueio == Bloqueio.NAO_PDF) {
                 throw new ParametroInvalidoException("documentos",
-                        "O documento " + descrever(referencia) + " não é PDF; a conversão estará disponível em breve.");
+                        "O documento " + descrever(referencia) + " não é PDF e a conversão está indisponível.");
             }
             escolhidos.add(documento);
         }
@@ -72,7 +76,7 @@ public class SelecionarDocumentosParaDossie {
                 boolean acessivel = !documento.sigiloso() || podeVerSigilosos;
                 fora.add(new SelecaoParaDossie.NaoSelecionado(documento,
                         acessivel ? documento.titulo() : DocumentoListado.TITULO_MASCARADO,
-                        motivo(documento.bloqueio(podeVerSigilosos))));
+                        motivo(documento.bloqueio(podeVerSigilosos, converte))));
             }
         }
         return new SelecaoParaDossie(ordenados, fora, lista.size());

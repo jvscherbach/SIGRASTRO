@@ -217,10 +217,10 @@ Sem `LICENCIAMENTO_API_URL` a lista de documentos funciona normalmente e a gera�
 ### Usar a lista de documentos e gerar
 
 1. Na **Consulta**, abra um requerimento ou processo. Abaixo do objeto aparece a seção **Documentos**, com todos os documentos de todas as origens, em ordem cronológica.
-2. **Todos os documentos selecionáveis já vêm marcados** (vigentes e sem efeito, inclusive os de tipo não informado). Documentos que não são PDF (planilhas, textos, imagens) aparecem bloqueados, com "conversão disponível em breve" (entram na próxima etapa); indisponíveis ficam esmaecidos; os sigilosos aparecem mascarados para o Operador. A linha da seção mostra "N documentos · V vigentes · S sem efeito · I indisponíveis".
+2. **Todos os documentos selecionáveis já vêm marcados** (vigentes e sem efeito, inclusive os de tipo não informado). Planilhas, textos e imagens (S3) também vêm marcados e entram no dossiê **convertidos para PDF**, com a etiqueta "será convertido para PDF"; só ficam bloqueados, com "conversão indisponível", os formatos sem conversão (por exemplo `txt`) ou todos os não PDF se `CONVERSAO_HABILITADA=false`; indisponíveis ficam esmaecidos; os sigilosos aparecem mascarados para o Operador. A linha da seção mostra "N documentos · V vigentes · S sem efeito · I indisponíveis".
 3. Use a **busca**, o **filtro de origem** e a **ordenação** (clique em Documento, Origem ou Data). A ordenação da tabela não muda o dossiê, que segue sempre a ordem cronológica do servidor. "Seleção padrão" volta a marcar todos os selecionáveis; "Limpar seleção" desmarca tudo; a caixa do cabeçalho marca os documentos listados.
-4. Clique em **Gerar dossiê**. A gaveta mostra o progresso e a situação de cada documento. Pode fechá-la: a geração continua no servidor.
-5. Ao concluir, **Pré-visualizar** abre o PDF sem baixar e **Baixar PDF** salva o arquivo (`dossie-processo-N-AAAA.pdf`). Logo após o sumário, o PDF lista os "Documentos não incluídos" e o motivo, e a capa diz "N documentos incluídos de M listados". Acima de 150 MB (`DOSSIE_BLOB_MAX_MB`) a pré-visualização fica desligada e o navegador baixa o arquivo direto. O arquivo é apagado do servidor depois do download ou em 30 minutos sem atividade.
+4. **Visualizar** (em cada linha) abre o documento em PDF num modal; os convertidos mostram "Versão convertida para PDF a partir de XLSX" e o modal também marca ou desmarca o documento. Clique em **Gerar dossiê**. A gaveta mostra o progresso e a situação de cada documento. Pode fechá-la: a geração continua no servidor.
+5. Ao concluir, **Pré-visualizar** abre o PDF sem baixar e **Baixar PDF** salva o arquivo (`dossie-processo-N-AAAA.pdf`). Logo após o sumário, o PDF lista os "Documentos não incluídos" e o motivo, e a capa diz "N documentos incluídos de M listados; K convertidos para PDF". Os convertidos aparecem no sumário e nos marcadores como "(convertido de XLSX)". Acima de 150 MB (`DOSSIE_BLOB_MAX_MB`) a pré-visualização fica desligada e o navegador baixa o arquivo direto. O arquivo é apagado do servidor depois do download ou em 30 minutos sem atividade.
 6. Se algum documento falhar, **nada é entregue sem a sua decisão**: a geração vai até o fim, a gaveta lista cada documento com problema e o motivo, e oferece **Tentar novamente os N com problema**, **Remover os N com problema e gerar** ou **Cancelar**. Nenhuma das opções baixa de novo o que já foi obtido.
 
 ## Tutorial 2 — Rodar sem Docker (desenvolvimento)
@@ -333,6 +333,7 @@ npm run e2e
 - [Plano de sprints](docs/14-plano-de-sprints.md)
 - [Roteiro de homologação da S1](docs/homologacao/S1-roteiro-homologacao.md)
 - [Roteiro de homologação da S2](docs/homologacao/S2-roteiro-homologacao.md)
+- [Roteiro de homologação da S3](docs/homologacao/S3-roteiro-homologacao.md)
 - [Casos de teste](docs/casos-de-teste.md)
 - [Padrões técnicos](docs/13-padroes-tecnicos.md)
 - [Protótipo navegável](docs/prototipo/siga-vistas-prototipo.html) (abra no navegador; é a referência visual)

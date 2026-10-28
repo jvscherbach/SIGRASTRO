@@ -98,24 +98,24 @@ class CatalogoEDocumentoTest {
     void pdfVigenteNaoTemBloqueioEVemPreSelecionado() {
         Documento d = doc(OrigemDocumento.DOCUMENTO_PROCESSO, "1", "K", "a.pdf", D1);
 
-        assertThat(d.bloqueio(false)).isNull();
-        assertThat(d.selecionavelPorPadrao(false)).isTrue();
+        assertThat(d.bloqueio(false, false)).isNull();
+        assertThat(d.selecionavelPorPadrao(false, false)).isTrue();
     }
 
     @Test
     void naoPdfFicaBloqueadoEForaDaPreSelecao() {
         Documento d = doc(OrigemDocumento.DOCUMENTO_PROCESSO, "1", "K", "planilha.xlsx", D1);
 
-        assertThat(d.bloqueio(true)).isEqualTo(Bloqueio.NAO_PDF);
-        assertThat(d.selecionavelPorPadrao(true)).isFalse();
+        assertThat(d.bloqueio(true, false)).isEqualTo(Bloqueio.NAO_PDF);
+        assertThat(d.selecionavelPorPadrao(true, false)).isFalse();
     }
 
     @Test
     void indisponivelFicaBloqueadoMesmoSendoNaoPdfOuSigiloso() {
         Documento d = Documento.deLinha(OrigemDocumento.DOCUMENTO_PROCESSO, "1", 1, "0", null, "x.xlsx", D1, null, 1);
 
-        assertThat(d.bloqueio(false)).isEqualTo(Bloqueio.INDISPONIVEL);
-        assertThat(d.bloqueio(true)).isEqualTo(Bloqueio.INDISPONIVEL);
+        assertThat(d.bloqueio(false, false)).isEqualTo(Bloqueio.INDISPONIVEL);
+        assertThat(d.bloqueio(true, false)).isEqualTo(Bloqueio.INDISPONIVEL);
     }
 
     @Test
@@ -123,18 +123,18 @@ class CatalogoEDocumentoTest {
         Documento d = Documento.deLinha(OrigemDocumento.DOCUMENTO_PROCESSO, "1", 1, "K", null, "a.pdf", D1, D2, null);
 
         assertThat(d.situacao()).isEqualTo(SituacaoDocumento.SUBSTITUIDO);
-        assertThat(d.bloqueio(false)).isNull();
-        assertThat(d.selecionavelPorPadrao(false)).isTrue();
+        assertThat(d.bloqueio(false, false)).isNull();
+        assertThat(d.selecionavelPorPadrao(false, false)).isTrue();
     }
 
     @Test
     void sigilosoBloqueiaSoParaQuemNaoPodeVer() {
         Documento d = Documento.deLinha(OrigemDocumento.DOCUMENTO_PROCESSO, "1", 1, "K", null, "a.pdf", D1, null, 1);
 
-        assertThat(d.bloqueio(false)).isEqualTo(Bloqueio.SIGILOSO);
-        assertThat(d.bloqueio(true)).isNull();
-        assertThat(d.selecionavelPorPadrao(true)).isTrue();
-        assertThat(d.selecionavelPorPadrao(false)).isFalse();
+        assertThat(d.bloqueio(false, false)).isEqualTo(Bloqueio.SIGILOSO);
+        assertThat(d.bloqueio(true, false)).isNull();
+        assertThat(d.selecionavelPorPadrao(true, false)).isTrue();
+        assertThat(d.selecionavelPorPadrao(false, false)).isFalse();
     }
 
     // --- título e chave
@@ -170,8 +170,8 @@ class CatalogoEDocumentoTest {
         for (Documento d : List.of(semExtensao, naoReconhecida, semNome)) {
             assertThat(d.tipoArquivo()).isEqualTo(TipoArquivo.DESCONHECIDO);
             assertThat(d.tipoNaoInformado()).isTrue();
-            assertThat(d.bloqueio(false)).isNull();
-            assertThat(d.selecionavelPorPadrao(false)).isTrue();
+            assertThat(d.bloqueio(false, false)).isNull();
+            assertThat(d.selecionavelPorPadrao(false, false)).isTrue();
         }
     }
 
@@ -180,8 +180,8 @@ class CatalogoEDocumentoTest {
         Documento indisponivel = Documento.deLinha(OrigemDocumento.IMOVEL, "1", 1, "0", null, null, D1, null, 0);
         Documento sigiloso = Documento.deLinha(OrigemDocumento.IMOVEL, "2", 1, "K", null, null, D1, null, 1);
 
-        assertThat(indisponivel.bloqueio(true)).isEqualTo(Bloqueio.INDISPONIVEL);
-        assertThat(sigiloso.bloqueio(false)).isEqualTo(Bloqueio.SIGILOSO);
+        assertThat(indisponivel.bloqueio(true, false)).isEqualTo(Bloqueio.INDISPONIVEL);
+        assertThat(sigiloso.bloqueio(false, false)).isEqualTo(Bloqueio.SIGILOSO);
     }
 
     @Test
@@ -190,6 +190,46 @@ class CatalogoEDocumentoTest {
         Documento comData = doc(OrigemDocumento.RESPONSAVEL_TECNICO, "2", "K2", "b.pdf", D3);
 
         assertThat(CatalogoDeDocumentos.consolidar(List.of(semData, comData))).containsExactly(comData, semData);
+    }
+
+    // --- seleção dos formatos convertíveis (RN13, S3)
+
+    @Test
+    void convertivelFicaSelecionavelEPreSelecionadoComAConversaoLigada() {
+        for (String arquivo : List.of("a.xls", "a.xlsx", "a.ods", "a.doc", "a.docx", "a.odt", "a.rtf", "a.html",
+                "a.png", "a.jpg", "a.jpeg", "A.XLSX")) {
+            Documento d = doc(OrigemDocumento.DOCUMENTO_PROCESSO, "1", "K", arquivo, D1);
+
+            assertThat(d.convertivel()).as(arquivo).isTrue();
+            assertThat(d.bloqueio(false, true)).as(arquivo).isNull();
+            assertThat(d.selecionavelPorPadrao(false, true)).as(arquivo).isTrue();
+        }
+    }
+
+    @Test
+    void convertivelVoltaAoBloqueioNaoPdfComAConversaoDesligada() {
+        Documento d = doc(OrigemDocumento.DOCUMENTO_PROCESSO, "1", "K", "calculo.xlsx", D1);
+
+        assertThat(d.bloqueio(false, false)).isEqualTo(Bloqueio.NAO_PDF);
+        assertThat(d.selecionavelPorPadrao(false, false)).isFalse();
+    }
+
+    @Test
+    void txtNaoEConvertivelEContinuaNaoPdfMesmoComAConversaoLigada() {
+        Documento d = doc(OrigemDocumento.DOCUMENTO_PROCESSO, "1", "K", "nota.txt", D1);
+
+        assertThat(d.convertivel()).isFalse();
+        assertThat(d.bloqueio(false, true)).isEqualTo(Bloqueio.NAO_PDF);
+    }
+
+    @Test
+    void conversaoLigadaNaoLiberaIndisponivelNemSigiloso() {
+        Documento indisponivel = Documento.deLinha(OrigemDocumento.DOCUMENTO_PROCESSO, "1", 1, "0", null, "x.xlsx", D1, null, 0);
+        Documento sigiloso = Documento.deLinha(OrigemDocumento.DOCUMENTO_PROCESSO, "2", 1, "K", null, "x.docx", D1, null, 1);
+
+        assertThat(indisponivel.bloqueio(true, true)).isEqualTo(Bloqueio.INDISPONIVEL);
+        assertThat(sigiloso.bloqueio(false, true)).isEqualTo(Bloqueio.SIGILOSO);
+        assertThat(sigiloso.bloqueio(true, true)).isNull();
     }
 
     @Test

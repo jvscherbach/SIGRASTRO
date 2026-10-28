@@ -59,6 +59,7 @@ class ArquivosDoLicenciamentoHttp implements ArquivosDoRepositorio {
     static final String TEMPO_LIMITE = "tempo limite excedido ao obter o arquivo";
     static final String TETO_TOTAL = "tempo total máximo excedido ao obter o arquivo";
     static final String INDISPONIVEL = "repositório de arquivos indisponível";
+    static final String NAO_ENCONTRADO = "arquivo não encontrado no repositório";
 
     /** Pausa entre tentativas; nos testes, não espera de verdade. */
     interface Espera {
@@ -155,7 +156,7 @@ class ArquivosDoLicenciamentoHttp implements ArquivosDoRepositorio {
                     throw new CredencialArquivosRecusadaException();
                 }
                 if (status == 404) {
-                    throw new FalhaNoDocumentoException("arquivo não encontrado no repositório");
+                    throw new FalhaNoDocumentoException(NAO_ENCONTRADO);
                 }
                 if (status == 503) {
                     throw new FalhaTemporaria(INDISPONIVEL);

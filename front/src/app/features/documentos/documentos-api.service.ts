@@ -1,9 +1,17 @@
-import { HttpClient, HttpContext, HttpErrorResponse, HttpResponse } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse, HttpEvent, HttpEventType, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, catchError, from, switchMap, throwError } from 'rxjs';
+import { Observable, catchError, filter, from, map, switchMap, takeWhile, throwError } from 'rxjs';
 
 import { SEM_TOAST } from '../../core/interceptors';
-import { AcaoDeContinuacao, AndamentoDossie, DocumentosResposta, ReferenciaDocumento } from './documentos.models';
+import { nomeDoContentDisposition } from '../../shared/arquivo-local';
+import {
+  AcaoDeContinuacao,
+  AndamentoDossie,
+  ConteudoRecebido,
+  DocumentosResposta,
+  FormatoDoConteudo,
+  ReferenciaDocumento,
+} from './documentos.models';
 
 /** A tela mostra o erro no próprio corpo (seção ou gaveta), sem toast duplicado. */
 const SEM_AVISO = () => new HttpContext().set(SEM_TOAST, true);
@@ -14,6 +22,64 @@ export class DocumentosApiService {
 
   listar(idRequerimento: number): Observable<DocumentosResposta> {
     return this.http.get<DocumentosResposta>(`/api/requerimentos/${idRequerimento}/documentos`, { context: SEM_AVISO() });
+  }
+}
+
+/**
+ * Acima disto (MB) o documento não é exibido por Blob: o front não o leva para a memória do navegador. Espelha o padrão
+ * do servidor para DOSSIE_BLOB_MAX_MB (docs/08); o contrato do conteúdo não informa o tamanho antes do download, então
+ * o critério é o Content-Length do cabeçalho da resposta.
+ */
+export const LIMITE_DO_BLOB_MB = 150;
+const MB = 1024 * 1024;
+
+/** O que o endpoint de conteúdo precisa para localizar o documento (o servidor revalida o pertencimento). */
+export interface DocumentoDoConteudo {
+  origem: string;
+  id: string;
+  idRequerimento: number;
+}
+
+@Injectable({ providedIn: 'root' })
+export class ConteudoApiService {
+  private readonly http = inject(HttpClient);
+
+  /**
+   * Conteúdo do documento como Blob (S3). O token vai no cabeçalho (interceptor), nunca na URL. Com `limiteMb`, a
+   * requisição é abortada assim que o cabeçalho mostra um Content-Length acima do limite: nada é baixado e o resultado
+   * é `grande`. Erros da API voltam como ProblemDetail (errorCode) para a tela.
+   */
+  conteudo(documento: DocumentoDoConteudo, formato: FormatoDoConteudo, limiteMb: number | null): Observable<ConteudoRecebido> {
+    const url = `/api/documentos/${encodeURIComponent(documento.origem)}/${encodeURIComponent(documento.id)}/conteudo`;
+    const limiteBytes = limiteMb === null ? Number.POSITIVE_INFINITY : limiteMb * MB;
+    const tamanhoDe = (evento: HttpEvent<Blob>): number =>
+      evento.type === HttpEventType.ResponseHeader ? Number(evento.headers.get('Content-Length')) : 0;
+    const passaDoLimite = (evento: HttpEvent<Blob>): boolean => tamanhoDe(evento) > limiteBytes;
+    return this.http
+      .get(url, {
+        params: { requerimento: String(documento.idRequerimento), formato },
+        responseType: 'blob',
+        observe: 'events',
+        reportProgress: true,
+        context: SEM_AVISO(),
+      })
+      .pipe(
+        // Ao ver o cabeçalho de um arquivo grande o fluxo termina e a requisição é cancelada, sem baixar o corpo.
+        takeWhile((evento) => !passaDoLimite(evento), true),
+        filter((evento) => evento.type === HttpEventType.Response || passaDoLimite(evento)),
+        map((evento): ConteudoRecebido => {
+          if (evento.type === HttpEventType.Response) {
+            return {
+              tipo: 'blob',
+              blob: evento.body as Blob,
+              convertidoDe: evento.headers.get('X-Vistas-Convertido-De'),
+              nome: nomeDoContentDisposition(evento.headers.get('Content-Disposition')),
+            };
+          }
+          return { tipo: 'grande', megabytes: Math.ceil(tamanhoDe(evento) / MB) };
+        }),
+        catchError((erro: unknown) => erroLegivel(erro)),
+      );
   }
 }
 

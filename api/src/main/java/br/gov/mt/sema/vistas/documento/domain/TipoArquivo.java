@@ -35,6 +35,15 @@ public enum TipoArquivo {
         return DESCONHECIDO;
     }
 
+    /**
+     * Extensão que a conversão para PDF atende (RF13): planilhas, textos e imagens. {@code txt} é do tipo
+     * {@link #TEXTO}, mas não está entre os formatos convertíveis.
+     */
+    public static boolean convertivel(String extensao) {
+        TipoArquivo tipo = daExtensao(extensao);
+        return (tipo == PLANILHA || tipo == TEXTO || tipo == IMAGEM) && !"txt".equals(extensao);
+    }
+
     /** Extensão em minúsculas, sem o ponto; vazia quando o nome não tem extensão. */
     public static String extensaoDe(String nomeArquivo) {
         if (nomeArquivo == null) {

@@ -91,7 +91,7 @@ export function rotuloDoBloqueio(d: DocumentoItem): string | null {
     case 'SIGILOSO':
       return 'documento sigiloso';
     case 'NAO_PDF':
-      return 'conversão disponível em breve';
+      return 'conversão indisponível';
     default:
       return null;
   }
@@ -116,3 +116,13 @@ export function classeDaExtensao(d: DocumentoItem): string {
       return 'off';
   }
 }
+
+/** Planilha, texto ou imagem selecionável: entra no dossiê convertida para PDF (S3). */
+export const seraConvertido = (d: DocumentoItem): boolean =>
+  d.bloqueio === null && (d.tipoArquivo === 'PLANILHA' || d.tipoArquivo === 'TEXTO' || d.tipoArquivo === 'IMAGEM');
+
+/** Não PDF que continua bloqueado (sem conversão para o formato, ou conversão desligada). */
+export const semConversao = (d: DocumentoItem): boolean => d.bloqueio === 'NAO_PDF';
+
+/** Tudo exceto o indisponível pode ser aberto no modal (o sigiloso sem perfil abre só com o motivo). */
+export const visualizavel = (d: DocumentoItem): boolean => d.bloqueio !== 'INDISPONIVEL';

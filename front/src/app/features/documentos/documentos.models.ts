@@ -32,6 +32,8 @@ export interface TotaisDocumentos {
   tipoNaoInformado: number;
   indisponiveis: number;
   sigilosos: number;
+  /** S3: planilhas, textos e imagens convertíveis para PDF que o perfil pode selecionar (0 com a conversão desligada). */
+  convertiveis: number;
 }
 
 export interface DocumentosResposta {
@@ -102,6 +104,20 @@ export interface AndamentoDossie {
   expiraEm: string | null;
   itens: ItemAndamento[];
 }
+
+/** Formato pedido ao endpoint de conteúdo (S3, docs/07). */
+export type FormatoDoConteudo = 'pdf' | 'original';
+
+/** Resposta do conteúdo: o arquivo, ou o aviso de que ele passa do limite do Blob (nada foi baixado). */
+export type ConteudoRecebido =
+  | {
+      tipo: 'blob';
+      blob: Blob;
+      /** Formato de origem (cabeçalho X-Vistas-Convertido-De, ex.: XLSX), só quando houve conversão. */
+      convertidoDe: string | null;
+      nome: string | null;
+    }
+  | { tipo: 'grande'; megabytes: number };
 
 /** Estados em que o polling para: o servidor não muda o pedido sem uma ação do usuário. */
 export const STATUS_FINAIS: readonly StatusDossie[] = ['CONCLUIDO', 'PENDENTE_DECISAO', 'CANCELADO', 'EXPIRADO'];

@@ -38,6 +38,7 @@ Pacote raiz `br.gov.mt.sema.vistas` (nome do projeto provisório).
 | `integration.licenciamento` | cliente da API de arquivos do Licenciamento (`/api/arquivo/{chave}`) |
 | `integration.scorp` | cliente do SCORP (documentos pessoais de interessado, representantes e responsáveis técnicos) |
 | `integration.arrecadacao` | taxas/DAR (desativado até a forma de obtenção ser confirmada) |
+| `integration.libreoffice` | conversor de documentos para PDF (LibreOffice headless via JODConverter); **único** lugar que usa JODConverter, UNO e jsoup |
 
 `config` (configuração técnica do Spring) e `shared` (erro comum, correlação, paginação, IDs técnicos) são transversais, não módulos de negócio. `shared` não é depósito de código sem dono.
 
@@ -89,6 +90,17 @@ O dono é o módulo que define o **significado de negócio**. Ex.: "quais docume
 
 - **`@playwright/test`** (devDependency do `front`, versão fixa, D35): testes e2e com API simulada; fora das imagens de produção, `npm audit` em 0.
 - **`org.apache.pdfbox:pdfbox`** (produção, `api`), prevista desde a S0 como stack do PDF.
+- **S3, conversão** (todas gratuitas e de código aberto, sem copyleft forte; versões fixas no `pom.xml`):
+
+| Dependência | Versão | Licença | Escopo | Uso |
+|---|---|---|---|---|
+| `org.jodconverter:jodconverter-local-lo` (traz `jodconverter-local` e `jodconverter-core`) | 4.4.9 | Apache 2.0 | produção | controle do LibreOffice headless. O `jodconverter-spring-boot-starter` 4.4 é de Spring Boot 2.7 (auto-configuração por `spring.factories`) e **não** é usado: o adapter monta o `LocalOfficeManager` |
+| `org.libreoffice:libreoffice` (bibliotecas UNO, transitiva do `-lo`) | 24.8.4 | MPL 2.0 (copyleft fraco, por arquivo; uso sem modificação) | produção | ponte Java–LibreOffice |
+| `com.google.code.gson:gson` (transitiva do `jodconverter-core`, versão do Spring Boot) | gerenciada | Apache 2.0 | produção | registro de formatos do JODConverter |
+| `org.jsoup:jsoup` | 1.21.1 | MIT | produção | limpeza do HTML antes da conversão |
+| `org.apache.poi:poi-ooxml` | 5.4.1 | Apache 2.0 | **teste** | documentos Office sintéticos (inclusive criptografados) |
+| LibreOffice (`libreoffice-writer-nogui`, `libreoffice-calc-nogui`, Ubuntu 24.04) | do repositório da distribuição | MPL 2.0 | imagem da `api` | conversor |
+| Fontes `fonts-liberation`, `fonts-dejavu-core`, `fonts-crosextra-carlito`, `fonts-crosextra-caladea` | do repositório da distribuição | SIL OFL 1.1 / licença livre do DejaVu | imagem da `api` | acentuação e métrica compatível com Arial, Times, Calibri e Cambria |
 
 ## Integração contínua
 
@@ -96,7 +108,7 @@ A pipeline roda no GitHub Actions (`.github/`). **Ela só valida e publica image
 
 | Arquivo | Quando roda | O que faz |
 |---|---|---|
-| `workflows/ci.yml` | Pull request, push na `main` e chamado pelo `release.yml` | `mudancas` decide se a mudança é só de documentação (`docs/`, `*.md`, `.claude/`); nesse caso `api`, `front`, `e2e` e `docker` ficam pulados (D53). Cinco jobs de verificação: `api` (`./mvnw -B clean verify`, com Testcontainers no Docker do runner), `front` (build, testes e `npm audit`), `e2e` (Playwright com API simulada, depois do `front`), `docker` (constrói as duas imagens, sem push e sem login) e `compose` (`config --services`, sem subir nada). Os relatórios de teste só são guardados em caso de falha, por 7 dias |
+| `workflows/ci.yml` | Pull request, push na `main` e chamado pelo `release.yml` | `mudancas` decide se a mudança é só de documentação (`docs/`, `*.md`, `.claude/`); nesse caso `api`, `front`, `e2e` e `docker` ficam pulados (D53). Cinco jobs de verificação: `api` (instala o mínimo do LibreOffice, os mesmos pacotes da imagem, e roda `./mvnw -B clean verify`, com Testcontainers no Docker do runner; os testes de conversão **falham** sem o `soffice` quando a variável `CI` está definida, e só são pulados, com aviso, na máquina do desenvolvedor; S3, bloco 8), `front` (build, testes e `npm audit`), `e2e` (Playwright com API simulada, depois do `front`), `docker` (constrói as duas imagens, sem push e sem login) e `compose` (`config --services`, sem subir nada). Os relatórios de teste só são guardados em caso de falha, por 7 dias |
 | `workflows/release.yml` | Tag `vX.Y.Z` ou execução manual sobre uma tag | Confere a ref, roda o `ci.yml` e publica `api` e `front` no GHCR (`ghcr.io/<dono>/<repositório>/api` e `/front`) com as tags `vX.Y.Z`, `X.Y` e `sha-<curto>`. **Nunca `latest`.** Build sem cache, com `provenance` e `sbom`. Não publica a cada merge |
 | `dependabot.yml` | Mensal (D53) | Atualizações de `maven`, `npm`, `github-actions` e `docker`, agrupando minor e patch (máx. 5 PRs por ecossistema) |
 
@@ -129,7 +141,7 @@ Conferido na documentação oficial do GitHub em 26/10/2026 (páginas de planos,
 | `actions/*`, `docker/*`, Maven Wrapper, `npm audit`, Playwright, Testcontainers, PDFBox, LibreOffice | Código aberto, sem cota paga | Usar |
 | Docker Hub (imagens base e `gvenzl/oracle-free` do Testcontainers) | **Limitado:** pull anônimo tem limite de taxa (valores **não confirmados** nesta auditoria) | Usar sem login; falha por limite só atrasa o CI (R31) |
 
-**Consumo estimado** (estimativa, **não medida**; confira na primeira semana em Settings → Billing): `api` 10 a 15 min (2 vCPU, Oracle por Testcontainers), `front` 3 a 5, `e2e` 4 a 6, `docker` 5 a 10, `compose` e `mudancas` 1 cada (o GitHub arredonda cada job para cima, em minutos). Uma execução completa fica entre **25 e 38 min**; um PR com dois pushes e o push na `main` gasta perto de 100 min, e só documentação fica em ~2 min. A cota de 2.000 min cobre algo como 15 a 20 PRs de código por mês, contando os do Dependabot. Uma release roda o CI de novo e os dois `publicar` sem cache (mais 20 a 30 min).
+**Consumo estimado** (estimativa, **não medida**; confira na primeira semana em Settings → Billing): `api` 10 a 15 min (13 a 19 min com a conversão, S3: instalação do LibreOffice ~0,5 a 1 min e testes de conversão ~2,5 a 3 min, medidos localmente, R40) (2 vCPU, Oracle por Testcontainers), `front` 3 a 5, `e2e` 4 a 6, `docker` 5 a 10, `compose` e `mudancas` 1 cada (o GitHub arredonda cada job para cima, em minutos). Uma execução completa fica entre **25 e 38 min**; um PR com dois pushes e o push na `main` gasta perto de 100 min, e só documentação fica em ~2 min. A cota de 2.000 min cobre algo como 15 a 20 PRs de código por mês, contando os do Dependabot. Uma release roda o CI de novo e os dois `publicar` sem cache (mais 20 a 30 min).
 
 ### Configuração no GitHub (passo a passo, feita pelo responsável)
 

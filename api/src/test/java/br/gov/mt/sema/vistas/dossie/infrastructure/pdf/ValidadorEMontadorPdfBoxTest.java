@@ -28,6 +28,7 @@ import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDDocume
 import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDOutlineItem;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.pdfbox.text.TextPosition;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -106,7 +107,7 @@ class ValidadorEMontadorPdfBoxTest {
     @Test
     void conteudoQueNaoEPdfEFalhaDoDocumento() {
         assertThatThrownBy(() -> validador.validar(PdfsDeTeste.html(pasta.resolve("h.pdf"))))
-                .isInstanceOf(FalhaNoDocumentoException.class).hasMessage("o arquivo não é um PDF (tipo detectado: HTML); a conversão chega na próxima etapa");
+                .isInstanceOf(FalhaNoDocumentoException.class).hasMessage("o arquivo não é um PDF (tipo detectado: HTML)");
     }
 
     @Test
@@ -364,6 +365,44 @@ class ValidadorEMontadorPdfBoxTest {
     }
 
     @Test
+    void convertidoFicaIdentificadoNoSumarioNosMarcadoresENaCapaSemMudarAPaginacao() throws IOException {
+        DocumentoParaMontagem pdf = doc("Requerimento", 1, PDRectangle.A4, 0);
+        DocumentoParaMontagem base = doc("Planilha de custos com um título bem longo que precisa ser cortado no sumário",
+                2, PDRectangle.A4, 0);
+        DocumentoParaMontagem planilha = new DocumentoParaMontagem(base.titulo(), base.origem(), base.data(),
+                base.arquivo(), base.paginas(), "XLSX", 1);
+        DocumentoParaMontagem imagemBase = doc("Foto", 1, PDRectangle.A4, 0);
+        DocumentoParaMontagem imagem = new DocumentoParaMontagem("Foto", imagemBase.origem(), imagemBase.data(),
+                imagemBase.arquivo(), 1, "PNG", 0);
+        Path destino = pasta.resolve("dossie.pdf");
+
+        int paginas = montador.montar(capa(), List.of(pdf, planilha, imagem), inventario(3), TUDO, destino);
+
+        assertThat(paginas).isEqualTo(1 + 1 + 1 + 2 + 1);
+        try (PDDocument dossie = Loader.loadPDF(destino.toFile())) {
+            assertThat(texto(dossie, 1, 1)).contains("3 documentos incluídos de 3 listados; 2 convertidos para PDF");
+            String sumario = texto(dossie, 2, 2).replaceAll("\\s+", " ");
+            assertThat(sumario).contains("(convertido de XLSX*)").contains("Foto (convertido de PNG)")
+                    .contains("* Planilha com aba(s) em página única")
+                    .doesNotContain("Requerimento (convertido");
+            // Página inicial de cada documento: 3, 4 e 6 (capa, sumário, depois os documentos).
+            assertThat(sumario).containsSubsequence("Requerimento", "3", "Planilha", "4", "Foto", "6");
+            List<Integer> paginasDosMarcadores = new ArrayList<>();
+            assertThat(marcadores(dossie, paginasDosMarcadores)).containsExactly("Capa", "Sumário", "Requerimento",
+                    planilha.titulo() + " (convertido de XLSX)", "Foto (convertido de PNG)");
+        }
+    }
+
+    @Test
+    void textoDaCapaComConvertidos() {
+        assertThat(MontagemPdfBox.incluidosDeListados(8, 10, 0)).isEqualTo("8 documentos incluídos de 10 listados");
+        assertThat(MontagemPdfBox.incluidosDeListados(8, 10, 1))
+                .isEqualTo("8 documentos incluídos de 10 listados; 1 convertido para PDF");
+        assertThat(MontagemPdfBox.incluidosDeListados(8, 10, 3))
+                .isEqualTo("8 documentos incluídos de 10 listados; 3 convertidos para PDF");
+    }
+
+    @Test
     void textoDaCapaParaIncluidosEListados() {
         assertThat(MontagemPdfBox.incluidosDeListados(8, 10)).isEqualTo("8 documentos incluídos de 10 listados");
         assertThat(MontagemPdfBox.incluidosDeListados(1, 1)).isEqualTo("1 documento incluído de 1 listado");
@@ -403,7 +442,7 @@ class ValidadorEMontadorPdfBoxTest {
     }
 
     @Test
-    void rodapeFicaNoCentroDaBordaInferiorEmCadaRotacao() throws IOException {
+    void numeroFicaNoCantoInferiorDireitoComoAPaginaEExibidaEmCadaRotacao() throws IOException {
         for (int rotacao : new int[] {0, 90, 180, 270}) {
             Path saida = pasta.resolve("dossie-" + rotacao + ".pdf");
             Path emBranco = PdfsDeTeste.criarEmBranco(pasta.resolve("branco-" + rotacao + ".pdf"), 1,
@@ -417,12 +456,218 @@ class ValidadorEMontadorPdfBoxTest {
                 int largura = imagem.getWidth();
                 int altura = imagem.getHeight();
                 int[] tudo = caixaDosPixelsEscuros(imagem, 190);
-                assertThat(tudo).as("rodapé visível com rotação %d", rotacao).isNotNull();
-                // Página em branco: tudo o que há de escuro é o rodapé, e ele tem de estar na faixa de baixo.
-                assertThat(tudo[1]).as("topo do rodapé, rotação %d", rotacao).isGreaterThan(altura - 45);
-                assertThat(tudo[3]).as("base do rodapé, rotação %d", rotacao).isLessThan(altura);
-                assertThat(Math.abs((tudo[0] + tudo[2]) / 2 - largura / 2)).as("centrado, rotação %d", rotacao).isLessThan(8);
+                assertThat(tudo).as("número visível com rotação %d", rotacao).isNotNull();
+                // Página em branco: tudo o que há de escuro é o número, e ele tem de estar no canto de baixo à direita.
+                assertThat(tudo[1]).as("topo do número, rotação %d", rotacao).isGreaterThan(altura - 45);
+                assertThat(tudo[3]).as("base do número, rotação %d", rotacao).isLessThan(altura);
+                assertThat(tudo[0]).as("início do número, à direita do centro, rotação %d", rotacao).isGreaterThan(largura / 2);
+                assertThat(Math.abs(largura - tudo[2] - MontagemPdfBox.MARGEM_DIREITA_DO_RODAPE))
+                        .as("borda direita do número na margem direita, rotação %d", rotacao).isLessThan(4);
             }
+        }
+    }
+
+    /** Posição do número de página como o leitor a vê: a distância até as bordas da página exibida. */
+    private record PosicaoDoNumero(float inicio, float fim, float baseAteABordaInferior, float larguraDaPagina) {
+
+        float folgaDireita() {
+            return larguraDaPagina - fim;
+        }
+    }
+
+    /** Posições (já ajustadas à rotação) dos caracteres da página, que no PDF em branco são só os do número. */
+    private static PosicaoDoNumero posicaoDoNumero(PDDocument pdf, int pagina) throws IOException {
+        List<TextPosition> caracteres = new ArrayList<>();
+        PDFTextStripper extrator = new PDFTextStripper() {
+            @Override
+            protected void processTextPosition(TextPosition texto) {
+                caracteres.add(texto);
+                super.processTextPosition(texto);
+            }
+        };
+        extrator.setStartPage(pagina);
+        extrator.setEndPage(pagina);
+        extrator.getText(pdf);
+        assertThat(caracteres).as("texto na página %d", pagina).isNotEmpty();
+        float inicio = Float.MAX_VALUE;
+        float fim = 0;
+        for (TextPosition c : caracteres) {
+            inicio = Math.min(inicio, c.getXDirAdj());
+            fim = Math.max(fim, c.getXDirAdj() + c.getWidthDirAdj());
+        }
+        // Tamanho da página exibida: com rotação de 90 ou 270 graus largura e altura da caixa de recorte se trocam.
+        PDPage exibida = pdf.getPage(pagina - 1);
+        boolean girada = exibida.getRotation() % 180 != 0;
+        float larguraExibida = girada ? exibida.getCropBox().getHeight() : exibida.getCropBox().getWidth();
+        float alturaExibida = girada ? exibida.getCropBox().getWidth() : exibida.getCropBox().getHeight();
+        return new PosicaoDoNumero(inicio, fim, alturaExibida - caracteres.get(0).getYDirAdj(), larguraExibida);
+    }
+
+    @Test
+    void numeroAlinhadoADireitaNaMargemEmPaginasRetratoEPaisagem() throws IOException {
+        Path saida = pasta.resolve("dossie.pdf");
+        Path retrato = PdfsDeTeste.criarEmBranco(pasta.resolve("retrato.pdf"), 1, PDRectangle.A4, 0);
+        Path paisagem = PdfsDeTeste.criarEmBranco(pasta.resolve("paisagem.pdf"), 1,
+                new PDRectangle(PDRectangle.A4.getHeight(), PDRectangle.A4.getWidth()), 0);
+        montador.montar(capa(), List.of(new DocumentoParaMontagem("Retrato", "Juntada", D, retrato, 1),
+                new DocumentoParaMontagem("Paisagem", "Juntada", D.plusDays(1), paisagem, 1)),
+                new OpcoesDeMontagem(false, false, true), saida);
+
+        try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+            for (int pagina : new int[] {2, 3}) {
+                PosicaoDoNumero p = posicaoDoNumero(pdf, pagina);
+                assertThat(p.folgaDireita()).as("margem direita, página %d", pagina)
+                        .isCloseTo(MontagemPdfBox.MARGEM_DIREITA_DO_RODAPE, org.assertj.core.data.Offset.offset(1.5f));
+                assertThat(p.baseAteABordaInferior()).as("margem inferior, página %d", pagina)
+                        .isCloseTo(20f, org.assertj.core.data.Offset.offset(1.5f));
+                assertThat(p.inicio()).as("à direita do centro, página %d", pagina).isGreaterThan(p.larguraDaPagina() / 2);
+            }
+        }
+    }
+
+    @Test
+    void numeroSegueOCantoComTamanhosDePaginaEmRotacoesDiferentesNoMesmoDossie() throws IOException {
+        Path saida = pasta.resolve("dossie.pdf");
+        List<DocumentoParaMontagem> documentos = new ArrayList<>();
+        PDRectangle[] tamanhos = {PDRectangle.A4, new PDRectangle(200f, 600f), new PDRectangle(3000f, 2000f)};
+        int[] rotacoes = {0, 90, 180, 270};
+        int numero = 0;
+        for (PDRectangle tamanho : tamanhos) {
+            for (int rotacao : rotacoes) {
+                Path arquivo = PdfsDeTeste.criarEmBranco(pasta.resolve("p" + (numero++) + ".pdf"), 1, tamanho, rotacao);
+                documentos.add(new DocumentoParaMontagem("Doc " + numero, "Juntada", D.plusDays(numero), arquivo, 1));
+            }
+        }
+
+        int total = montador.montar(capa(), documentos, new OpcoesDeMontagem(false, false, true), saida);
+
+        assertThat(total).isEqualTo(1 + documentos.size());
+        try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+            for (int pagina = 2; pagina <= total; pagina++) {
+                PosicaoDoNumero p = posicaoDoNumero(pdf, pagina);
+                assertThat(p.folgaDireita()).as("margem direita, página %d", pagina)
+                        .isCloseTo(MontagemPdfBox.MARGEM_DIREITA_DO_RODAPE, org.assertj.core.data.Offset.offset(1.5f));
+                assertThat(p.baseAteABordaInferior()).as("margem inferior, página %d", pagina)
+                        .isCloseTo(20f, org.assertj.core.data.Offset.offset(1.5f));
+                assertThat(p.inicio()).as("à direita do centro, página %d", pagina).isGreaterThan(p.larguraDaPagina() / 2);
+                assertThat(texto(pdf, pagina, pagina)).contains("Página " + pagina + " de " + total);
+            }
+            assertThat(texto(pdf, 1, 1)).as("a capa não é numerada").doesNotContain("Página 1");
+        }
+    }
+
+    @Test
+    void numeroEmNegritoSemRetanguloNemCorBrancaENadaDoConteudoCoberto() throws IOException {
+        Path saida = pasta.resolve("dossie.pdf");
+        montador.montar(capa(), List.of(doc("Oficio", 1, PDRectangle.A4, 0)), new OpcoesDeMontagem(false, false, true), saida);
+
+        try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+            PDPage pagina = pdf.getPage(1);
+            // O que o rodapé acrescentou é o último fluxo de conteúdo da página.
+            org.apache.pdfbox.pdmodel.common.PDStream ultimo = null;
+            for (java.util.Iterator<org.apache.pdfbox.pdmodel.common.PDStream> it = pagina.getContentStreams(); it.hasNext();) {
+                ultimo = it.next();
+            }
+            assertThat(ultimo).isNotNull();
+            List<Object> itens = new org.apache.pdfbox.pdfparser.PDFStreamParser(ultimo.toByteArray()).parse();
+            List<String> operadores = itens.stream()
+                    .filter(org.apache.pdfbox.contentstream.operator.Operator.class::isInstance)
+                    .map(o -> ((org.apache.pdfbox.contentstream.operator.Operator) o).getName()).toList();
+            assertThat(operadores).as("sem retângulo nem preenchimento: só texto").doesNotContain("re", "f", "F", "f*");
+            assertThat(operadores).contains("Tj");
+            // Cor do texto: preto (0 0 0 rg), nunca branco.
+            int cor = operadores.indexOf("rg");
+            assertThat(cor).isGreaterThanOrEqualTo(0);
+            int posicaoDoRg = itens.indexOf(itens.stream().filter(org.apache.pdfbox.contentstream.operator.Operator.class::isInstance)
+                    .filter(o -> ((org.apache.pdfbox.contentstream.operator.Operator) o).getName().equals("rg")).findFirst().orElseThrow());
+            for (int k = 1; k <= 3; k++) {
+                assertThat(((org.apache.pdfbox.cos.COSNumber) itens.get(posicaoDoRg - k)).floatValue()).isZero();
+            }
+
+            // A fonte do "Página X de Y" é negrito.
+            String numeracao = "Página 2 de 2";
+            List<TextPosition> caracteres = new ArrayList<>();
+            PDFTextStripper extrator = new PDFTextStripper() {
+                @Override
+                protected void processTextPosition(TextPosition texto) {
+                    caracteres.add(texto);
+                    super.processTextPosition(texto);
+                }
+            };
+            extrator.setStartPage(2);
+            extrator.setEndPage(2);
+            assertThat(extrator.getText(pdf)).contains(numeracao);
+            List<TextPosition> daNumeracao = caracteres.subList(caracteres.size() - numeracao.length(), caracteres.size());
+            assertThat(daNumeracao).allSatisfy(c -> assertThat(c.getFont().getName()).containsIgnoringCase("Bold"));
+            // O texto do documento continua extraível.
+            assertThat(texto(pdf, 2, 2)).contains("Oficio");
+        }
+    }
+
+    @Test
+    void paginaComFundoCinzaContinuaCinzaAoRedorDoNumero() throws IOException {
+        for (int rotacao : new int[] {0, 90, 180, 270}) {
+            Path cinza = pasta.resolve("cinza-" + rotacao + ".pdf");
+            try (PDDocument doc = new PDDocument()) {
+                PDPage p = new PDPage(PDRectangle.A4);
+                p.setRotation(rotacao);
+                doc.addPage(p);
+                try (org.apache.pdfbox.pdmodel.PDPageContentStream c = new org.apache.pdfbox.pdmodel.PDPageContentStream(doc, p)) {
+                    c.setNonStrokingColor(0.5f, 0.5f, 0.5f);
+                    c.addRect(0, 0, PDRectangle.A4.getWidth(), PDRectangle.A4.getHeight());
+                    c.fill();
+                }
+                doc.save(cinza.toFile());
+            }
+            Path saida = pasta.resolve("dossie-cinza-" + rotacao + ".pdf");
+            montador.montar(capa(), List.of(new DocumentoParaMontagem("Cinza", "Juntada", D, cinza, 1)),
+                    new OpcoesDeMontagem(false, false, true), saida);
+
+            try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+                BufferedImage imagem = new PDFRenderer(pdf).renderImage(1, 1f);
+                int fundo = imagem.getRGB(imagem.getWidth() / 2, imagem.getHeight() / 2) & 0xFF;
+                int largura = imagem.getWidth();
+                int altura = imagem.getHeight();
+                int maisClaro = 0;
+                int escuros = 0;
+                // Faixa do canto inferior direito: 130 x 45 pt em volta do número, como a página é exibida.
+                for (int y = altura - 45; y < altura; y++) {
+                    for (int x = largura - 130; x < largura; x++) {
+                        int cor = imagem.getRGB(x, y) & 0xFF;
+                        maisClaro = Math.max(maisClaro, cor);
+                        if (cor < fundo - 40) {
+                            escuros++;
+                        }
+                    }
+                }
+                assertThat(escuros).as("o número aparece, rotação %d", rotacao).isGreaterThan(20);
+                assertThat(maisClaro).as("nenhum pixel mais claro que o fundo (nada de retângulo branco), rotação %d", rotacao)
+                        .isLessThanOrEqualTo(fundo + 1);
+            }
+        }
+    }
+
+    @Test
+    void cadaPaginaNumeradaTemUmaUnicaNumeracaoESemFundoBrancoQueEscondaOConteudo() throws IOException {
+        Path saida = pasta.resolve("dossie.pdf");
+        montador.montar(capa(), List.of(doc("Oficio", 3, PDRectangle.A4, 0), doc("Planta", 2, PDRectangle.A4, 0)), TUDO, saida);
+
+        try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+            int total = pdf.getNumberOfPages();
+            java.util.regex.Pattern numeracao = java.util.regex.Pattern.compile("Página \\d+ de \\d+");
+            java.util.regex.Pattern pagina1 = java.util.regex.Pattern.compile("Página \\d+\\b(?! de \\d+)");
+            for (int pagina = 2; pagina <= total; pagina++) {
+                String texto = texto(pdf, pagina, pagina);
+                java.util.regex.Matcher m = numeracao.matcher(texto);
+                int ocorrencias = 0;
+                while (m.find()) {
+                    ocorrencias++;
+                }
+                assertThat(ocorrencias).as("numerações na página %d", pagina).isEqualTo(1);
+                assertThat(pagina1.matcher(texto).find()).as("numeração solta na página %d", pagina).isFalse();
+            }
+            // O texto do documento (o título que o PDF de teste desenha) continua na página, extraível, sem nada por cima.
+            assertThat(texto(pdf, 4, 4)).contains("Oficio");
         }
     }
 

@@ -420,7 +420,7 @@ Para cada um dos 3 requerimentos (ou para os de `casos-de-teste.md`): **Gerar do
 | Capa | "Dossiê do Processo N/AAAA" (ou "Requerimento"), interessado, CPF/CNPJ, tipo de processo, situação, abertura, objetivos e atividades, "N documentos incluídos de M listados" (S2.2), data/hora e usuário; acentos corretos | [ ] |
 | Sumário | uma linha por documento (data, título, origem, página inicial) e a página inicial confere com o documento | [ ] |
 | Marcadores | um por documento, mais "Capa", "Sumário" e, se houver, "Documentos não incluídos" (S2.2), levando à página certa | [ ] |
-| Numeração | "Página X de Y" no rodapé, a partir da 2ª página, inclusive em páginas em paisagem ou giradas | [ ] |
+| Numeração | "Página X de Y" no **canto inferior direito** (desde a S3.1; antes era no centro), a partir da 2ª página, inclusive em páginas em paisagem ou giradas | [ ] |
 | Ordem | cronológica pela data da própria origem; sem data ao final | [ ] |
 | Tamanho e rotação | cada página mantém o tamanho e a rotação do original (nada forçado para A4) | [ ] |
 | Pré-visualizar / Baixar | abre sem baixar; baixa com o nome `dossie-processo-N-AAAA.pdf`; depois do download o arquivo some (410 ao pedir de novo) | [ ] |

@@ -53,3 +53,16 @@ tbody tr.bloqueado td:not(:first-child){opacity:.62}
 .step.off{opacity:.6}
 .step.off .tx b{text-decoration:line-through}
 .decisao-botoes{justify-content:flex-end;gap:8px}
+/* Modal de visualização (S3) */
+.vis-fundo{position:fixed;inset:0;background:#0a1a0580;backdrop-filter:blur(3px);z-index:100}
+.visualizador{min-height:0}
+.visualizador .vis-titulo{display:flex;align-items:center;gap:12px;min-width:0}
+.visualizador .vis-titulo h2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.visualizador .vis-faixa{margin:0;border-radius:0}
+.visualizador iframe{min-height:0}
+.vis-estado{padding:24px 20px;display:flex;flex-direction:column;align-items:flex-start;gap:12px;overflow:auto}
+.vis-ficha{display:grid;gap:4px;margin:0}
+.vis-ficha div{display:flex;gap:8px}
+.vis-ficha dt{color:var(--muted);min-width:64px}
+.vis-ficha dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

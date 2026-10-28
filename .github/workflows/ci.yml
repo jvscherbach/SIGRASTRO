@@ -80,6 +80,19 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      # S3 (bloco 8): o mínimo do LibreOffice para os testes de conversão, os mesmos pacotes da imagem da api, só
+      # quando o job roda (sem cache: o pacote vem do espelho do Ubuntu, gratuito). Sem o soffice, esses testes FALHAM
+      # aqui (a variável CI é definida pelo Actions) em vez de ficar pulados em silêncio.
+      - name: Instalar LibreOffice (testes de conversão)
+        working-directory: .
+        run: |
+          inicio=$(date +%s)
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            libreoffice-writer-nogui libreoffice-calc-nogui \
+            fonts-liberation fonts-dejavu-core fonts-crosextra-carlito fonts-crosextra-caladea
+          echo "LibreOffice instalado em $(( $(date +%s) - inicio )) s"
+          soffice --version
       # Os testes de fumaça (SIGA_SMOKE, ARQUIVOS_SMOKE) ficam pulados: nenhuma dessas variáveis é definida aqui.
       # Os de Testcontainers (Oracle 23 Free) usam o Docker do próprio runner.
       - name: Build e testes

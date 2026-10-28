@@ -17,19 +17,23 @@ import {
   rotuloDoBloqueio,
   selecaoPadrao,
   selecionavel,
+  semConversao,
+  seraConvertido,
+  visualizavel,
 } from './documentos.logic';
 import { DocumentoItem, DocumentosResposta, ReferenciaDocumento } from './documentos.models';
 import { GavetaDossieComponent } from './gaveta-dossie.component';
+import { VisualizadorDocumentoComponent } from './visualizador-documento.component';
 
 /**
- * Seção Documentos do detalhe (RF06 a RF10, RF20): todos os documentos do requerimento, busca, filtro de origem,
- * ordenação, seleção e geração do dossiê. A visualização individual é da S3. O que pode ou não ser selecionado vem da
+ * Seção Documentos do detalhe (RF06 a RF10, RF14, RF20): todos os documentos do requerimento, busca, filtro de origem,
+ * ordenação, seleção, visualização individual (modal, S3) e geração do dossiê. O que pode ou não ser selecionado vem da
  * API (`bloqueio`); a interface só obedece, a regra é do back-end (RNF10).
  */
 @Component({
   selector: 'app-documentos-secao',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconeComponent, GavetaDossieComponent],
+  imports: [IconeComponent, GavetaDossieComponent, VisualizadorDocumentoComponent],
   templateUrl: './documentos-secao.component.html',
 })
 export class DocumentosSecaoComponent implements OnInit {
@@ -45,6 +49,8 @@ export class DocumentosSecaoComponent implements OnInit {
   protected readonly ordem = signal<Ordem>(ORDEM_PADRAO);
   protected readonly selecionados = signal<ReadonlySet<string>>(new Set());
   protected readonly gaveta = signal<ReferenciaDocumento[] | null>(null);
+  /** Documento aberto no modal de visualização. */
+  protected readonly visualizando = signal<DocumentoItem | null>(null);
 
   protected readonly itens = computed(() => this.resposta()?.itens ?? []);
   protected readonly totais = computed(() => this.resposta()?.totais ?? null);
@@ -62,12 +68,16 @@ export class DocumentosSecaoComponent implements OnInit {
       this.selecionaveisListados().length > 0 && this.selecionaveisListados().every((d) => this.selecionados().has(chaveDe(d))),
   );
   protected readonly quantidadeSelecionada = computed(() => this.selecionados().size);
+  /** Não PDF que ficou sem conversão (aviso do topo); os convertíveis têm o próprio aviso (`totais.convertiveis`). */
+  protected readonly quantidadeSemConversao = computed(() => this.itens().filter(semConversao).length);
 
   protected readonly formatarData = formatarData;
   protected readonly chaveDe = chaveDe;
   protected readonly classeDaExtensao = classeDaExtensao;
   protected readonly rotuloDoBloqueio = rotuloDoBloqueio;
   protected readonly selecionavel = selecionavel;
+  protected readonly visualizavel = visualizavel;
+  protected readonly seraConvertido = seraConvertido;
 
   ngOnInit(): void {
     this.carregar();
@@ -148,6 +158,16 @@ export class DocumentosSecaoComponent implements OnInit {
     if (escolhidos.length) {
       this.gaveta.set(escolhidos.map(referenciaDe));
     }
+  }
+
+  protected visualizar(documento: DocumentoItem): void {
+    if (visualizavel(documento)) {
+      this.visualizando.set(documento);
+    }
+  }
+
+  protected fecharVisualizacao(): void {
+    this.visualizando.set(null);
   }
 
   protected fecharGaveta(): void {

@@ -1,11 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { NEVER, of, throwError } from 'rxjs';
+import { NEVER, Subject, of, throwError } from 'rxjs';
 
-import { DocumentosApiService, DossiesApiService } from './documentos-api.service';
+import { ConteudoApiService, DocumentosApiService, DossiesApiService, LIMITE_DO_BLOB_MB } from './documentos-api.service';
 import { DocumentosSecaoComponent } from './documentos-secao.component';
 import { documento } from './documentos.fixtures';
-import { DocumentoItem, DocumentosResposta } from './documentos.models';
+import { ConteudoRecebido, DocumentoItem, DocumentosResposta } from './documentos.models';
 
 function resposta(itens: DocumentoItem[]): DocumentosResposta {
   return {
@@ -18,6 +18,7 @@ function resposta(itens: DocumentoItem[]): DocumentosResposta {
       tipoNaoInformado: itens.filter((d) => d.tipoArquivo === 'DESCONHECIDO').length,
       indisponiveis: itens.filter((d) => d.situacao === 'INDISPONIVEL').length,
       sigilosos: itens.filter((d) => d.sigiloso).length,
+      convertiveis: itens.filter((d) => d.bloqueio === null && ['PLANILHA', 'TEXTO', 'IMAGEM'].includes(d.tipoArquivo ?? '')).length,
     },
   };
 }
@@ -50,6 +51,7 @@ const BASE: DocumentoItem[] = [
 
 describe('DocumentosSecaoComponent', () => {
   let api: { listar: ReturnType<typeof vi.fn> };
+  let conteudoApi: ReturnType<typeof vi.fn>;
   let fixture: ComponentFixture<DocumentosSecaoComponent>;
   let raiz: HTMLElement;
 
@@ -59,6 +61,7 @@ describe('DocumentosSecaoComponent', () => {
       imports: [DocumentosSecaoComponent],
       providers: [
         { provide: DocumentosApiService, useValue: api },
+        { provide: ConteudoApiService, useValue: { conteudo: conteudoApi } },
         // a gaveta cria o pedido ao abrir; aqui ela só precisa existir
         { provide: DossiesApiService, useValue: { criar: vi.fn(() => NEVER), andamento: vi.fn(), cancelar: vi.fn(), arquivo: vi.fn() } },
       ],
@@ -87,6 +90,9 @@ describe('DocumentosSecaoComponent', () => {
 
   beforeEach(() => {
     api = { listar: vi.fn() };
+    conteudoApi = vi.fn();
+    URL.createObjectURL = vi.fn(() => 'blob:http://localhost/doc-1');
+    URL.revokeObjectURL = vi.fn();
   });
 
   describe('carregamento', () => {
@@ -163,12 +169,28 @@ describe('DocumentosSecaoComponent', () => {
       expect(linha.textContent).toContain('arquivo indisponível');
     });
 
-    it('não PDF: bloqueado com "conversão disponível em breve" e aviso no topo da seção', () => {
+    it('não PDF sem conversão: bloqueado com "conversão indisponível" e aviso no topo, sem prometer próxima etapa', () => {
       const linha = linhaDe('Cálculo');
 
       expect(caixa(linha).disabled).toBe(true);
-      expect(linha.textContent).toContain('conversão disponível em breve');
-      expect(raiz.querySelector('.nao-pdf')!.textContent).toContain('1 documento(s) não são PDF e entram no dossiê a partir da próxima etapa');
+      expect(linha.textContent).toContain('conversão indisponível');
+      const aviso = raiz.querySelector('.nao-pdf')!.textContent!;
+      expect(aviso).toContain('1 documento(s) não são PDF e não têm conversão disponível');
+      expect(aviso).not.toContain('próxima etapa');
+      expect(raiz.querySelector('.convertiveis')).toBeNull();
+    });
+
+    it('convertíveis (conversão ligada): vêm selecionados, com etiqueta e aviso "serão convertidos para PDF"', () => {
+      TestBed.resetTestingModule();
+      const convertivel = PLANILHA({ bloqueio: null, selecionavelPorPadrao: true });
+      const imagem = documento({ id: '9', titulo: 'Foto', nomeArquivo: 'foto.png', extensao: 'png', tipoArquivo: 'IMAGEM', data: '2025-04-09T10:00:00' });
+      abrir([BASE[0], convertivel, imagem]);
+
+      expect(marcados()).toEqual(['Requerimento assinado', 'Cálculo', 'Foto']);
+      expect(linhaDe('Cálculo').textContent).toContain('será convertido para PDF');
+      expect(linhaDe('Requerimento').textContent).not.toContain('será convertido');
+      expect(raiz.querySelector('.convertiveis')!.textContent).toContain('2 documento(s) serão convertidos para PDF');
+      expect(raiz.querySelector('.nao-pdf')).toBeNull();
     });
 
     it('tipo não informado: etiqueta, selecionável, já selecionado, linha própria no aviso e sem contar como não PDF', () => {
@@ -215,9 +237,14 @@ describe('DocumentosSecaoComponent', () => {
       expect(caixa(linhaDe('Antigo')).checked).toBe(false);
     });
 
-    it('não há ação "Visualizar" nesta etapa', () => {
-      expect(texto()).not.toMatch(/Visualizar/);
-      expect(raiz.querySelector('tbody .icon-btn')).toBeNull();
+    it('"Visualizar" em toda linha, menos nos indisponíveis', () => {
+      const comAcao = (titulo: string) => linhaDe(titulo).querySelector('button.visualizar');
+
+      expect(comAcao('Requerimento assinado')).not.toBeNull();
+      expect(comAcao('Cálculo')).not.toBeNull();
+      expect(comAcao('Antigo')).not.toBeNull();
+      expect(comAcao('Documento sigiloso')).not.toBeNull();
+      expect(comAcao('Perdido')).toBeNull();
     });
   });
 
@@ -402,4 +429,214 @@ describe('DocumentosSecaoComponent', () => {
       expect(document.body.querySelector('app-gaveta-dossie')).toBeNull();
     });
   });
+
+  describe('visualização (modal)', () => {
+    const PDF = (sobre: Partial<Extract<ConteudoRecebido, { tipo: 'blob' }>> = {}): ConteudoRecebido => ({
+      tipo: 'blob',
+      blob: new Blob(['%PDF-1.7'], { type: 'application/pdf' }),
+      convertidoDe: null,
+      nome: null,
+      ...sobre,
+    });
+    const modal = () => document.body.querySelector('app-visualizador-documento');
+    const visualizar = (titulo: string) => {
+      linhaDe(titulo).querySelector<HTMLButtonElement>('button.visualizar')!.click();
+      fixture.detectChanges();
+    };
+    const botaoDoModal = (rotulo: string) =>
+      Array.from(document.body.querySelectorAll<HTMLButtonElement>('app-visualizador-documento button')).find((b) =>
+        b.textContent!.includes(rotulo),
+      );
+    const fecharModal = () => {
+      document.body.querySelector<HTMLButtonElement>('app-visualizador-documento button[aria-label="Fechar"]')!.click();
+      fixture.detectChanges();
+    };
+
+    it('abre com o PDF por Blob (sem o token na URL), pede formato pdf e fecha revogando a URL de objeto', () => {
+      conteudoApi.mockReturnValue(of(PDF()));
+      abrir();
+
+      visualizar('Requerimento assinado');
+
+      expect(conteudoApi).toHaveBeenCalledWith(
+        expect.objectContaining({ origem: 'DOCUMENTO_PROCESSO', id: '1', idRequerimento: 101 }),
+        'pdf',
+        LIMITE_DO_BLOB_MB,
+      );
+      expect(modal()).not.toBeNull();
+      expect(modal()!.querySelector('iframe')).not.toBeNull();
+      expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+      expect(modal()!.querySelector('.vis-faixa')).toBeNull();
+
+      fecharModal();
+      expect(modal()).toBeNull();
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:http://localhost/doc-1');
+    });
+
+    it('mostra "Convertendo para PDF…" enquanto converte um convertível e "Carregando" para os demais', () => {
+      conteudoApi.mockReturnValue(NEVER);
+      abrir([BASE[0], PLANILHA({ bloqueio: null, selecionavelPorPadrao: true })]);
+
+      visualizar('Cálculo');
+      expect(modal()!.textContent).toContain('Convertendo para PDF…');
+      fecharModal();
+
+      visualizar('Requerimento assinado');
+      expect(modal()!.textContent).toContain('Carregando o documento…');
+      expect(modal()!.textContent).not.toContain('Convertendo');
+      fecharModal();
+    });
+
+    it('convertido: faixa "Versão convertida para PDF a partir de XLSX"', () => {
+      conteudoApi.mockReturnValue(of(PDF({ convertidoDe: 'XLSX' })));
+      abrir([BASE[0], PLANILHA({ bloqueio: null, selecionavelPorPadrao: true })]);
+
+      visualizar('Cálculo');
+
+      expect(modal()!.querySelector('.vis-faixa')!.textContent).toContain('Versão convertida para PDF a partir de XLSX');
+      fecharModal();
+    });
+
+    it('erro pelo errorCode, sem o detail técnico, e "Tentar novamente" chama o servidor de novo', () => {
+      const falha = new HttpErrorResponse({ status: 504, error: { errorCode: 'TEMPO_LIMITE_EXCEDIDO', detail: 'detalhe técnico', correlationId: 'c-1' } });
+      conteudoApi.mockReturnValueOnce(throwError(() => falha)).mockReturnValueOnce(of(PDF()));
+      abrir();
+
+      visualizar('Requerimento assinado');
+      expect(modal()!.querySelector('.vis-erro')!.textContent).toContain('O tempo limite foi excedido');
+      expect(modal()!.textContent).not.toContain('detalhe técnico');
+      expect(botaoDoModal('Baixar original')).toBeUndefined();
+
+      botaoDoModal('Tentar novamente')!.click();
+      fixture.detectChanges();
+
+      expect(conteudoApi).toHaveBeenCalledTimes(2);
+      expect(modal()!.querySelector('iframe')).not.toBeNull();
+      fecharModal();
+    });
+
+    it('429: pede para tentar mais tarde; senha: oferece o original', () => {
+      conteudoApi.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 429, error: { errorCode: 'MUITAS_CONVERSOES' } })));
+      abrir();
+      visualizar('Requerimento assinado');
+      expect(modal()!.querySelector('.vis-erro')!.textContent).toContain('muitas conversões');
+      expect(botaoDoModal('Baixar original')).toBeUndefined();
+      fecharModal();
+
+      conteudoApi.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 422, error: { errorCode: 'DOCUMENTO_PROTEGIDO_POR_SENHA' } })));
+      visualizar('Requerimento assinado');
+      expect(modal()!.querySelector('.vis-erro')!.textContent).toContain('protegido por senha');
+      expect(botaoDoModal('Baixar original')).toBeDefined();
+      fecharModal();
+    });
+
+    it('formato sem conversão (415): nome, tipo e "Baixar original", que pede o formato original sem limite', () => {
+      conteudoApi.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 415, error: { errorCode: 'FORMATO_NAO_SUPORTADO' } })));
+      abrir();
+      visualizar('Requerimento assinado');
+
+      expect(modal()!.querySelector('.vis-sem-conversao')!.textContent).toContain('não tem conversão para PDF');
+      expect(modal()!.querySelector('.vis-ficha')!.textContent).toContain('requerimento.pdf');
+
+      conteudoApi.mockReturnValueOnce(of(PDF({ nome: 'requerimento.pdf' })));
+      const clique = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+      botaoDoModal('Baixar original')!.click();
+      fixture.detectChanges();
+
+      expect(conteudoApi).toHaveBeenLastCalledWith(expect.objectContaining({ id: '1' }), 'original', null);
+      expect(clique).toHaveBeenCalled();
+      clique.mockRestore();
+      fecharModal();
+    });
+
+    it('documento grande: sem Blob, aviso com o tamanho e só "Baixar original"', () => {
+      conteudoApi.mockReturnValue(of({ tipo: 'grande', megabytes: 320 } as ConteudoRecebido));
+      abrir();
+
+      visualizar('Requerimento assinado');
+
+      expect(modal()!.querySelector('iframe')).toBeNull();
+      expect(URL.createObjectURL).not.toHaveBeenCalled();
+      expect(modal()!.querySelector('.vis-grande')!.textContent).toContain('320 MB');
+      expect(botaoDoModal('Baixar original')).toBeDefined();
+      expect(botaoDoModal('Tentar novamente')).toBeUndefined();
+      fecharModal();
+    });
+
+    it('sigiloso sem perfil: mostra o motivo e não chama o servidor', () => {
+      abrir();
+
+      visualizar('Documento sigiloso');
+
+      expect(conteudoApi).not.toHaveBeenCalled();
+      expect(modal()!.querySelector('.vis-sigiloso')!.textContent).toContain('sigiloso e não está disponível para o seu perfil');
+      expect(botaoDoModal('Incluir no dossiê')).toBeUndefined();
+      expect(botaoDoModal('Tirar do dossiê')).toBeUndefined();
+      fecharModal();
+    });
+
+    it('seleciona e desmarca pelo modal, refletindo na tabela', () => {
+      conteudoApi.mockReturnValue(of(PDF()));
+      abrir();
+      expect(caixa(linhaDe('Requerimento assinado')).checked).toBe(true);
+      const antes = Number(selecionadosNaBarra());
+
+      visualizar('Requerimento assinado');
+      botaoDoModal('Tirar do dossiê')!.click();
+      fixture.detectChanges();
+
+      expect(caixa(linhaDe('Requerimento assinado')).checked).toBe(false);
+      expect(botaoDoModal('Incluir no dossiê')).toBeDefined();
+      expect(Number(selecionadosNaBarra())).toBe(antes - 1);
+
+      botaoDoModal('Incluir no dossiê')!.click();
+      fixture.detectChanges();
+      expect(caixa(linhaDe('Requerimento assinado')).checked).toBe(true);
+      expect(Number(selecionadosNaBarra())).toBe(antes);
+      fecharModal();
+    });
+
+    it('documento que não pode ser selecionado não oferece incluir no dossiê', () => {
+      conteudoApi.mockReturnValue(of(PDF()));
+      abrir();
+
+      visualizar('Cálculo');
+
+      expect(botaoDoModal('Incluir no dossiê')).toBeUndefined();
+      fecharModal();
+    });
+
+    it('Esc e clique no fundo fecham; destruir a tela não deixa modal nem URL de objeto', () => {
+      conteudoApi.mockReturnValue(of(PDF()));
+      abrir();
+
+      visualizar('Requerimento assinado');
+      modal()!.querySelector('section')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      fixture.detectChanges();
+      expect(modal()).toBeNull();
+
+      visualizar('Requerimento assinado');
+      modal()!.querySelector<HTMLElement>('.vis-fundo')!.click();
+      fixture.detectChanges();
+      expect(modal()).toBeNull();
+
+      visualizar('Requerimento assinado');
+      fixture.destroy();
+      expect(modal()).toBeNull();
+      expect(URL.revokeObjectURL).toHaveBeenCalledTimes(3);
+    });
+
+    it('fechar com a resposta pendente cancela a requisição', () => {
+      const pendente = new Subject<ConteudoRecebido>();
+      conteudoApi.mockReturnValue(pendente);
+      abrir();
+
+      visualizar('Requerimento assinado');
+      expect(pendente.observed).toBe(true);
+      fecharModal();
+
+      expect(pendente.observed).toBe(false);
+    });
+  });
+
 });

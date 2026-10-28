@@ -27,6 +27,7 @@ import br.gov.mt.sema.vistas.consulta.domain.Interessado;
 import br.gov.mt.sema.vistas.consulta.domain.Requerimento;
 import br.gov.mt.sema.vistas.consulta.domain.Situacao;
 import br.gov.mt.sema.vistas.documento.application.port.DocumentosDoRequerimento;
+import br.gov.mt.sema.vistas.documento.application.port.ParametrosDaConversao;
 import br.gov.mt.sema.vistas.documento.domain.Documento;
 import br.gov.mt.sema.vistas.documento.domain.Documento.Bloqueio;
 import br.gov.mt.sema.vistas.documento.domain.OrigemDocumento;
@@ -47,6 +48,7 @@ class CasosDeUsoDocumentoTest {
     private Usuario usuario;
     private final RequerimentosDoSiga requerimentos = mock(RequerimentosDoSiga.class);
     private final DocumentosDoRequerimento documentos = mock(DocumentosDoRequerimento.class);
+    private final ParametrosDaConversao conversao = mock(ParametrosDaConversao.class);
 
     private ListarDocumentos listar;
     private SelecionarDocumentosParaDossie selecionar;
@@ -68,8 +70,10 @@ class CasosDeUsoDocumentoTest {
         VerificarAcessoAoRequerimento acesso = new VerificarAcessoAoRequerimento(requerimentos,
                 new ObterRestricaoDeInteressado(atual));
         ObterPermissoesDoUsuario permissoes = new ObterPermissoesDoUsuario(atual);
-        listar = new ListarDocumentos(acesso, documentos, permissoes);
-        selecionar = new SelecionarDocumentosParaDossie(acesso, listar, permissoes);
+        listar = new ListarDocumentos(acesso, documentos, permissoes, conversao);
+        selecionar = new SelecionarDocumentosParaDossie(acesso, listar, permissoes, conversao);
+        // Os testes da S2.2 descrevem o comportamento só-PDF; os da S3 ligam a conversão.
+        when(conversao.habilitada()).thenReturn(false);
 
         when(requerimentos.buscarPorId(101)).thenReturn(Optional.of(requerimento(101, CNPJ_DO_OPERADOR)));
         when(requerimentos.buscarPorId(202)).thenReturn(Optional.of(requerimento(202, "98.765.432/0001-10")));
@@ -107,7 +111,7 @@ class CasosDeUsoDocumentoTest {
 
         // 8 linhas: 1 compactado e 1 geometria saem; 1 cópia (mesma chave K1) é deduplicada.
         assertThat(lista.itens()).extracting(i -> i.documento().id()).containsExactly("1", "5", "2", "3", "4");
-        assertThat(lista.totais()).isEqualTo(new DocumentosListados.Totais(5, 3, 1, 1, 0, 1, 1));
+        assertThat(lista.totais()).isEqualTo(new DocumentosListados.Totais(5, 3, 1, 1, 0, 1, 1, 0));
     }
 
     @Test
@@ -142,7 +146,7 @@ class CasosDeUsoDocumentoTest {
 
         DocumentosListados lista = listar.executar(101);
 
-        assertThat(lista.totais()).isEqualTo(new DocumentosListados.Totais(2, 2, 0, 0, 1, 0, 0));
+        assertThat(lista.totais()).isEqualTo(new DocumentosListados.Totais(2, 2, 0, 0, 1, 0, 0, 0));
         assertThat(lista.itens().get(0).bloqueio()).isNull();
         assertThat(lista.itens().get(0).selecionavelPorPadrao()).isTrue();
         assertThat(selecionar.executar(101, List.of(ref("IMOVEL", "1")))).hasSize(1);
@@ -230,6 +234,50 @@ class CasosDeUsoDocumentoTest {
                     assertThat(n.motivo()).isEqualTo(SelecaoParaDossie.Motivo.NAO_SELECIONADO);
                 });
         assertThat(selecao.escolhidos().size() + selecao.naoSelecionados().size()).isEqualTo(selecao.listados());
+    }
+
+    // --- conversão para PDF (RN13, S3)
+
+    @Test
+    void comAConversaoLigadaOConvertivelVemSelecionadoEContadoNosTotais() {
+        when(conversao.habilitada()).thenReturn(true);
+        comoGestor();
+
+        DocumentosListados lista = listar.executar(101);
+
+        assertThat(lista.itens()).filteredOn(DocumentoListado::selecionavelPorPadrao)
+                .extracting(i -> i.documento().id()).containsExactly("1", "5", "3", "4");
+        assertThat(lista.totais().convertiveis()).isEqualTo(1);
+    }
+
+    @Test
+    void comAConversaoLigadaAPlanilhaPodeSerSelecionadaParaODossie() {
+        when(conversao.habilitada()).thenReturn(true);
+
+        assertThat(selecionar.executar(101, List.of(ref("DOCUMENTO_PROCESSO", "3")))).extracting(Documento::id)
+                .containsExactly("3");
+    }
+
+    @Test
+    void comAConversaoDesligadaAPlanilhaVoltaAoBloqueioDaS22() {
+        DocumentosListados lista = listar.executar(101);
+
+        assertThat(lista.itens()).filteredOn(i -> i.documento().id().equals("3")).singleElement()
+                .satisfies(i -> assertThat(i.bloqueio()).isEqualTo(Bloqueio.NAO_PDF));
+        assertThat(lista.totais().convertiveis()).isZero();
+        assertThatThrownBy(() -> selecionar.executar(101, List.of(ref("DOCUMENTO_PROCESSO", "3"))))
+                .isInstanceOf(ParametroInvalidoException.class).hasMessageContaining("conversão está indisponível");
+    }
+
+    @Test
+    void sigilosoConvertivelContinuaBloqueadoParaOOperadorComAConversaoLigada() {
+        when(conversao.habilitada()).thenReturn(true);
+        when(documentos.listar(anyLong())).thenReturn(List.of(
+                doc(OrigemDocumento.DOCUMENTO_PROCESSO, "1", "K1", "Reservado", "reservado.docx", D1, null, 1)));
+
+        assertThatThrownBy(() -> selecionar.executar(101, List.of(ref("DOCUMENTO_PROCESSO", "1"))))
+                .isInstanceOf(DocumentoSigilosoException.class);
+        assertThat(listar.executar(101).totais().convertiveis()).isZero();
     }
 
     // --- ordem cronológica do servidor (RN03, S2.2)

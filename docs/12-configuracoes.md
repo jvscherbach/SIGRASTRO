@@ -49,12 +49,34 @@ Origem desligada some da lista de documentos e não entra no dossiê. A regra de
 
 | Parâmetro | Padrão |
 |---|---|
+| Conversão habilitada | ligada (chave de segurança; desligada, só PDF entra, como na S2.2) |
 | Planilhas | Ajustar à largura (alternativa: uma página por aba) |
 | Geometrias (SHP, KML, KMZ) | Fora do dossiê, download à parte |
 | Compactados (ZIP, RAR, 7Z) | Desconsiderados |
 | Orientação automática | ligado |
 | Incluir abas ocultas | desligado |
-| Tempo limite de conversão | 120 s (30–600) |
+| Tempo limite de conversão | 300 s |
+| Instâncias do conversor | 2 |
+| Tarefas por instância antes de reiniciar | 50 |
+| Imagem: máximo de megapixels | 100 |
+| Planilha: escala mínima no ajuste à largura (abaixo, a aba vai para página única se ela couber no limite do LibreOffice; senão, é paginada na largura, R41) | 40% |
+| Máximo de páginas de uma conversão | 2000 |
+| Tamanho máximo do PDF de uma conversão | 500 MB |
+
+Variáveis de ambiente do protótipo (todas opcionais; `.env.local.example`): `CONVERSAO_HABILITADA` (`true`), `CONVERSAO_TIMEOUT_SEGUNDOS` (300), `CONVERSAO_PROCESSOS` (2), `CONVERSAO_TAREFAS_POR_PROCESSO` (50), `CONVERSAO_PLANILHA_MODO` (`LARGURA` ou `PAGINA_POR_ABA`; valor desconhecido cai em `LARGURA`), `CONVERSAO_ABAS_OCULTAS` (`false`), `CONVERSAO_IMAGEM_MAX_MEGAPIXELS` (100), `CONVERSAO_PLANILHA_ESCALA_MINIMA` (40, em %), `CONVERSAO_PAGINAS_MAXIMAS` (2000) e `CONVERSAO_SAIDA_MAX_MB` (500). Técnica, fora da tela de configurações: `CONVERSAO_OFFICE_HOME` (pasta do LibreOffice, a que contém `program/soffice`; vazia = caminhos padrão). Os valores padrão serão justificados pela medição de desempenho da S3 (bloco 9).
+
+**Por que estes valores (medição do bloco 9, docs/10):** `CONVERSAO_TIMEOUT_SEGUNDOS=300` fica muito acima do medido (a maior conversão levou 16,3 s; DOCX de 200 páginas, 1,3 s; JPG de 20 MP, 0,3 s) e protege contra documento que trava; só deve cair se a homologação com arquivos reais mostrar que nada passa de 1 minuto. `CONVERSAO_PROCESSOS=2` combina com `DOSSIE_THREADS=2` (cada geração usa uma instância); cada instância pesou ~300 a 350 MB de memória residente, então o valor é limitado pela memória do container, não pelo tempo. `CONVERSAO_TAREFAS_POR_PROCESSO=50` reinicia o processo antes que ele acumule memória: não foi medido o crescimento em centenas de tarefas, o valor segue o do prompt. `CONVERSAO_IMAGEM_MAX_MEGAPIXELS=100` deixa passar um JPG de 20 MP com 162 MB de heap (21% de 768 MB); uma imagem de 100 MP decodificada pesa ~400 MB, perto do limite de 70% de um heap de 768 MB (R42). **Memória do container:** com o conversor, o limite de 1 GB suposto na S2.2 não basta (heap + `soffice` ~700 MB); veja R42. **Planilhas grandes:** `CONVERSAO_PLANILHA_ESCALA_MINIMA=40` e a página única já cobrem a planilha de 30 mil linhas sem perder conteúdo (R41, resolvido: 177 páginas em 16 s, última linha conferida); os valores finais de planilha dependem da escolha entre `LARGURA` e `PAGINA_POR_ABA` na homologação (D58).
+
+### Visualização (modal)
+
+| Parâmetro | Padrão |
+|---|---|
+| Tempo de vida do cache da versão em PDF | 10 min |
+| Teto de espaço do cache (acima, saem os mais antigos) | 500 MB |
+| Conversões do modal em paralelo | 2 |
+| Conversões do modal à espera (fila cheia: 429) | 4 |
+
+Variáveis de ambiente do protótipo: `VISUALIZACAO_TTL_MINUTOS` (10), `VISUALIZACAO_CACHE_MAX_MB` (500), `VISUALIZACAO_CONVERSOES_SIMULTANEAS` (2) e `VISUALIZACAO_FILA_CONVERSOES` (4). O cache fica em `VISTAS_DOSSIE_DIRETORIO/visualizacao`. A conversão usa os parâmetros de Conversão acima, os mesmos do dossiê; as conversões do modal disputam as mesmas instâncias do LibreOffice que a geração (S3, bloco 6).
 
 ### Conexões
 

@@ -95,22 +95,26 @@ Comportamento:
 - substituídos (sem efeito) aparecem selecionados e podem ser desmarcados;
 - linha de totais no cabeçalho da seção: "N documento(s) · V vigente(s) · S sem efeito · I indisponível(is)". Os três últimos são excludentes e somam N. "N selecionados" (barra) conta os itens marcados; logo ao abrir, é N menos os indisponíveis, os não PDF e, para o Operador, os sigilosos. No 769/2025, "145 documentos · 71 vigentes" com "144 selecionados" parecia não fechar porque a linha antiga não mostrava os sem efeito (selecionáveis) nem os indisponíveis; "vigentes" nunca foi o total selecionável. Com a linha nova, confira: selecionados ao abrir = itens sem bloqueio (N − I − não PDF − sigilosos bloqueados, contando cada documento uma vez);
 - **indisponíveis** esmaecidos, sem seleção, com "arquivo indisponível" junto ao nome;
-- **não PDF** bloqueados, com "conversão disponível em breve", e um aviso no topo da seção: "N documento(s) não são PDF e entram no dossiê a partir da próxima etapa";
+- **avisos no topo da seção** (S3): com a conversão ligada, planilhas, textos e imagens convertíveis vêm selecionados e o aviso diz "N documento(s) serão convertidos para PDF" (`totais.convertiveis`); documentos sem tipo informado trazem "o tipo é conferido ao gerar o dossiê". Não PDF sem conversão (por exemplo `txt`, ou qualquer não PDF com a conversão desligada ou indisponível) ficam bloqueados, com "conversão indisponível";
 - **sigilosos sem perfil** visíveis, com o nome mascarado ("Documento sigiloso"), sem seleção, com "documento sigiloso" e "Requer perfil autorizado"; Gestor e Administrador os veem e podem selecioná-los;
 - contador "N selecionados" e rodapé "Exibindo X de Y";
 - o que pode ou não ser selecionado vem da API (`bloqueio`); a interface só obedece, a regra é do back-end (RNF10);
-- **sem** a ação "Visualizar" nesta etapa (modal e conteúdo são da S3);
+- ação **Visualizar** em cada linha (menos nos indisponíveis), que abre o modal abaixo; documentos convertíveis trazem a etiqueta "será convertido para PDF";
 - erro ao carregar: mensagem pelo `errorCode` no corpo da seção e "Tentar novamente"; requerimento sem documentos: "Este requerimento não tem documentos".
 
 **Barra de seleção** (fixa na parte de baixo da seção): contador e a ação **Gerar dossiê**, habilitada com pelo menos 1 documento selecionável.
 
-### Modal de visualização
+### Modal de visualização (S3, bloco 7)
 
-- Exibe o documento no visualizador de PDF do navegador.
-- Documentos convertidos (planilhas, textos, imagens) são exibidos na versão em PDF, permitindo conferir a conversão antes de gerar o dossiê.
-- Formatos sem conversão: mensagem com nome, tipo e opção de baixar o original.
-- Indicação de carregamento enquanto o documento é obtido ou convertido.
-- Ação de selecionar ou desmarcar o documento a partir do modal.
+Aberto pela ação **Visualizar** de cada linha (todas, menos as indisponíveis; o sigiloso sem perfil também tem a ação, mas o modal só mostra o motivo, sem chamar o servidor).
+
+- O PDF é buscado pelo `HttpClient` em `GET /documentos/{origem}/{id}/conteudo?requerimento=…&formato=pdf` (o token vai no cabeçalho, **nunca na URL**), vira `Blob` e é exibido na moldura por URL de objeto, **revogada ao fechar** (botão, `Esc`, clique no fundo ou sair da tela). Fechar com a resposta pendente cancela a requisição.
+- Carregamento: "Convertendo para PDF…" para planilhas, textos e imagens; "Carregando o documento…" para os demais.
+- Documento **convertido**: faixa "Versão convertida para PDF a partir de <formato>" (cabeçalho `X-Vistas-Convertido-De`), permitindo conferir a conversão antes de gerar o dossiê.
+- Erro pelo `errorCode` (nunca o `detail`), com **Tentar novamente**. Quando a conversão não vai funcionar de novo (formato sem conversão, senha, arquivo corrompido, limite excedido) o modal também oferece **Baixar original**. Formato sem conversão (415): nome, tipo e **Baixar original**. 429 (`MUITAS_CONVERSOES`): pede para tentar em instantes.
+- **Baixar original** pede `formato=original` e salva o Blob com o nome do `Content-Disposition`.
+- **Documento grande**: o front lê o `Content-Length` do cabeçalho da resposta e, acima de 150 MB (`LIMITE_DO_BLOB_MB`, espelho do padrão de `DOSSIE_BLOB_MAX_MB`), cancela a requisição, não exibe por Blob e oferece só **Baixar original**, com o tamanho aproximado. O contrato do conteúdo não tem ticket (como o do dossiê, D49): o original grande também passa pelo Blob, o que pesa no navegador. **NÃO CONFIRMADO:** se vale um ticket para o original (decisão para depois da homologação, `docs/10`).
+- **Incluir no dossiê / Tirar do dossiê** no cabeçalho do modal, refletindo na tabela e no contador (só aparece quando o documento pode ser selecionado).
 
 ## 4. Geração do dossiê
 
@@ -127,6 +131,7 @@ Comportamento:
   - **Remover os N com problema e gerar** (`REMOVER_E_CONTINUAR`; os removidos saem também da seleção da tela e aparecem como "Removido" na lista); só aparece se algum documento já foi obtido;
   - **Cancelar** (`DELETE`).
   - No singular: "o 1 com problema". Enquanto a decisão é enviada, os botões ficam desabilitados; uma recusa (`409 DOSSIE_SEM_DECISAO_PENDENTE`) aparece na própria gaveta.
+  - Falha de conversão (S3) aparece como as demais, com o motivo do conversor (ex.: "documento protegido por senha", "tempo limite da conversão excedido", "planilha sem conteúdo imprimível"); "Tentar novamente" converte de novo sem baixar de novo, e o que já foi convertido não é refeito. Nenhuma mudança de tela: o contrato do andamento é o mesmo.
 - Token da API de arquivos expirado ou recusado (`CREDENCIAL_ARQUIVOS_RECUSADA`): "Token da API de arquivos expirado ou recusado. Capture um novo token, atualize o arquivo do token e clique em Tentar novamente." (nunca mostra o valor do token; o token por arquivo está em docs/05). Os mesmos botões, sem reiniciar o que já foi obtido.
 - Falha na montagem: o motivo geral, com os mesmos botões ("Tentar novamente" refaz só a montagem). Em "Dossiês gerados" (S4), um pedido que expirou à espera de decisão aparece como "Expirado · nenhum arquivo gerado", sem download.
 - Erro ao criar o pedido (por exemplo, `DOCUMENTO_SIGILOSO`, `NAO_INTERESSADO`, `SIGA_INDISPONIVEL`): mensagem na própria gaveta, sem toast duplicado.

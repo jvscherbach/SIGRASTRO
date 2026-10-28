@@ -1,11 +1,12 @@
-import { HttpErrorResponse, provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpErrorResponse, HttpHeaderResponse, HttpHeaders, HttpResponse, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
 import { AuthService } from '../../core/auth.service';
 import { SEM_TOAST, tokenInterceptor } from '../../core/interceptors';
-import { DocumentosApiService, DossiesApiService } from './documentos-api.service';
+import { ConteudoApiService, DocumentosApiService, DossiesApiService, LIMITE_DO_BLOB_MB } from './documentos-api.service';
+import { ConteudoRecebido } from './documentos.models';
 
 describe('serviços de documentos e dossiê', () => {
   let http: HttpTestingController;
@@ -29,7 +30,7 @@ describe('serviços de documentos e dossiê', () => {
     const req = http.expectOne('/api/requerimentos/101/documentos');
     expect(req.request.method).toBe('GET');
     expect(req.request.context.get(SEM_TOAST)).toBe(true);
-    req.flush({ itens: [], totais: { total: 0, vigentes: 0, semEfeito: 0, naoPdf: 0, tipoNaoInformado: 0, indisponiveis: 0, sigilosos: 0 } });
+    req.flush({ itens: [], totais: { total: 0, vigentes: 0, semEfeito: 0, naoPdf: 0, tipoNaoInformado: 0, indisponiveis: 0, sigilosos: 0, convertiveis: 0 } });
   });
 
   it('cria o pedido só com origem e id dos documentos', () => {
@@ -106,5 +107,102 @@ describe('serviços de documentos e dossiê', () => {
 
     expect(recebido!.status).toBe(502);
     expect(recebido!.error).toBeNull();
+  });
+
+  describe('conteúdo do documento (S3)', () => {
+    const DOCUMENTO = { origem: 'DOCUMENTO_PROCESSO', id: '804328', idRequerimento: 101 };
+    const MB = 1024 * 1024;
+    const cabecalho = (tamanhoBytes: number) =>
+      new HttpHeaderResponse({ status: 200, headers: new HttpHeaders({ 'Content-Length': String(tamanhoBytes) }) });
+
+    it('pede origem, id, requerimento e formato; o token vai no cabeçalho e nunca na URL', () => {
+      TestBed.inject(ConteudoApiService).conteudo(DOCUMENTO, 'pdf', LIMITE_DO_BLOB_MB).subscribe();
+
+      const req = http.expectOne((r) => r.url === '/api/documentos/DOCUMENTO_PROCESSO/804328/conteudo');
+      expect(req.request.method).toBe('GET');
+      expect(req.request.params.get('requerimento')).toBe('101');
+      expect(req.request.params.get('formato')).toBe('pdf');
+      expect(req.request.responseType).toBe('blob');
+      expect(req.request.headers.get('Authorization')).toBe('Bearer TOKEN-DE-SESSAO');
+      expect(req.request.urlWithParams).not.toContain('TOKEN-DE-SESSAO');
+      expect(req.request.context.get(SEM_TOAST)).toBe(true);
+      req.flush(new Blob(['%PDF-1.7']));
+    });
+
+    it('devolve o Blob com o formato de origem e o nome do Content-Disposition', () => {
+      let recebido: ConteudoRecebido | null = null;
+      TestBed.inject(ConteudoApiService).conteudo(DOCUMENTO, 'pdf', LIMITE_DO_BLOB_MB).subscribe((c) => (recebido = c));
+
+      http.expectOne((r) => r.url.endsWith('/conteudo')).flush(new Blob(['%PDF-1.7']), {
+        headers: { 'X-Vistas-Convertido-De': 'XLSX', 'Content-Disposition': 'inline; filename="calculo.pdf"' },
+      });
+
+      expect(recebido).toMatchObject({ tipo: 'blob', convertidoDe: 'XLSX', nome: 'calculo.pdf' });
+      expect((recebido as unknown as { blob: Blob }).blob).toBeInstanceOf(Blob);
+    });
+
+    it('sem conversão, convertidoDe é nulo', () => {
+      let recebido: ConteudoRecebido | null = null;
+      TestBed.inject(ConteudoApiService).conteudo(DOCUMENTO, 'pdf', LIMITE_DO_BLOB_MB).subscribe((c) => (recebido = c));
+
+      http.expectOne((r) => r.url.endsWith('/conteudo')).flush(new Blob(['%PDF-1.7']));
+
+      expect(recebido).toMatchObject({ tipo: 'blob', convertidoDe: null });
+    });
+
+    it('arquivo acima do limite: avisa pelo cabeçalho e cancela a requisição, sem baixar o corpo', () => {
+      const recebidos: ConteudoRecebido[] = [];
+      let terminou = false;
+      TestBed.inject(ConteudoApiService)
+        .conteudo(DOCUMENTO, 'pdf', LIMITE_DO_BLOB_MB)
+        .subscribe({ next: (c) => recebidos.push(c), complete: () => (terminou = true) });
+
+      const req = http.expectOne((r) => r.url.endsWith('/conteudo'));
+      req.event(cabecalho(200 * MB));
+
+      expect(recebidos).toEqual([{ tipo: 'grande', megabytes: 200 }]);
+      expect(terminou).toBe(true);
+      expect(req.cancelled).toBe(true);
+    });
+
+    it('arquivo dentro do limite segue até o fim', () => {
+      const recebidos: ConteudoRecebido[] = [];
+      TestBed.inject(ConteudoApiService).conteudo(DOCUMENTO, 'pdf', LIMITE_DO_BLOB_MB).subscribe((c) => recebidos.push(c));
+
+      const req = http.expectOne((r) => r.url.endsWith('/conteudo'));
+      req.event(cabecalho(10 * MB));
+      expect(recebidos).toEqual([]);
+      req.event(new HttpResponse({ body: new Blob(['%PDF-1.7']), status: 200 }));
+
+      expect(recebidos).toHaveLength(1);
+      expect(recebidos[0].tipo).toBe('blob');
+    });
+
+    it('sem limite (original pedido pelo usuário) não corta arquivo grande', () => {
+      const recebidos: ConteudoRecebido[] = [];
+      TestBed.inject(ConteudoApiService).conteudo(DOCUMENTO, 'original', null).subscribe((c) => recebidos.push(c));
+
+      const req = http.expectOne((r) => r.url.endsWith('/conteudo') && r.params.get('formato') === 'original');
+      req.event(cabecalho(900 * MB));
+      expect(req.cancelled).toBe(false);
+      req.event(new HttpResponse({ body: new Blob(['x']), status: 200 }));
+
+      expect(recebidos.map((c) => c.tipo)).toEqual(['blob']);
+    });
+
+    it('erro da API (corpo Blob) volta como ProblemDetail com o errorCode', async () => {
+      let recebido: HttpErrorResponse | null = null;
+      TestBed.inject(ConteudoApiService)
+        .conteudo(DOCUMENTO, 'pdf', LIMITE_DO_BLOB_MB)
+        .subscribe({ error: (e: HttpErrorResponse) => (recebido = e) });
+
+      http
+        .expectOne((r) => r.url.endsWith('/conteudo'))
+        .flush(new Blob([JSON.stringify({ errorCode: 'DOCUMENTO_PROTEGIDO_POR_SENHA' })]), { status: 422, statusText: 'Unprocessable' });
+      await vi.waitFor(() => expect(recebido).not.toBeNull());
+
+      expect(recebido!.status).toBe(422);
+      expect((recebido!.error as { errorCode: string }).errorCode).toBe('DOCUMENTO_PROTEGIDO_POR_SENHA');
+    });
   });
 });

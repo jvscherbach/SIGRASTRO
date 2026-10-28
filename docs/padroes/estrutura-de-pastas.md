@@ -46,7 +46,7 @@ api/
     │   │   │   └── domain/
     │   │   ├── documento/
     │   │   │   ├── api/ (dto/)
-    │   │   │   ├── application/           # portas implementadas por integration.siga/licenciamento/scorp
+    │   │   │   ├── application/           # portas implementadas por integration.siga/licenciamento/scorp/libreoffice
     │   │   │   └── domain/
     │   │   ├── dossie/
     │   │   │   ├── api/ (dto/)
@@ -55,7 +55,6 @@ api/
     │   │   │   └── infrastructure/
     │   │   │       ├── memoria/           # fila e pedidos
     │   │   │       ├── pdf/               # PDFBox
-    │   │   │       ├── conversao/         # LibreOffice (JODConverter)
     │   │   │       ├── armazenamento/     # disco temporário
     │   │   │       └── agendamento/       # limpeza de expirados e órfãos
     │   │   ├── auditoria/
@@ -71,7 +70,8 @@ api/
     │   │   └── integration/
     │   │       ├── siga/                  # único pacote com SQL do SIGA (JDBC)
     │   │       ├── licenciamento/ (dto/)  # API de arquivos
-    │   │       └── scorp/ (dto/)          # documentos pessoais
+    │   │       ├── scorp/ (dto/)          # documentos pessoais
+    │   │       └── libreoffice/           # conversor de documentos (JODConverter, S3)
     │   └── resources/
     │       ├── application.yml
     │       ├── application-local.yml
@@ -87,7 +87,7 @@ api/
 
 Regras:
 
-- `consulta` e `documento` não têm `infrastructure/`: quem implementa suas portas são os pacotes `integration.*`.
+- `consulta` não tem `infrastructure/`: quem implementa suas portas são os pacotes `integration.*`. `documento` também não tem adapter de porta próprio; desde a S3 tem só `infrastructure/agendamento/` (limpeza do cache do modal).
 - `dto/` de `integration.*` é interno ao pacote; nunca aparece em módulo de negócio.
 - A configuração do datasource do SIGA fica em `integration/siga/` (só ele pode usar `javax.sql` e Spring JDBC). Testes de integração dele usam Testcontainers com o recorte do SIGA em `src/test/resources/sql/siga/`.
 - Testes espelham os pacotes de `main`. Fixtures só em `src/test`.

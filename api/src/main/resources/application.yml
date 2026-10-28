@@ -71,6 +71,27 @@ vistas:
     sumario: ${DOSSIE_SUMARIO:true}
     marcadores: ${DOSSIE_MARCADORES:true}
     numeracao: ${DOSSIE_NUMERACAO:true}
+  # Conversão de planilhas, textos e imagens para PDF (S3). habilitada=false volta ao comportamento da S2.2.
+  conversao:
+    habilitada: ${CONVERSAO_HABILITADA:true}
+    timeout-segundos: ${CONVERSAO_TIMEOUT_SEGUNDOS:300}
+    processos: ${CONVERSAO_PROCESSOS:2}
+    tarefas-por-processo: ${CONVERSAO_TAREFAS_POR_PROCESSO:50}
+    planilha-modo: ${CONVERSAO_PLANILHA_MODO:LARGURA}
+    abas-ocultas: ${CONVERSAO_ABAS_OCULTAS:false}
+    imagem-max-megapixels: ${CONVERSAO_IMAGEM_MAX_MEGAPIXELS:100}
+    # Planilhas no modo LARGURA: abaixo desta escala (%) a aba vai para uma página única, por legibilidade.
+    planilha-escala-minima: ${CONVERSAO_PLANILHA_ESCALA_MINIMA:40}
+    paginas-maximas: ${CONVERSAO_PAGINAS_MAXIMAS:2000}
+    saida-max-mb: ${CONVERSAO_SAIDA_MAX_MB:500}
+    # Pasta do LibreOffice (a que contém program/soffice). Vazia = localizar nos caminhos padrão.
+    office-home: ${CONVERSAO_OFFICE_HOME:}
+  # Modal de visualização (S3): cache da versão em PDF (em VISTAS_DOSSIE_DIRETORIO/visualizacao) e fila de conversões.
+  visualizacao:
+    ttl-minutos: ${VISUALIZACAO_TTL_MINUTOS:10}
+    cache-max-mb: ${VISUALIZACAO_CACHE_MAX_MB:500}
+    conversoes-simultaneas: ${VISUALIZACAO_CONVERSOES_SIMULTANEAS:2}
+    fila-de-conversoes: ${VISUALIZACAO_FILA_CONVERSOES:4}
   # API de arquivos do Licenciamento. URL vazia = não configurada: a geração falha com esse motivo, a listagem não.
   arquivos:
     url: ${LICENCIAMENTO_API_URL:}

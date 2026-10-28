@@ -39,6 +39,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
 /** Contrato de /api/dossies (docs/07). A geração roda na hora (fila síncrona) e os arquivos vêm de uma porta falsa. */
+// Estes cenários descrevem o dossiê só-PDF da S2.2; a conversão entra no pipeline no bloco 5 da S3.
+@org.springframework.test.context.TestPropertySource(properties = "vistas.conversao.habilitada=false")
 class DossieHttpTest extends BaseHttpDeDocumentos {
 
     private String corpo(Object... referencias) throws Exception {
@@ -243,7 +245,7 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
         mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
                 .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
-                .andExpect(jsonPath("$.falhas[0].motivo").value("o arquivo não é um PDF (tipo detectado: HTML); a conversão chega na próxima etapa"))
+                .andExpect(jsonPath("$.falhas[0].motivo").value("o arquivo não é um PDF (tipo detectado: texto HTML) e a conversão está desligada"))
                 .andExpect(jsonPath("$.falhas[0].id").value("804328"));
     }
 
@@ -273,7 +275,7 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
                 .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
                 .andExpect(jsonPath("$.falhas[0].origem").value("IMOVEL"))
                 .andExpect(jsonPath("$.falhas[0].motivo").value(
-                        "o arquivo não é um PDF (tipo detectado: ZIP ou documento do Office (docx, xlsx)); a conversão chega na próxima etapa"));
+                        "o arquivo não é um PDF (tipo detectado: ZIP ou documento do Office (docx, xlsx))"));
         mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
                 .andExpect(status().isConflict());
     }

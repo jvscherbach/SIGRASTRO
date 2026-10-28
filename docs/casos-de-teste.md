@@ -44,3 +44,43 @@ Passo 10.6 do [roteiro](homologacao/S2-roteiro-homologacao.md). Referência sem 
 | Tentar novamente | após a falha | só os com problema voltam a "Obtendo"; o progresso não volta a zero | |
 | Remover e gerar | após a falha | PDF com "Documentos não incluídos" e capa "N incluídos de M listados" | |
 | Token por arquivo | token expirado no arquivo e depois o novo, sem recriar o container | a obtenção para; com o token novo, "Tentar novamente" conclui sem baixar de novo o que já foi obtido | |
+
+## Conversão e visualização (S3)
+
+Passos 2 a 7 do [roteiro da S3](homologacao/S3-roteiro-homologacao.md). Por caso (use os mesmos 3 requerimentos da tabela de casos acima):
+
+| # | Convertidos (planilhas / textos / imagens) | Nada cortado? (colunas e última linha) | "convertido de" no sumário, marcadores e capa? | Páginas | Tempo até "Dossiê pronto" | Tamanho do PDF | Observação |
+|---|---|---|---|---|---|---|---|
+| 1 | / / | | | | | | |
+| 2 | / / | | | | | | |
+| 3 | / / | | | | | | |
+
+Para comparar com a referência sintética (docs/10): XLSX de 30 mil linhas x 30 colunas converte em ~16 s (177 páginas) e DOCX de 200 páginas em ~1 s; dossiê misto de 20 documentos (321 MB) em ~8 s.
+
+### Planilha mais difícil: `LARGURA` × `PAGINA_POR_ABA` (passo 6)
+
+| Critério | `LARGURA` | `PAGINA_POR_ABA` |
+|---|---|---|
+| Páginas | | |
+| Todas as colunas e a última linha presentes? | | |
+| Legível sem ampliar / ampliando? | | |
+| Abas em página única | | |
+| Tempo de conversão | | |
+
+**Modo escolhido:** ________ . **Motivo:** ________ .
+
+### Casos de falha provocada (S3)
+
+| Cenário | Como | Esperado | Resultado |
+|---|---|---|---|
+| Falha de conversão | documento com senha, ou `CONVERSAO_PAGINAS_MAXIMAS=1` | "Documentos com problema" com o motivo da conversão; nada entregue | |
+| Tentar novamente | após a falha | só o documento com problema volta; o contador de conversões nos logs sobe no máximo 1 | |
+| Remover e gerar | após a falha | PDF sem o documento, com "Documentos não incluídos"; convertidos continuam identificados | |
+| Conversão desligada | `CONVERSAO_HABILITADA=false` | convertíveis bloqueados ("conversão indisponível"); dossiê só com PDFs | |
+| Sigiloso no modal (Operador) | Visualizar um sigiloso | motivo exibido; nenhuma requisição a `/conteudo` | |
+
+### Memória e disco (passo 7)
+
+| Maior `MEM USAGE` do container | Limite do container | Pico de `/var/tmp/vistas` | `soffice` vivos depois do `down` |
+|---|---|---|---|
+| | | | |

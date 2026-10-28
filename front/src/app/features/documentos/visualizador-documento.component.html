@@ -1,0 +1,94 @@
+<div class="vis-fundo" (click)="aoClicarNoFundo($event)">
+  <section class="previa visualizador" role="dialog" aria-modal="true" aria-labelledby="vis-titulo" (keydown.escape)="fechar.emit()">
+    <header>
+      <div class="vis-titulo">
+        <span [class]="'ext ' + classeDaExtensao(documento())">{{ tipo() }}</span>
+        <div>
+          <h2 id="vis-titulo" style="font-size: 16px">{{ nome() }}</h2>
+          <small class="muted">ID {{ documento().id }} · {{ documento().origemDescricao }}</small>
+        </div>
+      </div>
+      <div class="row">
+        @if (podeSelecionar()) {
+          <button type="button" class="btn sm vis-selecao" [attr.aria-pressed]="selecionado()" (click)="alternarSelecao.emit()">
+            <app-icone [nome]="selecionado() ? 'close' : 'check'" />{{ selecionado() ? 'Tirar do dossiê' : 'Incluir no dossiê' }}
+          </button>
+        }
+        <button type="button" class="icon-btn" aria-label="Fechar" (click)="fechar.emit()"><app-icone nome="close" /></button>
+      </div>
+    </header>
+
+    @if (convertidoDe(); as origem) {
+      <div class="note amber vis-faixa" role="status">
+        <app-icone nome="convert" />
+        <span>Versão convertida para PDF a partir de {{ origem }}. O arquivo original não foi alterado.</span>
+      </div>
+    }
+
+    @switch (fase()) {
+      @case ('carregando') {
+        <p class="vis-estado muted" role="status"><app-icone nome="refresh" class="spin" /> {{ textoDeCarga() }}</p>
+      }
+      @case ('pronto') {
+        @if (pdf(); as p) {
+          <iframe [src]="p.seguro" [attr.title]="'Visualização de ' + nome()"></iframe>
+        }
+      }
+      @case ('sigiloso') {
+        <div class="vis-estado">
+          <div class="alert vis-sigiloso" role="alert"><app-icone nome="lock" /><span>{{ mensagem() }}</span></div>
+        </div>
+      }
+      @case ('grande') {
+        <div class="vis-estado">
+          <div class="note amber vis-grande" role="status">
+            <app-icone nome="info" />
+            <span>
+              Documento grande (cerca de {{ tamanhoEmMb() }} MB): a visualização fica desligada para não sobrecarregar o
+              navegador. Baixe o original para abri-lo.
+            </span>
+          </div>
+          <button type="button" class="btn sm" [disabled]="baixando()" (click)="baixarOriginal()">
+            <app-icone nome="download" />Baixar original
+          </button>
+          @if (erroDoDownload()) {
+            <div class="alert" role="alert"><app-icone nome="alert" /><span>{{ erroDoDownload() }}</span></div>
+          }
+        </div>
+      }
+      @case ('sem-conversao') {
+        <div class="vis-estado">
+          <div class="note amber vis-sem-conversao" role="status">
+            <app-icone nome="info" /><span>{{ mensagem() }}</span>
+          </div>
+          <dl class="vis-ficha">
+            <div><dt>Arquivo</dt><dd>{{ documento().nomeArquivo || nome() }}</dd></div>
+            <div><dt>Tipo</dt><dd>{{ tipo() }}</dd></div>
+          </dl>
+          <button type="button" class="btn sm" [disabled]="baixando()" (click)="baixarOriginal()">
+            <app-icone nome="download" />Baixar original
+          </button>
+          @if (erroDoDownload()) {
+            <div class="alert" role="alert"><app-icone nome="alert" /><span>{{ erroDoDownload() }}</span></div>
+          }
+        </div>
+      }
+      @case ('erro') {
+        <div class="vis-estado">
+          <div class="alert vis-erro" role="alert"><app-icone nome="alert" /><span>{{ mensagem() }}</span></div>
+          <div class="row wrap">
+            <button type="button" class="btn sm" (click)="carregar()"><app-icone nome="refresh" />Tentar novamente</button>
+            @if (podeBaixarOriginal()) {
+              <button type="button" class="btn sm quiet" [disabled]="baixando()" (click)="baixarOriginal()">
+                <app-icone nome="download" />Baixar original
+              </button>
+            }
+          </div>
+          @if (erroDoDownload()) {
+            <div class="alert" role="alert"><app-icone nome="alert" /><span>{{ erroDoDownload() }}</span></div>
+          }
+        </div>
+      }
+    }
+  </section>
+</div>

@@ -27,11 +27,13 @@ import br.gov.mt.sema.vistas.documento.application.SelecionarDocumentosParaDossi
 import br.gov.mt.sema.vistas.documento.domain.OrigemDocumento;
 import br.gov.mt.sema.vistas.dossie.application.CriarDossie;
 import br.gov.mt.sema.vistas.dossie.application.GeradorDeDossie;
+import br.gov.mt.sema.vistas.dossie.application.PreparadorDePdf;
 import br.gov.mt.sema.vistas.dossie.application.port.ArquivosDoRepositorio;
 import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.RepositorioDePedidos;
 import br.gov.mt.sema.vistas.dossie.application.port.ValidadorDePdf;
+import br.gov.mt.sema.vistas.testsupport.ParametrosDeConversaoDeTeste;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
 import br.gov.mt.sema.vistas.dossie.domain.StatusDossie;
 import com.zaxxer.hikari.HikariDataSource;
@@ -87,7 +89,8 @@ class ConexaoDoSigaLiberadaTest {
         VerificarAcessoAoRequerimento acesso = new VerificarAcessoAoRequerimento(requerimentos, restricao);
         DocumentosDoSigaJdbc documentos = new DocumentosDoSigaJdbc(jdbc, EnumSet.allOf(OrigemDocumento.class));
         SelecionarDocumentosParaDossie selecao = new SelecionarDocumentosParaDossie(acesso,
-                new ListarDocumentos(acesso, documentos, permissoes), permissoes);
+                new ListarDocumentos(acesso, documentos, permissoes, ParametrosDeConversaoDeTeste.ligada()), permissoes,
+                ParametrosDeConversaoDeTeste.ligada());
 
         Map<String, Integer> conexoesAtivasVistasNoDownload = new ConcurrentHashMap<>();
         AtomicInteger downloads = new AtomicInteger();
@@ -175,7 +178,9 @@ class ConexaoDoSigaLiberadaTest {
             }
         };
         java.time.Clock relogio = java.time.Clock.systemDefaultZone();
-        GeradorDeDossie gerador = new GeradorDeDossie(arquivos, validador, montador, parametros, d -> Long.MAX_VALUE, relogio);
+        GeradorDeDossie gerador = new GeradorDeDossie(arquivos,
+                new PreparadorDePdf(validador, null, null, ParametrosDeConversaoDeTeste.ligada()), montador, parametros,
+                d -> Long.MAX_VALUE, relogio);
         CriarDossie criar = new CriarDossie(obterRequerimento, selecao, atual, repositorio, Runnable::run, gerador,
                 parametros, relogio);
 

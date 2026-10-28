@@ -18,6 +18,9 @@ public final class ItemDoPedido {
     private volatile int paginas;
     private volatile int tentativas;
     private volatile String motivo;
+    private volatile String convertidoDe;
+    private volatile int abasEmPaginaUnica;
+    private final String extensao;
     private final int posicao;
 
     public ItemDoPedido(String origem, String origemDescricao, String id, String titulo, LocalDateTime data,
@@ -28,6 +31,12 @@ public final class ItemDoPedido {
     /** @param posicao posição na lista cronológica do requerimento (ordena a seção "Documentos não incluídos") */
     public ItemDoPedido(String origem, String origemDescricao, String id, String titulo, LocalDateTime data,
             String chave, int posicao) {
+        this(origem, origemDescricao, id, titulo, data, chave, posicao, null);
+    }
+
+    /** @param extensao extensão do nome do arquivo (desempata o contêiner antigo do Office na detecção do tipo real) */
+    public ItemDoPedido(String origem, String origemDescricao, String id, String titulo, LocalDateTime data,
+            String chave, int posicao, String extensao) {
         this.posicao = posicao;
         this.origem = origem;
         this.origemDescricao = origemDescricao;
@@ -35,6 +44,7 @@ public final class ItemDoPedido {
         this.titulo = titulo == null || titulo.isBlank() ? "Documento " + id : titulo;
         this.data = data;
         this.chave = chave;
+        this.extensao = extensao;
     }
 
     public String origem() {
@@ -103,6 +113,25 @@ public final class ItemDoPedido {
 
     public void tentativas(int tentativas) {
         this.tentativas = tentativas;
+    }
+
+    public String extensao() {
+        return extensao;
+    }
+
+    /** Formato de origem (ex.: "XLSX") quando o PDF do item veio de uma conversão (S3); nulo quando já era PDF. */
+    public String convertidoDe() {
+        return convertidoDe;
+    }
+
+    public int abasEmPaginaUnica() {
+        return abasEmPaginaUnica;
+    }
+
+    /** Registra o resultado da preparação do PDF: nulo e 0 quando o arquivo já era PDF. */
+    public void conversao(String convertidoDe, int abasEmPaginaUnica) {
+        this.convertidoDe = convertidoDe;
+        this.abasEmPaginaUnica = abasEmPaginaUnica;
     }
 
     @Override

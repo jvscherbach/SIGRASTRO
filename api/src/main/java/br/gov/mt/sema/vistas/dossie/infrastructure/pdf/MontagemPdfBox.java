@@ -53,12 +53,18 @@ class MontagemPdfBox implements MontadorDoDossie {
     static final int ITENS_POR_PAGINA_DOS_NAO_INCLUIDOS = 22;
     static final String TITULO_DOS_NAO_INCLUIDOS = "Documentos não incluídos";
     private static final float TAMANHO_DO_RODAPE = 9f;
+    /** Distância da base do número de página à borda inferior (como a página é exibida), em pontos. */
     private static final float MARGEM_DO_RODAPE = 20f;
+    /** Distância do fim do número de página à borda direita (como a página é exibida), em pontos. */
+    static final float MARGEM_DIREITA_DO_RODAPE = 28f;
     private static final float ALTURA_DA_LINHA = 16f;
     private static final DateTimeFormatter DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     static final String SEM_DATA = "sem data";
     static final String NOTA_SEM_DATA =
             "Documentos \"sem data\" não têm data registrada na origem e aparecem ao final, por origem e id.";
+    /** S3: planilha com aba(s) que, no ajuste à largura, ficariam abaixo da escala mínima. */
+    static final String NOTA_PAGINA_UNICA =
+            "* Planilha com aba(s) em página única: no ajuste à largura da página, a escala ficaria abaixo da mínima.";
     private static final DateTimeFormatter DATA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm");
 
     private final PDType1Font normal = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
@@ -70,7 +76,8 @@ class MontagemPdfBox implements MontadorDoDossie {
         List<PDDocument> abertos = new ArrayList<>();
         try (PDDocument saida = new PDDocument(IOUtils.createTempFileOnlyStreamCache())) {
             PDPage paginaDaCapa = paginaA4(saida);
-            desenharCapa(saida, paginaDaCapa, capa, documentos.size(), inventario.listados());
+            int convertidos = (int) documentos.stream().filter(DocumentoParaMontagem::convertido).count();
+            desenharCapa(saida, paginaDaCapa, capa, documentos.size(), inventario.listados(), convertidos);
 
             int paginasDoSumario = opcoes.sumario() ? Math.max(1, ceilDiv(documentos.size(), LINHAS_POR_PAGINA_DO_SUMARIO)) : 0;
             List<PDPage> paginasDoSumarioA4 = new ArrayList<>();
@@ -182,7 +189,8 @@ class MontagemPdfBox implements MontadorDoDossie {
 
     // --- capa
 
-    private void desenharCapa(PDDocument saida, PDPage pagina, DadosDaCapa capa, int incluidos, int listados)
+    private void desenharCapa(PDDocument saida, PDPage pagina, DadosDaCapa capa, int incluidos, int listados,
+            int convertidos)
             throws IOException {
         float x = 60f;
         float largura = pagina.getMediaBox().getWidth() - 2 * x;
@@ -205,7 +213,7 @@ class MontagemPdfBox implements MontadorDoDossie {
             y = campo(c, "Tipo de processo", capa.tipoProcesso(), x, y, largura);
             y = campo(c, "Situação", capa.situacao(), x, y, largura);
             y = campo(c, "Data de abertura", capa.abertura() == null ? null : capa.abertura().format(DATA), x, y, largura);
-            y = campo(c, "Documentos neste dossiê", incluidosDeListados(incluidos, listados), x, y, largura);
+            y = campo(c, "Documentos neste dossiê", incluidosDeListados(incluidos, listados, convertidos), x, y, largura);
             y -= 6f;
             y = lista(c, "Objetivos", capa.objetivos(), x, y, largura);
             y = lista(c, "Finalidades e atividades", capa.atividades(), x, y, largura);
@@ -278,7 +286,7 @@ class MontagemPdfBox implements MontadorDoDossie {
                     DocumentoParaMontagem d = documentos.get(i);
                     LocalDateTime data = d.data();
                     texto(c, data == null ? SEM_DATA : data.format(DATA), normal, 9f, colData, y, 0f);
-                    texto(c, TextoPdf.cortar(normal, d.titulo(), 9f, colOrigem - colTitulo - 8f), normal, 9f, colTitulo, y, 0f);
+                    texto(c, tituloComNota(d, colOrigem - colTitulo - 8f), normal, 9f, colTitulo, y, 0f);
                     texto(c, TextoPdf.cortar(normal, d.origem(), 9f, colPaginaDireita - 40f - colOrigem), normal, 9f, colOrigem, y, 0f);
                     String numero = String.valueOf(inicio[i]);
                     texto(c, numero, normal, 9f, colPaginaDireita - TextoPdf.largura(normal, numero, 9f), y, 0f);
@@ -287,6 +295,9 @@ class MontagemPdfBox implements MontadorDoDossie {
                 // A nota fica no rodapé da última página do sumário: não ocupa linha, então a paginação não muda.
                 if (p == paginas.size() - 1 && documentos.stream().anyMatch(d -> d.data() == null)) {
                     texto(c, NOTA_SEM_DATA, normal, 8f, colData, 60f, 0f);
+                }
+                if (p == paginas.size() - 1 && documentos.stream().anyMatch(d -> d.abasEmPaginaUnica() > 0)) {
+                    texto(c, NOTA_PAGINA_UNICA, normal, 8f, colData, 72f, 0f);
                 }
             }
             adicionarLinks(saida, pagina, primeiro(p), Math.min(documentos.size(), primeiro(p) + LINHAS_POR_PAGINA_DO_SUMARIO), inicio);
@@ -319,6 +330,27 @@ class MontagemPdfBox implements MontadorDoDossie {
     // --- documentos não incluídos (S2.2)
 
     /** "N documentos incluídos de M listados"; sem inventário (M menor que N), M = N. */
+    /** Com conversões (S3): "...; K convertidos para PDF" (ou "1 convertido"). */
+    static String incluidosDeListados(int incluidos, int listados, int convertidos) {
+        String base = incluidosDeListados(incluidos, listados);
+        return convertidos == 0 ? base
+                : base + "; " + convertidos + (convertidos == 1 ? " convertido" : " convertidos") + " para PDF";
+    }
+
+    /**
+     * Título do sumário com a nota da conversão (S3), "(convertido de XLSX)" ou, com aba em página única,
+     * "(convertido de XLSX*)" e a nota de rodapé: o título é cortado antes da nota, que sempre aparece inteira, numa
+     * linha só (a paginação do sumário não muda).
+     */
+    private String tituloComNota(DocumentoParaMontagem d, float larguraMaxima) {
+        if (!d.convertido()) {
+            return TextoPdf.cortar(normal, d.titulo(), 9f, larguraMaxima);
+        }
+        String nota = " (" + d.nota() + ")";
+        float larguraDaNota = TextoPdf.largura(normal, nota, 9f);
+        return TextoPdf.cortar(normal, d.titulo(), 9f, larguraMaxima - larguraDaNota) + nota;
+    }
+
     static String incluidosDeListados(int incluidos, int listados) {
         int total = Math.max(incluidos, listados);
         return incluidos + (incluidos == 1 ? " documento incluído" : " documentos incluídos") + " de " + total
@@ -378,7 +410,9 @@ class MontagemPdfBox implements MontadorDoDossie {
             contorno.addLast(item(TITULO_DOS_NAO_INCLUIDOS, naoIncluidos));
         }
         for (int i = 0; i < documentos.size(); i++) {
-            contorno.addLast(item(documentos.get(i).titulo(), saida.getPage(inicio[i] - 1)));
+            DocumentoParaMontagem d = documentos.get(i);
+            String titulo = d.convertido() ? d.titulo() + " (" + d.notaCurta() + ")" : d.titulo();
+            contorno.addLast(item(titulo, saida.getPage(inicio[i] - 1)));
         }
         contorno.openNode();
     }
@@ -403,8 +437,10 @@ class MontagemPdfBox implements MontadorDoDossie {
     }
 
     /**
-     * O rodapé fica no centro da borda inferior <em>como a página é exibida</em>: a caixa usada é a de recorte e a
-     * posição e o sentido do texto acompanham a rotação, em vez de uma coordenada fixa.
+     * O número fica no <b>canto inferior direito</b> <em>como a página é exibida</em>, alinhado à direita pela margem: a
+     * caixa usada é a de recorte e a posição e o sentido do texto acompanham a rotação, em vez de uma coordenada fixa.
+     * O texto é em negrito, preto e sem fundo (S3.2): é desenhado direto sobre a página, sem cobrir nem deslocar nada,
+     * então pode se sobrepor ao conteúdo de um PDF original que use a mesma região.
      */
     void rodape(PDDocument saida, PDPage pagina, String texto) throws IOException {
         PDRectangle caixa = pagina.getCropBox();
@@ -412,20 +448,20 @@ class MontagemPdfBox implements MontadorDoDossie {
         float y0 = caixa.getLowerLeftY();
         float x1 = caixa.getUpperRightX();
         float y1 = caixa.getUpperRightY();
-        float cx = (x0 + x1) / 2f;
-        float cy = (y0 + y1) / 2f;
-        String seguro = TextoPdf.seguro(normal, texto);
-        float largura = TextoPdf.largura(normal, seguro, TAMANHO_DO_RODAPE);
+        String seguro = TextoPdf.seguro(negrito, texto);
+        float largura = TextoPdf.largura(negrito, seguro, TAMANHO_DO_RODAPE);
         int rotacao = ((pagina.getRotation() % 360) + 360) % 360;
+        // A origem é o início da linha de base do texto, que corre da esquerda para a direita da página exibida.
         Matrix matriz = switch (rotacao) {
-            case 90 -> Matrix.getRotateInstance(Math.toRadians(90), x1 - MARGEM_DO_RODAPE, cy - largura / 2f);
-            case 180 -> Matrix.getRotateInstance(Math.toRadians(180), cx + largura / 2f, y1 - MARGEM_DO_RODAPE);
-            case 270 -> Matrix.getRotateInstance(Math.toRadians(270), x0 + MARGEM_DO_RODAPE, cy + largura / 2f);
-            default -> Matrix.getTranslateInstance(cx - largura / 2f, y0 + MARGEM_DO_RODAPE);
+            case 90 -> Matrix.getRotateInstance(Math.toRadians(90), x1 - MARGEM_DO_RODAPE, y1 - MARGEM_DIREITA_DO_RODAPE - largura);
+            case 180 -> Matrix.getRotateInstance(Math.toRadians(180), x0 + MARGEM_DIREITA_DO_RODAPE + largura, y1 - MARGEM_DO_RODAPE);
+            case 270 -> Matrix.getRotateInstance(Math.toRadians(270), x0 + MARGEM_DO_RODAPE, y0 + MARGEM_DIREITA_DO_RODAPE + largura);
+            default -> Matrix.getTranslateInstance(x1 - MARGEM_DIREITA_DO_RODAPE - largura, y0 + MARGEM_DO_RODAPE);
         };
         try (PDPageContentStream c = new PDPageContentStream(saida, pagina, PDPageContentStream.AppendMode.APPEND, true, true)) {
+            c.setNonStrokingColor(0f, 0f, 0f);
             c.beginText();
-            c.setFont(normal, TAMANHO_DO_RODAPE);
+            c.setFont(negrito, TAMANHO_DO_RODAPE);
             c.setTextMatrix(matriz);
             c.showText(seguro);
             c.endText();
