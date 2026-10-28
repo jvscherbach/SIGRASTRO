@@ -85,6 +85,15 @@ Cada aba que entra no PDF recebe um estilo de página próprio (cópia do estilo
 
 **Como a escala é medida:** escala = largura útil da página (largura do papel na orientação escolhida, menos as margens esquerda e direita) ÷ largura da área impressa, limitada a 100%. A largura da área impressa é a propriedade `Size` do intervalo de células no Calc (soma das larguras das colunas, sem as ocultas). A área impressa é a área de impressão definida no arquivo (a maior, se houver várias) ou, sem ela, de A1 até o fim da área usada (o Calc imprime a partir de A1). É uma estimativa feita antes da exportação, porque o Calc não expõe a escala que calcula para "ajustar à largura". Exemplos medidos nos testes: 40 colunas de 6 caracteres em A4 paisagem ficam em 1 página; 120 colunas na largura padrão ficam bem abaixo de 40% e vão para página única.
 
+**Cabeçalho, rodapé e centralização (S3.1, D59):** em cada estilo de página de aba (nos dois modos e em XLS, XLSX e ODS):
+
+- **Cabeçalho = nome do documento** como o dossiê o conhece (o mesmo texto do sumário e do marcador, sem "convertido de"); na visualização, o título da lista. Quando **mais de uma aba entra no PDF** (visíveis, ou ocultas exibidas por `CONVERSAO_ABAS_OCULTAS=true`, com conteúdo), `<documento> — <aba>`; com uma só, só o documento. Nunca o "Planilha1" nem a data do cabeçalho padrão do Calc: as três partes do cabeçalho são reescritas, só a central com texto, fonte de 9 pt.
+- O título e o nome da aba são **dados não confiáveis**: entram como texto puro (sem campo, fórmula nem marcação; `<b>`, `&`, `{` e `$(TABLE)` saem como estão), sem caractere de controle nem invisível, espaços em sequência viram um, até 200 caracteres (aba, 40) e **cortados com reticências** para caber numa linha na largura útil da página (conta conservadora de 1,9 mm por caractere). O nome da aba é preservado; o título é que encolhe. Sem título (nulo ou vazio depois da limpeza), o cabeçalho fica desligado.
+- **Rodapé do Calc desligado** ("Página 1" some): a numeração oficial é a do dossiê.
+- **Centralizada na horizontal**, não na vertical.
+- O cabeçalho tem altura fixa (7 mm com o espaço até o corpo) e é ligado **antes** da decisão de layout: a página única e a área útil já o descontam; a escala (largura) não muda. A conferência da última linha (R41) continua igual.
+- Documentos de texto (DOC, DOCX, ODT, RTF, HTML) não mudam.
+
 **Conteúdo**
 
 - Abas **ocultas** ficam fora (o Calc não as imprime). Com `CONVERSAO_ABAS_OCULTAS=true`, tornam-se visíveis e entram; se a estrutura da pasta estiver protegida no arquivo, a aba continua fora (registrado no log). Para isso a planilha é carregada sem "só leitura" (o Calc recusa mostrar aba oculta em documento só leitura); macro e vínculo continuam bloqueados.

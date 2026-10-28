@@ -66,10 +66,18 @@ final class FiltroDePlanilha implements Filter {
     private int abasPaginadasPorTamanho;
     private final java.util.List<String[]> marcasFinais = new java.util.ArrayList<>();
 
+    /** Título do documento já limpo (S3.1); vazio: sem cabeçalho. */
+    private final String titulo;
+
     FiltroDePlanilha(PlanilhaModo modo, boolean abasOcultas, int escalaMinima) {
+        this(modo, abasOcultas, escalaMinima, null);
+    }
+
+    FiltroDePlanilha(PlanilhaModo modo, boolean abasOcultas, int escalaMinima, String titulo) {
         this.modo = modo;
         this.abasOcultas = abasOcultas;
         this.escalaMinima = escalaMinima;
+        this.titulo = CabecalhoDePlanilha.limpar(titulo, CabecalhoDePlanilha.TITULO_MAXIMO);
     }
 
     /** Abas que caíram para página única pela escala mínima, nesta conversão. */
@@ -105,7 +113,9 @@ final class FiltroDePlanilha implements Filter {
                 UnoRuntime.queryInterface(XStyleFamiliesSupplier.class, documento).getStyleFamilies()
                         .getByName("PageStyles"));
         XMultiServiceFactory fabrica = UnoRuntime.queryInterface(XMultiServiceFactory.class, documento);
-        int comConteudo = 0;
+        // Primeiro, quais abas entram no PDF (visíveis, ou ocultas exibidas pelo parâmetro, e com conteúdo): com mais de
+        // uma, o cabeçalho leva também o nome da aba.
+        java.util.List<Integer> entram = new java.util.ArrayList<>();
         for (int i = 0; i < abas.getCount(); i++) {
             XSpreadsheet aba = UnoRuntime.queryInterface(XSpreadsheet.class, abas.getByIndex(i));
             XPropertySet propriedades = UnoRuntime.queryInterface(XPropertySet.class, aba);
@@ -120,12 +130,20 @@ final class FiltroDePlanilha implements Filter {
                     continue;
                 }
             }
-            if (!temConteudo(aba)) {
-                continue; // o Calc não gera página para aba vazia
+            if (temConteudo(aba)) {
+                entram.add(i); // o Calc não gera página para aba vazia
             }
-            comConteudo++;
+        }
+        if (entram.isEmpty()) {
+            throw new PlanilhaVaziaException();
+        }
+        for (int i : entram) {
+            XSpreadsheet aba = UnoRuntime.queryInterface(XSpreadsheet.class, abas.getByIndex(i));
+            XPropertySet propriedades = UnoRuntime.queryInterface(XPropertySet.class, aba);
             Size area = areaImpressa(aba);
             XPropertySet estilo = estiloProprio(estilos, fabrica, propriedades, i);
+            // Antes do layout: a altura do cabeçalho entra na página única e na área útil (S3.1).
+            CabecalhoDePlanilha.preparar(estilo, !titulo.isEmpty());
             if (modo == PlanilhaModo.PAGINA_POR_ABA) {
                 if (!paginaUnica(estilo, area)) {
                     ajustarALargura(estilo, area, true);
@@ -145,13 +163,16 @@ final class FiltroDePlanilha implements Filter {
                             escalaMinima);
                 }
             }
+            if (!titulo.isEmpty()) {
+                String nomeDaAba = entram.size() > 1
+                        ? UnoRuntime.queryInterface(com.sun.star.container.XNamed.class, aba).getName() : null;
+                CabecalhoDePlanilha.escrever(estilo, CabecalhoDePlanilha.texto(titulo, nomeDaAba,
+                        CabecalhoDePlanilha.caracteresQueCabem(estilo)));
+            }
             String[] marcas = marcasDaUltimaLinha(aba);
             if (marcas.length > 0) {
                 marcasFinais.add(marcas);
             }
-        }
-        if (comConteudo == 0) {
-            throw new PlanilhaVaziaException();
         }
     }
 

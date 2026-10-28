@@ -244,6 +244,8 @@ final class Fakes {
      */
     static final class Conversor implements ConversorDeDocumentos, ConversorDeImagens {
         final List<String> convertidos = new java.util.concurrent.CopyOnWriteArrayList<>();
+        /** Títulos recebidos para o cabeçalho de planilha (S3.1), na ordem das conversões de documentos. */
+        final List<String> titulos = new java.util.concurrent.CopyOnWriteArrayList<>();
         /** Extensão (do tipo detectado) que falha, com o motivo. */
         final Map<String, FalhaDeConversaoException.Motivo> falhas = new ConcurrentHashMap<>();
         int paginas = 2;
@@ -255,6 +257,12 @@ final class Fakes {
         @Override
         public boolean disponivel() {
             return disponivel;
+        }
+
+        @Override
+        public ResultadoDaConversao converter(Path origem, TipoDetectado tipo, Path destinoPdf, String titulo) {
+            titulos.add(String.valueOf(titulo));
+            return converter(origem, tipo, destinoPdf);
         }
 
         @Override

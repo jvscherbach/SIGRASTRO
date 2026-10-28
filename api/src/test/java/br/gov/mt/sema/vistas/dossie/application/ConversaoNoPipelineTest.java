@@ -95,6 +95,8 @@ class ConversaoNoPipelineTest {
         assertThat(montados.get(1).nota()).isEqualTo("convertido de XLSX*");
         assertThat(montados.get(1).abasEmPaginaUnica()).isEqualTo(1);
         assertThat(conversor.convertidos).containsExactly("xlsx", "docx", "png");
+        // S3.1: o conversor de documentos recebe o título do sumário (cabeçalho da planilha); a imagem não.
+        assertThat(conversor.titulos).containsExactly("Planilha de custos", "Memorial");
         assertThat(arquivosNaPasta()).containsExactly("dossie.pdf");
     }
 

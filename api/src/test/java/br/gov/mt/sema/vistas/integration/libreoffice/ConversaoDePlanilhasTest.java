@@ -271,16 +271,159 @@ class ConversaoDePlanilhasTest {
             Path destino = pedido.resolve("saida.pdf");
 
             ResultadoDaConversao resultado =
-                    conversor.converter(origem, new TipoDetectado(TipoReal.PLANILHA, "xlsx"), destino);
+                    conversor.converter(origem, new TipoDetectado(TipoReal.PLANILHA, "xlsx"), destino, TITULO);
 
             String texto = texto(destino);
-            assertThat(texto).as(modo.name()).contains("Linha 1 ", "Linha 15000 ", "Linha 30000 ", "Fim da planilha");
+            assertThat(texto).as(modo.name()).contains("Linha 1 ", "Linha 15000 ", "Linha 30000 ", "Fim da planilha", TITULO);
             assertThat(resultado.abasEmPaginaUnica()).as(modo.name()).isZero();
             assertThat(resultado.paginas()).as(modo.name()).isGreaterThan(4);
         }
     }
 
+    // ---- S3.1: cabeçalho com o nome do documento, sem rodapé do Calc, centralizada ----
+
+    static final String TITULO = "Relatório de vazão — ação de outorga";
+
+    @Test
+    void umaAbaTemOTituloDoDocumentoNoCabecalhoSemNomeDaAbaNemPaginaDoCalc() throws Exception {
+        Convertido c = converter("xlsx", PlanilhasDeTeste.xlsx(p -> PlanilhasDeTeste.grade(p, "Planilha1", 4, 10, 0)),
+                TITULO);
+
+        String primeira = textoDaPagina(c.pdf(), 1).strip();
+        assertThat(primeira).startsWith(TITULO);
+        assertThat(texto(c.pdf())).doesNotContain("Planilha1").doesNotContain("Página 1").contains(marca(4, 10));
+    }
+
+    @Test
+    void comMaisDeUmaAbaOCabecalhoLevaONomeDeCadaAbaEAOcultaSoEntraComOParametro() throws Exception {
+        Consumer<Workbook> tres = p -> {
+            PlanilhasDeTeste.grade(p, "Resumo", 3, 5, 0);
+            PlanilhasDeTeste.grade(p, "Dados", 3, 5, 0);
+            PlanilhasDeTeste.grade(p, "Oculta", 3, 5, 0);
+            p.setSheetHidden(2, true);
+        };
+        Convertido c = converter("xlsx", PlanilhasDeTeste.xlsx(tres), TITULO);
+        assertThat(c.resultado().paginas()).isEqualTo(2);
+        assertThat(textoDaPagina(c.pdf(), 1).strip()).startsWith(TITULO + " — Resumo");
+        assertThat(textoDaPagina(c.pdf(), 2).strip()).startsWith(TITULO + " — Dados");
+        assertThat(texto(c.pdf())).doesNotContain("Oculta");
+
+        parametros.abasOcultas = true;
+        Convertido comOculta = converter("xlsx", PlanilhasDeTeste.xlsx(tres), TITULO);
+        assertThat(comOculta.resultado().paginas()).isEqualTo(3);
+        assertThat(textoDaPagina(comOculta.pdf(), 3).strip()).startsWith(TITULO + " — Oculta");
+    }
+
+    @Test
+    void umaAbaVisivelComOutraOcultaForaNaoLevaONomeDaAba() throws Exception {
+        Convertido c = converter("xlsx", PlanilhasDeTeste.xlsx(p -> {
+            PlanilhasDeTeste.grade(p, "Resumo", 3, 5, 0);
+            PlanilhasDeTeste.grade(p, "Oculta", 3, 5, 0);
+            p.setSheetHidden(1, true);
+        }), TITULO);
+        assertThat(texto(c.pdf())).contains(TITULO).doesNotContain("Resumo").doesNotContain("Oculta");
+    }
+
+    @Test
+    void tabelaCentralizadaNaLarguraEmRetratoEPaisagemEstreitaELarga() throws Exception {
+        // colunas x linhas: estreita retrato, estreita paisagem, larga paisagem, larga retrato
+        int[][] casos = {{2, 100}, {2, 3}, {40, 30}, {40, 400}};
+        for (int[] caso : casos) {
+            Convertido c = converter("xlsx", PlanilhasDeTeste.xlsx(p -> gradeComNumerosNaUltimaColuna(p, caso[0], caso[1])),
+                    null);
+            PDRectangle pagina;
+            try (PDDocument documento = Loader.loadPDF(c.pdf().toFile())) {
+                pagina = documento.getPage(0).getMediaBox();
+            }
+            float[] extremos = extremosHorizontais(c.pdf());
+            float esquerda = extremos[0];
+            float direita = pagina.getWidth() - extremos[1];
+            assertThat(Math.abs(esquerda - direita)).as("%dx%d: esquerda %.1f, direita %.1f (página %.0f pt)",
+                    caso[0], caso[1], esquerda, direita, pagina.getWidth()).isLessThan(4f);
+        }
+        assertThat(paisagemDoCaso(2, 3)).isTrue();
+        assertThat(paisagemDoCaso(2, 100)).isFalse();
+    }
+
+    @Test
+    void tituloHostilSaiComoTextoCortadoSemControleNemQuebrarOPdf() throws Exception {
+        Consumer<Workbook> simples = p -> PlanilhasDeTeste.grade(p, "Planilha1", 3, 5, 0);
+        String marcacao = "<b>Ação & {campo} $(TABLE) &P \u0007fim\nlinha";
+        Convertido c = converter("xlsx", PlanilhasDeTeste.xlsx(simples), marcacao);
+        String cabecalho = textoDaPagina(c.pdf(), 1).strip().lines().findFirst().orElse("");
+        assertThat(cabecalho).isEqualTo("<b>Ação & {campo} $(TABLE) &P fim linha");
+
+        String longo = "Documento com título muito longo ".repeat(20);
+        Convertido cortado = converter("xlsx", PlanilhasDeTeste.xlsx(simples), longo);
+        String linha = textoDaPagina(cortado.pdf(), 1).strip().lines().findFirst().orElse("");
+        assertThat(linha).startsWith("Documento com título muito longo").endsWith("…");
+        assertThat(linha.length()).isLessThan(longo.length());
+        assertThat(cortado.resultado().paginas()).isEqualTo(1);
+
+        Convertido vazio = converter("xlsx", PlanilhasDeTeste.xlsx(simples), "  \u0000 ");
+        assertThat(textoDaPagina(vazio.pdf(), 1).strip()).startsWith(marca(1, 1)).doesNotContain("Planilha1");
+    }
+
+    @Test
+    void modoPaginaPorAbaTambemTemCabecalhoESemRodape() throws Exception {
+        parametros.planilhaModo = PlanilhaModo.PAGINA_POR_ABA;
+        Convertido c = converter("xlsx", PlanilhasDeTeste.xlsx(p -> PlanilhasDeTeste.grade(p, "Planilha1", 3, 300, 0)),
+                TITULO);
+        assertThat(c.resultado().paginas()).isEqualTo(1);
+        String texto = textoDaPagina(c.pdf(), 1).strip();
+        // A página tem a largura da tabela (3 colunas): o título é cortado com reticências para caber numa linha.
+        String cabecalho = texto.lines().findFirst().orElse("");
+        assertThat(cabecalho).endsWith("…");
+        assertThat(TITULO).startsWith(cabecalho.substring(0, cabecalho.length() - 1));
+        assertThat(texto).contains(marca(3, 300)).doesNotContain("Página 1").doesNotContain("Planilha1");
+    }
+
+    /** Coluna 1 com texto (à esquerda) e a última com números (à direita): os extremos do texto ficam simétricos. */
+    private static void gradeComNumerosNaUltimaColuna(Workbook pasta, int colunas, int linhas) {
+        Sheet aba = PlanilhasDeTeste.grade(pasta, "Dados", colunas, linhas, 0);
+        for (int l = 0; l < linhas; l++) {
+            aba.getRow(l).createCell(colunas - 1).setCellValue(1000 + l);
+        }
+    }
+
+    private boolean paisagemDoCaso(int colunas, int linhas) throws Exception {
+        Convertido c = converter("xlsx", PlanilhasDeTeste.xlsx(p -> gradeComNumerosNaUltimaColuna(p, colunas, linhas)), null);
+        return paisagem(c.pdf(), 0);
+    }
+
+    /** Menor x e maior x (fim do glifo) do texto da primeira página, em pontos. */
+    private static float[] extremosHorizontais(Path pdf) throws IOException {
+        float[] extremos = {Float.MAX_VALUE, 0};
+        try (PDDocument documento = Loader.loadPDF(pdf.toFile())) {
+            PDFTextStripper extrator = new PDFTextStripper() {
+                @Override
+                protected void writeString(String texto, List<org.apache.pdfbox.text.TextPosition> posicoes) {
+                    for (org.apache.pdfbox.text.TextPosition p : posicoes) {
+                        if (p.getUnicode().isBlank()) {
+                            continue;
+                        }
+                        extremos[0] = Math.min(extremos[0], p.getXDirAdj());
+                        extremos[1] = Math.max(extremos[1], p.getXDirAdj() + p.getWidthDirAdj());
+                    }
+                }
+            };
+            extrator.setStartPage(1);
+            extrator.setEndPage(1);
+            extrator.getText(documento);
+        }
+        return extremos;
+    }
+
     // ---- apoio ----
+
+    private Convertido converter(String extensao, byte[] conteudo, String titulo) throws IOException {
+        Path pedido = Files.createTempDirectory(pasta, "pedido");
+        Path origem = Files.write(pedido.resolve("origem." + extensao), conteudo);
+        Path destino = pedido.resolve("saida.pdf");
+        ResultadoDaConversao resultado =
+                conversor.converter(origem, new TipoDetectado(TipoReal.PLANILHA, extensao), destino, titulo);
+        return new Convertido(destino, resultado);
+    }
 
     private Convertido converter(String extensao, byte[] conteudo) throws IOException {
         Path pedido = Files.createTempDirectory(pasta, "pedido");

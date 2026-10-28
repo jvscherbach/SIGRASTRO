@@ -83,7 +83,7 @@ Falha no SCORP não impede a listagem. Os documentos de origem `SCORP` aparecem 
 
 ## LibreOffice — conversor de documentos (`integration.libreoffice`, S3)
 
-Não é um sistema de rede: é o LibreOffice headless instalado na imagem da `api`, controlado pelo JODConverter 4.4.9 (módulo local, sem o starter do Spring). Converte textos (DOC, DOCX, ODT, RTF), HTML e planilhas para PDF pela porta `ConversorDeDocumentos` (de `documento.application.port`), usada pelo dossiê e pela visualização com os mesmos parâmetros. Imagens não passam por aqui (PDFBox, bloco 4 da S3). Os documentos são de terceiros e tratados como **hostis**.
+Não é um sistema de rede: é o LibreOffice headless instalado na imagem da `api`, controlado pelo JODConverter 4.4.9 (módulo local, sem o starter do Spring). Converte textos (DOC, DOCX, ODT, RTF), HTML e planilhas para PDF pela porta `ConversorDeDocumentos` (de `documento.application.port`), usada pelo dossiê e pela visualização com os mesmos parâmetros. Desde a S3.1 a porta recebe também o **título do documento** (`converter(origem, tipo, destino, titulo)`; a forma sem título continua, com cabeçalho vazio), que o dossiê (`PreparadorDePdf`, título do item) e a visualização (`ObterConteudoDoDocumento`, título da lista) passam para o cabeçalho das planilhas; documentos de texto o ignoram (docs/06, "Planilhas"). Imagens não passam por aqui (PDFBox, bloco 4 da S3). Os documentos são de terceiros e tratados como **hostis**.
 
 **Processos**
 

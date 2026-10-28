@@ -24,5 +24,15 @@ public interface ConversorDeDocumentos {
      * @return páginas geradas e o que foi ajustado nas planilhas
      * @throws FalhaDeConversaoException com o motivo tipado, exibível ao usuário
      */
-    ResultadoDaConversao converter(Path origem, TipoDetectado tipo, Path destinoPdf);
+    default ResultadoDaConversao converter(Path origem, TipoDetectado tipo, Path destinoPdf) {
+        return converter(origem, tipo, destinoPdf, null);
+    }
+
+    /**
+     * Como {@link #converter(Path, TipoDetectado, Path)}, com o título do documento para o cabeçalho das páginas de
+     * planilha (S3.1): o mesmo texto do sumário e do marcador, sem a nota "convertido de". É dado não confiável: vai ao
+     * conversor só como texto, sem caractere de controle e com tamanho limitado. Nulo ou vazio: cabeçalho vazio (nunca o
+     * nome da aba sozinho). Documentos de texto ignoram o título.
+     */
+    ResultadoDaConversao converter(Path origem, TipoDetectado tipo, Path destinoPdf, String titulo);
 }

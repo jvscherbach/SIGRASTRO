@@ -107,7 +107,7 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
             Path destino = chamada.getArgument(2);
             Files.write(destino, PdfsDeTeste.bytes(2, "convertido"));
             return new ResultadoDaConversao(2, 0);
-        }).when(conversor).converter(any(Path.class), any(), any(Path.class));
+        }).when(conversor).converter(any(Path.class), any(), any(Path.class), any());
     }
 
     // --- acesso ---
@@ -185,7 +185,7 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
 
         assertThat(resposta.getHeader("Content-Disposition")).startsWith("inline").contains("requerimento.pdf");
         assertThat(resposta.getContentAsByteArray()).isEqualTo(pdf);
-        verify(conversor, never()).converter(any(), any(), any());
+        verify(conversor, never()).converter(any(), any(), any(), any());
     }
 
     @Test
@@ -204,8 +204,9 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
 
         verify(conversor).converter(any(Path.class),
                 eq(new br.gov.mt.sema.vistas.documento.domain.TipoDetectado(
-                        br.gov.mt.sema.vistas.documento.domain.TipoReal.PLANILHA, "xlsx")), any(Path.class));
-        verify(conversor, times(2)).converter(any(), any(), any());
+                        br.gov.mt.sema.vistas.documento.domain.TipoReal.PLANILHA, "xlsx")), any(Path.class),
+                eq("Planilha")); // o título da lista vai para o cabeçalho da planilha (S3.1)
+        verify(conversor, times(2)).converter(any(), any(), any(), any());
     }
 
     @Test
@@ -216,7 +217,7 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
                 .andExpect(header().string("X-Vistas-Convertido-De", "PNG"))
                 .andReturn().getResponse();
         assertThat(new String(resposta.getContentAsByteArray(), 0, 5, StandardCharsets.US_ASCII)).isEqualTo("%PDF-");
-        verify(conversor, never()).converter(any(), any(), any());
+        verify(conversor, never()).converter(any(), any(), any(), any());
     }
 
     @Test
@@ -290,17 +291,17 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void falhasDeConversaoViramProblemDetailComCodigo() throws Exception {
-        doThrow(new FalhaDeConversaoException(Motivo.PROTEGIDO_POR_SENHA)).when(conversor).converter(any(), any(), any());
+        doThrow(new FalhaDeConversaoException(Motivo.PROTEGIDO_POR_SENHA)).when(conversor).converter(any(), any(), any(), any());
         pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804330", 101, "pdf")
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.errorCode").value("DOCUMENTO_PROTEGIDO_POR_SENHA"))
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("protegido por senha")));
 
-        doThrow(new FalhaDeConversaoException(Motivo.CORROMPIDO)).when(conversor).converter(any(), any(), any());
+        doThrow(new FalhaDeConversaoException(Motivo.CORROMPIDO)).when(conversor).converter(any(), any(), any(), any());
         pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804330", 101, "pdf")
                 .andExpect(jsonPath("$.errorCode").value("DOCUMENTO_CORROMPIDO"));
 
-        doThrow(new FalhaDeConversaoException(Motivo.TEMPO_LIMITE)).when(conversor).converter(any(), any(), any());
+        doThrow(new FalhaDeConversaoException(Motivo.TEMPO_LIMITE)).when(conversor).converter(any(), any(), any(), any());
         pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804330", 101, "pdf")
                 .andExpect(status().isGatewayTimeout()).andExpect(jsonPath("$.errorCode").value("TEMPO_LIMITE_EXCEDIDO"));
 
@@ -318,7 +319,7 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
         pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804330", 101, "pdf").andExpect(status().isOk());
         pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804330", 101, "pdf").andExpect(status().isOk());
         verify(arquivos, times(1)).baixar(eq(CHAVE_PLANILHA), any(Path.class));
-        verify(conversor, times(1)).converter(any(), any(), any());
+        verify(conversor, times(1)).converter(any(), any(), any(), any());
         verify(documentos, times(2)).listar(101);
 
         // Sigiloso já em cache pelo Gestor: o Operador continua barrado.
@@ -339,7 +340,7 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
         }
         pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804330", 101, "pdf").andExpect(status().isOk());
         verify(arquivos, times(2)).baixar(eq(CHAVE_PLANILHA), any(Path.class));
-        verify(conversor, times(2)).converter(any(), any(), any());
+        verify(conversor, times(2)).converter(any(), any(), any(), any());
     }
 
     @Test
@@ -353,7 +354,7 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
             liberar.await(30, TimeUnit.SECONDS);
             Files.write((Path) chamada.getArgument(2), PdfsDeTeste.bytes(1, "convertido"));
             return new ResultadoDaConversao(1, 0);
-        }).when(conversor).converter(any(), any(), any());
+        }).when(conversor).converter(any(), any(), any(), any());
         String autorizacao = bearer("gestor.demo");
         AtomicReference<Integer> statusDaPrimeira = new AtomicReference<>();
         Thread primeira = new Thread(() -> {

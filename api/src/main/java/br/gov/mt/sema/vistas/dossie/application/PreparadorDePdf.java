@@ -66,9 +66,17 @@ public class PreparadorDePdf {
      * @throws FalhaNoDocumentoException com o motivo exibido ao usuário
      */
     public PdfPreparado preparar(Path original, String extensaoDoNome, Path pdf) {
+        return preparar(original, extensaoDoNome, pdf, null);
+    }
+
+    /**
+     * Como {@link #preparar(Path, String, Path)}, com o título do documento (o mesmo do sumário e do marcador) para o
+     * cabeçalho das páginas de planilha convertida (S3.1).
+     */
+    public PdfPreparado preparar(Path original, String extensaoDoNome, Path pdf, String titulo) {
         TipoDetectado tipo = DetectorDeTipoReal.detectar(original, extensaoDoNome);
         return switch (tipo.tipo()) {
-            case PLANILHA, TEXTO -> converter(tipo, () -> documentos.converter(original, tipo, pdf));
+            case PLANILHA, TEXTO -> converter(tipo, () -> documentos.converter(original, tipo, pdf, titulo));
             case IMAGEM -> converter(tipo, () -> imagens.converter(original, tipo, pdf));
             case COMPACTADO -> throw new FalhaNoDocumentoException(
                     COMPACTADO.formatted(tipo.extensaoSugerida().toUpperCase(Locale.ROOT)), 0);

@@ -158,7 +158,7 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
     }
 
     @Override
-    public ResultadoDaConversao converter(Path origem, TipoDetectado tipo, Path destinoPdf) {
+    public ResultadoDaConversao converter(Path origem, TipoDetectado tipo, Path destinoPdf, String titulo) {
         String extensao = extensao(tipo);
         if (!disponivel()) {
             throw new FalhaDeConversaoException(Motivo.CONVERSOR_INDISPONIVEL);
@@ -179,7 +179,7 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
             }
             Path saida = pasta.resolve("saida.pdf");
             FiltroDePlanilha planilha = new FiltroDePlanilha(parametros.planilhaModo(), parametros.abasOcultas(),
-                    parametros.planilhaEscalaMinima());
+                    parametros.planilhaEscalaMinima(), titulo);
             executar(pool, entrada, saida, planilha);
             int paginas = validarSaida(saida);
             conferirUltimasLinhas(saida, planilha.marcasFinais());

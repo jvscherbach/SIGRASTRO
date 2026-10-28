@@ -90,7 +90,7 @@ public class ObterConteudoDoDocumento {
             }
             Path pdf = cache.vigente(pasta, CacheDeVisualizacao.PDF);
             if (pdf == null) {
-                pdf = converter(original, tipo, pasta);
+                pdf = converter(original, tipo, pasta, documento.titulo());
             }
             return abrir(pdf, "application/pdf", nomePdf(documento), false, rotulo(tipo));
         });
@@ -133,7 +133,7 @@ public class ObterConteudoDoDocumento {
         return cache.publicar(parcial, CacheDeVisualizacao.ORIGINAL);
     }
 
-    private Path converter(Path original, TipoDetectado tipo, Path pasta) {
+    private Path converter(Path original, TipoDetectado tipo, Path pasta, String titulo) {
         if (!tipo.convertivel()) {
             throw new FalhaNoConteudoException(ErrorCode.FORMATO_NAO_SUPORTADO,
                     "Este documento não pode ser exibido como PDF: " + descrever(tipo) + " não tem conversão.");
@@ -156,7 +156,7 @@ public class ObterConteudoDoDocumento {
                 if (imagem) {
                     conversorDeImagens.converter(original, tipo, parcial);
                 } else {
-                    conversorDeDocumentos.converter(original, tipo, parcial);
+                    conversorDeDocumentos.converter(original, tipo, parcial, titulo);
                 }
             } finally {
                 vagas.release();
