@@ -1,5 +1,5 @@
 # ---- build ----
-FROM eclipse-temurin:21.0.12_8-jdk-noble AS build
+FROM eclipse-temurin:24.0.2_12-jdk-noble AS build
 WORKDIR /build
 
 COPY mvnw pom.xml ./
@@ -10,7 +10,7 @@ COPY src src
 RUN ./mvnw -B -q -DskipTests package
 
 # ---- runtime ----
-FROM eclipse-temurin:21.0.12_8-jre-noble
+FROM eclipse-temurin:24.0.2_12-jre-noble
 
 # LibreOffice headless (Writer e Calc, sem interface gráfica) para a conversão de documentos (S3) e curl para o
 # HEALTHCHECK. Fontes livres para acentuação e compatibilidade métrica com as do Office: Liberation (Arial, Times New
