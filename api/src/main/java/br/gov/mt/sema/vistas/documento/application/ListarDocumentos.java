@@ -1,5 +1,6 @@
 package br.gov.mt.sema.vistas.documento.application;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Service;
 /**
  * Lista os documentos do requerimento (RF06 a RF08, RF20). O requerimento é a chave (D31). O acesso (404 e RN07) é
  * conferido antes de ler os documentos; sigilosos aparecem para todos, mas só Gestor e Administrador os acessam.
+ * Geometrias saem em lista própria (RN10, S4): fora da seleção e do dossiê; para o Operador, a sigilosa não aparece e
+ * só entra na contagem de omitidas.
  */
 @Service
 public class ListarDocumentos {
@@ -35,16 +38,42 @@ public class ListarDocumentos {
         acesso.executar(idRequerimento);
         boolean podeVerSigilosos = politica.podeVerDocumentoSigiloso();
         boolean converte = conversao.habilitada();
-        return DocumentosListados.de(listaDoRequerimento(idRequerimento).stream()
+        List<Documento> consolidada = consolidada(idRequerimento);
+        List<DocumentoListado> itens = semGeometrias(consolidada).stream()
                 .map(d -> new DocumentoListado(d, politica.podeAcessarDocumento(d.sigiloso()),
                         d.bloqueio(podeVerSigilosos, converte), d.selecionavelPorPadrao(podeVerSigilosos, converte)))
-                .toList());
+                .toList();
+        List<DocumentoListado> geometrias = new ArrayList<>();
+        int omitidas = 0;
+        for (Documento geometria : soGeometrias(consolidada)) {
+            if (politica.podeAcessarDocumento(geometria.sigiloso())) {
+                geometrias.add(new DocumentoListado(geometria, true, null, false));
+            } else {
+                omitidas++;
+            }
+        }
+        return DocumentosListados.de(itens, geometrias, omitidas);
     }
 
-    /** Lista consolidada (RN05, RN11, RN03). Geometrias ficam fora até a seção própria da S4 (RN10). */
+    /** Lista consolidada (RN05, RN11, RN03), sem as geometrias (RN10): é a base da seleção e do dossiê. */
     List<Documento> listaDoRequerimento(long idRequerimento) {
-        return CatalogoDeDocumentos.consolidar(documentos.listar(idRequerimento)).stream()
-                .filter(d -> d.tipoArquivo() != TipoArquivo.GEOMETRIA)
-                .toList();
+        return semGeometrias(consolidada(idRequerimento));
+    }
+
+    /** Só as geometrias da lista consolidada, em ordem cronológica, sem filtro de acesso. */
+    List<Documento> geometriasDoRequerimento(long idRequerimento) {
+        return soGeometrias(consolidada(idRequerimento));
+    }
+
+    private List<Documento> consolidada(long idRequerimento) {
+        return CatalogoDeDocumentos.consolidar(documentos.listar(idRequerimento));
+    }
+
+    private static List<Documento> semGeometrias(List<Documento> lista) {
+        return lista.stream().filter(d -> d.tipoArquivo() != TipoArquivo.GEOMETRIA).toList();
+    }
+
+    private static List<Documento> soGeometrias(List<Documento> lista) {
+        return lista.stream().filter(d -> d.tipoArquivo() == TipoArquivo.GEOMETRIA).toList();
     }
 }

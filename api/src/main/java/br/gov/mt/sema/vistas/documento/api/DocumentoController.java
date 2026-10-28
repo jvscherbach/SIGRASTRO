@@ -1,22 +1,35 @@
 package br.gov.mt.sema.vistas.documento.api;
 
 import br.gov.mt.sema.vistas.documento.api.dto.DocumentosResponse;
+import br.gov.mt.sema.vistas.documento.api.dto.GeometriaComProblemaResponse;
+import br.gov.mt.sema.vistas.documento.application.BaixarGeometrias;
+import br.gov.mt.sema.vistas.documento.application.BaixarGeometrias.ZipDeGeometrias;
 import br.gov.mt.sema.vistas.documento.application.ConteudoDoDocumento;
 import br.gov.mt.sema.vistas.documento.application.ListarDocumentos;
 import br.gov.mt.sema.vistas.documento.application.ObterConteudoDoDocumento;
 import br.gov.mt.sema.vistas.documento.application.ObterConteudoDoDocumento.Formato;
+import br.gov.mt.sema.vistas.documento.application.GeometriasIncompletasException;
+import br.gov.mt.sema.vistas.shared.api.error.ProblemDetails;
 import br.gov.mt.sema.vistas.shared.application.exception.ParametroInvalidoException;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import java.io.FileInputStream;
+import java.io.FilterInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,22 +38,26 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api")
-@Tag(name = "Documentos", description = "Lista de documentos do requerimento e conteúdo para o modal")
+@Tag(name = "Documentos", description = "Lista de documentos do requerimento, conteúdo para o modal e geometrias")
 public class DocumentoController {
 
     private final ListarDocumentos listarDocumentos;
     private final ObterConteudoDoDocumento obterConteudo;
+    private final BaixarGeometrias baixarGeometrias;
 
-    public DocumentoController(ListarDocumentos listarDocumentos, ObterConteudoDoDocumento obterConteudo) {
+    public DocumentoController(ListarDocumentos listarDocumentos, ObterConteudoDoDocumento obterConteudo,
+            BaixarGeometrias baixarGeometrias) {
         this.listarDocumentos = listarDocumentos;
         this.obterConteudo = obterConteudo;
+        this.baixarGeometrias = baixarGeometrias;
     }
 
     @GetMapping("/requerimentos/{id}/documentos")
     @Operation(summary = "Documentos do requerimento",
             description = "Todos os documentos das origens ligadas, deduplicados e em ordem cronológica, com os totais. "
                     + "A chave do arquivo nunca é devolvida. Sigilosos aparecem para todos; para o Operador vêm mascarados e "
-                    + "bloqueados (RF20).")
+                    + "bloqueados (RF20). Geometrias (S4) vêm em `geometrias`, fora de `itens` e do total; para o Operador, "
+                    + "as sigilosas não aparecem e só são contadas em `totais.geometriasOmitidas`.")
     @ApiResponse(responseCode = "200", description = "Documentos e totais.")
     @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized")
     @ApiResponse(responseCode = "403", ref = "#/components/responses/Forbidden")
@@ -94,5 +111,72 @@ public class DocumentoController {
         }
         // Streaming do arquivo já aberto: nunca é carregado inteiro na memória.
         return resposta.body(new InputStreamResource(conteudo.corpo()));
+    }
+
+    @GetMapping("/requerimentos/{id}/geometrias/arquivo")
+    @Operation(summary = "Baixar geometrias (ZIP)",
+            description = "Todas as geometrias vigentes (SHP, KML, KMZ) que o usuário acessa, num ZIP (RN10, S4). Acesso como "
+                    + "na lista (404, 403 NAO_INTERESSADO); geometria sigilosa não vai para o Operador. Tudo ou nada: se "
+                    + "algum arquivo falhar, nenhum ZIP é entregue e o erro GEOMETRIAS_INCOMPLETAS (502; 504 se todas "
+                    + "por tempo limite) lista os arquivos com problema em `arquivos`. Sem geometria acessível: 404. "
+                    + "Acima de GEOMETRIAS_MAX_MB ou do máximo de arquivos: 413 GEOMETRIAS_GRANDES_DEMAIS. "
+                    + "A chave do arquivo nunca é devolvida.")
+    @ApiResponse(responseCode = "200", description = "ZIP (attachment).")
+    @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized")
+    @ApiResponse(responseCode = "403", ref = "#/components/responses/Forbidden")
+    @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound")
+    @ApiResponse(responseCode = "413", description = "Grandes demais (GEOMETRIAS_GRANDES_DEMAIS).")
+    @ApiResponse(responseCode = "502", description = "Arquivo com problema (GEOMETRIAS_INCOMPLETAS) ou credencial recusada.")
+    @ApiResponse(responseCode = "503", description = "Banco do SIGA indisponível (SIGA_INDISPONIVEL).")
+    @ApiResponse(responseCode = "504", description = "Todas as falhas por tempo limite (GEOMETRIAS_INCOMPLETAS).")
+    public ResponseEntity<InputStreamResource> geometrias(@PathVariable long id) throws IOException {
+        ZipDeGeometrias zip = baixarGeometrias.executar(id);
+        InputStream corpo;
+        try {
+            corpo = new DescartaAoFechar(new FileInputStream(zip.caminho().toFile()), zip);
+        } catch (IOException | RuntimeException e) {
+            zip.descartar();
+            throw e;
+        }
+        // Streaming direto do disco; a pasta temporária some quando a resposta termina (ou é interrompida).
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .contentLength(zip.tamanhoBytes())
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(zip.nome(), StandardCharsets.UTF_8).build().toString())
+                .header("X-Content-Type-Options", "nosniff")
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .header("Referrer-Policy", "no-referrer")
+                .body(new InputStreamResource(corpo));
+    }
+
+    /** Tudo ou nada: a lista dos arquivos com problema vai em `arquivos`; 504 só quando todas as falhas são de tempo. */
+    @ExceptionHandler(GeometriasIncompletasException.class)
+    ResponseEntity<ProblemDetail> aoFaltarGeometria(GeometriasIncompletasException ex, HttpServletRequest request) {
+        HttpStatus status = ex.soTempoLimite() ? HttpStatus.GATEWAY_TIMEOUT : ex.errorCode().status();
+        ProblemDetail problema = ProblemDetails.criar(status, ex.errorCode(), ex.errorCode().tituloPadrao(),
+                ex.getMessage(), request.getRequestURI(), null);
+        problema.setProperty("arquivos", ex.falhas().stream()
+                .map(f -> new GeometriaComProblemaResponse(f.nome(), f.motivo())).toList());
+        return ResponseEntity.status(status).contentType(MediaType.APPLICATION_PROBLEM_JSON).body(problema);
+    }
+
+    private static final class DescartaAoFechar extends FilterInputStream {
+
+        private final ZipDeGeometrias zip;
+
+        DescartaAoFechar(InputStream origem, ZipDeGeometrias zip) {
+            super(origem);
+            this.zip = zip;
+        }
+
+        @Override
+        public void close() throws IOException {
+            try {
+                super.close();
+            } finally {
+                zip.descartar();
+            }
+        }
     }
 }

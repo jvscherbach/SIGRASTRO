@@ -20,6 +20,9 @@ public enum ErrorCode {
     CONVERSAO_RECUSADA(HttpStatus.UNPROCESSABLE_ENTITY, "Conversão recusada"),
     MUITAS_CONVERSOES(HttpStatus.TOO_MANY_REQUESTS, "Muitas conversões em andamento"),
     TICKET_INVALIDO(HttpStatus.FORBIDDEN, "Ticket de download inválido"),
+    // Geometrias em ZIP (S4). GEOMETRIAS_INCOMPLETAS sai como 504 quando todas as falhas são de tempo limite.
+    GEOMETRIAS_INCOMPLETAS(HttpStatus.BAD_GATEWAY, "Geometrias incompletas"),
+    GEOMETRIAS_GRANDES_DEMAIS(HttpStatus.PAYLOAD_TOO_LARGE, "Geometrias grandes demais"),
     CREDENCIAL_ARQUIVOS_RECUSADA(HttpStatus.BAD_GATEWAY, "Credencial de arquivos recusada"),
     REPOSITORIO_DE_ARQUIVOS_INDISPONIVEL(HttpStatus.BAD_GATEWAY, "Repositório de arquivos indisponível"),
     TEMPO_LIMITE_EXCEDIDO(HttpStatus.GATEWAY_TIMEOUT, "Tempo limite excedido"),

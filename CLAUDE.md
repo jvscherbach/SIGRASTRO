@@ -54,7 +54,7 @@ git diff --check
 
 `acesso`, `consulta`, `documento`, `dossie`, `auditoria` e `configuracao` são os módulos de negócio. `integration.{siga,licenciamento,scorp,arrecadacao}` são adapters externos. `config` e `shared` são transversais (`shared` não é depósito de código sem dono). O dono de uma funcionalidade é o módulo que define o significado de negócio dela; a tabela completa está em `docs/13-padroes-tecnicos.md`.
 
-Camadas por módulo: `api` (controller + `api.dto`) → `application` (casos de uso + portas) → `domain` (sem Spring Web, JPA, JDBC ou tipos de `integration.*`); `infrastructure` implementa as portas. Crie só os pacotes que o fluxo usa, sem placeholders vazios. `consulta` não tem `infrastructure/` e `documento` só tem `infrastructure/agendamento/` (limpeza do cache do modal, S3): as portas deles são implementadas por `integration.*`.
+Camadas por módulo: `api` (controller + `api.dto`) → `application` (casos de uso + portas) → `domain` (sem Spring Web, JPA, JDBC ou tipos de `integration.*`); `infrastructure` implementa as portas. Crie só os pacotes que o fluxo usa, sem placeholders vazios. `consulta` não tem `infrastructure/` e `documento` só tem `infrastructure/agendamento/` (limpeza do cache do modal, S3, e das pastas do ZIP das geometrias, S4) e `infrastructure/disco/` (espaço livre, S4): as portas deles são implementadas por `integration.*`.
 
 Entre módulos, a comunicação acontece só por caso de uso ou porta publicada (ex.: `auditoria` publica `RegistrarEvento`). Nunca use DTO HTTP, entidade, repository ou DTO de integração de outro módulo.
 
@@ -67,7 +67,7 @@ Entre módulos, a comunicação acontece só por caso de uso ou porta publicada 
 - **Erros HTTP:** `ProblemDetail` com `errorCode`, ID de correlação e `PageResponse<T>` (veja `docs/padroes/http-erros-openapi.md`).
 - **Geração do dossiê:** assíncrona, com fila em memória, pool `DOSSIE_THREADS`, diretório temporário por pedido e limpeza por `@Scheduled`. Segue a regra **"nada incompleto sem decisão" (RN09, S2.2)**: as falhas são coletadas, o pedido fica em `PENDENTE_DECISAO` sem entregar nada e a continuação (tentar de novo ou remover) não baixa de novo o que já foi obtido. A conexão do SIGA é liberada antes do primeiro download. PDFBox lê os arquivos em disco (nunca tudo em memória) e **não força A4**.
 - **Chave do arquivo, token e URL da API de arquivos** nunca saem de `documento.domain`, do `dossie` e dos adapters: nem DTO, nem log, nem resposta (RNF09; `ArchitectureTest` e testes de resposta fiscalizam). HTTP de saída só em `integration.*`.
-- **Documentos:** `id` em texto; só PDF e vigente entra na pré-seleção; compactados (RN11) e geometrias (até a S4) fora da lista; sigilo tolerante e, na dúvida, sigiloso (RN06).
+- **Documentos:** `id` em texto; só PDF e vigente entra na pré-seleção; compactados (RN11) fora da lista e geometrias em lista própria, com ZIP tudo ou nada (S4); sigilo tolerante e, na dúvida, sigiloso (RN06).
 - Não coloque credenciais, tokens ou URLs institucionais reais no repositório. `.env.local` não é versionado; o `.example` só tem os nomes das variáveis.
 - Itens que dependem de verificação estão marcados como **NÃO CONFIRMADO** nos docs. Em "O que NÃO está decidido" (doc 13), sinalize esses pontos em vez de inventar.
 

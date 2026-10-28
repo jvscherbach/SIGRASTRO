@@ -171,7 +171,7 @@ AGUARDANDO → OBTENDO ─┬─ sem falhas ─→ MONTANDO → CONCLUIDO
 
 **Validade:** o TTL (`DOSSIE_TTL_MINUTOS`) conta desde a **última atividade** — criação, cada documento processado, a entrada em `PENDENTE_DECISAO`, cada decisão e a conclusão —, inclusive enquanto o pedido espera a decisão. Cancelar e expirar apagam o diretório do pedido inteiro.
 
-Geometrias e arquivos compactados não fazem parte da seleção do dossiê, portanto não geram falha.
+Geometrias e arquivos compactados não fazem parte da seleção do dossiê, portanto não geram falha. As geometrias têm download próprio em ZIP (S4, docs/07 "Geometrias"), com a mesma regra de tudo ou nada: obtém todas com o mesmo cliente, tempos, novas tentativas e checagem de espaço do dossiê, numa pasta temporária própria (`VISTAS_DOSSIE_DIRETORIO/geometrias`), e só monta o ZIP se nenhuma falhar.
 
 Não há relatório de geração ao final do dossiê; o que ficou de fora está na seção "Documentos não incluídos", no início (S2.2).
 

@@ -92,6 +92,10 @@ vistas:
     cache-max-mb: ${VISUALIZACAO_CACHE_MAX_MB:500}
     conversoes-simultaneas: ${VISUALIZACAO_CONVERSOES_SIMULTANEAS:2}
     fila-de-conversoes: ${VISUALIZACAO_FILA_CONVERSOES:4}
+  # Geometrias em ZIP (S4): limites; temporários em VISTAS_DOSSIE_DIRETORIO/geometrias, com o espaço mínimo do dossiê.
+  geometrias:
+    max-mb: ${GEOMETRIAS_MAX_MB:500}
+    max-arquivos: ${GEOMETRIAS_MAX_ARQUIVOS:200}
   # API de arquivos do Licenciamento. URL vazia = não configurada: a geração falha com esse motivo, a listagem não.
   arquivos:
     url: ${LICENCIAMENTO_API_URL:}

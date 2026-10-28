@@ -63,7 +63,7 @@ Origem desligada some da lista de documentos e não entra no dossiê. A regra de
 |---|---|
 | Conversão habilitada | ligada (chave de segurança; desligada, só PDF entra, como na S2.2) |
 | Planilhas | Ajustar à largura (alternativa: uma página por aba) |
-| Geometrias (SHP, KML, KMZ) | Fora do dossiê, download à parte |
+| Geometrias (SHP, KML, KMZ) | Fora do dossiê, download à parte em ZIP (tudo ou nada) |
 | Compactados (ZIP, RAR, 7Z) | Desconsiderados |
 | Orientação automática | ligado |
 | Incluir abas ocultas | desligado |
@@ -87,6 +87,8 @@ Variáveis de ambiente do protótipo (todas opcionais; `.env.local.example`): `C
 | Teto de espaço do cache (acima, saem os mais antigos) | 500 MB |
 | Conversões do modal em paralelo | 2 |
 | Conversões do modal à espera (fila cheia: 429) | 4 |
+
+**Geometrias (S4):** `GEOMETRIAS_MAX_MB` (500; soma dos arquivos de um ZIP) e `GEOMETRIAS_MAX_ARQUIVOS` (200); acima, 413 `GEOMETRIAS_GRANDES_DEMAIS`. Usam `DOSSIE_ESPACO_MINIMO_MB`, os tempos de download do dossiê e a pasta `VISTAS_DOSSIE_DIRETORIO/geometrias` (cada download apaga a sua; o pico de espaço é perto de uma vez a soma dos arquivos).
 
 Variáveis de ambiente do protótipo: `VISUALIZACAO_TTL_MINUTOS` (10), `VISUALIZACAO_CACHE_MAX_MB` (500), `VISUALIZACAO_CONVERSOES_SIMULTANEAS` (2) e `VISUALIZACAO_FILA_CONVERSOES` (4). O cache fica em `VISTAS_DOSSIE_DIRETORIO/visualizacao`. A conversão usa os parâmetros de Conversão acima, os mesmos do dossiê; as conversões do modal disputam as mesmas instâncias do LibreOffice que a geração (S3, bloco 6).
 

@@ -113,6 +113,24 @@ class CasosDeUsoDocumentoTest {
     }
 
     @Test
+    void geometriaVaiParaListaPropriaESigilosaSoParaGestor() {
+        List<Documento> linhas = new java.util.ArrayList<>(documentos.listar(101));
+        linhas.add(doc(OrigemDocumento.DOCUMENTO_PROCESSO, "9", "K9", "Mapa reservado", "reservado.kmz", D2, null, 1));
+        when(documentos.listar(101)).thenReturn(linhas);
+
+        DocumentosListados doOperador = listar.executar(101);
+        assertThat(doOperador.geometrias()).extracting(g -> g.documento().id()).containsExactly("6");
+        assertThat(doOperador.geometriasOmitidas()).isEqualTo(1);
+        assertThat(doOperador.itens()).extracting(i -> i.documento().id()).doesNotContain("6", "9");
+
+        comoGestor();
+        DocumentosListados doGestor = listar.executar(101);
+        assertThat(doGestor.geometrias()).extracting(g -> g.documento().id()).containsExactly("9", "6");
+        assertThat(doGestor.geometriasOmitidas()).isZero();
+        assertThat(doGestor.totais().total()).isEqualTo(doOperador.totais().total());
+    }
+
+    @Test
     void selecaoInicialDoGestorTemTodosOsSelecionaveisInclusiveSemEfeitoESigiloso() {
         comoGestor();
 
