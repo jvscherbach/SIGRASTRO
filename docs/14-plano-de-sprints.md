@@ -251,7 +251,23 @@ Aceite:
 
 **Objetivo:** aplicar as regras de perfil e fechar o fluxo do usuário.
 
-Entregas:
+**Forma de trabalho:** 10 blocos, cada um terminando em um ponto de commit, executados por duas sessões do Claude Code (OPUS e SONNET) que recebem o mesmo prompt; o estado de cada bloco está em [`progresso/s4.md`](progresso/s4.md).
+
+| Bloco | Entrega | Sessão | Commit sugerido |
+|---|---|---|---|
+| 1 | Política de acesso única (`acesso.application.PoliticaDeAcesso`) usada por consulta, documento e dossiê; inventário de todos os endpoints na "Matriz de acesso por endpoint" de [`07`](07-api.md); três regras novas no ArchUnit; dois reforços (pedido de outro usuário e dono que deixa de ser o interessado) (D60) | OPUS | `refactor(acesso)` |
+| 2 | Front: menu e guarda de rota pelas `permissoes` de `/auth/me` (RN08), sem cadeado de demonstração; mensagens de acesso revisadas; aviso do Operador sem mexer na altura do quadro do topo | SONNET | `feat(front)` |
+| 3 | Geometrias em `geometrias`, fora da lista, da seleção e do dossiê; `GET /requerimentos/{id}/geometrias/arquivo` em ZIP tudo ou nada (`GEOMETRIAS_INCOMPLETAS`, `GEOMETRIAS_GRANDES_DEMAIS`), nomes seguros e únicos; sigilosas omitidas para o Operador (D61) | OPUS | `feat(documentos)` |
+| 4 | Front: seção Geometrias com "Baixar geometrias" (Blob), lista de falhas com nova tentativa, 413 e aviso de sigilosas omitidas | SONNET | `feat(front)` |
+| 5 | SCORP: consulta das pessoas do requerimento, `integration.scorp` (credencial como a da API de arquivos, paralelo limitado, falha tolerante), origem `SCORP` "Pessoal" com id estável sem a chave, `avisos` na lista, `SCORP_SIGILO_PADRAO` (D62) | OPUS | `feat(scorp)` |
+| 6 | Front: origem "Pessoal" (coluna, filtro, modal, ordem) e faixa de aviso do SCORP com "Consultar novamente" | SONNET | `feat(front)` |
+| — | Correção à parte: rolagem horizontal do detalhe no celular (`.table-wrap` com `position: relative`), com e2e | SONNET | `fix(front)` |
+| 7 | `GET /dossies` por perfil (Operador só os seus, `geradoPor` só para Gestor e Administrador, `somenteMeus`), situação `BAIXADO`, histórico em memória por `DOSSIE_HISTORICO_HORAS` (D63) | OPUS | `feat(dossie)` |
+| 8 | Front: tela "Dossiês gerados" (situação, expiração, ações, filtros, atualização a cada 30 s) e gaveta no modo "pedido existente" para Decidir | SONNET | `feat(front)` |
+| 9 | `MatrizDeAcessoTest`: 153 cenários em todos os 15 endpoints de `/api`, endpoint sem linha na matriz quebra o teste, mascaramento no PDF e varredura de corpo e cabeçalhos; nenhuma lacuna encontrada (R48) | OPUS | `test(acesso)` |
+| 10 | Roteiro de homologação da S4, coerência dos documentos e verificação final | SONNET | `docs(homologacao)` |
+
+Entregas (resumo do plano original):
 - Módulo `acesso` em memória: Operador (só como interessado, RN07), Gestor (todos e sigilosos), Administrador (irrestrito); regras validadas no back-end (RNF10). **A RN07 na consulta já foi entregue na S1 (D24) e, na lista de documentos e na geração, na S2 (D36);** aqui entram o restante da matriz (sigilo no modal) e a validação por `MockMvc` de toda ela.
 - Sigilo no modal (a lista e a geração já aplicam, S2); mensagens `NAO_INTERESSADO` e `DOCUMENTO_SIGILOSO`.
 - Geometrias (SHP/KML/KMZ) em seção própria com "Baixar geometrias" (RN10).
@@ -261,6 +277,24 @@ Entregas:
 Aceite:
 - Os três perfis se comportam conforme a matriz do [12](12-configuracoes.md), testados por `MockMvc`.
 - Origem "Pessoal" listada para um processo de teste com documentos no SCORP (se a autenticação do SCORP com o token for confirmada; senão, registrar como pendente).
+
+**Estado:** implementada e testada **sem sistema externo real** (SCORP e API de arquivos simulados por servidor HTTP local, geometrias geradas por código, Oracle 23 Free por Testcontainers, Playwright com API simulada). Verificação final: back-end `./mvnw -B clean verify` verde (727 testes, 56 pulados: os 6 de fumaça, desligados por padrão, e os 50 de LibreOffice, sem `soffice` no Windows; esses 50 rodaram verdes no container de teste com LibreOffice), `ArchitectureTest` e `MatrizDeAcessoTest` (153 cenários) verdes; front com build, Vitest (326) e e2e (79) verdes; Compose com os três arquivos e as 15 variáveis externas vazias dentro do container; 8 YAMLs válidos; `git diff --check` limpo; varredura do diff da S4 sem credencial, URL institucional ou dado real. **Pendente da homologação:** autenticação do SCORP e validade da chave do SCORP em `/api/arquivo` (P06), diferença com a Vista do SIGA (P21), sigilo padrão do SCORP (P30), shapefile com auxiliares (R45) e tempos do ZIP e da lista com o SCORP real (R46, R47).
+
+### Validação da S4
+
+**PENDENTE: homologação manual pelo responsável**, com dados reais de base de desenvolvimento. Roteiro: [`homologacao/S4-roteiro-homologacao.md`](homologacao/S4-roteiro-homologacao.md). ZIPs, PDFs e arquivos reais **não** entram no repositório (pasta local `amostras-locais/`, no `.gitignore`).
+
+| Verificação (roteiro) | Resultado |
+|---|---|
+| 1. Menu por perfil (RN08), URL bloqueada, troca de usuário | |
+| 2. Consulta de pessoas no banco real; `ScorpFumacaTest`; **autenticação do SCORP (P06)** | |
+| 3. Origem "Pessoal" na lista; **diferença com a Vista do SIGA (P21)**; SCORP fora do ar e "Consultar novamente" | |
+| 4. Dossiê com documentos pessoais: chave do SCORP em `/api/arquivo`, ordem, "Pessoal" no sumário, numeração | |
+| 5. Geometrias: ZIP aberto num visualizador, shapefile (R45), tempo (R46), sigilosas omitidas para o Operador | |
+| 6. Perfis contra a matriz do [`12`](12-configuracoes.md): sigiloso, requerimento alheio, dossiê de outro usuário | |
+| 7. "Dossiês gerados": situações, expiração, ações, histórico em memória | |
+| 8. **`SCORP_SIGILO_PADRAO` escolhido (P30)** e motivo | |
+| 9. Logs sem segredo, tempo da lista com SCORP (R47), repositório limpo | |
 
 ## S5 — Gestão: auditoria e configurações
 

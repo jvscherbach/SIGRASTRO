@@ -24,7 +24,6 @@ Tela acessível apenas ao perfil Administrador. Toda alteração gera evento na 
 | Nome do responsável pela tarefa atual (RN12) | — | ✓ | ✓ | campo omitido |
 | Pedido de dossiê criado pelo próprio usuário | ✓ (enquanto for o interessado gravado no pedido) | ✓ | ✓ | 404 `NAO_ENCONTRADO` |
 | Pedido de dossiê de outro usuário | — | ✓ | ✓ | 404 `NAO_ENCONTRADO` (não revela que existe) |
-
 | Ver pedidos de outros usuários e "quem gerou" em "Dossiês gerados" | — | ✓ | ✓ | só os próprios; o campo `geradoPor` não existe |
 | Geometria sigilosa (lista e ZIP) | — | ✓ | ✓ | omitida, só a contagem `geometriasOmitidas` |
 

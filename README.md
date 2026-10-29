@@ -6,7 +6,18 @@ Integração contínua: veja [Integração contínua](docs/13-padroes-tecnicos.m
 
 O **SIGA Vistas** (nome provisório) é um serviço externo ao SIGA Licenciamento. Ele consulta requerimentos e processos, lista os documentos de cada um e gera um **dossiê em PDF**, com os documentos escolhidos em ordem cronológica.
 
-Hoje o projeto é um **protótipo de validação**: o objetivo é provar que os problemas da "Vista do Processo" atual têm solução (processos que não geram a vista e planilhas que ficam fora do PDF). Estão prontas a **Sprint 0 (Fundação)**, a **Sprint 1 (Consulta)** e a **Sprint 2 (Documentos e dossiê em PDF)**: o login simulado funciona, é possível buscar um requerimento ou processo, ver os dados e a tarefa atual, **listar todos os documentos e gerar o dossiê em PDF dos documentos em PDF selecionados** (a leitura real do SIGA e dos arquivos depende da configuração descrita em "Conectar ao banco do SIGA" e "Gerar um dossiê"). Conversão de planilhas, textos e imagens (S3), a tela "Dossiês gerados" (S4), auditoria e configurações (S5) ainda mostram a página "em construção" ou estão por vir. Toda a documentação está em [docs/README.md](docs/README.md).
+Hoje o projeto é um **protótipo de validação**: o objetivo é provar que os problemas da "Vista do Processo" atual têm solução (processos que não geram a vista e planilhas que ficam fora do PDF). Estão prontas as sprints **S0 a S4**:
+
+- o login simulado com três perfis, cada um com o seu menu;
+- a busca de requerimento ou processo, com os dados e a tarefa atual;
+- a lista de todos os documentos, inclusive os pessoais do SCORP;
+- o dossiê em PDF, com planilhas, textos e imagens convertidos;
+- a visualização de cada documento;
+- as geometrias em ZIP;
+- a tela "Dossiês gerados";
+- as regras de acesso por perfil, validadas no back-end.
+
+A leitura real do SIGA, dos arquivos e do SCORP depende da configuração descrita em "Conectar ao banco do SIGA", "Gerar um dossiê" e "Documentos pessoais, geometrias e Dossiês gerados". Auditoria e configurações (S5) ainda mostram a página "em construção". Toda a documentação está em [docs/README.md](docs/README.md).
 
 ## Estrutura do repositório
 
@@ -57,7 +68,7 @@ docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml -f co
 Antes de qualquer chamada, confirme **dentro do container** (sem imprimir valores) que cada variável está vazia; a saída tem de ser `vazia` em todas:
 
 ```bash
-for v in SIGA_DB_URL SIGA_DB_USER SIGA_DB_PASSWORD LICENCIAMENTO_API_URL LICENCIAMENTO_API_TOKEN LICENCIAMENTO_API_TOKEN_FILE LICENCIAMENTO_API_COOKIE_NAME SCORP_API_URL; do
+for v in SIGA_DB_URL SIGA_DB_USER SIGA_DB_PASSWORD LICENCIAMENTO_API_URL LICENCIAMENTO_API_TOKEN LICENCIAMENTO_API_TOKEN_FILE LICENCIAMENTO_API_COOKIE_NAME SCORP_API_URL SCORP_API_TOKEN_FILE SCORP_API_AUTH_MODE SCORP_API_COOKIE_NAME; do
   docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml -f compose.verificacao.yaml exec -T api sh -c "[ -z \"\$$v\" ] && echo $v: vazia || echo $v: PREENCHIDA"
 done
 ```
@@ -222,6 +233,16 @@ Sem `LICENCIAMENTO_API_URL` a lista de documentos funciona normalmente e a gera�
 4. **Visualizar** (em cada linha) abre o documento em PDF num modal; os convertidos mostram "Versão convertida para PDF a partir de XLSX" e o modal também marca ou desmarca o documento. Clique em **Gerar dossiê**. A gaveta mostra o progresso e a situação de cada documento. Pode fechá-la: a geração continua no servidor.
 5. Ao concluir, **Pré-visualizar** abre o PDF sem baixar e **Baixar PDF** salva o arquivo (`dossie-processo-N-AAAA.pdf`). Logo após o sumário, o PDF lista os "Documentos não incluídos" e o motivo, e a capa diz "N documentos incluídos de M listados; K convertidos para PDF". Os convertidos aparecem no sumário e nos marcadores como "(convertido de XLSX)". Acima de 150 MB (`DOSSIE_BLOB_MAX_MB`) a pré-visualização fica desligada e o navegador baixa o arquivo direto. O arquivo é apagado do servidor depois do download ou em 30 minutos sem atividade.
 6. Se algum documento falhar, **nada é entregue sem a sua decisão**: a geração vai até o fim, a gaveta lista cada documento com problema e o motivo, e oferece **Tentar novamente os N com problema**, **Remover os N com problema e gerar** ou **Cancelar**. Nenhuma das opções baixa de novo o que já foi obtido.
+
+## Documentos pessoais, geometrias e Dossiês gerados (S4)
+
+**Documentos pessoais (SCORP).** Com `SCORP_API_URL` preenchida no `.env.local`, a seção Documentos traz também os documentos pessoais do interessado, dos representantes legais e dos responsáveis técnicos, com a origem "Pessoal · <papel>". Eles entram no dossiê como os demais. A autenticação usa, por padrão, o mesmo token da API de arquivos. Se o SCORP exigir outra credencial (**NÃO CONFIRMADO**, P06), use `SCORP_API_TOKEN_FILE`, `SCORP_API_AUTH_MODE` e `SCORP_API_COOKIE_NAME` (veja o `.env.local.example`). Com o SCORP fora do ar, a lista mostra os demais documentos e uma faixa de aviso com **Consultar novamente**. Sem `SCORP_API_URL`, nada é chamado. O sigilo padrão dos pessoais é `SCORP_SIGILO_PADRAO=false` (decisão pendente com a SEMA, P30).
+
+**Geometrias.** SHP, KML e KMZ não entram no dossiê. Eles aparecem na seção **Geometrias**, abaixo de Documentos, e **Baixar geometrias** entrega um ZIP com as vigentes. Se algum arquivo falhar, nenhum ZIP é entregue e a tela lista os arquivos com problema. Para o Operador, as sigilosas não aparecem: a tela mostra só quantas são.
+
+**Dossiês gerados.** No menu, a tela lista os dossiês desta sessão do serviço, com situação, expiração e as ações: pré-visualizar, baixar, decidir, cancelar e abrir o requerimento. O Operador vê só os seus; Gestor e Administrador veem todos e podem filtrar "Só os meus". O histórico fica **em memória**: some quando a `api` reinicia.
+
+O roteiro de homologação com dados reais é o [docs/homologacao/S4-roteiro-homologacao.md](docs/homologacao/S4-roteiro-homologacao.md).
 
 ## Tutorial 2 — Rodar sem Docker (desenvolvimento)
 

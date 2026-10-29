@@ -372,3 +372,18 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 **Decisão:** `GET /dossies` lista os pedidos que a política de acesso libera (`podeAcessarPedido`, a mesma do `GET /dossies/{id}`): o **Operador vê só os seus**, e só enquanto for o interessado gravado no pedido (o vínculo não é relido no SIGA a cada listagem, R44); **Gestor e Administrador veem todos**, com `somenteMeus=true` para os próprios. `geradoPor` só para quem vê pedidos de outros (o campo não existe para o Operador). Nenhum dado de documento na lista. Encerrados ficam **`DOSSIE_HISTORICO_HORAS` (24) depois do vencimento**, sem arquivo (a limpeza passou a usar esse prazo, não mais 60 min); a lista já os esconde antes de a limpeza passar. Situação `BAIXADO` separada de `EXPIRADO` por uma marca no pedido (o andamento continua `EXPIRADO`, sem quebrar a gaveta). O "na fila" do prompt é o `AGUARDANDO` de sempre e não existe "falhou" terminal (D48). Ações pelos endpoints existentes; nenhum endpoint novo de arquivo.
 **Motivo:** um vocabulário de situação só para o andamento e a lista; nada da lista revela pedido, documento ou nome de outro usuário ao Operador.
 **Consequência:** o histórico some num reinício (a tela diz isso); pedidos encerrados ocupam memória por até 24 h (só metadados: o arquivo já foi apagado). O registro permanente é a auditoria da S5.
+
+## D64 — Front da S4: menu pelas permissões, sem cadeado, e a gaveta reaproveitada em "Dossiês gerados" (S4, blocos 2, 4, 6 e 8)
+
+**Contexto:** até a S3, o menu escondia itens pelo **nome do perfil**, e o protótipo navegável mostrava o item "Acessos" com cadeado só para demonstração (RN08). A S4 traz telas novas que repetem ações da gaveta de geração (pré-visualizar, baixar, decidir, cancelar).
+**Decisão:**
+
+- **Menu e guarda de rota pelas `permissoes` de `/auth/me`:** `verAuditoriaAcessos` e `acessarConfiguracoes`, não o nome do perfil. A RN08 vale desde a S4: item sem permissão não é renderizado, sem cadeado nem no protótipo. A guarda decide com as permissões já carregadas, sem chamada ao servidor (aviso e volta à Consulta), e o back-end valida de novo (D60).
+- **Textos de acesso num só lugar:** `mensagens-erro.ts`, nunca o `detail` técnico.
+- **Avisos da lista com texto da tela:** os avisos do SCORP usam texto próprio por código, e a `mensagem` da API só vale para código desconhecido.
+- **Geometrias e documentos pessoais na mesma resposta da lista:** sem chamada extra. As geometrias numa seção própria, sem seleção; os pessoais com uma opção única "Pessoal" no filtro.
+- **Gaveta no modo "pedido existente" para "Decidir" em "Dossiês gerados":** a lógica de decisão continua num lugar só. Pré-visualizar e Baixar ficam na linha, com as mesmas regras da gaveta (Blob com o token no cabeçalho; ticket para dossiê grande).
+- **Atualização automática da lista a cada 30 s:** para fora da tela e com a aba oculta.
+
+**Motivo:** a permissão é o contrato que o back-end já publica e muda junto com ele; um perfil futuro não exige mexer no menu. Reaproveitar a gaveta evita duas implementações da decisão da RN09.
+**Consequência:** o aviso do Operador na Consulta ocupa um espaço reservado em todos os perfis, para a altura do quadro do topo não mudar (cerca de 42 px vazios para Gestor e Administrador). O filtro por situação de "Dossiês gerados" age só na página carregada, porque o `GET /dossies` não filtra situação.
