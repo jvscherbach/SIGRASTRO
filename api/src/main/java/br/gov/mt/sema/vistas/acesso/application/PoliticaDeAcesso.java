@@ -57,6 +57,14 @@ public class PoliticaDeAcesso {
         if (usuario.login().equals(pedido.loginDoCriador())) {
             return podeAcessarRequerimento(usuario, pedido.cpfCnpjDoInteressado());
         }
+        return podeVerPedidosDeOutros(usuario);
+    }
+
+    /**
+     * Ver pedidos de dossiê de outros usuários e quem os gerou ("Dossiês gerados", S4): quem acessa qualquer requerimento
+     * e qualquer sigiloso (Gestor e Administrador).
+     */
+    public boolean podeVerPedidosDeOutros(Usuario usuario) {
         return !usuario.perfil().restritoAoInteressado() && podeVerDocumentoSigiloso(usuario);
     }
 
@@ -101,6 +109,14 @@ public class PoliticaDeAcesso {
 
     public boolean podeVerResponsavelTarefa() {
         return podeVerResponsavelTarefa(usuarioAtual.obter());
+    }
+
+    public boolean podeVerPedidosDeOutros() {
+        return podeVerPedidosDeOutros(usuarioAtual.obter());
+    }
+
+    public String loginDoUsuarioAtual() {
+        return usuarioAtual.obter().login();
     }
 
     public boolean podeAcessarPedido(PedidoDeUsuario pedido) {

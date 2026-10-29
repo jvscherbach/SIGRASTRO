@@ -63,6 +63,7 @@ public class ObterArquivoDoDossie {
     /** Chamado quando o download terminou por inteiro: o arquivo (e o diretório do pedido) não precisa mais existir. */
     public void concluirDownload(ArquivoDoDossie arquivo) {
         PedidoDeDossie pedido = localizar.semUsuario(arquivo.id());
+        pedido.marcarBaixado();
         if (pedido.expirar()) {
             ArquivosTemporarios.apagarPasta(ArquivosTemporarios.pastaDo(parametros, pedido));
         }

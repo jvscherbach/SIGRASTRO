@@ -45,7 +45,8 @@ class DownloadGrandeEmStreamingTest {
         ArquivoDoDossie dossie = new ArquivoDoDossie("pedido-1", grande, "dossie-processo-2825-2025.pdf", TAMANHO);
         when(obter.executarPorTicket("pedido-1", "ticket-de-teste")).thenReturn(dossie);
         DossieController controller = new DossieController(mock(CriarDossie.class), mock(ConsultarDossie.class), obter,
-                mock(CancelarDossie.class), mock(ContinuarDossie.class), mock(EmitirTicketDeDownload.class));
+                mock(CancelarDossie.class), mock(ContinuarDossie.class), mock(EmitirTicketDeDownload.class),
+                mock(br.gov.mt.sema.vistas.dossie.application.ListarDossiesGerados.class));
 
         ResponseEntity<InputStreamResource> resposta = controller.arquivo("pedido-1", "attachment", "ticket-de-teste");
 
@@ -75,7 +76,8 @@ class DownloadGrandeEmStreamingTest {
         when(obter.executarPorTicket("pedido-1", "ticket-de-teste"))
                 .thenReturn(new ArquivoDoDossie("pedido-1", grande, "dossie.pdf", TAMANHO));
         DossieController controller = new DossieController(mock(CriarDossie.class), mock(ConsultarDossie.class), obter,
-                mock(CancelarDossie.class), mock(ContinuarDossie.class), mock(EmitirTicketDeDownload.class));
+                mock(CancelarDossie.class), mock(ContinuarDossie.class), mock(EmitirTicketDeDownload.class),
+                mock(br.gov.mt.sema.vistas.dossie.application.ListarDossiesGerados.class));
 
         try (InputStream corpo = controller.arquivo("pedido-1", "attachment", "ticket-de-teste").getBody().getInputStream()) {
             corpo.readNBytes(1024 * 1024);

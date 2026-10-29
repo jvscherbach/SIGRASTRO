@@ -87,6 +87,7 @@ class CasosDeUsoDossieTest {
     private Tickets tickets;
     private EmitirTicketDeDownload emitirTicket;
     private Montador montador;
+    private ListarDossiesGerados listarDossies;
 
     @BeforeEach
     void preparar() {
@@ -121,6 +122,7 @@ class CasosDeUsoDossieTest {
         continuar = new ContinuarDossie(localizar, fila, gerador, parametros, relogio);
         consultar = new ConsultarDossie(localizar, parametros);
         limpar = new LimparDossies(repositorio, parametros, relogio);
+        listarDossies = new ListarDossiesGerados(localizar, new PoliticaDeAcesso(atual), parametros, relogio);
 
         Requerimento requerimento = new Requerimento(101, "3331/2025", "2825/2025", "Requerimento de Outorga",
                 Situacao.de("EM_ANALISE"), LocalDateTime.of(2025, 3, 31, 10, 12), null,
@@ -479,7 +481,11 @@ class CasosDeUsoDossieTest {
         assertThat(caminho).doesNotExist();
         assertThat(repositorio.buscar(pedido.id())).as("o registro fica um tempo para o front mostrar 'expirado'").isPresent();
 
-        relogio.avancarMinutos(LimparDossies.RETENCAO_DO_REGISTRO_MINUTOS);
+        // já 1 min depois do vencimento: falta 1 min para sair do histórico
+        relogio.avancarMinutos(parametros.historicoHoras * 60L - 2);
+        limpar.expirarVencidos();
+        assertThat(repositorio.buscar(pedido.id())).as("histórico de Dossiês gerados (S4)").isPresent();
+        relogio.avancarMinutos(1);
         limpar.expirarVencidos();
         assertThat(repositorio.buscar(pedido.id())).isEmpty();
         assertThat(pasta.resolve(pedido.id())).doesNotExist();
@@ -519,7 +525,7 @@ class CasosDeUsoDossieTest {
         assertThat(pedido.status()).isEqualTo(StatusDossie.EXPIRADO);
         assertThat(pasta.resolve(id)).doesNotExist();
 
-        relogio.avancarMinutos(LimparDossies.RETENCAO_DO_REGISTRO_MINUTOS);
+        relogio.avancarMinutos(parametros.historicoHoras * 60L);
         limpar.expirarVencidos();
         assertThat(repositorio.buscar(id)).isEmpty();
     }
@@ -835,5 +841,166 @@ class CasosDeUsoDossieTest {
         usuario = new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true);
         continuar.executar(pedido.id(), "REMOVER_E_CONTINUAR");
         assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
+    }
+
+    // --- "Dossiês gerados" (S4, bloco 7)
+
+    private static final Usuario OPERADOR = new Usuario("operador.demo", "Operador Demo", Perfil.OPERADOR,
+            "12.345.678/0001-90", true);
+    private static final Usuario OUTRO_OPERADOR = new Usuario("outro.operador", "Outro", Perfil.OPERADOR,
+            "12.345.678/0001-90", true);
+    private static final Usuario GESTOR = new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true);
+    private static final Usuario ADMIN = new Usuario("admin.demo", "Admin", Perfil.ADMIN, null, true);
+
+    private String criarComo(Usuario quem) {
+        usuario = quem;
+        String id = criar.executar(101, refs());
+        relogio.avancarSegundos(1);
+        return id;
+    }
+
+    private List<String> idsListados(Usuario quem, boolean somenteMeus) {
+        usuario = quem;
+        return listarDossies.executar(somenteMeus, null, null).itens().stream()
+                .map(ListarDossiesGerados.DossieGerado::id).toList();
+    }
+
+    @Test
+    void operadorVeSoOsSeusEGestorEAdministradorVeemTodosOuSoOsSeus() {
+        String doOperador = criarComo(OPERADOR);
+        String doOutro = criarComo(OUTRO_OPERADOR);
+        String doGestor = criarComo(GESTOR);
+        String doAdmin = criarComo(ADMIN);
+
+        assertThat(idsListados(OPERADOR, false)).containsExactly(doOperador);
+        assertThat(idsListados(OPERADOR, true)).containsExactly(doOperador);
+        assertThat(idsListados(OUTRO_OPERADOR, false)).containsExactly(doOutro);
+        assertThat(idsListados(GESTOR, false)).containsExactly(doAdmin, doGestor, doOutro, doOperador);
+        assertThat(idsListados(GESTOR, true)).containsExactly(doGestor);
+        assertThat(idsListados(ADMIN, false)).hasSize(4);
+        assertThat(idsListados(ADMIN, true)).containsExactly(doAdmin);
+    }
+
+    @Test
+    void quemGerouSoParaGestorEAdministrador() {
+        criarComo(OPERADOR);
+
+        usuario = OPERADOR;
+        assertThat(listarDossies.executar(false, null, null).itens()).singleElement()
+                .satisfies(d -> assertThat(d.geradoPor()).isNull());
+        usuario = GESTOR;
+        assertThat(listarDossies.executar(false, null, null).itens()).singleElement()
+                .satisfies(d -> assertThat(d.geradoPor()).isEqualTo("Operador Demo"));
+    }
+
+    @Test
+    void operadorQueDeixouDeSerOInteressadoNaoVeOProprioPedido() {
+        criarComo(OPERADOR);
+
+        assertThat(idsListados(new Usuario("operador.demo", "Operador Demo", Perfil.OPERADOR, "98.765.432/0001-10",
+                true), false)).isEmpty();
+    }
+
+    private ListarDossiesGerados.DossieGerado unico(String id) {
+        usuario = GESTOR;
+        return listarDossies.executar(false, null, 50).itens().stream().filter(d -> d.id().equals(id)).findFirst()
+                .orElseThrow(() -> new AssertionError("não listado: " + id));
+    }
+
+    @Test
+    void todasAsSituacoesComArquivoETamanho() {
+        fila.adiar = true;
+        String naFila = criarComo(GESTOR);
+        String obtendo = criarComo(GESTOR);
+        String montando = criarComo(GESTOR);
+        repositorio.buscar(obtendo).orElseThrow().iniciar();
+        PedidoDeDossie emMontagem = repositorio.buscar(montando).orElseThrow();
+        emMontagem.iniciar();
+        emMontagem.iniciarMontagem();
+        fila.adiar = false;
+        String concluido = criarComo(GESTOR);
+        String cancelado = criarComo(GESTOR);
+        cancelar.executar(cancelado);
+        arquivos.comportamentos.put("K2", Arquivos.falhaDoDocumento("arquivo não encontrado no repositório"));
+        String pendente = criarComo(GESTOR);
+        arquivos.comportamentos.remove("K2");
+        String baixado = criarComo(GESTOR);
+        obterArquivo.concluirDownload(baixado);
+
+        assertThat(unico(naFila).situacao()).isEqualTo(ListarDossiesGerados.Situacao.AGUARDANDO);
+        assertThat(unico(obtendo).situacao()).isEqualTo(ListarDossiesGerados.Situacao.OBTENDO);
+        assertThat(unico(montando).situacao()).isEqualTo(ListarDossiesGerados.Situacao.MONTANDO);
+        assertThat(unico(cancelado).situacao()).isEqualTo(ListarDossiesGerados.Situacao.CANCELADO);
+        ListarDossiesGerados.DossieGerado comFalha = unico(pendente);
+        assertThat(comFalha.situacao()).isEqualTo(ListarDossiesGerados.Situacao.PENDENTE_DECISAO);
+        assertThat(comFalha.falhas()).isEqualTo(1);
+        assertThat(comFalha.temArquivo()).isFalse();
+        ListarDossiesGerados.DossieGerado pronto = unico(concluido);
+        assertThat(pronto.situacao()).isEqualTo(ListarDossiesGerados.Situacao.CONCLUIDO);
+        assertThat(pronto.temArquivo()).isTrue();
+        assertThat(pronto.tamanhoBytes()).isPositive();
+        assertThat(pronto.documentos()).isEqualTo(2);
+        assertThat(pronto.falhas()).isZero();
+        assertThat(pronto.rotulo()).isEqualTo("Processo");
+        assertThat(pronto.numero()).isEqualTo("2825/2025");
+        assertThat(pronto.idRequerimento()).isEqualTo(101);
+        ListarDossiesGerados.DossieGerado entregue = unico(baixado);
+        assertThat(entregue.situacao()).isEqualTo(ListarDossiesGerados.Situacao.BAIXADO);
+        assertThat(entregue.temArquivo()).isFalse();
+        assertThat(entregue.tamanhoBytes()).isNull();
+        assertThat(entregue.arquivoGerado()).isTrue();
+
+        // vence: a pendente expira sem arquivo gerado; a concluída expira depois de gerar
+        relogio.avancarMinutos(31);
+        assertThat(unico(pendente).situacao()).isEqualTo(ListarDossiesGerados.Situacao.EXPIRADO);
+        assertThat(unico(pendente).arquivoGerado()).isFalse();
+        assertThat(unico(concluido).situacao()).isEqualTo(ListarDossiesGerados.Situacao.EXPIRADO);
+        assertThat(unico(concluido).arquivoGerado()).isTrue();
+        assertThat(unico(concluido).temArquivo()).isFalse();
+    }
+
+    @Test
+    void historicoFicaDossieHistoricoHorasDepoisDoVencimentoESomeDepois() {
+        parametros.historicoHoras = 2;
+        String id = criarComo(GESTOR);
+
+        relogio.avancarMinutos(31);
+        limpar.expirarVencidos();
+        assertThat(unico(id).situacao()).isEqualTo(ListarDossiesGerados.Situacao.EXPIRADO);
+
+        relogio.avancarMinutos(2 * 60 - 5);
+        limpar.expirarVencidos();
+        assertThat(repositorio.buscar(id)).isPresent();
+        assertThat(idsListados(GESTOR, false)).containsExactly(id);
+
+        relogio.avancarMinutos(10);
+        // a lista já esconde antes da limpeza agendada passar
+        assertThat(idsListados(GESTOR, false)).isEmpty();
+        limpar.expirarVencidos();
+        assertThat(repositorio.buscar(id)).isEmpty();
+    }
+
+    @Test
+    void paginacaoComMaisRecentePrimeiroELimites() {
+        List<String> criados = new java.util.ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            criados.add(criarComo(GESTOR));
+        }
+        java.util.Collections.reverse(criados);
+
+        usuario = GESTOR;
+        ListarDossiesGerados.Pagina primeira = listarDossies.executar(false, 0, 2);
+        ListarDossiesGerados.Pagina terceira = listarDossies.executar(false, 2, 2);
+        assertThat(primeira.total()).isEqualTo(5);
+        assertThat(primeira.itens()).extracting(ListarDossiesGerados.DossieGerado::id)
+                .containsExactly(criados.get(0), criados.get(1));
+        assertThat(terceira.itens()).extracting(ListarDossiesGerados.DossieGerado::id).containsExactly(criados.get(4));
+        assertThat(listarDossies.executar(false, null, null).tamanho()).isEqualTo(20);
+        assertThatThrownBy(() -> listarDossies.executar(false, 0, 51))
+                .isInstanceOf(br.gov.mt.sema.vistas.shared.application.exception.ParametroInvalidoException.class);
+        assertThatThrownBy(() -> listarDossies.executar(false, 0, 0))
+                .isInstanceOf(br.gov.mt.sema.vistas.shared.application.exception.ParametroInvalidoException.class);
+        assertThatThrownBy(() -> listarDossies.executar(false, -1, 10))
+                .isInstanceOf(br.gov.mt.sema.vistas.shared.application.exception.ParametroInvalidoException.class);
     }
 }

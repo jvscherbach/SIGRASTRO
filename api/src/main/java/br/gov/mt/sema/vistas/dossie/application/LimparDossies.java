@@ -18,16 +18,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Limpeza (D22, RNF05): expira os dossiês vencidos (apagando o arquivo), esquece pedidos antigos e apaga pastas
+ * Limpeza (D22, RNF05): expira os dossiês vencidos (apagando o arquivo), esquece pedidos encerrados depois de
+ * {@code DOSSIE_HISTORICO_HORAS} do vencimento (histórico de "Dossiês gerados", S4) e apaga pastas
  * temporárias sem pedido (por exemplo, depois de um reinício, já que a fila é em memória). Idempotente e sem SIGA.
  */
 @Service
 public class LimparDossies {
 
     private static final Logger log = LoggerFactory.getLogger(LimparDossies.class);
-
-    /** Depois de vencido, o registro continua um tempo para o front poder mostrar "expirado" em vez de "não encontrado". */
-    static final long RETENCAO_DO_REGISTRO_MINUTOS = 60;
 
     private static final java.util.regex.Pattern NOME_DE_PEDIDO = java.util.regex.Pattern.compile(
             "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
@@ -52,13 +50,19 @@ public class LimparDossies {
                 ArquivosTemporarios.apagarPasta(ArquivosTemporarios.pastaDo(parametros, pedido));
                 tratados++;
             }
-            if (pedido.status().terminal() && pedido.venceu(agora.minusMinutes(RETENCAO_DO_REGISTRO_MINUTOS))) {
+            // Encerrado, o registro continua (sem arquivo) para "Dossiês gerados" mostrar a situação (S4).
+            if (pedido.status().terminal() && foraDoHistorico(pedido, agora, parametros)) {
                 ArquivosTemporarios.apagarPasta(parametros.diretorio().resolve(pedido.id()));
                 pedidos.remover(pedido.id());
                 tratados++;
             }
         }
         return tratados;
+    }
+
+    /** Encerrado e vencido há mais de {@code DOSSIE_HISTORICO_HORAS}: sai da lista e do repositório. */
+    static boolean foraDoHistorico(PedidoDeDossie pedido, LocalDateTime agora, ParametrosDoDossie parametros) {
+        return pedido.venceu(agora.minusHours(Math.max(0, parametros.historicoHoras())));
     }
 
     /**

@@ -11,14 +11,17 @@ import br.gov.mt.sema.vistas.dossie.api.dto.AndamentoResponse;
 import br.gov.mt.sema.vistas.dossie.api.dto.ContinuacaoRequest;
 import br.gov.mt.sema.vistas.dossie.api.dto.CriarDossieRequest;
 import br.gov.mt.sema.vistas.dossie.api.dto.DossieCriadoResponse;
+import br.gov.mt.sema.vistas.dossie.api.dto.DossieGeradoResponse;
 import br.gov.mt.sema.vistas.dossie.api.dto.TicketResponse;
 import br.gov.mt.sema.vistas.dossie.application.CancelarDossie;
 import br.gov.mt.sema.vistas.dossie.application.ConsultarDossie;
 import br.gov.mt.sema.vistas.dossie.application.ContinuarDossie;
 import br.gov.mt.sema.vistas.dossie.application.CriarDossie;
 import br.gov.mt.sema.vistas.dossie.application.EmitirTicketDeDownload;
+import br.gov.mt.sema.vistas.dossie.application.ListarDossiesGerados;
 import br.gov.mt.sema.vistas.dossie.application.ObterArquivoDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.ObterArquivoDoDossie.ArquivoDoDossie;
+import br.gov.mt.sema.vistas.shared.api.PageResponse;
 import br.gov.mt.sema.vistas.shared.application.exception.ParametroInvalidoException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -52,15 +55,37 @@ public class DossieController {
     private final CancelarDossie cancelarDossie;
     private final ContinuarDossie continuarDossie;
     private final EmitirTicketDeDownload emitirTicket;
+    private final ListarDossiesGerados listarDossies;
 
     public DossieController(CriarDossie criarDossie, ConsultarDossie consultarDossie, ObterArquivoDoDossie obterArquivo,
-            CancelarDossie cancelarDossie, ContinuarDossie continuarDossie, EmitirTicketDeDownload emitirTicket) {
+            CancelarDossie cancelarDossie, ContinuarDossie continuarDossie, EmitirTicketDeDownload emitirTicket,
+            ListarDossiesGerados listarDossies) {
         this.criarDossie = criarDossie;
         this.consultarDossie = consultarDossie;
         this.obterArquivo = obterArquivo;
         this.cancelarDossie = cancelarDossie;
         this.continuarDossie = continuarDossie;
         this.emitirTicket = emitirTicket;
+        this.listarDossies = listarDossies;
+    }
+
+    @GetMapping
+    @Operation(summary = "Dossiês gerados (S4)",
+            description = "Pedidos do histórico em memória, mais recente primeiro. Operador: só os seus. Gestor e "
+                    + "Administrador: todos, ou só os seus com somenteMeus=true; só para eles vem geradoPor. Encerrados "
+                    + "(EXPIRADO, BAIXADO, CANCELADO) ficam DOSSIE_HISTORICO_HORAS depois do vencimento, sem arquivo. "
+                    + "Nenhum dado de documento. Some num reinício do serviço.")
+    @ApiResponse(responseCode = "200", description = "Página de pedidos.")
+    @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest")
+    @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized")
+    public PageResponse<DossieGeradoResponse> listar(
+            @Parameter(description = "Só os pedidos do próprio usuário (Gestor e Administrador; o Operador já só vê os seus)")
+            @RequestParam(defaultValue = "false") boolean somenteMeus,
+            @Parameter(description = "Começa em 0") @RequestParam(required = false) Integer pagina,
+            @Parameter(description = "Padrão 20, máximo 50") @RequestParam(required = false) Integer tamanho) {
+        ListarDossiesGerados.Pagina resultado = listarDossies.executar(somenteMeus, pagina, tamanho);
+        return PageResponse.of(resultado.itens().stream().map(DossieGeradoResponse::de).toList(), resultado.pagina(),
+                resultado.tamanho(), resultado.total());
     }
 
     @PostMapping

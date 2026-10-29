@@ -164,6 +164,10 @@ Aberto pela ação **Visualizar** de cada linha (todas, menos as indisponíveis;
 - Falha na montagem: o motivo geral, com os mesmos botões ("Tentar novamente" refaz só a montagem). Em "Dossiês gerados" (S4), um pedido que expirou à espera de decisão aparece como "Expirado · nenhum arquivo gerado", sem download.
 - Erro ao criar o pedido (por exemplo, `DOCUMENTO_SIGILOSO`, `NAO_INTERESSADO`, `SIGA_INDISPONIVEL`): mensagem na própria gaveta, sem toast duplicado.
 
+## 4.1 Dossiês gerados (contrato, S4 bloco 7)
+
+A tela é do bloco 8; o contrato está em docs/07 ("Dossiês gerados"). O que a tela precisa saber: o **Operador** só recebe os próprios pedidos e nunca recebe `geradoPor` (a coluna "Gerado por" só aparece quando o campo vier); **Gestor e Administrador** têm o filtro "Só os meus" (`somenteMeus=true`). `EXPIRADO` com `arquivoGerado` falso: "Expirado · nenhum arquivo gerado"; `BAIXADO`: "Arquivo baixado". Só `temArquivo` libera Pré-visualizar e Baixar (por ticket quando `entregaPorTicket`). O histórico é em memória: some ao reiniciar o serviço, e pedidos encerrados saem da lista `DOSSIE_HISTORICO_HORAS` depois de vencer.
+
 ## 5. Auditoria
 
 Item "Auditoria" no menu, com dois subitens. Detalhes em [11 — Auditoria](11-auditoria.md).

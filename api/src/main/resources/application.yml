@@ -68,6 +68,8 @@ vistas:
     espaco-minimo-mb: ${DOSSIE_ESPACO_MINIMO_MB:2048}
     # Acima disto (MB) o download vai por ticket, em streaming, sem pré-visualização (S2.2).
     blob-max-mb: ${DOSSIE_BLOB_MAX_MB:150}
+    # Horas que um pedido encerrado continua em "Dossiês gerados" depois do vencimento (S4; histórico em memória).
+    historico-horas: ${DOSSIE_HISTORICO_HORAS:24}
     sumario: ${DOSSIE_SUMARIO:true}
     marcadores: ${DOSSIE_MARCADORES:true}
     numeracao: ${DOSSIE_NUMERACAO:true}

@@ -219,6 +219,7 @@ Resposta de `GET /requerimentos/{id}/documentos`:
 
 | Método | Rota | Descrição |
 |---|---|---|
+| `GET` | `/dossies?somenteMeus=&pagina=&tamanho=` | **S4.** "Dossiês gerados": os pedidos do histórico em memória que o usuário acessa (`PageResponse`). Detalhes em "Dossiês gerados", abaixo. |
 | `POST` | `/dossies` | Cria um pedido de geração. Retorna `202` com `{ "id": "..." }` (UUID aleatório). |
 | `GET` | `/dossies/{id}` | Andamento do pedido. |
 | `GET` | `/dossies/{id}/arquivo?disposicao=inline|attachment` | PDF final (capa com "N documentos incluídos de M listados" e, logo após o sumário, a seção "Documentos não incluídos" com o motivo de cada um; S2.2, docs/06).\|attachment` | PDF final. `inline` para pré-visualização (o arquivo continua), `attachment` para download (**o arquivo é apagado ao fim do download**, RNF05). `Content-Disposition` com o nome do RF18: `dossie-processo-<numero>-<ano>.pdf` (protocolado) ou `dossie-requerimento-<numero>-<ano>.pdf`. |
@@ -301,6 +302,40 @@ Falha na montagem (rara: os documentos já foram validados) também deixa o pedi
 
 Para continuar, o cliente usa `POST /dossies/{id}/continuacao` (acima), **não** um novo `POST /dossies`: com credencial nova (token por arquivo, docs/05), `TENTAR_NOVAMENTE` obtém só o que falta. **Auditoria** é da S5: nenhum evento é registrado na S2.
 
+### Dossiês gerados (S4)
+
+`GET /dossies` devolve `PageResponse<DossieGerado>` (`conteudo`, `pagina`, `tamanho`, `totalElementos`, `totalPaginas`), **mais recente primeiro** (`criadoEm` decrescente). `pagina` começa em 0; `tamanho` padrão 20, máximo 50 (fora disso, 400 `PARAMETRO_INVALIDO`).
+
+- **Quem vê o quê** (política de acesso, D60): o **Operador** vê só os pedidos que ele criou, e só enquanto continuar sendo o interessado gravado no pedido; `somenteMeus` não muda nada para ele. **Gestor e Administrador** veem **todos**; com `somenteMeus=true`, só os seus.
+- **Item:**
+
+```json
+{
+  "id": "8b0e…",
+  "idRequerimento": 101,
+  "identificacao": { "rotulo": "Processo", "numero": "2825/2025" },
+  "situacao": "CONCLUIDO",
+  "criadoEm": "2026-10-28T10:00:00",
+  "expiraEm": "2026-10-28T10:31:00",
+  "documentos": 12,
+  "falhas": 0,
+  "listados": 15,
+  "tamanhoBytes": 4823311,
+  "entregaPorTicket": false,
+  "temArquivo": true,
+  "arquivoGerado": true,
+  "geradoPor": "Gestor Demo"
+}
+```
+
+  - `situacao`: as do andamento (`AGUARDANDO`, que é "na fila", `OBTENDO`, `PENDENTE_DECISAO`, `MONTANDO`, `CONCLUIDO`, `CANCELADO`, `EXPIRADO`) mais **`BAIXADO`** (o PDF foi entregue por inteiro e apagado, RNF05; no andamento continua `EXPIRADO`). Não existe "falhou" terminal: falha deixa o pedido em `PENDENTE_DECISAO` (D48).
+  - `documentos`: do pedido, sem os removidos na decisão; `falhas`: em falha agora; `listados`: o total que o usuário viu ao gerar (o "M" da capa).
+  - `temArquivo`: há PDF para baixar (só `CONCLUIDO`); `tamanhoBytes` e `entregaPorTicket` (D49) só então, `null`/`false` nos demais. `arquivoGerado`: o PDF chegou a ser montado; `EXPIRADO` com `arquivoGerado` falso é "Expirado · nenhum arquivo gerado" (expirou à espera de decisão).
+  - `geradoPor`: nome de quem gerou, **só para Gestor e Administrador**; para o Operador o campo **não existe** na resposta.
+  - **Nenhum dado de documento** (título, nome de arquivo, chave).
+- **Histórico em memória (D09):** some num reinício do serviço. Pedido encerrado (`EXPIRADO`, `BAIXADO`, `CANCELADO`) continua na lista, sem arquivo, até `DOSSIE_HISTORICO_HORAS` (24) depois do vencimento (`expiraEm`); depois sai da lista e a limpeza agendada o esquece. O registro permanente é a auditoria (S5).
+- **Ações:** pelos endpoints de sempre (`/dossies/{id}`, `/arquivo`, `/arquivo/ticket`, `/continuacao`, `DELETE`), com as mesmas regras; não há endpoint novo de arquivo. Pedido de outro usuário por id continua 404 para o Operador.
+
 ## Matriz de acesso por endpoint
 
 **S4, bloco 1 (RNF10).** Inventário de **todos** os mapeamentos dos controllers, com quem pode chamar e qual regra se aplica. Todas as decisões de perfil, de vínculo com o interessado (RN07), de sigilo (RF20) e de dono do pedido saem de **um lugar**: `acesso.application.PoliticaDeAcesso` (D60). Os casos de uso só perguntam à política; os controllers não decidem acesso (`ArchitectureTest`). Os `errorCode` não mudaram.
@@ -319,6 +354,7 @@ Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **
 | `GET /requerimentos/{id}/documentos` | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler os documentos e de chamar o SCORP) | listados para todos; para o Op, mascarados e bloqueados; geometria sigilosa não aparece para o Op (só `totais.geometriasOmitidas`) | — | `exigirAcessoAoRequerimento`, `podeAcessarDocumento`, `mascararTitulo` |
 | `GET /documentos/{origem}/{id}/conteudo?requerimento=` | sessão | ✓ | ✓ | ✓ | 403/404 do requerimento; origem e id fora do requerimento: 404 | 403 | — | `exigirAcessoAoRequerimento`, `exigirAcessoAoDocumento` (a cada requisição, mesmo com cache) |
 | `GET /requerimentos/{id}/geometrias/arquivo` (S4) | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler os documentos) | sigilosa fica fora do ZIP do Op; só sigilosas: o mesmo 404 de "sem geometrias" | — | `exigirAcessoAoRequerimento`, `podeAcessarDocumento` |
+| `GET /dossies` (S4) | sessão | só os seus | todos (ou os seus com `somenteMeus`) | idem | o Op não vê o pedido se deixar de ser o interessado gravado nele | — | lista só o que `podeAcessarPedido` permite; `geradoPor` só com `podeVerPedidosDeOutros` | `podeAcessarPedido`, `podeVerPedidosDeOutros` |
 | `POST /dossies` | sessão | ✓ | ✓ | ✓ | 403/404 | 403 se a seleção tiver sigiloso; documento fora do requerimento: 400 `PARAMETRO_INVALIDO` (é corpo da requisição) | o pedido nasce com o login de quem criou | `exigirAcessoAoRequerimento`, `exigirAcessoAoDocumento`; "Documentos não incluídos" com `mascararTitulo` |
 | `GET /dossies/{id}` | sessão | só os seus | todos | todos | o Op perde o pedido se deixar de ser o interessado gravado nele | — | 404 | `podeAcessarPedido` |
 | `GET /dossies/{id}/arquivo` (com sessão) | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` |

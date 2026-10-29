@@ -92,6 +92,9 @@ class PoliticaDeAcessoTest {
         boolean esperaPedido = operador ? dono && interessado : true;
         assertThat(politica.podeAcessarPedido(usuario, pedido)).isEqualTo(esperaPedido);
         assertThat(politica.podeAcessarPedido(pedido)).isEqualTo(esperaPedido);
+        // "Dossiês gerados" (S4): pedidos de outros e quem gerou só para Gestor e Administrador
+        assertThat(politica.podeVerPedidosDeOutros(usuario)).isEqualTo(!operador);
+        assertThat(politica.podeVerPedidosDeOutros()).isEqualTo(!operador);
     }
 
     @Test

@@ -2,6 +2,7 @@ package br.gov.mt.sema.vistas.dossie.application;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import br.gov.mt.sema.vistas.acesso.application.PedidoDeUsuario;
 import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
@@ -39,6 +40,14 @@ public class LocalizarPedido {
                 .filter(p -> politica.podeAcessarPedido(new PedidoDeUsuario(p.login(), p.capa().cpfCnpj())))
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Dossiê não encontrado."));
         return expirarSeVenceu(pedido);
+    }
+
+    /** Todos os pedidos que o usuário da requisição acessa (mesma regra de {@link #executar}), já expirados se venceram. */
+    public List<PedidoDeDossie> visiveis() {
+        return pedidos.todos().stream()
+                .filter(p -> politica.podeAcessarPedido(new PedidoDeUsuario(p.login(), p.capa().cpfCnpj())))
+                .map(this::expirarSeVenceu)
+                .toList();
     }
 
     /**
