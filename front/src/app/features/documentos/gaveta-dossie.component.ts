@@ -56,7 +56,13 @@ export class GavetaDossieComponent implements OnInit {
   private readonly anfitriao = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
   readonly idRequerimento = input.required<number>();
-  readonly referencias = input.required<ReferenciaDocumento[]>();
+  /** Seleção do novo pedido (detalhe). Vazia quando a gaveta acompanha um pedido existente. */
+  readonly referencias = input<ReferenciaDocumento[]>([]);
+  /**
+   * Pedido já criado (tela "Dossiês gerados", S4): a gaveta não cria outro, só acompanha, decide, baixa ou cancela
+   * este, com a mesma lógica de sempre.
+   */
+  readonly pedidoExistente = input<string | null>(null);
 
   /** O documento tirado da seleção por "Remover documento e gerar". */
   readonly documentoRemovido = output<ReferenciaDocumento>();
@@ -145,6 +151,14 @@ export class GavetaDossieComponent implements OnInit {
     this.pedidoCriado.set(false);
     this.fase.set('enviando');
     this.intervalo = INTERVALO_INICIAL_MS;
+    const existente = this.pedidoExistente();
+    if (existente) {
+      this.pedido = existente;
+      this.pedidoCriado.set(true);
+      this.fase.set('acompanhando');
+      this.consultar();
+      return;
+    }
     this.assinatura = this.api.criar(this.idRequerimento(), this.selecao).subscribe({
       next: (resposta) => {
         this.pedido = resposta.id;

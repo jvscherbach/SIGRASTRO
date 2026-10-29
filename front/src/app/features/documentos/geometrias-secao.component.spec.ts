@@ -4,7 +4,8 @@ import { Subject, of, throwError } from 'rxjs';
 
 import { DocumentosApiService } from './documentos-api.service';
 import { GeometriaItem } from './documentos.models';
-import { GeometriasSecaoComponent, formatarTamanho } from './geometrias-secao.component';
+import { formatarTamanho } from '../../shared/formato';
+import { GeometriasSecaoComponent } from './geometrias-secao.component';
 
 function geometria(sobre: Partial<GeometriaItem> = {}): GeometriaItem {
   return {

@@ -161,7 +161,10 @@
         <button type="button" class="btn" (click)="fechar.emit()">Fechar</button>
       } @else {
         <button type="button" class="btn quiet" (click)="fechar.emit()">Fechar</button>
-        <button type="button" class="btn primary" (click)="tentarNovamente()"><app-icone nome="refresh" />Gerar novamente</button>
+        @if (!pedidoExistente()) {
+          <!-- Pedido aberto pela tela Dossiês gerados: gerar de novo é no detalhe do requerimento. -->
+          <button type="button" class="btn primary" (click)="tentarNovamente()"><app-icone nome="refresh" />Gerar novamente</button>
+        }
       }
     </footer>
   </section>

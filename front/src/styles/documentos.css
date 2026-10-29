@@ -70,3 +70,7 @@ tbody tr.bloqueado td:not(:first-child){opacity:.62}
 .geometrias-status{margin:0 0 14px;display:flex;gap:6px;align-items:center}
 .geometrias-falhas{margin:8px 0 0;padding-left:18px}
 .geometrias-falhas li{margin-top:2px}
+.somente-meus{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink);cursor:pointer}
+.acoes-dossie{gap:6px;justify-content:flex-end}
+.erro-acao{color:var(--red);margin-top:4px}
+.falhas-dossie{color:var(--amber)}

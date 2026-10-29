@@ -164,9 +164,24 @@ Aberto pela ação **Visualizar** de cada linha (todas, menos as indisponíveis;
 - Falha na montagem: o motivo geral, com os mesmos botões ("Tentar novamente" refaz só a montagem). Em "Dossiês gerados" (S4), um pedido que expirou à espera de decisão aparece como "Expirado · nenhum arquivo gerado", sem download.
 - Erro ao criar o pedido (por exemplo, `DOCUMENTO_SIGILOSO`, `NAO_INTERESSADO`, `SIGA_INDISPONIVEL`): mensagem na própria gaveta, sem toast duplicado.
 
-## 4.1 Dossiês gerados (contrato, S4 bloco 7)
+## 4.1 Dossiês gerados (S4)
 
-A tela é do bloco 8; o contrato está em docs/07 ("Dossiês gerados"). O que a tela precisa saber: o **Operador** só recebe os próprios pedidos e nunca recebe `geradoPor` (a coluna "Gerado por" só aparece quando o campo vier); **Gestor e Administrador** têm o filtro "Só os meus" (`somenteMeus=true`). `EXPIRADO` com `arquivoGerado` falso: "Expirado · nenhum arquivo gerado"; `BAIXADO`: "Arquivo baixado". Só `temArquivo` libera Pré-visualizar e Baixar (por ticket quando `entregaPorTicket`). O histórico é em memória: some ao reiniciar o serviço, e pedidos encerrados saem da lista `DOSSIE_HISTORICO_HORAS` depois de vencer.
+Item **Dossiês gerados** no menu, para os três perfis (rota `/dossies`). Quadro do topo "Dossiês gerados" com a etiqueta "Histórico em memória" e, na folha, a lista dos pedidos do `GET /dossies` (docs/07), mais recentes primeiro.
+
+- **Colunas:** dossiê (identificação como no RF18: "Processo 2825/2025" ou "Requerimento N"), situação (etiqueta), criado em, **expira em** com "restam N min" (relógio de Cuiabá, como na gaveta) enquanto o pedido está vivo (na fila, em andamento, aguardando decisão ou pronto), documentos ("12 de 15", os incluídos de M listados, e "N com problema" quando há falhas), tamanho do PDF (quando existe) e **Gerado por**, só quando a API manda o campo (Gestor e Administrador; o Operador nunca o recebe e a coluna não existe).
+- **Etiquetas:** Na fila, Obtendo documentos, Montando o PDF, Aguardando decisão, Pronto, Cancelado, Expirado, "Expirado · nenhum arquivo gerado" (expirou à espera de decisão) e Arquivo baixado.
+- **Ações por linha:**
+  - Pronto (`temArquivo`): **Pré-visualizar** (Blob numa moldura; não aparece para dossiê grande) e **Baixar PDF** (Blob com o token no cabeçalho e o nome do `Content-Disposition`; dossiê grande, `entregaPorTicket`, por ticket de uso único e download direto, como na gaveta). Depois do download a lista é atualizada e a linha passa a "Arquivo baixado".
+  - Na fila, obtendo ou montando: **Cancelar** (`DELETE /dossies/{id}`).
+  - Aguardando decisão: **Decidir**, que abre a **gaveta de geração** já existente com o pedido (modo "pedido existente": não cria outro pedido; decidir, cancelar, pré-visualizar e baixar seguem a lógica da gaveta). Pedido encerrado aberto assim não oferece "Gerar novamente": gerar de novo é no detalhe.
+  - Todas: **Abrir requerimento** (vai ao detalhe).
+  - Erro de uma ação aparece na própria linha, pelo `errorCode` (ex.: "O dossiê expirou. Gere-o novamente.").
+- **Filtros:** situação (sobre a página carregada) e, para Gestor e Administrador, a caixa **Só os meus** (`somenteMeus=true`, volta à primeira página). Paginação "Anterior/Próxima" quando há mais de uma página (20 por página).
+- **Atualização:** botão **Atualizar** (atualiza sem tirar a tabela da tela) e atualização automática **a cada 30 s**, que para ao sair da tela e enquanto a aba está oculta; ao voltar para a aba, atualiza na hora. Nenhum timer fica pendurado.
+- **Estados:** carregando ("Carregando dossiês…"); vazio "Você ainda não gerou dossiês nesta sessão do serviço" (Operador, ou Gestor e Administrador com "Só os meus"; sem o filtro, "Nenhum dossiê foi gerado nesta sessão do serviço"); erro pela mensagem do `errorCode`, com **Tentar novamente**. A tela sempre diz que o histórico fica só na memória do serviço: some ao reiniciar, e os pedidos encerrados saem da lista um tempo depois de vencer (24 h por padrão).
+- O quadro do topo tem a mesma altura nos estados vazio, erro e com itens; no celular a tabela rola dentro da moldura, sem rolagem horizontal da página.
+
+Resumo do contrato (bloco 7): o **Operador** só recebe os próprios pedidos e nunca recebe `geradoPor` (a coluna "Gerado por" só aparece quando o campo vier); **Gestor e Administrador** têm o filtro "Só os meus" (`somenteMeus=true`). `EXPIRADO` com `arquivoGerado` falso: "Expirado · nenhum arquivo gerado"; `BAIXADO`: "Arquivo baixado". Só `temArquivo` libera Pré-visualizar e Baixar (por ticket quando `entregaPorTicket`). O histórico é em memória: some ao reiniciar o serviço, e pedidos encerrados saem da lista `DOSSIE_HISTORICO_HORAS` depois de vencer.
 
 ## 5. Auditoria
 

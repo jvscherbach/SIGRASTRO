@@ -141,6 +141,27 @@ export interface AndamentoDossie {
   itens: ItemAndamento[];
 }
 
+/** Situação na lista de dossiês gerados (S4): as do andamento mais BAIXADO (entregue e apagado, RNF05). */
+export type SituacaoDossieGerado = StatusDossie | 'BAIXADO';
+
+/** Item de GET /api/dossies (S4, docs/07). Sem dado de documento; `geradoPor` só vem para Gestor e Administrador. */
+export interface DossieGerado {
+  id: string;
+  idRequerimento: number;
+  identificacao: { rotulo: string; numero: string };
+  situacao: SituacaoDossieGerado;
+  criadoEm: string;
+  expiraEm: string | null;
+  documentos: number;
+  falhas: number;
+  listados: number;
+  tamanhoBytes: number | null;
+  entregaPorTicket: boolean;
+  temArquivo: boolean;
+  arquivoGerado: boolean;
+  geradoPor?: string;
+}
+
 /** Formato pedido ao endpoint de conteúdo (S3, docs/07). */
 export type FormatoDoConteudo = 'pdf' | 'original';
 
