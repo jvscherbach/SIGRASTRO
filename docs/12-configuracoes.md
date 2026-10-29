@@ -25,7 +25,12 @@ Tela acessível apenas ao perfil Administrador. Toda alteração gera evento na 
 | Pedido de dossiê criado pelo próprio usuário | ✓ (enquanto for o interessado gravado no pedido) | ✓ | ✓ | 404 `NAO_ENCONTRADO` |
 | Pedido de dossiê de outro usuário | — | ✓ | ✓ | 404 `NAO_ENCONTRADO` (não revela que existe) |
 
+| Ver pedidos de outros usuários e "quem gerou" em "Dossiês gerados" | — | ✓ | ✓ | só os próprios; o campo `geradoPor` não existe |
+| Geometria sigilosa (lista e ZIP) | — | ✓ | ✓ | omitida, só a contagem `geometriasOmitidas` |
+
 A matriz completa, endpoint por endpoint, está em [07 — API](07-api.md#matriz-de-acesso-por-endpoint).
+
+**Testado (S4, bloco 9):** `MatrizDeAcessoTest` prova a matriz por MockMvc em todos os endpoints e varre o corpo e os cabeçalhos de todas as respostas: nunca aparecem chave de arquivo, token da API de arquivos ou do SCORP, URL do SCORP, identificador da pessoa no SCORP nem o caminho do diretório temporário; para o Operador, também nunca aparecem título ou nome de arquivo de documento sigiloso (inclusive o pessoal e a geometria), documento ou nome de outro interessado, nem o responsável pela tarefa (RN12). O texto do PDF do Operador é extraído e conferido (sumário e "Documentos não incluídos" mascarados). O `instance`/`path` do `ProblemDetail` ecoa a URL que o próprio cliente pediu e não conta como vazamento.
 
 Códigos: `OPERADOR`, `OPERADOR_SIGILO`, `ADMIN`. Na versão definitiva, a identidade vem da autenticação institucional; o perfil é atribuído nesta tela. Itens de menu sem permissão não são exibidos (RN08).
 

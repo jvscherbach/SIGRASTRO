@@ -365,6 +365,8 @@ Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **
 
 Fora de `/api`: `GET /actuator/health` (pública, só a situação) e a documentação OpenAPI (`/v3/api-docs`, `/swagger-ui`), desligada por padrão (`OPENAPI_ENABLED=false`) e ligada só no perfil `local`. Toda rota de `/api/**` sem o token responde 401 `NAO_AUTENTICADO`, exceto o login e o download por ticket.
 
+**Prova (bloco 9):** `MatrizDeAcessoTest` exercita esta tabela por MockMvc (mais de 150 cenários: perfil × interessado ou não × sigiloso ou não × dono do pedido ou não) e compara três listas: os mapeamentos de `/api` do Spring, a primeira coluna desta tabela (lida deste arquivo) e os endpoints com cenário no teste. Endpoint novo sem linha aqui ou sem cenário lá quebra o teste. Todas as respostas são varridas atrás de vazamento (veja docs/12).
+
 As rotas de **Auditoria** e **Configurações** abaixo ainda **não existem** no código (S5). Quando forem criadas, entram nesta matriz e no `MatrizDeAcessoTest` (bloco 9 da S4), que falha para endpoint sem linha.
 
 **Achados do inventário (bloco 1):** nenhuma rota sem verificação. Dois reforços, registrados em D60: (1) pedido de **outro usuário** passa a exigir explicitamente perfil que acessa qualquer requerimento **e** qualquer sigiloso (antes bastava "não ser restrito ao interessado", o que hoje dá no mesmo, mas não valeria para um perfil futuro restrito ou sem sigilo); (2) o **dono** Operador só acessa o pedido enquanto o interessado gravado no pedido continuar sendo o dele (antes bastava o login).

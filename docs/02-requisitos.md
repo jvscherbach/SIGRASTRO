@@ -39,9 +39,9 @@
 
 | ID | Requisito |
 |---|---|
-| RF19 | Login simulado com usuários fixos de três perfis: `OPERADOR`, `OPERADOR_SIGILO` (Gestor) e `ADMIN` (Administrador). Permissões em [12 — Configurações](12-configuracoes.md). |
-| RF20 | Documentos sigilosos aparecem na lista para todos os perfis, mas só Gestor e Administrador podem visualizá-los, selecioná-los e incluí-los no dossiê. Para o Operador o documento vem **mascarado** (título "Documento sigiloso", sem nome de arquivo nem extensão) e o `POST /dossies` com ele responde 403 `DOCUMENTO_SIGILOSO`. **Aplicado no back-end desde a S2 (D36);** a matriz completa e o modal seguem na S4. |
-| RF30 | O Operador só consulta, visualiza, gera e baixa dossiê de processos e requerimentos vinculados a ele (RN07). Busca por número de processo ou requerimento sem vínculo retorna "não tem você como interessado"; buscas por interessado só listam os vinculados. |
+| RF19 | Login simulado com usuários fixos de três perfis: `OPERADOR`, `OPERADOR_SIGILO` (Gestor) e `ADMIN` (Administrador). Permissões em [12 — Configurações](12-configuracoes.md). **S4:** cada perfil testado em todos os endpoints (`MatrizDeAcessoTest`, docs/07 "Matriz de acesso por endpoint"). |
+| RF20 | Documentos sigilosos aparecem na lista para todos os perfis, mas só Gestor e Administrador podem visualizá-los, selecioná-los e incluí-los no dossiê. Para o Operador o documento vem **mascarado** (título "Documento sigiloso", sem nome de arquivo, extensão nem tipo) na lista, no PDF (sumário e "Documentos não incluídos") e em toda resposta; no modal e no `POST /dossies`, 403 `DOCUMENTO_SIGILOSO`. Vale também para os documentos pessoais com `SCORP_SIGILO_PADRAO=true`. Geometria sigilosa não aparece para o Operador (só a contagem de omitidas) nem vai no ZIP. **Aplicado e testado no back-end (D36, S4: `PoliticaDeAcesso`, `MatrizDeAcessoTest`).** |
+| RF30 | O Operador só consulta, visualiza, gera e baixa dossiê de processos e requerimentos vinculados a ele (RN07). Busca por número de processo ou requerimento sem vínculo retorna "não tem você como interessado"; buscas por interessado só listam os vinculados. **S4:** também em geometrias, documentos pessoais (o SCORP não é chamado para requerimento alheio) e "Dossiês gerados" (só os próprios pedidos, sem "quem gerou"); pedido de outro usuário não existe para ele (404). Testado em todos os endpoints (`MatrizDeAcessoTest`). |
 
 ### Auditoria
 
@@ -75,7 +75,7 @@
 | RNF07 | Credenciais (token da API, conexão com o banco) ficam só em variáveis de ambiente (`.env` fora do controle de versão). |
 | RNF08 | Execução local via Docker Compose. |
 | RNF09 | O front-end nunca recebe a chave do arquivo no repositório de arquivos. Documentos são referenciados por `origem + id`, e o back-end resolve a chave. |
-| RNF10 | Regras de perfil e sigilo são aplicadas no back-end, não apenas na interface. |
+| RNF10 | Regras de perfil e sigilo são aplicadas no back-end, não apenas na interface. **S4:** uma única `PoliticaDeAcesso` decide (D60; `ArchitectureTest` proíbe decidir fora dela); a matriz endpoint × perfil × interessado × sigilo × dono é provada por MockMvc em todos os endpoints, e um endpoint novo sem linha na matriz do docs/07 faz o teste falhar. |
 | RNF11 | Eventos de auditoria são somente inclusão: a aplicação não altera nem exclui registros. |
 
 ## Regras de negócio
