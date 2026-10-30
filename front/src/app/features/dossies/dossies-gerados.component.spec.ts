@@ -7,6 +7,7 @@ import { NEVER, Subject, of, throwError } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
 import { Perfil, Usuario } from '../../core/usuario.model';
 import { PageResponse } from '../../shared/api-tipos';
+import { AcompanhamentoDeDossieService } from '../documentos/acompanhamento-dossie.service';
 import { DossiesApiService } from '../documentos/documentos-api.service';
 import { DossieGerado, SituacaoDossieGerado } from '../documentos/documentos.models';
 import { DossiesGeradosComponent, INTERVALO_DA_LISTA_MS, rotuloDaSituacao } from './dossies-gerados.component';
@@ -254,7 +255,7 @@ describe('DossiesGeradosComponent', () => {
       abrir([pedido({ situacao: 'PENDENTE_DECISAO', temArquivo: false })]);
       clicar(botao('Decidir'));
 
-      expect(document.body.querySelector('app-gaveta-dossie')).not.toBeNull();
+      expect(TestBed.inject(AcompanhamentoDeDossieService).gavetaAberta()).toBe(true);
       expect(api['andamento']).toHaveBeenCalledWith('p1');
       expect(api['criar']).not.toHaveBeenCalled();
     });

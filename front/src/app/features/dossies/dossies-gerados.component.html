@@ -145,9 +145,6 @@
   </app-folha-sobreposta>
 </section>
 
-@if (gaveta(); as g) {
-  <app-gaveta-dossie [idRequerimento]="g.idRequerimento" [pedidoExistente]="g.id" (fechar)="fecharGaveta()" />
-}
 
 @if (previa(); as p) {
   <div class="previa" role="dialog" aria-modal="true" aria-label="Pré-visualização do dossiê">

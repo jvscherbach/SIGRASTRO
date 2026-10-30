@@ -6,18 +6,22 @@ import { filter } from 'rxjs';
 import { AuthService } from '../core/auth.service';
 import { IconeComponent } from '../shared/icone.component';
 import { TrilhaService } from '../shared/trilha.service';
+import { AcompanhamentoDeDossieService } from '../features/documentos/acompanhamento-dossie.service';
+import { GavetaDossieComponent } from '../features/documentos/gaveta-dossie.component';
+import { IndicadorDossieComponent } from '../features/documentos/indicador-dossie.component';
 import { menuDasPermissoes } from './menu';
 
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconeComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconeComponent, IndicadorDossieComponent, GavetaDossieComponent],
   templateUrl: './shell.component.html',
   host: { '(document:click)': 'menuUsuarioAberto.set(false)', '(document:keydown.escape)': 'menuUsuarioAberto.set(false)' },
 })
 export class ShellComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  protected readonly acompanhamento = inject(AcompanhamentoDeDossieService);
 
   protected readonly usuario = this.auth.usuario;
   protected readonly menu = computed(() => menuDasPermissoes(this.usuario()?.permissoes));

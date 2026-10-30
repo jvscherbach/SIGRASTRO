@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NEVER, Subject, of, throwError } from 'rxjs';
 
+import { AcompanhamentoDeDossieService } from './acompanhamento-dossie.service';
 import { ConteudoApiService, DocumentosApiService, DossiesApiService, LIMITE_DO_BLOB_MB } from './documentos-api.service';
 import { DocumentosSecaoComponent } from './documentos-secao.component';
 import { documento } from './documentos.fixtures';
@@ -391,8 +392,7 @@ describe('DocumentosSecaoComponent', () => {
       botao('Gerar dossiê').click();
       fixture.detectChanges();
 
-      const gaveta = document.body.querySelector('app-gaveta-dossie');
-      expect(gaveta).not.toBeNull();
+      expect(TestBed.inject(AcompanhamentoDeDossieService).gavetaAberta()).toBe(true);
       const criar = TestBed.inject(DossiesApiService).criar as ReturnType<typeof vi.fn>;
       expect(criar).toHaveBeenCalledWith(101, [
         { origem: 'DOCUMENTO_PROCESSO', id: '1' },
@@ -422,11 +422,13 @@ describe('DocumentosSecaoComponent', () => {
         { origem: 'JUNTADA', id: '2' },
         { origem: 'DOCUMENTO_REQUERIMENTO', id: '6' },
       ]);
-      expect(document.body.querySelector('app-gaveta-dossie')).not.toBeNull();
+      const servico = TestBed.inject(AcompanhamentoDeDossieService);
+      expect(servico.gavetaAberta()).toBe(true);
 
-      document.body.querySelector<HTMLButtonElement>('app-gaveta-dossie .d-head .icon-btn')!.click();
-      fixture.detectChanges();
-      expect(document.body.querySelector('app-gaveta-dossie')).toBeNull();
+      // A gaveta é do shell; fechá-la só a minimiza e a geração segue acompanhada.
+      servico.fecharGaveta();
+      expect(servico.gavetaAberta()).toBe(false);
+      expect(servico.indicador()).not.toBeNull();
     });
   });
 

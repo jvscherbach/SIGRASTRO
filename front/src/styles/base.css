@@ -105,3 +105,5 @@ input[type=checkbox]:disabled{cursor:not-allowed}
 .toast-pilha{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);z-index:120;display:grid;gap:8px;max-width:90vw;pointer-events:none}
 .toast{background:var(--forest);color:#fff;box-shadow:0 8px 26px #10260a30;padding:12px 20px;border-radius:9px;font-size:13px;pointer-events:auto}
 .toast.erro{background:var(--red)}
+.toast-acao{margin-left:14px;background:transparent;border:1px solid #ffffff90;color:#fff;border-radius:6px;padding:3px 10px;font:inherit;font-weight:700;cursor:pointer}
+.toast-acao:hover{background:#ffffff26}

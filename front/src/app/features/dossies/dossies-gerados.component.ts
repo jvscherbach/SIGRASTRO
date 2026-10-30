@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { Observable, Subscription } from 'rxjs';
@@ -12,9 +13,9 @@ import { agoraEmCuiaba, formatarDataHora, formatarTamanho, minutosAte } from '..
 import { FolhaSobrepostaComponent } from '../../shared/folha-sobreposta.component';
 import { IconeComponent } from '../../shared/icone.component';
 import { QuadroTopoComponent } from '../../shared/quadro-topo.component';
+import { AcompanhamentoDeDossieService } from '../documentos/acompanhamento-dossie.service';
 import { DossiesApiService } from '../documentos/documentos-api.service';
 import { DossieGerado, SituacaoDossieGerado } from '../documentos/documentos.models';
-import { GavetaDossieComponent } from '../documentos/gaveta-dossie.component';
 
 /** Atualização automática leve: a lista muda devagar (gerações levam minutos), e a gaveta tem o polling fino. */
 export const INTERVALO_DA_LISTA_MS = 30_000;
@@ -57,7 +58,7 @@ export function rotuloDaSituacao(d: Pick<DossieGerado, 'situacao' | 'arquivoGera
 @Component({
   selector: 'app-dossies-gerados',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [QuadroTopoComponent, FolhaSobrepostaComponent, IconeComponent, GavetaDossieComponent],
+  imports: [QuadroTopoComponent, FolhaSobrepostaComponent, IconeComponent],
   templateUrl: './dossies-gerados.component.html',
   host: { '(document:visibilitychange)': 'aoMudarVisibilidade()' },
 })
@@ -78,7 +79,6 @@ export class DossiesGeradosComponent implements OnInit {
   /** Linha com ação em curso (botões desabilitados) e mensagem de erro da última ação. */
   protected readonly ocupado = signal<string | null>(null);
   protected readonly mensagemDaAcao = signal<{ id: string; texto: string } | null>(null);
-  protected readonly gaveta = signal<{ id: string; idRequerimento: number } | null>(null);
   protected readonly previa = signal<{ url: string; seguro: SafeResourceUrl } | null>(null);
 
   /** Gestor e Administrador veem os pedidos de todos e podem filtrar os seus (docs/07). */
@@ -102,9 +102,11 @@ export class DossiesGeradosComponent implements OnInit {
   private acao: Subscription | null = null;
   private temporizador: ReturnType<typeof setTimeout> | null = null;
   private destruido = false;
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly acompanhamento = inject(AcompanhamentoDeDossieService);
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => {
+    this.destroyRef.onDestroy(() => {
       this.destruido = true;
       this.pararAtualizacao();
       this.assinatura?.unsubscribe();
@@ -114,6 +116,8 @@ export class DossiesGeradosComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Ao fechar (minimizar) a gaveta a lista se atualiza: a situação do pedido pode ter mudado.
+    this.acompanhamento.gavetaFechada$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.carregar());
     this.carregar();
   }
 
@@ -200,12 +204,7 @@ export class DossiesGeradosComponent implements OnInit {
   }
 
   protected decidir(d: DossieGerado): void {
-    this.gaveta.set({ id: d.id, idRequerimento: d.idRequerimento });
-  }
-
-  protected fecharGaveta(): void {
-    this.gaveta.set(null);
-    this.carregar();
+    this.acompanhamento.acompanhar(d.id, d.idRequerimento);
   }
 
   protected cancelar(d: DossieGerado): void {
