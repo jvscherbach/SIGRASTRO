@@ -68,6 +68,8 @@ vistas:
     espaco-minimo-mb: ${DOSSIE_ESPACO_MINIMO_MB:2048}
     # Acima disto (MB) o download vai por ticket, em streaming, sem pré-visualização (S2.2).
     blob-max-mb: ${DOSSIE_BLOB_MAX_MB:150}
+    # Horas que um pedido encerrado continua em "Dossiês gerados" depois do vencimento (S4; histórico em memória).
+    historico-horas: ${DOSSIE_HISTORICO_HORAS:24}
     sumario: ${DOSSIE_SUMARIO:true}
     marcadores: ${DOSSIE_MARCADORES:true}
     numeracao: ${DOSSIE_NUMERACAO:true}
@@ -92,6 +94,10 @@ vistas:
     cache-max-mb: ${VISUALIZACAO_CACHE_MAX_MB:500}
     conversoes-simultaneas: ${VISUALIZACAO_CONVERSOES_SIMULTANEAS:2}
     fila-de-conversoes: ${VISUALIZACAO_FILA_CONVERSOES:4}
+  # Geometrias em ZIP (S4): limites; temporários em VISTAS_DOSSIE_DIRETORIO/geometrias, com o espaço mínimo do dossiê.
+  geometrias:
+    max-mb: ${GEOMETRIAS_MAX_MB:500}
+    max-arquivos: ${GEOMETRIAS_MAX_ARQUIVOS:200}
   # API de arquivos do Licenciamento. URL vazia = não configurada: a geração falha com esse motivo, a listagem não.
   arquivos:
     url: ${LICENCIAMENTO_API_URL:}
@@ -101,7 +107,19 @@ vistas:
     # bearer (padrão) ou cookie; vazio também vale como bearer.
     auth-mode: ${LICENCIAMENTO_API_AUTH_MODE:bearer}
     cookie-name: ${LICENCIAMENTO_API_COOKIE_NAME:}
-  # Origens de documento ligadas: as seis da seção "Arquivos do Processo" da Vista do SIGA (S2.1).
+  # SCORP (S4): documentos pessoais do interessado, dos representantes legais e dos responsáveis técnicos.
+  # URL vazia = desligado (sem chamada e sem aviso). Autenticação NÃO CONFIRMADA (P06): sem as variáveis próprias,
+  # usa as da API de arquivos (token-file, token, auth-mode, cookie-name).
+  scorp:
+    url: ${SCORP_API_URL:}
+    token-file: ${SCORP_API_TOKEN_FILE:}
+    auth-mode: ${SCORP_API_AUTH_MODE:}
+    cookie-name: ${SCORP_API_COOKIE_NAME:}
+    timeout-segundos: ${SCORP_TIMEOUT_SEGUNDOS:15}
+    chamadas-simultaneas: ${SCORP_CHAMADAS_SIMULTANEAS:4}
+    # false segue a Vista do SIGA (não sigiloso, R25); true trata todos como sigilosos. Decisão pendente (P30).
+    sigilo-padrao: ${SCORP_SIGILO_PADRAO:false}
+  # Origens de documento ligadas: as seis da seção "Arquivos do Processo" da Vista do SIGA (S2.1) e o SCORP (S4).
   documentos:
     origens:
       documento_processo: true
@@ -110,6 +128,8 @@ vistas:
       imovel: true
       representante_legal: true
       responsavel_tecnico: true
+      # SCORP: desligado também quando SCORP_API_URL está vazia.
+      scorp: true
   agendamento:
     enabled: ${AGENDAMENTO_ENABLED:true}
     limpeza-dossie: PT5M

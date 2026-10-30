@@ -48,6 +48,7 @@
 .search-card{max-width:760px;margin-top:auto}
 /* Espaço do alerta da busca: altura FIXA (cabe um alerta de até duas linhas), invisível quando vazio. Com min-height o
    alerta de duas linhas (margem + caixa passavam de 56px) empurrava o cartão e o quadro inteiro crescia. */
+.hint-perfil{margin-top:12px;height:30px;line-height:15px;align-items:flex-start;overflow:hidden}
 .search-feedback{height:76px;overflow:hidden}
 .search-feedback .alert{margin-top:14px}
 .search-feedback .alert span{min-width:0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}

@@ -1,8 +1,9 @@
 import { Routes } from '@angular/router';
 
-import { autenticadoGuard, perfilGuard, visitanteGuard } from './core/guards';
+import { autenticadoGuard, permissaoGuard, visitanteGuard } from './core/guards';
 import { ConsultaComponent } from './features/consulta/consulta.component';
 import { DetalheComponent } from './features/detalhe/detalhe.component';
+import { DossiesGeradosComponent } from './features/dossies/dossies-gerados.component';
 import { EmConstrucaoComponent } from './features/em-construcao/em-construcao.component';
 import { LoginComponent } from './features/login/login.component';
 import { ShellComponent } from './layout/shell.component';
@@ -29,14 +30,9 @@ export const routes: Routes = [
       },
       {
         path: 'dossies',
-        component: EmConstrucaoComponent,
+        component: DossiesGeradosComponent,
         title: 'Dossiês gerados · SIGA Vistas',
-        data: {
-          crumb: ['Dossiês gerados'],
-          titulo: 'Dossiês gerados',
-          descricao: 'Acompanhe os dossiês em geração, pré-visualize e baixe o PDF antes que ele expire.',
-          sprint: 'Sprint 4',
-        },
+        data: { crumb: ['Dossiês gerados'] },
       },
       {
         path: 'auditoria/documentos',
@@ -52,10 +48,10 @@ export const routes: Routes = [
       {
         path: 'auditoria/acessos',
         component: EmConstrucaoComponent,
-        canActivate: [perfilGuard],
+        canActivate: [permissaoGuard],
         title: 'Auditoria de acessos · SIGA Vistas',
         data: {
-          perfis: ['ADMIN'],
+          permissao: 'verAuditoriaAcessos',
           crumb: ['Auditoria', 'Acessos'],
           titulo: 'Auditoria de acessos',
           descricao: 'Entradas, trocas de perfil e alterações de usuários e de configuração.',
@@ -65,10 +61,10 @@ export const routes: Routes = [
       {
         path: 'configuracoes',
         component: EmConstrucaoComponent,
-        canActivate: [perfilGuard],
+        canActivate: [permissaoGuard],
         title: 'Configurações · SIGA Vistas',
         data: {
-          perfis: ['ADMIN'],
+          permissao: 'acessarConfiguracoes',
           crumb: ['Configurações'],
           titulo: 'Configurações',
           descricao: 'Usuários e perfis, parâmetros do dossiê, conversão, conexões e retenção da auditoria.',

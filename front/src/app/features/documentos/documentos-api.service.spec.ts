@@ -96,6 +96,33 @@ describe('serviços de documentos e dossiê', () => {
     expect((recebido!.error as { errorCode: string }).errorCode).toBe('DOSSIE_EXPIRADO');
   });
 
+  it('baixa as geometrias como Blob, com o token no cabeçalho e nunca na URL, sem toast', () => {
+    TestBed.inject(DocumentosApiService).baixarGeometrias(101).subscribe();
+
+    const req = http.expectOne('/api/requerimentos/101/geometrias/arquivo');
+    expect(req.request.method).toBe('GET');
+    expect(req.request.responseType).toBe('blob');
+    expect(req.request.headers.get('Authorization')).toBe('Bearer TOKEN-DE-SESSAO');
+    expect(req.request.urlWithParams).not.toContain('TOKEN-DE-SESSAO');
+    expect(req.request.context.get(SEM_TOAST)).toBe(true);
+    req.flush(new Blob(['PK']));
+  });
+
+  it('erro das geometrias volta como ProblemDetail com a lista de arquivos', async () => {
+    let recebido: HttpErrorResponse | null = null;
+    TestBed.inject(DocumentosApiService)
+      .baixarGeometrias(101)
+      .subscribe({ error: (e: HttpErrorResponse) => (recebido = e) });
+
+    const corpo = { errorCode: 'GEOMETRIAS_INCOMPLETAS', status: 502, arquivos: [{ nome: 'area.kml', motivo: 'arquivo não encontrado' }] };
+    http
+      .expectOne('/api/requerimentos/101/geometrias/arquivo')
+      .flush(new Blob([JSON.stringify(corpo)], { type: 'application/problem+json' }), { status: 502, statusText: 'Bad Gateway' });
+    await vi.waitFor(() => expect(recebido).not.toBeNull());
+
+    expect(recebido!.error).toEqual(corpo);
+  });
+
   it('erro com corpo que não é JSON vira corpo nulo, sem estourar', async () => {
     let recebido: HttpErrorResponse | null = null;
     TestBed.inject(DossiesApiService)

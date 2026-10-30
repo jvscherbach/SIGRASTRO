@@ -40,6 +40,8 @@ public final class PedidoDeDossie {
     private long tamanhoBytes;
     private LocalDateTime expiraEm;
     private boolean cancelamentoSolicitado;
+    private boolean arquivoGerado;
+    private boolean baixado;
 
     public PedidoDeDossie(String id, String login, long idRequerimento, DadosDaCapa capa, List<ItemDoPedido> itens,
             LocalDateTime criadoEm, LocalDateTime expiraEm) {
@@ -142,6 +144,23 @@ public final class PedidoDeDossie {
         return expiraEm;
     }
 
+    /** O PDF final chegou a ser montado (mesmo que já tenha sido apagado). */
+    public synchronized boolean arquivoGerado() {
+        return arquivoGerado;
+    }
+
+    /** O PDF foi entregue por inteiro e apagado (RNF05): EXPIRADO com esta marca é "baixado" (S4). */
+    public synchronized boolean baixado() {
+        return baixado;
+    }
+
+    /** Download completo do PDF final: marca antes de expirar. */
+    public synchronized void marcarBaixado() {
+        if (status == StatusDossie.CONCLUIDO) {
+            baixado = true;
+        }
+    }
+
     public synchronized boolean cancelamentoSolicitado() {
         return cancelamentoSolicitado;
     }
@@ -186,6 +205,7 @@ public final class PedidoDeDossie {
             return false;
         }
         this.status = StatusDossie.CONCLUIDO;
+        this.arquivoGerado = true;
         this.erro = null;
         this.arquivo = arquivo;
         this.paginas = paginas;

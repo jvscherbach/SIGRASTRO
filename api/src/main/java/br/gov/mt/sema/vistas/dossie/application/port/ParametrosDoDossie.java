@@ -27,6 +27,14 @@ public interface ParametrosDoDossie {
         return 150;
     }
 
+    /**
+     * Horas que um pedido encerrado (expirado, baixado ou cancelado) continua na lista "Dossiês gerados" depois do
+     * vencimento, sem arquivo ({@code DOSSIE_HISTORICO_HORAS}, S4). Histórico em memória: some num reinício (D09).
+     */
+    default int historicoHoras() {
+        return 24;
+    }
+
     boolean sumario();
 
     boolean marcadores();

@@ -80,6 +80,7 @@ final class Fakes {
         boolean numeracao = true;
         long espacoMinimoMb = 2048;
         long blobMaxMb = 150;
+        int historicoHoras = 24;
         final Path diretorio;
 
         Parametros(Path diretorio) {
@@ -109,6 +110,11 @@ final class Fakes {
         @Override
         public int downloadTimeoutSegundos() {
             return 60;
+        }
+
+        @Override
+        public int historicoHoras() {
+            return historicoHoras;
         }
 
         @Override

@@ -35,7 +35,8 @@ final class SigaOracleTeste {
     static {
         ORACLE.start();
         try (Connection conexao = DriverManager.getConnection(ORACLE.getJdbcUrl(), "system", ORACLE.getPassword())) {
-            for (String script : new String[] {"01-recorte.sql", "02-dados.sql", "03-dados-s11.sql", "04-documentos-s2.sql"}) {
+            for (String script : new String[] {"01-recorte.sql", "02-dados.sql", "03-dados-s11.sql", "04-documentos-s2.sql",
+                    "05-pessoas-s4.sql"}) {
                 ScriptUtils.executeSqlScript(conexao,
                         new EncodedResource(new ClassPathResource("sql/siga/" + script), "UTF-8"));
             }

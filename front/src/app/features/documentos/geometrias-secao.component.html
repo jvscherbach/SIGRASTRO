@@ -1,0 +1,78 @@
+<section class="panel geometrias" aria-label="Geometrias">
+  <div class="dash-sec-head">
+    <div>
+      <h2><app-icone nome="pin" />Geometrias</h2>
+      <p>SHP, KML e KMZ do requerimento. Não entram no dossiê: são baixadas à parte, num arquivo ZIP.</p>
+    </div>
+    @if (baixaveis() > 0) {
+      <button type="button" class="btn sm baixar-geometrias" [disabled]="fase() === 'baixando'" (click)="baixar()">
+        <app-icone nome="download" />{{ fase() === 'baixando' ? 'Preparando o ZIP…' : 'Baixar geometrias' }}
+      </button>
+    }
+  </div>
+
+  @if (omitidas() > 0) {
+    <div class="note amber docs-aviso geometrias-omitidas" role="status">
+      <app-icone nome="lock" />
+      <span>{{ omitidas() }} geometria(s) sigilosa(s) não são exibidas para o seu perfil.</span>
+    </div>
+  }
+
+  @if (fase() === 'baixando') {
+    <p class="muted geometrias-status" role="status">Obtendo os arquivos e montando o ZIP. Pode levar alguns instantes.</p>
+  } @else if (fase() === 'baixado') {
+    <p class="muted geometrias-status" role="status"><app-icone nome="check" /> Download iniciado: {{ nomeBaixado() }}</p>
+  } @else if (fase() === 'erro') {
+    <div class="alert docs-erro geometrias-erro" role="alert">
+      <app-icone nome="alert" />
+      <span>
+        {{ mensagem() }}
+        @if (comProblema().length) {
+          <ul class="geometrias-falhas">
+            @for (f of comProblema(); track $index) {
+              <li><b>{{ f.nome }}</b>: {{ f.motivo }}</li>
+            }
+          </ul>
+        }
+      </span>
+    </div>
+    <button type="button" class="btn sm tentar-geometrias" (click)="baixar()"><app-icone nome="refresh" />Tentar novamente</button>
+  }
+
+  @if (geometrias().length) {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Geometria</th>
+            <th>Origem</th>
+            <th>Data</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (g of geometrias(); track g.origem + ':' + g.id) {
+            <tr [class.off]="g.situacao !== 'VIGENTE'" [attr.data-situacao]="g.situacao">
+              <td>
+                <div class="doc-cell">
+                  <span class="ext geo">{{ g.extensao ? g.extensao.toUpperCase() : '—' }}</span>
+                  <span>
+                    <b>{{ g.titulo || 'Geometria ' + g.id }}</b>
+                    <small>
+                      @if (g.nomeArquivo) { {{ g.nomeArquivo }} }
+                      @if (formatarTamanho(g.tamanho); as tamanho) { · {{ tamanho }} }
+                      @if (g.sigiloso) { · <span class="lock"><app-icone nome="lock" />Sigilosa</span> }
+                      @if (g.situacao === 'SUBSTITUIDO') { · <span class="doc-aviso-linha">versão substituída, fora do ZIP</span> }
+                      @if (g.situacao === 'INDISPONIVEL') { · <span class="doc-aviso-linha">arquivo indisponível, fora do ZIP</span> }
+                    </small>
+                  </span>
+                </div>
+              </td>
+              <td class="nowrap">{{ g.origemDescricao }}</td>
+              <td class="nowrap">{{ formatarData(g.data) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

@@ -124,7 +124,8 @@ Para o **Operador**, a mesma resposta vem **sem** `tarefaAtual.responsavel` (o c
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/requerimentos/{id}/documentos` | Documentos **do requerimento** (a chave é o requerimento, D31), das seis origens da Vista (S2.1), deduplicados (RN05), sem compactados (RN11) e sem geometrias (até a S4), em ordem cronológica (RN03). Aplica a RN07 e o sigilo (D36): Operador de outro interessado, 403 `NAO_INTERESSADO`; requerimento inexistente, 404 `NAO_ENCONTRADO`; SIGA fora do ar, 503 `SIGA_INDISPONIVEL`. |
+| `GET` | `/requerimentos/{id}/documentos` | Documentos **do requerimento** (a chave é o requerimento, D31), das seis origens da Vista (S2.1), deduplicados (RN05), sem compactados (RN11), em ordem cronológica (RN03); as geometrias vêm à parte, em `geometrias` (RN10, S4). Desde a S4 inclui os documentos pessoais do SCORP (origem `SCORP`, "Pessoal"); falha do SCORP vira `avisos`, nunca erro. Aplica a RN07 e o sigilo (D36): Operador de outro interessado, 403 `NAO_INTERESSADO`; requerimento inexistente, 404 `NAO_ENCONTRADO`; SIGA fora do ar, 503 `SIGA_INDISPONIVEL`. |
+| `GET` | `/requerimentos/{id}/geometrias/arquivo` | **S4.** "Baixar geometrias": ZIP com todas as geometrias vigentes que o usuário acessa, tudo ou nada. Detalhes em "Geometrias", abaixo. |
 | `GET` | `/documentos/{origem}/{id}/conteudo?requerimento={idRequerimento}&formato=pdf\|original` | **S3.** Conteúdo do documento para o modal (binário, em streaming). `formato=pdf` (padrão) converte quando necessário. Acesso conferido a cada requisição, mesmo com cache (D55). Detalhes abaixo. |
 
 Resposta de `GET /requerimentos/{id}/documentos`:
@@ -149,22 +150,55 @@ Resposta de `GET /requerimentos/{id}/documentos`:
       "bloqueio": null
     }
   ],
-  "totais": { "total": 55, "vigentes": 48, "semEfeito": 5, "naoPdf": 6, "tipoNaoInformado": 1, "indisponiveis": 2, "sigilosos": 3, "convertiveis": 5 }
+  "totais": { "total": 55, "vigentes": 48, "semEfeito": 5, "naoPdf": 6, "tipoNaoInformado": 1, "indisponiveis": 2, "sigilosos": 3, "convertiveis": 5, "geometrias": 1, "geometriasOmitidas": 0 },
+  "avisos": [],
+  "geometrias": [
+    {
+      "origem": "DOCUMENTO_PROCESSO",
+      "id": "804400",
+      "idRequerimento": 12345,
+      "titulo": "Polígono da área",
+      "nomeArquivo": "area.kml",
+      "origemDescricao": "Documento do processo",
+      "data": "2025-04-02T09:00:00",
+      "situacao": "VIGENTE",
+      "sigiloso": false,
+      "extensao": "kml",
+      "tipoArquivo": "GEOMETRIA",
+      "tamanho": null
+    }
+  ]
 }
 ```
 
-- `id` é **texto** em todo o contrato (`"804328"`), para acomodar o SCORP. `origem` é o código (`DOCUMENTO_PROCESSO`, `DOCUMENTO_REQUERIMENTO`, `COMPLEMENTACAO`, `IMOVEL`, `REPRESENTANTE_LEGAL`, `RESPONSAVEL_TECNICO`) e `origemDescricao`, o texto da tela.
+- `id` é **texto** em todo o contrato (`"804328"`). `origem` é o código (`DOCUMENTO_PROCESSO`, `DOCUMENTO_REQUERIMENTO`, `COMPLEMENTACAO`, `IMOVEL`, `REPRESENTANTE_LEGAL`, `RESPONSAVEL_TECNICO` e, desde a S4, `SCORP`) e `origemDescricao`, o texto da tela. No `SCORP`, `id` são 16 caracteres hexadecimais estáveis (resumo que não expõe a chave) e `origemDescricao` traz o papel: "Pessoal · Interessado", "Pessoal · Representante legal" ou "Pessoal · Responsável técnico" (docs/05).
+- `avisos` (S4): `[{ "codigo": "SCORP_INDISPONIVEL", "mensagem": "Os documentos pessoais (SCORP) não puderam ser consultados agora. Os demais documentos foram listados." }]`, ou `SCORP_PARCIAL` quando só parte das pessoas respondeu. No máximo um aviso do SCORP, sem detalhe técnico. Lista vazia quando está tudo certo ou o SCORP está desligado (`SCORP_API_URL` vazia). O aviso não muda os totais nem bloqueia a seleção.
 - `situacao`: `VIGENTE`, `SUBSTITUIDO` ou `INDISPONIVEL` (RN01). Não é exibida como coluna.
 - `tipoArquivo`: `PDF`, `PLANILHA`, `TEXTO`, `IMAGEM`, `GEOMETRIA`, `COMPACTADO` ou `DESCONHECIDO` (pela extensão do nome do arquivo; sem extensão ou extensão não reconhecida é `DESCONHECIDO`).
 - `bloqueio` (por que o documento não pode ser selecionado): `null`, `NAO_PDF` (extensão conhecida que não é PDF e não é convertível; com `CONVERSAO_HABILITADA=false` ou conversor indisponível, todo não PDF; `DESCONHECIDO` não recebe `NAO_PDF`; planilha, texto e imagem convertíveis só recebem `NAO_PDF` com a conversão desligada, S3), `INDISPONIVEL` ou `SIGILOSO` (sem perfil). Precedência: indisponível, sigiloso, não PDF.
 - `selecionavelPorPadrao` (S2.2, RN13): significa "selecionável" e é a seleção inicial: `true` exatamente quando `bloqueio` é `null`. Entram vigentes e sem efeito (substituídos), de qualquer tipo, inclusive `DESCONHECIDO`.
 - `acessivel`: `false` quando o documento é sigiloso e o perfil não o acessa (Operador). Nesse caso o documento vem **mascarado**: `titulo` = "Documento sigiloso" e `nomeArquivo`, `extensao` e `tipoArquivo` são `null` (RF20).
-- `totais`: contagem de toda a lista, depois da consolidação (RN05, RN11 e geometrias fora).
+- `geometrias` (S4, RN10): as geometrias (SHP, KML, KMZ) da lista consolidada, em ordem cronológica, **fora** de `itens`, da seleção, dos totais acima e do dossiê. Mesmos campos de identificação e situação dos documentos, sem os de seleção (`acessivel`, `selecionavelPorPadrao`, `bloqueio`), mais `tamanho` (bytes; `null` enquanto desconhecido: o SIGA não o informa). Para o Operador, geometria sigilosa **não aparece**: nem nome, nem data, nem id; só entra em `totais.geometriasOmitidas`. Gestor e Administrador veem todas (`sigiloso` indica a sigilosa).
+- `totais`: contagem de toda a lista, depois da consolidação (RN05, RN11 e geometrias fora). `totais.geometrias` é o tamanho de `geometrias`; `totais.geometriasOmitidas`, as sigilosas que o perfil não vê (sempre 0 para Gestor e Administrador).
   - Por situação, excludentes, somam o total: `total = vigentes + semEfeito + indisponiveis`. `vigentes` conta `VIGENTE` (sem `DATA_FIM`, chave válida); `semEfeito` conta `SUBSTITUIDO` (`DATA_FIM` preenchida, chave válida); `indisponiveis` conta `INDISPONIVEL` (chave nula, vazia ou `"0"`), qualquer que seja a `DATA_FIM`.
   - Recortes que cruzam as situações: `naoPdf` (extensão conhecida que não é PDF; não entra em `tipoNaoInformado`), `tipoNaoInformado` (tipo `DESCONHECIDO`), `sigilosos` e `convertiveis` (S3: planilhas, textos e imagens convertíveis para PDF que o perfil pode selecionar, isto é, sem bloqueio; sempre 0 com a conversão desligada).
   - `tipoArquivo` vem da extensão; o tipo real (conteúdo) só é conhecido ao obter o arquivo e é conferido ao gerar o dossiê.
   - Os selecionados não são um total da API: a tela conta os itens marcados; ao abrir, são os de `bloqueio` `null` (`total − indisponiveis − naoPdf − sigilosos bloqueados para o perfil`, sem contar duas vezes quem tem mais de um motivo; vale o `bloqueio` de cada item). Por isso "145 documentos · 71 vigentes" podia vir com "144 selecionados": os sem efeito também são selecionáveis, e "vigentes" nunca foi o total selecionável.
 - **A chave do arquivo nunca é retornada** (RNF09); testado percorrendo as respostas.
+
+### Geometrias (S4)
+
+`GET /requerimentos/{id}/geometrias/arquivo` devolve **um ZIP** (`application/zip`, `attachment`, em streaming do disco) com todas as geometrias **vigentes** do requerimento que o usuário acessa. Substituídas e indisponíveis aparecem na lista, mas não vão para o ZIP.
+
+- **Acesso** como na lista: requerimento inexistente, 404; Operador de outro interessado, 403 `NAO_INTERESSADO` (nada é lido); geometria sigilosa nunca vai para o Operador.
+- **Sem geometria para baixar:** 404 `NAO_ENCONTRADO`, "Este requerimento não tem geometrias." Para o Operador, o texto é o mesmo quando só havia sigilosas (nada revela a diferença).
+- **Obtenção:** mesmo cliente da API de arquivos do dossiê (tempos, novas tentativas, token por arquivo, docs/05), um arquivo por vez, para uma pasta temporária própria em `VISTAS_DOSSIE_DIRETORIO/geometrias`, com a checagem de `DOSSIE_ESPACO_MINIMO_MB` antes de cada um. As falhas são **coletadas** (todos os arquivos são tentados).
+- **Tudo ou nada:** se algum arquivo falhar, nenhum ZIP é entregue: `GEOMETRIAS_INCOMPLETAS`, **502** (ou **504** quando todas as falhas são de tempo limite), com `arquivos: [{ "nome": "area-2.kml", "motivo": "arquivo não encontrado no repositório" }]` (nome que o arquivo teria no ZIP; motivo exibível; nunca a chave, a URL ou o token). Credencial recusada: 502 `CREDENCIAL_ARQUIVOS_RECUSADA`, sem ZIP.
+- **Limites:** soma dos arquivos acima de `GEOMETRIAS_MAX_MB` (500) ou mais de `GEOMETRIAS_MAX_ARQUIVOS` (200) arquivos: 413 `GEOMETRIAS_GRANDES_DEMAIS` (o limite de arquivos é conferido antes de baixar; o de tamanho, a cada arquivo obtido).
+- **Nomes dentro do ZIP:** o nome do arquivo de origem, quando possível; sem caminho (só o último segmento), sem caracteres de controle ou de formatação (inclusive a inversão de direção U+202E), sem `< > : " | ? *` (viram `_`), sem `..`, até 120 caracteres com a extensão preservada (em minúsculas); vazio vira `geometria.<ext>`. **Únicos** sem diferenciar maiúsculas: na colisão, `area-2.kml`, `area-3.kml`... A data de cada entrada é a data do documento.
+- **Cabeçalhos:** `Content-Disposition: attachment` com `geometrias-processo-<numero>-<ano>.zip` ou `geometrias-requerimento-<numero>-<ano>.zip` (mesma regra do RF18), `Content-Length`, `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`.
+- **Temporários:** cada original sai do disco assim que entra no ZIP; a pasta do download é apagada quando a resposta termina, é interrompida ou falha. Uma limpeza agendada apaga, na subida, todas as pastas que sobraram e, a cada `limpeza-orfaos`, as com mais de 6 h.
+- O dossiê continua **sem** geometrias: `POST /dossies` com o id de uma geometria responde 400 (o documento não pertence à lista do dossiê).
 
 ### Conteúdo para o modal (S3)
 
@@ -185,6 +219,7 @@ Resposta de `GET /requerimentos/{id}/documentos`:
 
 | Método | Rota | Descrição |
 |---|---|---|
+| `GET` | `/dossies?somenteMeus=&pagina=&tamanho=` | **S4.** "Dossiês gerados": os pedidos do histórico em memória que o usuário acessa (`PageResponse`). Detalhes em "Dossiês gerados", abaixo. |
 | `POST` | `/dossies` | Cria um pedido de geração. Retorna `202` com `{ "id": "..." }` (UUID aleatório). |
 | `GET` | `/dossies/{id}` | Andamento do pedido. |
 | `GET` | `/dossies/{id}/arquivo?disposicao=inline|attachment` | PDF final (capa com "N documentos incluídos de M listados" e, logo após o sumário, a seção "Documentos não incluídos" com o motivo de cada um; S2.2, docs/06).\|attachment` | PDF final. `inline` para pré-visualização (o arquivo continua), `attachment` para download (**o arquivo é apagado ao fim do download**, RNF05). `Content-Disposition` com o nome do RF18: `dossie-processo-<numero>-<ano>.pdf` (protocolado) ou `dossie-requerimento-<numero>-<ano>.pdf`. |
@@ -267,6 +302,75 @@ Falha na montagem (rara: os documentos já foram validados) também deixa o pedi
 
 Para continuar, o cliente usa `POST /dossies/{id}/continuacao` (acima), **não** um novo `POST /dossies`: com credencial nova (token por arquivo, docs/05), `TENTAR_NOVAMENTE` obtém só o que falta. **Auditoria** é da S5: nenhum evento é registrado na S2.
 
+### Dossiês gerados (S4)
+
+`GET /dossies` devolve `PageResponse<DossieGerado>` (`conteudo`, `pagina`, `tamanho`, `totalElementos`, `totalPaginas`), **mais recente primeiro** (`criadoEm` decrescente). `pagina` começa em 0; `tamanho` padrão 20, máximo 50 (fora disso, 400 `PARAMETRO_INVALIDO`).
+
+- **Quem vê o quê** (política de acesso, D60): o **Operador** vê só os pedidos que ele criou, e só enquanto continuar sendo o interessado gravado no pedido; `somenteMeus` não muda nada para ele. **Gestor e Administrador** veem **todos**; com `somenteMeus=true`, só os seus.
+- **Item:**
+
+```json
+{
+  "id": "8b0e…",
+  "idRequerimento": 101,
+  "identificacao": { "rotulo": "Processo", "numero": "2825/2025" },
+  "situacao": "CONCLUIDO",
+  "criadoEm": "2026-10-28T10:00:00",
+  "expiraEm": "2026-10-28T10:31:00",
+  "documentos": 12,
+  "falhas": 0,
+  "listados": 15,
+  "tamanhoBytes": 4823311,
+  "entregaPorTicket": false,
+  "temArquivo": true,
+  "arquivoGerado": true,
+  "geradoPor": "Gestor Demo"
+}
+```
+
+  - `situacao`: as do andamento (`AGUARDANDO`, que é "na fila", `OBTENDO`, `PENDENTE_DECISAO`, `MONTANDO`, `CONCLUIDO`, `CANCELADO`, `EXPIRADO`) mais **`BAIXADO`** (o PDF foi entregue por inteiro e apagado, RNF05; no andamento continua `EXPIRADO`). Não existe "falhou" terminal: falha deixa o pedido em `PENDENTE_DECISAO` (D48).
+  - `documentos`: do pedido, sem os removidos na decisão; `falhas`: em falha agora; `listados`: o total que o usuário viu ao gerar (o "M" da capa).
+  - `temArquivo`: há PDF para baixar (só `CONCLUIDO`); `tamanhoBytes` e `entregaPorTicket` (D49) só então, `null`/`false` nos demais. `arquivoGerado`: o PDF chegou a ser montado; `EXPIRADO` com `arquivoGerado` falso é "Expirado · nenhum arquivo gerado" (expirou à espera de decisão).
+  - `geradoPor`: nome de quem gerou, **só para Gestor e Administrador**; para o Operador o campo **não existe** na resposta.
+  - **Nenhum dado de documento** (título, nome de arquivo, chave).
+- **Histórico em memória (D09):** some num reinício do serviço. Pedido encerrado (`EXPIRADO`, `BAIXADO`, `CANCELADO`) continua na lista, sem arquivo, até `DOSSIE_HISTORICO_HORAS` (24) depois do vencimento (`expiraEm`); depois sai da lista e a limpeza agendada o esquece. O registro permanente é a auditoria (S5).
+- **Ações:** pelos endpoints de sempre (`/dossies/{id}`, `/arquivo`, `/arquivo/ticket`, `/continuacao`, `DELETE`), com as mesmas regras; não há endpoint novo de arquivo. Pedido de outro usuário por id continua 404 para o Operador.
+
+## Matriz de acesso por endpoint
+
+**S4, bloco 1 (RNF10).** Inventário de **todos** os mapeamentos dos controllers, com quem pode chamar e qual regra se aplica. Todas as decisões de perfil, de vínculo com o interessado (RN07), de sigilo (RF20) e de dono do pedido saem de **um lugar**: `acesso.application.PoliticaDeAcesso` (D60). Os casos de uso só perguntam à política; os controllers não decidem acesso (`ArchitectureTest`). Os `errorCode` não mudaram.
+
+Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **Ad** = Administrador (`ADMIN`). "RN07" = Operador só como interessado: requerimento de outro interessado dá 403 `NAO_INTERESSADO`, requerimento inexistente dá 404 `NAO_ENCONTRADO`. "Sigilo" = documento sigiloso para quem não o acessa dá 403 `DOCUMENTO_SIGILOSO` (na lista, aparece mascarado). "Dono" = pedido de dossiê de outro usuário dá **404** para quem não o acessa (não revela que existe).
+
+| Método e rota | Autenticação | Op | Ge | Ad | RN07 | Sigilo | Dono do pedido | Onde a política decide |
+|---|---|:---:|:---:|:---:|---|---|---|---|
+| `POST /auth/login` | pública | ✓ | ✓ | ✓ | — | — | — | — |
+| `GET /auth/me` | sessão | ✓ | ✓ | ✓ | — | — | — | só o próprio usuário |
+| `POST /auth/logout` | sessão | ✓ | ✓ | ✓ | — | — | — | só a própria sessão |
+| `GET /busca` (por número de requerimento) | sessão | ✓ | ✓ | ✓ | 403/404 | — | — | `exigirAcessoAoRequerimento` |
+| `GET /busca` (por número de processo, 1:N) | sessão | ✓ | ✓ | ✓ | filtro na consulta; nenhum dele e o número existe: 403; não existe: 404 | — | — | `restricaoDoUsuarioAtual` |
+| `GET /busca` (por CPF/CNPJ e/ou nome) | sessão | ✓ | ✓ | ✓ | filtro na consulta (total e paginação já filtrados); Operador sem CPF/CNPJ: página vazia | — | — | `restricaoDoUsuarioAtual` |
+| `GET /requerimentos/{id}` | sessão | ✓ | ✓ | ✓ | 403/404 | — | — | `exigirAcessoAoRequerimento`; responsável pela tarefa só para Ge e Ad (`podeVerResponsavelTarefa`, RN12) |
+| `GET /requerimentos/{id}/documentos` | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler os documentos e de chamar o SCORP) | listados para todos; para o Op, mascarados e bloqueados; geometria sigilosa não aparece para o Op (só `totais.geometriasOmitidas`) | — | `exigirAcessoAoRequerimento`, `podeAcessarDocumento`, `mascararTitulo` |
+| `GET /documentos/{origem}/{id}/conteudo?requerimento=` | sessão | ✓ | ✓ | ✓ | 403/404 do requerimento; origem e id fora do requerimento: 404 | 403 | — | `exigirAcessoAoRequerimento`, `exigirAcessoAoDocumento` (a cada requisição, mesmo com cache) |
+| `GET /requerimentos/{id}/geometrias/arquivo` (S4) | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler os documentos) | sigilosa fica fora do ZIP do Op; só sigilosas: o mesmo 404 de "sem geometrias" | — | `exigirAcessoAoRequerimento`, `podeAcessarDocumento` |
+| `GET /dossies` (S4) | sessão | só os seus | todos (ou os seus com `somenteMeus`) | idem | o Op não vê o pedido se deixar de ser o interessado gravado nele | — | lista só o que `podeAcessarPedido` permite; `geradoPor` só com `podeVerPedidosDeOutros` | `podeAcessarPedido`, `podeVerPedidosDeOutros` |
+| `POST /dossies` | sessão | ✓ | ✓ | ✓ | 403/404 | 403 se a seleção tiver sigiloso; documento fora do requerimento: 400 `PARAMETRO_INVALIDO` (é corpo da requisição) | o pedido nasce com o login de quem criou | `exigirAcessoAoRequerimento`, `exigirAcessoAoDocumento`; "Documentos não incluídos" com `mascararTitulo` |
+| `GET /dossies/{id}` | sessão | só os seus | todos | todos | o Op perde o pedido se deixar de ser o interessado gravado nele | — | 404 | `podeAcessarPedido` |
+| `GET /dossies/{id}/arquivo` (com sessão) | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` |
+| `POST /dossies/{id}/arquivo/ticket` | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` (o ticket fica preso ao pedido e ao usuário) |
+| `GET /dossies/{id}/arquivo?ticket=` | **ticket** de uso único (sem sessão) | quem recebeu o ticket | idem | idem | conferido ao emitir | — | conferido ao emitir | ticket inválido, usado, vencido, de outro pedido ou com sessão de outro usuário: 403 `TICKET_INVALIDO` |
+| `POST /dossies/{id}/continuacao` | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` |
+| `DELETE /dossies/{id}` | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` |
+
+Fora de `/api`: `GET /actuator/health` (pública, só a situação) e a documentação OpenAPI (`/v3/api-docs`, `/swagger-ui`), desligada por padrão (`OPENAPI_ENABLED=false`) e ligada só no perfil `local`. Toda rota de `/api/**` sem o token responde 401 `NAO_AUTENTICADO`, exceto o login e o download por ticket.
+
+**Prova (bloco 9):** `MatrizDeAcessoTest` exercita esta tabela por MockMvc (mais de 150 cenários: perfil × interessado ou não × sigiloso ou não × dono do pedido ou não) e compara três listas: os mapeamentos de `/api` do Spring, a primeira coluna desta tabela (lida deste arquivo) e os endpoints com cenário no teste. Endpoint novo sem linha aqui ou sem cenário lá quebra o teste. Todas as respostas são varridas atrás de vazamento (veja docs/12).
+
+As rotas de **Auditoria** e **Configurações** abaixo ainda **não existem** no código (S5). Quando forem criadas, entram nesta matriz e no `MatrizDeAcessoTest` (bloco 9 da S4), que falha para endpoint sem linha.
+
+**Achados do inventário (bloco 1):** nenhuma rota sem verificação. Dois reforços, registrados em D60: (1) pedido de **outro usuário** passa a exigir explicitamente perfil que acessa qualquer requerimento **e** qualquer sigiloso (antes bastava "não ser restrito ao interessado", o que hoje dá no mesmo, mas não valeria para um perfil futuro restrito ou sem sigilo); (2) o **dono** Operador só acessa o pedido enquanto o interessado gravado no pedido continuar sendo o dele (antes bastava o login).
+
 ## Auditoria
 
 `{tipo}` é `documentos` (perfil `OPERADOR_SIGILO`) ou `acessos` (perfil `ADMIN`). Pedido de um tipo por perfil não autorizado retorna 403.
@@ -327,6 +431,8 @@ Todo erro segue `ProblemDetail` com `errorCode` estável e `correlationId` (head
 | 422 | `DOCUMENTO_CORROMPIDO` | Conteúdo do modal: arquivo corrompido ou ilegível pelo conversor (S3) |
 | 422 | `CONVERSAO_RECUSADA` | Conteúdo do modal: conversão acima dos limites (páginas, tamanho, megapixels) ou planilha vazia (S3) |
 | 429 | `MUITAS_CONVERSOES` | Fila de conversões do modal cheia (S3) |
+| 413 | `GEOMETRIAS_GRANDES_DEMAIS` | Geometrias acima de `GEOMETRIAS_MAX_MB` ou de `GEOMETRIAS_MAX_ARQUIVOS` (S4) |
+| 502/504 | `GEOMETRIAS_INCOMPLETAS` | Algum arquivo das geometrias falhou: nenhum ZIP; `arquivos` lista nome e motivo (504 quando todas por tempo limite; S4) |
 | 403 | `TICKET_INVALIDO` | Ticket de download inexistente, já usado, vencido, de outro pedido ou de outro usuário (D49) |
 | 502 | `CREDENCIAL_ARQUIVOS_RECUSADA` | API de arquivos recusou a credencial (na geração assíncrona vira `erro.codigo` do pedido) |
 | 502 | `REPOSITORIO_DE_ARQUIVOS_INDISPONIVEL` | Conteúdo do modal: API de arquivos fora do ar, não configurada ou com resposta inesperada (S3) |

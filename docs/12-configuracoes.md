@@ -15,6 +15,22 @@ Tela acessível apenas ao perfil Administrador. Toda alteração gera evento na 
 
 "Só como interessado": processos e requerimentos em que o CPF/CNPJ do usuário é o do interessado (RN07). O Administrador tem acesso irrestrito.
 
+**Regras aplicadas no back-end (S4, RNF10)**, todas decididas pela `PoliticaDeAcesso` (D60):
+
+| Regra | Operador | Gestor | Administrador | Resposta quando nega |
+|---|:---:|:---:|:---:|---|
+| Requerimento ou processo de outro interessado | — | ✓ | ✓ | 403 `NAO_INTERESSADO` (inexistente: 404 `NAO_ENCONTRADO`) |
+| Documento sigiloso: ver título, abrir no modal, incluir no dossiê | — | ✓ | ✓ | 403 `DOCUMENTO_SIGILOSO`; na lista, "Documento sigiloso" sem nome de arquivo nem extensão |
+| Nome do responsável pela tarefa atual (RN12) | — | ✓ | ✓ | campo omitido |
+| Pedido de dossiê criado pelo próprio usuário | ✓ (enquanto for o interessado gravado no pedido) | ✓ | ✓ | 404 `NAO_ENCONTRADO` |
+| Pedido de dossiê de outro usuário | — | ✓ | ✓ | 404 `NAO_ENCONTRADO` (não revela que existe) |
+| Ver pedidos de outros usuários e "quem gerou" em "Dossiês gerados" | — | ✓ | ✓ | só os próprios; o campo `geradoPor` não existe |
+| Geometria sigilosa (lista e ZIP) | — | ✓ | ✓ | omitida, só a contagem `geometriasOmitidas` |
+
+A matriz completa, endpoint por endpoint, está em [07 — API](07-api.md#matriz-de-acesso-por-endpoint).
+
+**Testado (S4, bloco 9):** `MatrizDeAcessoTest` prova a matriz por MockMvc em todos os endpoints e varre o corpo e os cabeçalhos de todas as respostas: nunca aparecem chave de arquivo, token da API de arquivos ou do SCORP, URL do SCORP, identificador da pessoa no SCORP nem o caminho do diretório temporário; para o Operador, também nunca aparecem título ou nome de arquivo de documento sigiloso (inclusive o pessoal e a geometria), documento ou nome de outro interessado, nem o responsável pela tarefa (RN12). O texto do PDF do Operador é extraído e conferido (sumário e "Documentos não incluídos" mascarados). O `instance`/`path` do `ProblemDetail` ecoa a URL que o próprio cliente pediu e não conta como vazamento.
+
 Códigos: `OPERADOR`, `OPERADOR_SIGILO`, `ADMIN`. Na versão definitiva, a identidade vem da autenticação institucional; o perfil é atribuído nesta tela. Itens de menu sem permissão não são exibidos (RN08).
 
 ## Abas
@@ -39,7 +55,7 @@ Códigos: `OPERADOR`, `OPERADOR_SIGILO`, `ADMIN`. Na versão definitiva, a ident
 
 Origem desligada some da lista de documentos e não entra no dossiê. A regra de ordem cronológica é fixa (RN03) e só é exibida.
 
-**No protótipo (S2)** os parâmetros vêm de variáveis de ambiente, atrás da porta `ParametrosDoDossie` (a S5 troca a implementação pela tela): `DOSSIE_TTL_MINUTOS` (30), `DOSSIE_THREADS` (2), `DOSSIE_SUMARIO`, `DOSSIE_MARCADORES` e `DOSSIE_NUMERACAO` (ligados), `DOWNLOAD_TIMEOUT_SEGUNDOS` (inatividade da leitura; 120 desde a S2.2, antes 60), `DOWNLOAD_TOTAL_MAXIMO_SEGUNDOS` (teto total por documento, com as novas tentativas; 900), `DOSSIE_ESPACO_MINIMO_MB` (espaço livre mínimo antes de cada download; 2048), `DOSSIE_BLOB_MAX_MB` (acima disto o PDF final é baixado direto pelo navegador, com ticket de uso único e sem pré-visualização; 150; D49) e `VISTAS_DOSSIE_DIRETORIO`. Detalhes de tempo e novas tentativas em docs/05.
+**No protótipo (S2)** os parâmetros vêm de variáveis de ambiente, atrás da porta `ParametrosDoDossie` (a S5 troca a implementação pela tela): `DOSSIE_TTL_MINUTOS` (30), `DOSSIE_THREADS` (2), `DOSSIE_SUMARIO`, `DOSSIE_MARCADORES` e `DOSSIE_NUMERACAO` (ligados), `DOWNLOAD_TIMEOUT_SEGUNDOS` (inatividade da leitura; 120 desde a S2.2, antes 60), `DOWNLOAD_TOTAL_MAXIMO_SEGUNDOS` (teto total por documento, com as novas tentativas; 900), `DOSSIE_ESPACO_MINIMO_MB` (espaço livre mínimo antes de cada download; 2048), `DOSSIE_BLOB_MAX_MB` (acima disto o PDF final é baixado direto pelo navegador, com ticket de uso único e sem pré-visualização; 150; D49), `DOSSIE_HISTORICO_HORAS` (S4: horas que um pedido expirado, baixado ou cancelado continua em "Dossiês gerados" depois do vencimento, sem arquivo; 24; em memória, some num reinício) e `VISTAS_DOSSIE_DIRETORIO`. Detalhes de tempo e novas tentativas em docs/05.
 
 **Dimensionamento do volume `dossies-tmp` (S2.2).** Cada pedido guarda no volume os documentos obtidos e, ao final, o PDF montado (os documentos são apagados depois da montagem). Regra prática por pedido: **soma dos documentos + o PDF final** (o final é quase a soma, então ≈ 2 × a soma). Some os pedidos que podem estar em andamento ao mesmo tempo (`DOSSIE_THREADS`) e os concluídos que ainda não expiraram (`DOSSIE_TTL_MINUTOS`), e acrescente `DOSSIE_ESPACO_MINIMO_MB` de folga. Exemplo: arquivos de ~50 MB, dossiê de 40 documentos ≈ 2 GB de documentos + 2 GB de PDF final ≈ 4 GB por pedido; com 2 threads, ≈ 8 GB + 2 GB de folga = **10 GB**. No Compose local o volume usa o disco do Docker, sem cota; em homologação/produção o tamanho do volume é **NÃO CONFIRMADO** (depende da infraestrutura, docs/13). A medição real é a da homologação (docs/casos-de-teste.md).
 
@@ -51,7 +67,7 @@ Origem desligada some da lista de documentos e não entra no dossiê. A regra de
 |---|---|
 | Conversão habilitada | ligada (chave de segurança; desligada, só PDF entra, como na S2.2) |
 | Planilhas | Ajustar à largura (alternativa: uma página por aba) |
-| Geometrias (SHP, KML, KMZ) | Fora do dossiê, download à parte |
+| Geometrias (SHP, KML, KMZ) | Fora do dossiê, download à parte em ZIP (tudo ou nada) |
 | Compactados (ZIP, RAR, 7Z) | Desconsiderados |
 | Orientação automática | ligado |
 | Incluir abas ocultas | desligado |
@@ -75,6 +91,10 @@ Variáveis de ambiente do protótipo (todas opcionais; `.env.local.example`): `C
 | Teto de espaço do cache (acima, saem os mais antigos) | 500 MB |
 | Conversões do modal em paralelo | 2 |
 | Conversões do modal à espera (fila cheia: 429) | 4 |
+
+**SCORP (S4):** `SCORP_API_URL` (vazia = desligado), `SCORP_API_TOKEN_FILE`, `SCORP_API_AUTH_MODE` e `SCORP_API_COOKIE_NAME` (opcionais; sem elas, valem as da API de arquivos), `SCORP_TIMEOUT_SEGUNDOS` (15), `SCORP_CHAMADAS_SIMULTANEAS` (4) e `SCORP_SIGILO_PADRAO` (`false`; `true` trata todos os documentos pessoais como sigilosos; decisão pendente, P30). A origem também pode ser desligada por `vistas.documentos.origens.scorp=false`. Detalhes em docs/05.
+
+**Geometrias (S4):** `GEOMETRIAS_MAX_MB` (500; soma dos arquivos de um ZIP) e `GEOMETRIAS_MAX_ARQUIVOS` (200); acima, 413 `GEOMETRIAS_GRANDES_DEMAIS`. Usam `DOSSIE_ESPACO_MINIMO_MB`, os tempos de download do dossiê e a pasta `VISTAS_DOSSIE_DIRETORIO/geometrias` (cada download apaga a sua; o pico de espaço é perto de uma vez a soma dos arquivos).
 
 Variáveis de ambiente do protótipo: `VISUALIZACAO_TTL_MINUTOS` (10), `VISUALIZACAO_CACHE_MAX_MB` (500), `VISUALIZACAO_CONVERSOES_SIMULTANEAS` (2) e `VISUALIZACAO_FILA_CONVERSOES` (4). O cache fica em `VISTAS_DOSSIE_DIRETORIO/visualizacao`. A conversão usa os parâmetros de Conversão acima, os mesmos do dossiê; as conversões do modal disputam as mesmas instâncias do LibreOffice que a geração (S3, bloco 6).
 

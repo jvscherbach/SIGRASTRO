@@ -8,7 +8,7 @@ Somente leitura. Schemas: `SIGA2_LICENCIAMENTO` (negócio), `SIGA2_CAMUNDA` (mot
 |---|---|---|
 | `REQUERIMENTO` | Requerimento | `ID`, `NUMERO` (`N/AAAA`), `NUMERO_PROCESSO`, `DATA_ABERTURA`, `DATA_PROTOCOLO_PROCESSO`, `DATA_ALTERACAO`, `SITUACAO_PROCESSO`, `ID_PESSOA`, `ID_TIPO_PROCESSO`, `ID_TIPO_REQUERIMENTO`, `ID_PROCESSO`, `PESO_PRIORIDADE` |
 | `PROCESSO` | Histórico do que foi protocolado (o SIGA Vistas **não lê**; ver [P01](#número-de-processo-requerimentonumero_processo)) | `ID`, `NUMERO`, `NUMERO_PROTOCOLO`, `DATA_ABERTURA` |
-| `PESSOA` | Interessado (e nome de reserva do responsável pela tarefa) | `ID`, `ID_CORPORATIVO` (chave no SCORP), `NOME`, `CPF_CNPJ` (só dígitos, 11 ou 14) |
+| `PESSOA` | Interessado, representantes legais e responsáveis técnicos (S4, SCORP) e nome de reserva do responsável pela tarefa | `ID`, `ID_CORPORATIVO` (chave no SCORP), `NOME`, `CPF_CNPJ` (só dígitos, 11 ou 14) |
 | `TIPO_PROCESSO` | Tipo de processo | `DESCRICAO` |
 | `TIPO_REQUERIMENTO` | Tipo do requerimento | `ID`, `DESCRICAO` |
 | `HISTORICO_REQUERIMENTO` | Eventos do requerimento | `ID_REQUERIMENTO`, `DATA_CADASTRO`, `EVENTO` |
@@ -40,12 +40,24 @@ A situação é calculada pelo domínio (RN01). A chave única do documento é *
 | `IMOVEL` | `imovel` | `IMOVEL.ID_REQUERIMENTO` (**a confirmar no dicionário**) → `DOCUMENTO_IMOVEL.ID_IMOVEL` (todos os imóveis) | `CHAVE` | `TITULO` / `NOME_ARQUIVO` | `DATA_INICIO` | `DATA_FIM` | `SIGILOSO` |
 | `REPRESENTANTE_LEGAL` | `representante-legal` | `REQUERIMENTO_REPRESENTANTE_LEGAL.ID_REQUERIMENTO` → `REQ_REP_LEGAL_DOCUMENTO.ID_REQUERIMENTO_REP_LEGAL` | `CHAVE` | `NOME_ARQUIVO` nos dois | `DATA_INICIO` | `DATA_FIM` | `SIGILO` |
 | `RESPONSAVEL_TECNICO` | `responsavel-tecnico` | `REQUERIMENTO_RESPONSAVEL_TECNICO.ID_REQUERIMENTO` → `REQ_RESP_TECNICO_DOCUMENTO.ID_REQUERIMENTO_RESP_TECNICO` (não filtra `HABILITADO`, como a Vista) | `CHAVE` | `NOME_ARQUIVO` nos dois | `DATA_INICIO` | `DATA_FIM` | `SIGILO` |
-| `SCORP` | S4 (desligado) | API do SCORP (documentos pessoais) | `chave` | — | `dataInicio` | `dataFim` | — |
+| `SCORP` | `pessoas-do-requerimento` (pessoas) + API | Pessoas do requerimento (abaixo) → API do SCORP por `ID_CORPORATIVO` (docs/05) | `chave` | `descricao` / `nomeArquivo` | `dataInicio` | `dataFim` | não informado: `SCORP_SIGILO_PADRAO` (P30) |
 | `DAR` | desativada | Arrecadação | **NÃO CONFIRMADO** | — | — | — | — |
 
 Colunas auxiliares usadas: `DOCUMENTO_PROCESSO.GRUPO_DOCUMENTO` (tipo), `DOCUMENTO_REQUERIMENTO.TIPO`, `REQ_REP_LEGAL_DOCUMENTO.TIPO`, `REQ_RESP_TECNICO_DOCUMENTO.TIPO` e, na complementação, `RESPOSTA` ou `ITEM` pela presença de `ID_COMP_ITEM_RESPOSTA`. Todas as colunas acima foram confirmadas no banco, **exceto `IMOVEL.ID_REQUERIMENTO`**, que a Vista usa mas ainda não foi conferida no dicionário (passo do [roteiro da S2](homologacao/S2-roteiro-homologacao.md)). `SIGILOSO` e `SIGILO` são `NUMBER(1)` com valores só 0 e 1, conferido no SIGA em 22/10/2026 (P05 resolvida)).
 
 **Escopo:** só o requerimento (D31); nada por `ID_PROCESSO`. O PDF do parecer, os títulos e o arquivo da juntada já entram via `DOCUMENTO_PROCESSO` (grupos `PARECER_TECNICO`, `EMISSAO_*`, `JUNTADA_DE_PROCESSO`).
+
+### Pessoas do requerimento para o SCORP (S4)
+
+`resources/sql/siga/documentos/pessoas-do-requerimento.sql`, parâmetro `:idRequerimento`, só `SELECT`. Devolve `PAPEL` (`INTERESSADO`, `REPRESENTANTE_LEGAL`, `RESPONSAVEL_TECNICO`) e `ID_CORPORATIVO`, distintos por papel (`UNION`), sem `ID_CORPORATIVO` nulo. A mesma pessoa em vários papéis vem em várias linhas; o domínio faz **uma** chamada ao SCORP por pessoa e usa o papel de maior precedência (interessado, representante, técnico).
+
+| Papel | Junção a partir do requerimento |
+|---|---|
+| `INTERESSADO` | `REQUERIMENTO.ID_PESSOA` → `PESSOA.ID` |
+| `REPRESENTANTE_LEGAL` | `REQUERIMENTO_REPRESENTANTE_LEGAL.ID_REQUERIMENTO`, `.ID_PESSOA` → `PESSOA.ID` |
+| `RESPONSAVEL_TECNICO` | `REQUERIMENTO_RESPONSAVEL_TECNICO.ID_REQUERIMENTO`, `.ID_PESSOA` → `PESSOA.ID` (não filtra `HABILITADO`, como a origem `RESPONSAVEL_TECNICO`) |
+
+**Colunas conferidas no banco pelo responsável (P31, `ALL_TAB_COLUMNS` e `ALL_CONSTRAINTS`):** `REQUERIMENTO_REPRESENTANTE_LEGAL` tem `ID`, `DATA_VINCULO` (`TIMESTAMP(6)`), `ID_PESSOA` e `ID_REQUERIMENTO` (`NUMBER`, todas `NOT NULL`); `REQUERIMENTO_RESPONSAVEL_TECNICO` tem `ID`, `CADASTRO_TEC_FEDERAL` (`VARCHAR2`, nulo), `CONSELHO`, `DATA_VINCULO`, `HABILITADO` (`NUMBER`), `REGISTRO_CONSELHO`, `ID_PESSOA` e `ID_REQUERIMENTO` (`NOT NULL`). Nas duas, `ID_PESSOA` tem chave estrangeira para `PESSOA` e `ID_REQUERIMENTO` para `REQUERIMENTO`. O tipo de `PESSOA.ID_CORPORATIVO` não foi conferido: é lido como texto. **Nenhum grant novo:** as quatro tabelas já estão na lista do usuário de leitura. O resultado esperado no banco real está no roteiro de homologação da S4.
 
 ### Origens não listadas pela Vista (avaliar após a homologação)
 
@@ -72,7 +84,7 @@ Removidas na S2.1 (SQL, mapeamento, propriedades, testes e grants). Só voltam c
 - *Sigilo (RN06):* as seis colunas são `NUMBER` (0/1); normalização tolerante e "na dúvida, sigiloso": número diferente de 0 e `S`, `SIM`, `Y`, `YES`, `T`, `TRUE`, `1` são sigilosos; nulo, 0 e `N`, `NAO`, `NÃO`, `NO`, `F`, `FALSE`, `0` não são; qualquer outro valor não nulo é sigiloso (R18). **Divergência consciente da Vista:** em representante legal e responsável técnico o SIGA Vistas usa a coluna real `SIGILO`, **mesmo que a Vista do SIGA a ignore e mostre sempre "Não"**; a nossa regra é mais restritiva, de propósito (D43, `docs/09`).
 - *Deduplicação (RN05):* mesma chave válida (diferente de `"0"`) em mais de uma origem aparece uma vez; vence a primeira origem na ordem da tabela acima. **Divergência da Vista**, que não deduplica: aqui a deduplicação evita repetir páginas no dossiê. Os documentos de representante legal e responsável técnico não duplicam por construção do SQL (uma linha por documento).
 - *Ordem (RN03):* data crescente; sem data ao final; empate por origem (ordem da tabela) e id (numérico).
-- *Tipo de arquivo pela extensão:* PDF; PLANILHA (xls, xlsx, ods); TEXTO (doc, docx, odt, rtf, html, txt); IMAGEM (png, jpg, jpeg); GEOMETRIA (shp, kml, kmz); COMPACTADO (zip, rar, 7z). **Sem extensão ou extensão não reconhecida: `DESCONHECIDO`** (o antigo `OUTRO` deixou de existir). **Compactados nunca aparecem (RN11); geometrias ficam classificadas mas fora da lista até a S4 (RN10).**
+- *Tipo de arquivo pela extensão:* PDF; PLANILHA (xls, xlsx, ods); TEXTO (doc, docx, odt, rtf, html, txt); IMAGEM (png, jpg, jpeg); GEOMETRIA (shp, kml, kmz); COMPACTADO (zip, rar, 7z). **Sem extensão ou extensão não reconhecida: `DESCONHECIDO`** (o antigo `OUTRO` deixou de existir). **Compactados nunca aparecem (RN11); geometrias saem da lista de documentos e vêm à parte, em `geometrias`, com download em ZIP (RN10, S4).**
 - *Bloqueio:* `INDISPONIVEL` > `SIGILOSO` (sem perfil) > `NAO_PDF`. `DESCONHECIDO` **não** recebe `NAO_PDF`: é selecionável (se vigente, chave válida e acessível pelo perfil).
 - *Seleção inicial:* a Vista não pré-seleciona nada; desde a S2.2 o SIGA Vistas seleciona **todo documento selecionável** (sem bloqueio: vigente ou sem efeito, inclusive `DESCONHECIDO`), RN13 e D47.
 - *Tipo desconhecido ao baixar:* o validador do dossiê confere a assinatura `%PDF-`. Se for PDF, segue normal; se não, falha **do documento** com "o arquivo não é um PDF (tipo detectado: X)" e vale a RN09. Desde a S3, com a conversão ligada, o tipo real (planilha, texto, HTML, imagem) é convertido para PDF em vez de falhar; só o compactado e o tipo irreconhecível continuam falhando (docs/06). O mesmo vale para documento marcado como PDF cujo conteúdo não é PDF. O tipo detectado vem dos primeiros bytes; o `Content-Type` do repositório não chega à porta de arquivos e não é usado (não é confiável, RNF09).

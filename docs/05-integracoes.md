@@ -69,17 +69,25 @@ Montagem local: a pasta `./.secrets/` (no `.gitignore`) é montada somente leitu
 
 ## SCORP — documentos pessoais (`integration.scorp`)
 
+Implementado na S4 (bloco 5) e testado só com um servidor HTTP local; **nada foi chamado no SCORP real**. O que segue NÃO CONFIRMADO é conferido no roteiro de homologação da S4 (`ScorpFumacaTest`).
+
 | Item | Valor |
 |---|---|
-| Endpoint usado pelo SIGA | `.../documentos/pessoa-licenciamento/{idCorporativo}` |
-| Base | **NÃO CONFIRMADO** (`SCORP_API_URL`) |
-| Autenticação | **NÃO CONFIRMADO**. Testar com o mesmo token da API do Licenciamento. |
-| Retorno | Lista com `chave`, `nomeArquivo`, `descricao`, `dataInicio`, `dataFim` |
-| Pessoas consultadas | Interessado, representantes legais e responsáveis técnicos do requerimento (`PESSOA.ID_CORPORATIVO`) |
+| Endpoint | `GET {SCORP_API_URL}/documentos/pessoa-licenciamento/{idCorporativo}` (o mesmo que o SIGA usa; o identificador vai codificado num só segmento) |
+| Base | **NÃO CONFIRMADO** (`SCORP_API_URL`; vazia = desligado, sem chamada e sem aviso) |
+| Autenticação | **NÃO CONFIRMADO (P06).** Mesmo esquema da API de arquivos: `bearer` ou `cookie`. Variáveis próprias opcionais `SCORP_API_TOKEN_FILE`, `SCORP_API_AUTH_MODE` e `SCORP_API_COOKIE_NAME`; sem elas, valem `LICENCIAMENTO_API_TOKEN_FILE` (ou `LICENCIAMENTO_API_TOKEN`), `LICENCIAMENTO_API_AUTH_MODE` e `LICENCIAMENTO_API_COOKIE_NAME`. O arquivo do token é relido a cada chamada; ausente ou vazio, a chamada falha sem ir ao SCORP |
+| Retorno | Lista JSON de objetos com `chave`, `nomeArquivo`, `descricao`, `dataInicio`, `dataFim` (campos desconhecidos são ignorados). Qualquer outra coisa (objeto, HTML, item que não é objeto, mais de 5 MB) é "resposta inválida". **Formato das datas NÃO CONFIRMADO:** aceita ISO (com ou sem hora e fuso), `dd/MM/yyyy[ HH:mm[:ss]]` e epoch em milissegundos; outro formato vira data nula (o documento vai para o fim, RN03) |
+| Pessoas consultadas | Interessado, representantes legais e responsáveis técnicos do requerimento (`PESSOA.ID_CORPORATIVO`, docs/04 "Pessoas do requerimento para o SCORP"); **uma chamada por pessoa** |
+| Tempos | Conexão e leitura limitadas a `SCORP_TIMEOUT_SEGUNDOS` (15); **no máximo 1 nova tentativa** (após 1 s), só em tempo limite, queda de conexão e 5xx. 401, 403, 404, outros status e resposta inválida falham na hora |
+| Paralelismo | Até `SCORP_CHAMADAS_SIMULTANEAS` (4) chamadas ao mesmo tempo, em todo o serviço |
+| Sigilo | O SCORP não informa. `SCORP_SIGILO_PADRAO` (`false`, segue a Vista do SIGA, R25; `true` trata todos como sigilosos). Decisão pendente com a SEMA (P30) |
+| Segredos | Token, cookie, caminho do arquivo do token, URL, chave e o identificador da pessoa nunca vão para log, erro ou resposta (testado percorrendo as saídas) |
 
-Os arquivos retornados pelo SCORP são obtidos pelo mesmo endpoint `/api/arquivo/{chave}`. **NÃO CONFIRMADO**: verificar se a chave do SCORP é válida nesse endpoint.
+**Falha tolerante.** O SCORP fora do ar, credencial recusada, 404, tempo limite ou resposta inválida **não impedem a listagem**: `GET /requerimentos/{id}/documentos` traz as demais origens e um aviso (`SCORP_INDISPONIVEL` se nenhuma pessoa respondeu, `SCORP_PARCIAL` se parte), sem detalhe técnico. **NÃO CONFIRMADO:** se o SCORP responde 404 (em vez de lista vazia) para pessoa sem documentos; se responder, o aviso aparece sempre para essa pessoa.
 
-Falha no SCORP não impede a listagem. Os documentos de origem `SCORP` aparecem como indisponíveis, com aviso.
+**Documento do domínio (origem `SCORP`, rótulo "Pessoal").** `id` = 16 primeiros hexadecimais do SHA-256 de `idCorporativo|chave` (estável e sem expor a chave); título = `descricao` (ou `nomeArquivo`); data = `dataInicio`; vigente com `dataFim` nula, sem efeito com ela preenchida, indisponível com chave vazia ou `"0"` (RN01); tipo pela extensão do `nomeArquivo`. Deduplicação por chave com as seis origens do SIGA, que têm precedência (RN05), e o SCORP vem por último no empate da ordem cronológica (RN03). Na lista, `origemDescricao` = "Pessoal · Interessado", "Pessoal · Representante legal" ou "Pessoal · Responsável técnico"; no sumário do dossiê, "Pessoal".
+
+**Arquivos.** O binário vem do mesmo endpoint `/api/arquivo/{chave}` da API de arquivos, pelo mesmo cliente do dossiê. **NÃO CONFIRMADO** que a chave do SCORP vale nele: se não valer, é falha de documento como qualquer outra (gaveta de decisão no dossiê; 404 ou 502 no modal). Com o SCORP fora do ar na hora de gerar, um documento pessoal escolhido não pode ser conferido: `POST /dossies` responde 400 dizendo que o SCORP não respondeu.
 
 ## LibreOffice — conversor de documentos (`integration.libreoffice`, S3)
 

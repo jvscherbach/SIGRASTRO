@@ -4,7 +4,8 @@ import { map } from 'rxjs';
 
 import { ToastService } from '../shared/toast.service';
 import { AuthService } from './auth.service';
-import { Perfil } from './usuario.model';
+import { mensagemDoCodigo } from './mensagens-erro';
+import { PermissaoDeTela } from './usuario.model';
 
 /** Exige sessão; se houver token guardado, revalida no servidor antes de decidir. */
 export const autenticadoGuard: CanActivateFn = () => {
@@ -31,17 +32,20 @@ export const visitanteGuard: CanActivateFn = () => {
   return auth.restaurar().pipe(map((ok) => (ok ? router.createUrlTree(['/consulta']) : true)));
 };
 
-/** Bloqueia o acesso direto pela URL a rotas que o perfil não usa (data.perfis). O back-end valida de novo. */
-export const perfilGuard: CanActivateFn = (route) => {
+/**
+ * Bloqueia o acesso direto pela URL a telas que o perfil não usa (RN08): a rota declara `data.permissao`
+ * e a decisão vem das `permissoes` de /auth/me, sem chamada nova ao servidor. O back-end valida de novo.
+ */
+export const permissaoGuard: CanActivateFn = (route) => {
   const auth = inject(AuthService);
   const router = inject(Router);
   const toast = inject(ToastService);
 
-  const permitidos = (route.data['perfis'] ?? []) as Perfil[];
+  const permissao = route.data['permissao'] as PermissaoDeTela | undefined;
   const usuario = auth.usuario();
-  if (usuario && permitidos.includes(usuario.perfil)) {
+  if (usuario && permissao && usuario.permissoes[permissao] === true) {
     return true;
   }
-  toast.erro('Seu perfil não tem permissão para acessar esta área.');
+  toast.erro(mensagemDoCodigo('PERFIL_SEM_PERMISSAO'));
   return router.createUrlTree(['/consulta']);
 };

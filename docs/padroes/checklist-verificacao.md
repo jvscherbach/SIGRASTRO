@@ -31,7 +31,7 @@ git diff --check
 
 ## O que o ArchitectureTest garante
 
-- Garante: dependências entre camadas e módulos; ausência de JPA/JDBC/Spring Web no domínio; SQL contra o SIGA só em `integration.siga`; DTOs externos só em `integration.*`; localização de entidades, repositories e `PersistenceMapper`.
+- Garante: dependências entre camadas e módulos; ausência de JPA/JDBC/Spring Web no domínio; SQL contra o SIGA só em `integration.siga`; DTOs externos só em `integration.*`; localização de entidades, repositories e `PersistenceMapper`; decisão de acesso (perfil, CPF/CNPJ, restrição do interessado) só na `PoliticaDeAcesso` do módulo `acesso`, nunca em controller (S4).
 - Não garante: semântica dos contratos, correção das consultas ao SIGA, correção do mapeamento domínio↔entidade.
 
 ## Itens da S2

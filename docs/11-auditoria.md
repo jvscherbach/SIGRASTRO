@@ -9,7 +9,7 @@ Registro de quem consultou, visualizou, gerou e baixou dossiês, com destaque pa
 - A auditoria é dividida em duas telas:
   - **Documentos:** Gestor e Administrador veem todos os eventos. O Operador vê os eventos, de qualquer usuário, sobre processos e requerimentos vinculados a ele (RN07); nomes de documentos sigilosos aparecem como "Documento sigiloso" e o filtro "somente sigilosos" não é oferecido.
   - **Acessos:** somente Administrador.
-- **Regra:** para quem não é Administrador, o item "Acessos" não aparece no menu (RN08). No protótipo ele continua visível com cadeado apenas para demonstração.
+- **Regra:** para quem não é Administrador, o item "Acessos" não aparece no menu (RN08). O cadeado de demonstração do protótipo saiu na S4.
 
 ## Eventos registrados
 
@@ -22,6 +22,7 @@ Registro de quem consultou, visualizou, gerou e baixou dossiês, com destaque pa
 | `DOSSIE` | Dossiê gerado | Pedido de geração do dossiê | Quantidade de documentos, quantos sigilosos, lista completa e nome do arquivo |
 | `FALHA` | Falha na geração | Geração com falha em documento (desde a S2.2, o pedido fica aguardando decisão; cada tentativa com falha gera um evento) | Documento e motivo |
 | `DOWNLOAD` | Download | Download do PDF do dossiê | Nome do arquivo |
+| `GEOMETRIAS` | Geometrias baixadas | Download do ZIP das geometrias (RN10; previsto desde a S4, registrado a partir da S5) | Quantidade de arquivos, quantas sigilosas e nome do ZIP |
 
 O evento `DOSSIE` é registrado quando a geração termina com sucesso; uma tentativa interrompida gera `FALHA`.
 
@@ -66,7 +67,7 @@ Schema próprio do serviço (ver D09), em Oracle (D21): desenvolvimento em Oracl
 | `LOGIN_USUARIO` / `NOME_USUARIO` | Retrato do usuário no momento do evento (sem FK para `USUARIO`) |
 | `PERFIL` | Perfil no momento do evento |
 | `GRUPO` | `DOCUMENTOS` ou `ACESSOS` |
-| `TIPO_EVENTO` | `CONSULTA`, `VISUALIZACAO`, `DOSSIE`, `FALHA`, `DOWNLOAD`, `LOGIN`, `USUARIO`, `CONFIG` |
+| `TIPO_EVENTO` | `CONSULTA`, `VISUALIZACAO`, `DOSSIE`, `FALHA`, `DOWNLOAD`, `GEOMETRIAS`, `LOGIN`, `USUARIO`, `CONFIG` |
 | `ID_REQUERIMENTO` | Requerimento do SIGA (referência lógica, sem FK entre bancos) |
 | `NUMERO_PROCESSO` / `NUMERO_REQUERIMENTO` | Números no momento do evento |
 | `SIGILOSO` | Evento envolve documento sigiloso |

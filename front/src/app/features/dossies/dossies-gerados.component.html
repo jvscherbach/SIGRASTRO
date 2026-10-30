@@ -1,0 +1,160 @@
+<section aria-label="Dossiês gerados">
+  <app-quadro-topo
+    titulo="Dossiês gerados"
+    descricao="Acompanhe os dossiês em geração, decida sobre documentos com problema e baixe o PDF antes que ele expire."
+  >
+    <span etiquetas class="tag gray"><app-icone nome="clock" />Histórico em memória</span>
+  </app-quadro-topo>
+
+  <app-folha-sobreposta>
+    <section aria-label="Lista de dossiês">
+      <div class="dash-sec-head">
+        <div>
+          <h2><app-icone nome="layers" />Dossiês desta sessão do serviço</h2>
+          <p class="nota-historico">
+            O histórico fica só na memória do serviço: some quando o serviço é reiniciado, e os pedidos encerrados saem
+            da lista um tempo depois de vencer (24 h por padrão).
+          </p>
+        </div>
+        <button type="button" class="btn sm atualizar-lista" [disabled]="carregando() || atualizando()" (click)="carregar()">
+          <app-icone nome="refresh" />{{ atualizando() ? 'Atualizando…' : 'Atualizar' }}
+        </button>
+      </div>
+
+      <div class="toolbar">
+        <select aria-label="Situação" [value]="filtroDeSituacao()" (change)="escolherSituacao($event)">
+          <option value="">Todas as situações</option>
+          @for (s of situacoes; track s) {
+            <option [value]="s" [selected]="filtroDeSituacao() === s">{{ rotuloDoFiltro[s] }}</option>
+          }
+        </select>
+        @if (podeFiltrarMeus()) {
+          <label class="check somente-meus">
+            <input type="checkbox" [checked]="somenteMeus()" (change)="alternarSomenteMeus($event)" />Só os meus
+          </label>
+        }
+      </div>
+
+      @if (carregando()) {
+        <p class="muted" role="status">Carregando dossiês…</p>
+      } @else if (erro()) {
+        <div class="alert dossies-erro" role="alert"><app-icone nome="alert" /><span>{{ erro() }}</span></div>
+        <button type="button" class="btn sm" (click)="carregar()"><app-icone nome="refresh" />Tentar novamente</button>
+      } @else if (!itens().length) {
+        <div class="empty dossies-vazio">
+          <span class="tile-icon"><app-icone nome="layers" /></span>
+          <h3>{{ podeFiltrarMeus() && !somenteMeus() ? 'Nenhum dossiê foi gerado nesta sessão do serviço' : 'Você ainda não gerou dossiês nesta sessão do serviço' }}</h3>
+          <p>Gere um dossiê no detalhe de um requerimento. Como o histórico fica na memória, dossiês de antes do último reinício do serviço não aparecem aqui.</p>
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Dossiê</th>
+                <th>Situação</th>
+                <th>Criado em</th>
+                <th>Expira em</th>
+                <th>Documentos</th>
+                <th>Tamanho</th>
+                @if (mostrarGeradoPor()) {
+                  <th>Gerado por</th>
+                }
+                <th class="acoes"><span class="sr-only">Ações</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (d of listados(); track d.id) {
+                <tr [attr.data-situacao]="d.situacao">
+                  <td class="nowrap">
+                    <b>{{ d.identificacao.rotulo }} {{ d.identificacao.numero }}</b>
+                  </td>
+                  <td class="nowrap">
+                    <span [class]="'tag situacao-dossie ' + tomDaSituacao[d.situacao]">{{ rotuloDaSituacao(d) }}</span>
+                  </td>
+                  <td class="nowrap">{{ formatarDataHora(d.criadoEm) }}</td>
+                  <td class="nowrap expira">
+                    {{ formatarDataHora(d.expiraEm) }}
+                    @if (minutosRestantes(d); as minutos) {
+                      <span class="cell-sub">restam {{ minutos }} min</span>
+                    } @else if (minutosRestantes(d) === 0) {
+                      <span class="cell-sub">vencendo</span>
+                    }
+                  </td>
+                  <td class="nowrap">
+                    {{ d.documentos }} de {{ d.listados }}
+                    @if (d.falhas > 0) {
+                      <span class="cell-sub falhas-dossie">{{ d.falhas }} com problema</span>
+                    }
+                  </td>
+                  <td class="nowrap">{{ formatarTamanho(d.tamanhoBytes) || '—' }}</td>
+                  @if (mostrarGeradoPor()) {
+                    <td class="nowrap gerado-por">{{ d.geradoPor ?? '—' }}</td>
+                  }
+                  <td class="acoes">
+                    <div class="row wrap acoes-dossie">
+                      @if (d.temArquivo) {
+                        @if (!d.entregaPorTicket) {
+                          <button type="button" class="btn sm quiet" [disabled]="ocupado() !== null" (click)="previsualizar(d)">
+                            <app-icone nome="eye" />Pré-visualizar
+                          </button>
+                        }
+                        <button type="button" class="btn sm" [disabled]="ocupado() !== null" (click)="baixar(d)">
+                          <app-icone nome="download" />Baixar PDF
+                        </button>
+                      }
+                      @if (d.situacao === 'PENDENTE_DECISAO') {
+                        <button type="button" class="btn sm" [disabled]="ocupado() !== null" (click)="decidir(d)"><app-icone nome="alert" />Decidir</button>
+                      }
+                      @if (emAndamento(d)) {
+                        <button type="button" class="btn sm quiet" [disabled]="ocupado() !== null" (click)="cancelar(d)">Cancelar</button>
+                      }
+                      <button type="button" class="btn sm quiet" (click)="abrirRequerimento(d)"><app-icone nome="arrow" />Abrir requerimento</button>
+                    </div>
+                    @if (mensagemDaAcao(); as m) {
+                      @if (m.id === d.id) {
+                        <span class="cell-sub erro-acao" role="alert">{{ m.texto }}</span>
+                      }
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td [attr.colspan]="mostrarGeradoPor() ? 8 : 7">
+                    <div class="empty"><h3>Nenhum dossiê com essa situação nesta página</h3></div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (resposta(); as r) {
+          <div class="table-foot">
+            <span>Exibindo {{ listados().length }} de {{ r.totalElementos }} · mais recentes primeiro</span>
+            @if (r.totalPaginas > 1) {
+              <span class="row">
+                <button type="button" class="btn sm quiet" [disabled]="r.pagina === 0" (click)="irParaPagina(r.pagina - 1)">Anterior</button>
+                <span>Página {{ r.pagina + 1 }} de {{ r.totalPaginas }}</span>
+                <button type="button" class="btn sm quiet" [disabled]="r.pagina + 1 >= r.totalPaginas" (click)="irParaPagina(r.pagina + 1)">Próxima</button>
+              </span>
+            }
+          </div>
+        }
+      }
+    </section>
+  </app-folha-sobreposta>
+</section>
+
+@if (gaveta(); as g) {
+  <app-gaveta-dossie [idRequerimento]="g.idRequerimento" [pedidoExistente]="g.id" (fechar)="fecharGaveta()" />
+}
+
+@if (previa(); as p) {
+  <div class="previa" role="dialog" aria-modal="true" aria-label="Pré-visualização do dossiê">
+    <header>
+      <h2 style="font-size: 16px">Pré-visualização do dossiê</h2>
+      <button type="button" class="icon-btn" aria-label="Fechar pré-visualização" (click)="fecharPrevia()"><app-icone nome="close" /></button>
+    </header>
+    <iframe [src]="p.seguro" title="Dossiê em PDF"></iframe>
+  </div>
+}

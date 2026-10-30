@@ -7,7 +7,21 @@ O protótipo navegável (`prototipo/siga-vistas-prototipo.html`) é a referênci
 - Usuário e senha.
 - Três usuários fixos de demonstração, um por perfil: `operador.demo` (`OPERADOR`), `gestor.demo` (`OPERADOR_SIGILO`, o Gestor) e `admin.demo` (`ADMIN`). Cada um entra com um clique, e também é possível digitar usuário e senha.
 - Indicação visível de que o acesso é simulado.
-- O menu muda conforme o perfil (RN08): o Operador e o Gestor não recebem os itens "Acessos" e "Configurações"; digitar a URL dessas telas é bloqueado (aviso e volta à Consulta). O item "Acessos" com cadeado existia só no protótipo navegável.
+- **Menu e telas por perfil (RN08, S4):** o menu é montado a partir das `permissoes` de `/auth/me` (não do nome do perfil): `verAuditoriaAcessos` libera "Auditoria › Acessos" e `acessarConfiguracoes` libera "Configurações". Resultado por perfil:
+
+  | Item | Operador | Gestor | Administrador |
+  |---|---|---|---|
+  | Consulta | sim | sim | sim |
+  | Dossiês gerados | sim | sim | sim |
+  | Auditoria › Documentos | sim | sim | sim |
+  | Auditoria › Acessos | não | não | sim |
+  | Configurações | não | não | sim |
+
+  - O item sem permissão **não é renderizado** (nada de cadeado: o cadeado de demonstração saiu do protótipo na S4). Auditoria e Configurações continuam "Em construção" (S5) para quem tem permissão.
+  - **Guarda de rota:** digitar ou abrir a URL de uma tela sem permissão mostra o aviso "Seu perfil não tem permissão para acessar esta área." e volta à Consulta. A decisão usa as permissões já carregadas, sem chamada ao servidor; o back-end valida de novo cada endpoint (matriz em [07 — API](07-api.md)).
+  - Entrar com outro usuário (sair e entrar de novo) atualiza o menu sem recarregar a página; sem token, qualquer tela volta ao login.
+  - O aviso do Operador na Consulta ("Seu perfil consulta apenas...") ocupa um espaço reservado também para os demais perfis, para que o quadro do topo tenha a mesma altura em todos.
+  - Mensagens de acesso (`mensagens-erro.ts`, sem dado do recurso): `NAO_INTERESSADO` "Seu perfil consulta apenas processos e requerimentos em que você é o interessado." (na busca por número: "Processo N não tem você como interessado.", com o número digitado pelo próprio usuário); `DOCUMENTO_SIGILOSO` "Este documento é sigiloso e não está disponível para o seu perfil." (lista, modal e gaveta); `PERFIL_SEM_PERMISSAO` "Seu perfil não tem permissão para acessar esta área." (também na guarda de rota).
 
 ## 2. Consulta
 
@@ -81,7 +95,15 @@ O requerimento vira processo após o pagamento da taxa e a conclusão do protoco
 
 ### Geometrias
 
-Seção exibida quando houver SHP, KML ou KMZ vigentes: lista dos arquivos (nome, arquivo, origem, data) e ação **Baixar geometrias**, que baixa todos num ZIP. Não entram no dossiê.
+Seção própria logo abaixo de Documentos (S4, RN10), a partir de `geometrias` e `totais.geometriasOmitidas` da mesma chamada da lista (docs/07). Só aparece quando há geometria listada ou omitida.
+
+- **Lista:** nome, arquivo (com o tamanho quando a API o informa), origem e data, em ordem cronológica. Sem caixa de seleção: as geometrias **não** entram na tabela de Documentos, nos totais da seção, na seleção nem no `POST /dossies`. Substituída e indisponível aparecem esmaecidas, com "versão substituída, fora do ZIP" e "arquivo indisponível, fora do ZIP". Para Gestor e Administrador, a sigilosa vem com a marca "Sigilosa".
+- **Baixar geometrias:** só aparece quando há ao menos uma vigente. Baixa o ZIP por `HttpClient` e `Blob` (token no cabeçalho, nunca na URL), com o nome do `Content-Disposition` (`geometrias-processo-<numero>-<ano>.zip`). Enquanto o servidor monta o ZIP, o botão fica "Preparando o ZIP…" e desabilitado, com "Obtendo os arquivos e montando o ZIP. Pode levar alguns instantes."; ao terminar, "Download iniciado: <nome>".
+- **Erros** (no corpo da seção, sem toast, nunca o `detail` técnico), com **Tentar novamente**:
+  - `GEOMETRIAS_INCOMPLETAS` (502/504): "Nenhum arquivo foi baixado: algumas geometrias não puderam ser obtidas." e a lista dos arquivos com problema (`arquivos`: nome no ZIP e motivo);
+  - `GEOMETRIAS_GRANDES_DEMAIS` (413): "As geometrias passam do limite de tamanho ou de quantidade para um único download. Nenhum arquivo foi baixado.";
+  - demais códigos (credencial recusada, `NAO_ENCONTRADO`...) pela mensagem comum de `mensagens-erro.ts`.
+- **Operador:** "N geometria(s) sigilosa(s) não são exibidas para o seu perfil." a partir de `totais.geometriasOmitidas`, sem nome, data ou id. Com só sigilosas, a seção mostra apenas esse aviso, sem tabela e sem botão. O aviso não conta como documento indisponível.
 
 ### Documentos
 
@@ -96,6 +118,12 @@ Comportamento:
 - linha de totais no cabeçalho da seção: "N documento(s) · V vigente(s) · S sem efeito · I indisponível(is)". Os três últimos são excludentes e somam N. "N selecionados" (barra) conta os itens marcados; logo ao abrir, é N menos os indisponíveis, os não PDF e, para o Operador, os sigilosos. No 769/2025, "145 documentos · 71 vigentes" com "144 selecionados" parecia não fechar porque a linha antiga não mostrava os sem efeito (selecionáveis) nem os indisponíveis; "vigentes" nunca foi o total selecionável. Com a linha nova, confira: selecionados ao abrir = itens sem bloqueio (N − I − não PDF − sigilosos bloqueados, contando cada documento uma vez);
 - **indisponíveis** esmaecidos, sem seleção, com "arquivo indisponível" junto ao nome;
 - **avisos no topo da seção** (S3): com a conversão ligada, planilhas, textos e imagens convertíveis vêm selecionados e o aviso diz "N documento(s) serão convertidos para PDF" (`totais.convertiveis`); documentos sem tipo informado trazem "o tipo é conferido ao gerar o dossiê". Não PDF sem conversão (por exemplo `txt`, ou qualquer não PDF com a conversão desligada ou indisponível) ficam bloqueados, com "conversão indisponível";
+- **documentos pessoais do SCORP** (S4, origem `SCORP`): a coluna Origem e o modal mostram o papel que vem da API ("Pessoal · Interessado", "Pessoal · Representante legal", "Pessoal · Responsável técnico"); no filtro de origem há uma única opção **Pessoal**, que reúne os três papéis. No empate de data, o pessoal vem depois das seis origens da Vista (mesma regra do servidor). Seleção total (RN13), mascaramento e bloqueio de sigiloso (se `SCORP_SIGILO_PADRAO=true`), conversão, visualização e dossiê funcionam como nas demais origens;
+- **aviso do SCORP** (`avisos` da lista): faixa discreta no topo da seção, com texto da tela (a `mensagem` da API só é usada para um código desconhecido):
+  - `SCORP_INDISPONIVEL`: "Os documentos pessoais (SCORP) não puderam ser consultados agora. Os demais documentos foram listados. Atualize a página para tentar de novo.";
+  - `SCORP_PARCIAL`: "Parte dos documentos pessoais (SCORP) não pôde ser consultada agora: alguns podem estar faltando. Os demais documentos foram listados.";
+  - botão **Consultar novamente**, que refaz só a lista sem esconder a tabela ("Consultando…" enquanto espera): a seleção feita pelo usuário é mantida e os documentos pessoais que voltarem entram pela seleção padrão; se a nova consulta falhar, a lista e o aviso continuam como estavam.
+  - O aviso **não** impede selecionar nem gerar, não altera os totais e não vai para o dossiê (a capa continua "N incluídos de M listados"; o aviso é só da tela);
 - **sigilosos sem perfil** visíveis, com o nome mascarado ("Documento sigiloso"), sem seleção, com "documento sigiloso" e "Requer perfil autorizado"; Gestor e Administrador os veem e podem selecioná-los;
 - contador "N selecionados" e rodapé "Exibindo X de Y";
 - o que pode ou não ser selecionado vem da API (`bloqueio`); a interface só obedece, a regra é do back-end (RNF10);
@@ -136,12 +164,31 @@ Aberto pela ação **Visualizar** de cada linha (todas, menos as indisponíveis;
 - Falha na montagem: o motivo geral, com os mesmos botões ("Tentar novamente" refaz só a montagem). Em "Dossiês gerados" (S4), um pedido que expirou à espera de decisão aparece como "Expirado · nenhum arquivo gerado", sem download.
 - Erro ao criar o pedido (por exemplo, `DOCUMENTO_SIGILOSO`, `NAO_INTERESSADO`, `SIGA_INDISPONIVEL`): mensagem na própria gaveta, sem toast duplicado.
 
+## 4.1 Dossiês gerados (S4)
+
+Item **Dossiês gerados** no menu, para os três perfis (rota `/dossies`). Quadro do topo "Dossiês gerados" com a etiqueta "Histórico em memória" e, na folha, a lista dos pedidos do `GET /dossies` (docs/07), mais recentes primeiro.
+
+- **Colunas:** dossiê (identificação como no RF18: "Processo 2825/2025" ou "Requerimento N"), situação (etiqueta), criado em, **expira em** com "restam N min" (relógio de Cuiabá, como na gaveta) enquanto o pedido está vivo (na fila, em andamento, aguardando decisão ou pronto), documentos ("12 de 15", os incluídos de M listados, e "N com problema" quando há falhas), tamanho do PDF (quando existe) e **Gerado por**, só quando a API manda o campo (Gestor e Administrador; o Operador nunca o recebe e a coluna não existe).
+- **Etiquetas:** Na fila, Obtendo documentos, Montando o PDF, Aguardando decisão, Pronto, Cancelado, Expirado, "Expirado · nenhum arquivo gerado" (expirou à espera de decisão) e Arquivo baixado.
+- **Ações por linha:**
+  - Pronto (`temArquivo`): **Pré-visualizar** (Blob numa moldura; não aparece para dossiê grande) e **Baixar PDF** (Blob com o token no cabeçalho e o nome do `Content-Disposition`; dossiê grande, `entregaPorTicket`, por ticket de uso único e download direto, como na gaveta). Depois do download a lista é atualizada e a linha passa a "Arquivo baixado".
+  - Na fila, obtendo ou montando: **Cancelar** (`DELETE /dossies/{id}`).
+  - Aguardando decisão: **Decidir**, que abre a **gaveta de geração** já existente com o pedido (modo "pedido existente": não cria outro pedido; decidir, cancelar, pré-visualizar e baixar seguem a lógica da gaveta). Pedido encerrado aberto assim não oferece "Gerar novamente": gerar de novo é no detalhe.
+  - Todas: **Abrir requerimento** (vai ao detalhe).
+  - Erro de uma ação aparece na própria linha, pelo `errorCode` (ex.: "O dossiê expirou. Gere-o novamente.").
+- **Filtros:** situação (sobre a página carregada) e, para Gestor e Administrador, a caixa **Só os meus** (`somenteMeus=true`, volta à primeira página). Paginação "Anterior/Próxima" quando há mais de uma página (20 por página).
+- **Atualização:** botão **Atualizar** (atualiza sem tirar a tabela da tela) e atualização automática **a cada 30 s**, que para ao sair da tela e enquanto a aba está oculta; ao voltar para a aba, atualiza na hora. Nenhum timer fica pendurado.
+- **Estados:** carregando ("Carregando dossiês…"); vazio "Você ainda não gerou dossiês nesta sessão do serviço" (Operador, ou Gestor e Administrador com "Só os meus"; sem o filtro, "Nenhum dossiê foi gerado nesta sessão do serviço"); erro pela mensagem do `errorCode`, com **Tentar novamente**. A tela sempre diz que o histórico fica só na memória do serviço: some ao reiniciar, e os pedidos encerrados saem da lista um tempo depois de vencer (24 h por padrão).
+- O quadro do topo tem a mesma altura nos estados vazio, erro e com itens; no celular a tabela rola dentro da moldura, sem rolagem horizontal da página.
+
+Resumo do contrato (bloco 7): o **Operador** só recebe os próprios pedidos e nunca recebe `geradoPor` (a coluna "Gerado por" só aparece quando o campo vier); **Gestor e Administrador** têm o filtro "Só os meus" (`somenteMeus=true`). `EXPIRADO` com `arquivoGerado` falso: "Expirado · nenhum arquivo gerado"; `BAIXADO`: "Arquivo baixado". Só `temArquivo` libera Pré-visualizar e Baixar (por ticket quando `entregaPorTicket`). O histórico é em memória: some ao reiniciar o serviço, e pedidos encerrados saem da lista `DOSSIE_HISTORICO_HORAS` depois de vencer.
+
 ## 5. Auditoria
 
 Item "Auditoria" no menu, com dois subitens. Detalhes em [11 — Auditoria](11-auditoria.md).
 
 - **Documentos** (todos os perfis): consultas, visualizações, dossiês, falhas e downloads; indicadores de dossiês gerados, eventos com sigilosos e usuários; destaque lateral nos eventos sigilosos. Gestor e Administrador veem tudo e têm o filtro "somente sigilosos". O Operador vê apenas eventos sobre processos e requerimentos vinculados a ele, com nomes de documentos sigilosos mascarados.
-- **Acessos** (somente Administrador): entradas, trocas de perfil, alterações de usuários e de configuração; indicadores de acessos, alterações e usuários. **Regra:** para quem não é Administrador, o item não aparece no menu. No protótipo ele continua visível com cadeado apenas para demonstração.
+- **Acessos** (somente Administrador): entradas, trocas de perfil, alterações de usuários e de configuração; indicadores de acessos, alterações e usuários. **Regra:** para quem não é Administrador, o item não aparece no menu (RN08; sem cadeado de demonstração desde a S4).
 - Em ambas: período, busca, filtros por evento e usuário, gaveta de detalhe e exportação em CSV.
 
 ## 6. Configurações

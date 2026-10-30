@@ -1,6 +1,6 @@
 import { Page, Route, expect, test } from '@playwright/test';
 
-import { GESTOR } from './api-simulada';
+import { GESTOR, REQUERIMENTO } from './api-simulada';
 
 /**
  * Fluxo completo da S2 no navegador, com a API simulada: lista de documentos, seleção, gaveta de geração, polling,
@@ -10,30 +10,6 @@ const PDF_MINIMO = Buffer.from(
   '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n' +
     '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\ntrailer<</Root 1 0 R/Size 4>>\n%%EOF',
 );
-
-const REQUERIMENTO = {
-  id: 101,
-  identificacao: { rotulo: 'Processo', numero: '2825/2025', protocolado: true },
-  numeroRequerimento: '3331/2025',
-  numeroProcesso: '2825/2025',
-  tipoRequerimento: 'Requerimento de Outorga',
-  prioridade: { codigo: 'NORMAL', descricao: 'Atendimento normal', criterios: [] },
-  situacao: { codigo: 'EM_ANALISE', descricao: 'Em análise' },
-  abertura: '2025-03-31T10:12:00',
-  atualizacao: '2025-04-29T09:14:00',
-  interessado: { nome: 'Associação Residencial Vale Verde', cpfCnpj: '12345678000190' },
-  tipoProcesso: 'Uso de Recursos Hídricos',
-  objeto: {
-    objetivos: ['Consumo humano', 'Irrigação'],
-    finalidadesAtividades: [{ finalidade: 'Abastecimento público', atividade: 'Captação' }],
-    tiposObjetivo: [
-      { tipo: 'SUBTERRANEA', tipoDescricao: 'Subterrânea', objetivo: 'Consumo humano' },
-      { tipo: 'SUPERFICIAL', tipoDescricao: 'Superficial', objetivo: 'Irrigação' },
-    ],
-    atividadeLicenciamento: null,
-  },
-  tarefaAtual: { estado: 'SEM_TAREFA', nome: null, desde: null, fluxo: null },
-};
 
 function doc(id: string, titulo: string, sobre: object = {}) {
   return {

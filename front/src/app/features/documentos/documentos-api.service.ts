@@ -3,12 +3,14 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, filter, from, map, switchMap, takeWhile, throwError } from 'rxjs';
 
 import { SEM_TOAST } from '../../core/interceptors';
+import { PageResponse } from '../../shared/api-tipos';
 import { nomeDoContentDisposition } from '../../shared/arquivo-local';
 import {
   AcaoDeContinuacao,
   AndamentoDossie,
   ConteudoRecebido,
   DocumentosResposta,
+  DossieGerado,
   FormatoDoConteudo,
   ReferenciaDocumento,
 } from './documentos.models';
@@ -22,6 +24,20 @@ export class DocumentosApiService {
 
   listar(idRequerimento: number): Observable<DocumentosResposta> {
     return this.http.get<DocumentosResposta>(`/api/requerimentos/${idRequerimento}/documentos`, { context: SEM_AVISO() });
+  }
+
+  /**
+   * ZIP com as geometrias (S4, tudo ou nada) como Blob. O token vai no cabeçalho (interceptor), nunca na URL; o nome
+   * vem do Content-Disposition. O erro volta como ProblemDetail (errorCode e, em GEOMETRIAS_INCOMPLETAS, `arquivos`).
+   */
+  baixarGeometrias(idRequerimento: number): Observable<HttpResponse<Blob>> {
+    return this.http
+      .get(`/api/requerimentos/${idRequerimento}/geometrias/arquivo`, {
+        responseType: 'blob',
+        observe: 'response',
+        context: SEM_AVISO(),
+      })
+      .pipe(catchError((erro: unknown) => erroLegivel(erro)));
   }
 }
 
@@ -86,6 +102,15 @@ export class ConteudoApiService {
 @Injectable({ providedIn: 'root' })
 export class DossiesApiService {
   private readonly http = inject(HttpClient);
+
+  /** Dossiês gerados (S4): o servidor decide o que o perfil vê; `somenteMeus` só muda algo para Gestor e Administrador. */
+  listar(pagina: number, tamanho: number, somenteMeus: boolean): Observable<PageResponse<DossieGerado>> {
+    const params: Record<string, string> = { pagina: String(pagina), tamanho: String(tamanho) };
+    if (somenteMeus) {
+      params['somenteMeus'] = 'true';
+    }
+    return this.http.get<PageResponse<DossieGerado>>('/api/dossies', { params, context: SEM_AVISO() });
+  }
 
   criar(idRequerimento: number, documentos: ReferenciaDocumento[]): Observable<{ id: string }> {
     return this.http.post<{ id: string }>('/api/dossies', { idRequerimento, documentos }, { context: SEM_AVISO() });

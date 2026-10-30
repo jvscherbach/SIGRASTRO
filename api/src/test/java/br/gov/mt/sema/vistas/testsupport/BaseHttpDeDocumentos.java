@@ -68,6 +68,11 @@ public abstract class BaseHttpDeDocumentos {
         }
     }
 
+    /** Diretório temporário dos dossiês do contexto de teste: nenhuma resposta pode trazer este caminho. */
+    protected static Path diretorioTemporario() {
+        return DIRETORIO;
+    }
+
     @DynamicPropertySource
     static void propriedades(DynamicPropertyRegistry registro) {
         registro.add("vistas.dossie.diretorio", DIRETORIO::toString);

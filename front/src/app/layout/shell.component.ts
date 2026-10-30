@@ -6,7 +6,7 @@ import { filter } from 'rxjs';
 import { AuthService } from '../core/auth.service';
 import { IconeComponent } from '../shared/icone.component';
 import { TrilhaService } from '../shared/trilha.service';
-import { menuDoPerfil } from './menu';
+import { menuDasPermissoes } from './menu';
 
 @Component({
   selector: 'app-shell',
@@ -20,7 +20,7 @@ export class ShellComponent {
   private readonly router = inject(Router);
 
   protected readonly usuario = this.auth.usuario;
-  protected readonly menu = computed(() => menuDoPerfil(this.usuario()?.perfil));
+  protected readonly menu = computed(() => menuDasPermissoes(this.usuario()?.permissoes));
   protected readonly iniciais = computed(() =>
     (this.usuario()?.nome ?? '')
       .split(/\s+/)

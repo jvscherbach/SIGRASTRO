@@ -34,11 +34,12 @@
           <input id="consulta-nome" placeholder="Parte do nome" [value]="nome()" (input)="digitarNome($event)" />
         </div>
       </div>
-      @if (restrito()) {
-        <p class="hint" style="margin-top: 12px">
+      <!-- Espaço reservado em todos os perfis: o aviso do Operador não muda a altura do quadro do topo (RN08, docs/08). -->
+      <p class="hint hint-perfil">
+        @if (restrito()) {
           <app-icone nome="info" /> Seu perfil consulta apenas processos e requerimentos em que você é o interessado.
-        </p>
-      }
+        }
+      </p>
       <div class="form-actions">
         <button class="btn primary" type="submit" [disabled]="carregando()"><app-icone nome="search" />Consultar</button>
         <button class="btn" type="button" (click)="limpar()">Limpar</button>

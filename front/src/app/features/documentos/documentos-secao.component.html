@@ -22,6 +22,15 @@
     </div>
     <button type="button" class="btn sm" (click)="carregar()"><app-icone nome="refresh" />Tentar novamente</button>
   } @else if (totais(); as t) {
+    @for (aviso of avisos(); track aviso.codigo) {
+      <div class="note amber docs-aviso aviso-scorp" role="status" [attr.data-codigo]="aviso.codigo">
+        <app-icone nome="info" />
+        <span>{{ aviso.texto }}</span>
+        <button type="button" class="btn sm quiet consultar-novamente" [disabled]="reconsultando()" (click)="consultarNovamente()">
+          <app-icone nome="refresh" />{{ reconsultando() ? 'Consultando…' : 'Consultar novamente' }}
+        </button>
+      </div>
+    }
     @if (t.convertiveis > 0) {
       <div class="note amber docs-aviso convertiveis" role="status">
         <app-icone nome="convert" />
@@ -175,6 +184,10 @@
     </div>
   }
 </section>
+
+@if (geometrias().length || geometriasOmitidas()) {
+  <app-geometrias-secao [idRequerimento]="idRequerimento()" [geometrias]="geometrias()" [omitidas]="geometriasOmitidas()" />
+}
 
 @if (visualizando(); as aberto) {
   <app-visualizador-documento

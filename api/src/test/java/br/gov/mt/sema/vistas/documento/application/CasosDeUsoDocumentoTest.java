@@ -16,8 +16,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.TimeZone;
 
-import br.gov.mt.sema.vistas.acesso.application.ObterPermissoesDoUsuario;
-import br.gov.mt.sema.vistas.acesso.application.ObterRestricaoDeInteressado;
+import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
 import br.gov.mt.sema.vistas.acesso.application.UsuarioAtual;
 import br.gov.mt.sema.vistas.acesso.domain.Perfil;
 import br.gov.mt.sema.vistas.acesso.domain.Usuario;
@@ -67,11 +66,11 @@ class CasosDeUsoDocumentoTest {
                 return "token-de-teste";
             }
         };
-        VerificarAcessoAoRequerimento acesso = new VerificarAcessoAoRequerimento(requerimentos,
-                new ObterRestricaoDeInteressado(atual));
-        ObterPermissoesDoUsuario permissoes = new ObterPermissoesDoUsuario(atual);
-        listar = new ListarDocumentos(acesso, documentos, permissoes, conversao);
-        selecionar = new SelecionarDocumentosParaDossie(acesso, listar, permissoes, conversao);
+        PoliticaDeAcesso politica = new PoliticaDeAcesso(atual);
+        VerificarAcessoAoRequerimento acesso = new VerificarAcessoAoRequerimento(requerimentos, politica);
+        listar = new ListarDocumentos(acesso, documentos, politica, conversao,
+                br.gov.mt.sema.vistas.testsupport.ScorpDeTeste.desligado());
+        selecionar = new SelecionarDocumentosParaDossie(acesso, listar, politica, conversao);
         // Os testes da S2.2 descrevem o comportamento só-PDF; os da S3 ligam a conversão.
         when(conversao.habilitada()).thenReturn(false);
 
@@ -112,6 +111,24 @@ class CasosDeUsoDocumentoTest {
         // 8 linhas: 1 compactado e 1 geometria saem; 1 cópia (mesma chave K1) é deduplicada.
         assertThat(lista.itens()).extracting(i -> i.documento().id()).containsExactly("1", "5", "2", "3", "4");
         assertThat(lista.totais()).isEqualTo(new DocumentosListados.Totais(5, 3, 1, 1, 0, 1, 1, 0));
+    }
+
+    @Test
+    void geometriaVaiParaListaPropriaESigilosaSoParaGestor() {
+        List<Documento> linhas = new java.util.ArrayList<>(documentos.listar(101));
+        linhas.add(doc(OrigemDocumento.DOCUMENTO_PROCESSO, "9", "K9", "Mapa reservado", "reservado.kmz", D2, null, 1));
+        when(documentos.listar(101)).thenReturn(linhas);
+
+        DocumentosListados doOperador = listar.executar(101);
+        assertThat(doOperador.geometrias()).extracting(g -> g.documento().id()).containsExactly("6");
+        assertThat(doOperador.geometriasOmitidas()).isEqualTo(1);
+        assertThat(doOperador.itens()).extracting(i -> i.documento().id()).doesNotContain("6", "9");
+
+        comoGestor();
+        DocumentosListados doGestor = listar.executar(101);
+        assertThat(doGestor.geometrias()).extracting(g -> g.documento().id()).containsExactly("9", "6");
+        assertThat(doGestor.geometriasOmitidas()).isZero();
+        assertThat(doGestor.totais().total()).isEqualTo(doOperador.totais().total());
     }
 
     @Test

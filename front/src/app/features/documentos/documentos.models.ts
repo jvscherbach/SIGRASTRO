@@ -34,11 +34,47 @@ export interface TotaisDocumentos {
   sigilosos: number;
   /** S3: planilhas, textos e imagens convertíveis para PDF que o perfil pode selecionar (0 com a conversão desligada). */
   convertiveis: number;
+  /** S4: tamanho de `geometrias` (fora de todos os totais acima). */
+  geometrias?: number;
+  /** S4: geometrias sigilosas que o perfil não vê (Operador); só a contagem, nunca nome ou data. */
+  geometriasOmitidas?: number;
+}
+
+/** Geometria (SHP, KML, KMZ) em lista própria (S4, RN10): fora da seleção, dos totais e do dossiê. */
+export interface GeometriaItem {
+  origem: string;
+  id: string;
+  idRequerimento: number;
+  titulo: string | null;
+  nomeArquivo: string | null;
+  origemDescricao: string;
+  data: string | null;
+  situacao: SituacaoDocumento;
+  sigiloso: boolean;
+  extensao: string | null;
+  tipoArquivo: TipoArquivo | null;
+  /** Bytes; null enquanto desconhecido (o SIGA não informa). */
+  tamanho: number | null;
+}
+
+/** Arquivo que impediu o ZIP (GEOMETRIAS_INCOMPLETAS): nome no ZIP e motivo exibível, nunca a chave. */
+export interface GeometriaComProblema {
+  nome: string;
+  motivo: string;
+}
+
+/** Aviso da lista (S4): SCORP_INDISPONIVEL ou SCORP_PARCIAL. Nunca impede selecionar ou gerar. */
+export interface AvisoDaLista {
+  codigo: string;
+  mensagem: string;
 }
 
 export interface DocumentosResposta {
   itens: DocumentoItem[];
   totais: TotaisDocumentos;
+  avisos?: AvisoDaLista[];
+  /** S4: geometrias do requerimento que o perfil pode ver. */
+  geometrias?: GeometriaItem[];
 }
 
 export interface ReferenciaDocumento {
@@ -103,6 +139,27 @@ export interface AndamentoDossie {
   entregaPorTicket?: boolean;
   expiraEm: string | null;
   itens: ItemAndamento[];
+}
+
+/** Situação na lista de dossiês gerados (S4): as do andamento mais BAIXADO (entregue e apagado, RNF05). */
+export type SituacaoDossieGerado = StatusDossie | 'BAIXADO';
+
+/** Item de GET /api/dossies (S4, docs/07). Sem dado de documento; `geradoPor` só vem para Gestor e Administrador. */
+export interface DossieGerado {
+  id: string;
+  idRequerimento: number;
+  identificacao: { rotulo: string; numero: string };
+  situacao: SituacaoDossieGerado;
+  criadoEm: string;
+  expiraEm: string | null;
+  documentos: number;
+  falhas: number;
+  listados: number;
+  tamanhoBytes: number | null;
+  entregaPorTicket: boolean;
+  temArquivo: boolean;
+  arquivoGerado: boolean;
+  geradoPor?: string;
 }
 
 /** Formato pedido ao endpoint de conteúdo (S3, docs/07). */

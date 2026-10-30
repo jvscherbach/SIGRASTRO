@@ -167,6 +167,45 @@ describe('GavetaDossieComponent', () => {
     });
   });
 
+  describe('pedido existente (tela Dossiês gerados, S4)', () => {
+    function abrirExistente(): void {
+      TestBed.configureTestingModule({ imports: [GavetaDossieComponent], providers: [{ provide: DossiesApiService, useValue: api }] });
+      fixture = TestBed.createComponent(GavetaDossieComponent);
+      fixture.componentRef.setInput('idRequerimento', 101);
+      fixture.componentRef.setInput('pedidoExistente', 'pedido-9');
+      fixture.detectChanges();
+      raiz = fixture.nativeElement as HTMLElement;
+    }
+
+    it('acompanha o pedido informado, sem criar outro', () => {
+      api.andamento.mockReturnValue(of(FALHA));
+      abrirExistente();
+
+      expect(api.criar).not.toHaveBeenCalled();
+      expect(api.andamento).toHaveBeenCalledWith('pedido-9');
+      expect(texto()).toContain('Documentos com problema');
+    });
+
+    it('a decisão continua o mesmo pedido', () => {
+      api.andamento.mockReturnValue(of(FALHA));
+      abrirExistente();
+
+      botao('Tentar novamente')!.click();
+      fixture.detectChanges();
+
+      expect(api.continuar).toHaveBeenCalledWith('pedido-9', 'TENTAR_NOVAMENTE');
+      expect(api.criar).not.toHaveBeenCalled();
+    });
+
+    it('encerrado não oferece "Gerar novamente" (é no detalhe do requerimento)', () => {
+      api.andamento.mockReturnValue(of(andamento({ status: 'CANCELADO' })));
+      abrirExistente();
+
+      expect(texto()).toContain('A geração foi cancelada');
+      expect(botao('Gerar novamente')).toBeUndefined();
+    });
+  });
+
   describe('polling', () => {
     it('intervalo crescente: 1 s, 1,5 s, 2,25 s, 3,4 s e no máximo 5 s', async () => {
       abrir();

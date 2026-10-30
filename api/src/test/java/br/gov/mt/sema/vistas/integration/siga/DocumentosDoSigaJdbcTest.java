@@ -51,7 +51,8 @@ class DocumentosDoSigaJdbcTest {
     void trazDocumentosDasSeisOrigensDaVista() {
         List<Documento> lista = adapter.listar(101);
 
-        assertThat(lista).extracting(Documento::origem).containsAll(EnumSet.allOf(OrigemDocumento.class));
+        assertThat(lista).extracting(Documento::origem).containsAll(EnumSet.complementOf(EnumSet.of(OrigemDocumento.SCORP)));
+        assertThat(lista).extracting(Documento::origem).doesNotContain(OrigemDocumento.SCORP);
         assertThat(lista).allMatch(d -> d.idRequerimento() == 101);
         assertThat(lista).hasSize(26);
     }

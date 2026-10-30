@@ -23,7 +23,16 @@ import {
 } from './documentos.logic';
 import { DocumentoItem, DocumentosResposta, ReferenciaDocumento } from './documentos.models';
 import { GavetaDossieComponent } from './gaveta-dossie.component';
+import { GeometriasSecaoComponent } from './geometrias-secao.component';
 import { VisualizadorDocumentoComponent } from './visualizador-documento.component';
+
+/** Textos da faixa de aviso por código (S4, docs/08); código desconhecido usa a mensagem da API. */
+const TEXTO_DO_AVISO: Record<string, string> = {
+  SCORP_INDISPONIVEL:
+    'Os documentos pessoais (SCORP) não puderam ser consultados agora. Os demais documentos foram listados. Atualize a página para tentar de novo.',
+  SCORP_PARCIAL:
+    'Parte dos documentos pessoais (SCORP) não pôde ser consultada agora: alguns podem estar faltando. Os demais documentos foram listados.',
+};
 
 /**
  * Seção Documentos do detalhe (RF06 a RF10, RF14, RF20): todos os documentos do requerimento, busca, filtro de origem,
@@ -33,7 +42,7 @@ import { VisualizadorDocumentoComponent } from './visualizador-documento.compone
 @Component({
   selector: 'app-documentos-secao',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconeComponent, GavetaDossieComponent, VisualizadorDocumentoComponent],
+  imports: [IconeComponent, GavetaDossieComponent, GeometriasSecaoComponent, VisualizadorDocumentoComponent],
   templateUrl: './documentos-secao.component.html',
 })
 export class DocumentosSecaoComponent implements OnInit {
@@ -54,10 +63,19 @@ export class DocumentosSecaoComponent implements OnInit {
 
   protected readonly itens = computed(() => this.resposta()?.itens ?? []);
   protected readonly totais = computed(() => this.resposta()?.totais ?? null);
+  /** Geometrias em lista própria (S4, RN10): nunca entram em itens, na seleção nem no dossiê. */
+  protected readonly geometrias = computed(() => this.resposta()?.geometrias ?? []);
+  protected readonly geometriasOmitidas = computed(() => this.resposta()?.totais.geometriasOmitidas ?? 0);
+  /** Avisos do SCORP (S4): só da tela; não bloqueiam seleção nem geração. */
+  protected readonly avisos = computed(() =>
+    (this.resposta()?.avisos ?? []).map((a) => ({ codigo: a.codigo, texto: TEXTO_DO_AVISO[a.codigo] ?? a.mensagem })),
+  );
+  protected readonly reconsultando = signal(false);
   protected readonly origens = computed(() => {
     const vistas = new Map<string, string>();
     for (const d of this.itens()) {
-      vistas.set(d.origem, d.origemDescricao);
+      // SCORP traz o papel na descrição ("Pessoal · Interessado"); no filtro, uma opção para todos os papéis.
+      vistas.set(d.origem, d.origem === 'SCORP' ? 'Pessoal' : d.origemDescricao);
     }
     return Array.from(vistas, ([codigo, descricao]) => ({ codigo, descricao })).sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
   });
@@ -96,6 +114,35 @@ export class DocumentosSecaoComponent implements OnInit {
         this.carregando.set(false);
         this.erro.set(erro instanceof HttpErrorResponse ? mensagemDoErro(erro) : 'Não foi possível carregar os documentos.');
       },
+    });
+  }
+
+  /**
+   * "Consultar novamente" (aviso do SCORP): refaz só a lista, sem esconder a tabela. A seleção feita é mantida; itens
+   * novos (os pessoais que voltaram) entram pela seleção padrão.
+   */
+  protected consultarNovamente(): void {
+    if (this.reconsultando()) {
+      return;
+    }
+    const antes = new Set(this.itens().map(chaveDe));
+    this.reconsultando.set(true);
+    this.api.listar(this.idRequerimento()).subscribe({
+      next: (resposta) => {
+        const padrao = selecaoPadrao(resposta.itens);
+        const atual = this.selecionados();
+        const nova = new Set<string>();
+        for (const d of resposta.itens) {
+          const chave = chaveDe(d);
+          if (selecionavel(d) && (antes.has(chave) ? atual.has(chave) : padrao.has(chave))) {
+            nova.add(chave);
+          }
+        }
+        this.resposta.set(resposta);
+        this.selecionados.set(nova);
+        this.reconsultando.set(false);
+      },
+      error: () => this.reconsultando.set(false),
     });
   }
 

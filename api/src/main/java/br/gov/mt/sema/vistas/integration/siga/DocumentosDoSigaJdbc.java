@@ -38,6 +38,9 @@ class DocumentosDoSigaJdbc implements DocumentosDoRequerimento {
     DocumentosDoSigaJdbc(NamedParameterJdbcTemplate jdbc, Set<OrigemDocumento> ligadas) {
         this.jdbc = jdbc;
         for (OrigemDocumento origem : ligadas) {
+            if (!origem.doSiga()) {
+                continue;
+            }
             consultas.put(origem, SigaSql.carregar(nomeDaConsulta(origem)));
         }
     }
@@ -45,6 +48,9 @@ class DocumentosDoSigaJdbc implements DocumentosDoRequerimento {
     static Set<OrigemDocumento> origensLigadas(Environment ambiente) {
         Set<OrigemDocumento> ligadas = EnumSet.noneOf(OrigemDocumento.class);
         for (OrigemDocumento origem : OrigemDocumento.values()) {
+            if (!origem.doSiga()) {
+                continue;
+            }
             boolean ligada = ambiente.getProperty("vistas.documentos.origens." + origem.propriedade(), Boolean.class,
                     true);
             if (ligada) {

@@ -14,7 +14,7 @@ O banco do SIGA **nunca** entra no Compose: é sempre externo, acessado por rede
 ## Arquivos Compose
 
 - `compose.yaml`: configurações comuns (`api` com JDK 21 + LibreOffice; `front` com nginx servindo o build do Angular e encaminhando `/api`).
-- `compose.verificacao.yaml`: **só para verificar o código sem tocar em sistemas externos.** Esvazia, no serviço `api`, `SIGA_DB_URL`, `SIGA_DB_USER`, `SIGA_DB_PASSWORD`, `LICENCIAMENTO_API_URL`, `LICENCIAMENTO_API_TOKEN`, `LICENCIAMENTO_API_TOKEN_FILE`, `LICENCIAMENTO_API_AUTH_MODE`, `LICENCIAMENTO_API_COOKIE_NAME`, `SCORP_API_URL` e `VISTAS_DB_*`. A chave `environment` tem precedência sobre o `env_file`. Versionado, sem segredo (D34).
+- `compose.verificacao.yaml`: **só para verificar o código sem tocar em sistemas externos.** Esvazia, no serviço `api`, `SIGA_DB_URL`, `SIGA_DB_USER`, `SIGA_DB_PASSWORD`, `LICENCIAMENTO_API_URL`, `LICENCIAMENTO_API_TOKEN`, `LICENCIAMENTO_API_TOKEN_FILE`, `LICENCIAMENTO_API_AUTH_MODE`, `LICENCIAMENTO_API_COOKIE_NAME`, `SCORP_API_URL`, `SCORP_API_TOKEN_FILE`, `SCORP_API_AUTH_MODE`, `SCORP_API_COOKIE_NAME` e `VISTAS_DB_*`. A chave `environment` tem precedência sobre o `env_file`. Versionado, sem segredo (D34).
 - `compose.local.yaml`: portas locais, volume temporário de dossiês e, no definitivo, o serviço `oracle` (imagem Oracle Database 23 Free com **tag fixa**, nunca `latest`), healthcheck, volume de dados e dependência da `api`.
 - Fase inicial: a aplicação roda inteira em Docker (`api` e `front`); o Oracle local só entra quando surgir a primeira tabela do schema próprio.
 - Overrides de homologação/produção só serão criados quando a infraestrutura for definida; não conterão banco nem volume de banco.
