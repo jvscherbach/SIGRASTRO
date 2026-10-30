@@ -159,7 +159,7 @@ export class DossiesApiService {
   }
 }
 
-function erroLegivel(erro: unknown): Observable<never> {
+export function erroLegivel(erro: unknown): Observable<never> {
   if (!(erro instanceof HttpErrorResponse) || !(erro.error instanceof Blob)) {
     return throwError(() => erro);
   }

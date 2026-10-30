@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { autenticadoGuard, permissaoGuard, visitanteGuard } from './core/guards';
+import { AuditoriaComponent } from './features/auditoria/auditoria.component';
 import { ConsultaComponent } from './features/consulta/consulta.component';
 import { DetalheComponent } from './features/detalhe/detalhe.component';
 import { DossiesGeradosComponent } from './features/dossies/dossies-gerados.component';
@@ -36,14 +37,9 @@ export const routes: Routes = [
       },
       {
         path: 'auditoria/documentos',
-        component: EmConstrucaoComponent,
+        component: AuditoriaComponent,
         title: 'Auditoria de documentos · SIGA Vistas',
-        data: {
-          crumb: ['Auditoria', 'Documentos'],
-          titulo: 'Auditoria de documentos',
-          descricao: 'Consultas, visualizações, dossiês, falhas e downloads de documentos.',
-          sprint: 'Sprint 5',
-        },
+        data: { crumb: ['Auditoria', 'Documentos'], grupo: 'documentos' },
       },
       {
         path: 'auditoria/acessos',

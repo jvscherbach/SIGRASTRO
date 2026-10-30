@@ -1,0 +1,27 @@
+/* auditoria (S5): indicadores, lista com destaque de sigilosos e gaveta de detalhe */
+.aud-memoria{margin-bottom:12px}
+.aud-escopo{font-size:12px;color:var(--muted);margin:0 0 12px}
+.aud-acoes{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.aud-periodos{display:flex;gap:6px;flex-wrap:wrap}
+.aud-indicadores{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.aud-ind{border:1px solid var(--line);border-radius:12px;padding:10px 14px;display:grid;gap:2px;background:#fff}
+.aud-ind b{font-size:22px;color:var(--forest)}
+.aud-ind span{font-size:11px;color:var(--muted)}
+.aud-usuario{border:1px solid #cfdac8;border-radius:8px;padding:0 10px;font-size:12px;height:40px;min-width:150px}
+.aud-tabela td{vertical-align:top}
+.aud-tabela tr.aud-sigiloso td:first-child{box-shadow:inset 4px 0 0 var(--red)}
+.aud-detalhe{display:flex;gap:6px 10px;flex-wrap:wrap;align-items:baseline;min-width:200px;overflow-wrap:anywhere}
+.aud-arquivo{font-weight:600}
+.aud-campos{display:grid;gap:10px;margin:0 0 18px}
+.aud-campos div{display:grid;grid-template-columns:150px minmax(0,1fr);gap:10px;font-size:13px}
+.aud-campos dt{color:var(--muted);font-size:12px}
+.aud-campos dd{margin:0;overflow-wrap:anywhere}
+.aud-sub{font-size:13px;margin:6px 0 8px}
+.aud-aviso-sigiloso{display:flex;gap:8px;align-items:center;font-size:12px;margin:0 0 12px}
+.aud-documentos{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:6px}
+.aud-documentos li{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.aud-documentos li.sigiloso{box-shadow:inset 4px 0 0 var(--red)}
+.aud-doc-ordem{min-width:22px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)}
+.aud-doc-texto{flex:1;min-width:0;display:grid;font-size:13px;overflow-wrap:anywhere}
+.aud-doc-texto small{color:var(--muted);font-size:11px}
+@media(max-width:640px){.aud-campos div{grid-template-columns:1fr;gap:2px}.aud-usuario{flex:1;min-width:0}}

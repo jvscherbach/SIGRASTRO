@@ -189,10 +189,17 @@ Resumo do contrato (bloco 7): o **Operador** só recebe os próprios pedidos e n
 
 ## 5. Auditoria
 
-Item "Auditoria" no menu, com dois subitens. Detalhes em [11 — Auditoria](11-auditoria.md).
+Item "Auditoria" no menu, com dois subitens. Detalhes em [11 — Auditoria](11-auditoria.md). Uma só tela (`AuditoriaComponent`, `features/auditoria`) atende os dois grupos, escolhido por `data.grupo` da rota; o back-end decide o que cada perfil vê.
 
-- **Documentos** (todos os perfis): consultas, visualizações, dossiês, falhas e downloads; indicadores de dossiês gerados, eventos com sigilosos e usuários; destaque lateral nos eventos sigilosos. Gestor e Administrador veem tudo e têm o filtro "somente sigilosos". O Operador vê apenas eventos sobre processos e requerimentos vinculados a ele, com nomes de documentos sigilosos mascarados.
-- **Acessos** (somente Administrador): entradas, trocas de perfil, alterações de usuários e de configuração; indicadores de acessos, alterações e usuários. **Regra:** para quem não é Administrador, o item não aparece no menu (RN08; sem cadeado de demonstração desde a S4).
+- **Documentos** (todos os perfis; rota `/auditoria/documentos`, implementada no bloco 5 da S5): consultas, visualizações, dossiês, falhas, downloads e geometrias. Gestor e Administrador veem tudo e têm o filtro "somente sigilosos". O Operador vê os eventos dos **seus** processos e requerimentos, **feitos por qualquer usuário**, com o texto da tela dizendo isso, sem o filtro "somente sigilosos" (a API o recusaria com 400) e com documentos sigilosos já mascarados pelo servidor ("Documento sigiloso").
+  - **Período:** botões Hoje, Últimos 7 dias (padrão), Últimos 30 dias e Todo o período (trocar volta à primeira página).
+  - **Indicadores do período:** dossiês gerados, eventos com sigilosos e usuários (os da API, que seguem o período e o perfil).
+  - **Filtros:** busca por texto (espera 350 ms de pausa na digitação), tipo de evento, login do usuário e, quando permitido, "somente sigilosos"; "Limpar filtros".
+  - **Lista:** data e hora com o código do evento, usuário (nome, perfil e login), evento (etiqueta), processo ou requerimento, detalhe (arquivo, texto e etiqueta "Sigiloso") e botão **Detalhe**. Evento sigiloso tem **destaque lateral** vermelho. Paginação de 20, do mais recente para o mais antigo. Carregando, vazio ("Nenhum evento encontrado") e erro com **Tentar novamente**.
+  - **Gaveta de detalhe** (`AuditoriaDetalheComponent`, sobre a barra do topo): todos os campos permitidos, origem da requisição, correlação, a lista de documentos com o sigilo de cada um e, quando houver, a tabela antes e depois. Fecha com Esc e clique fora; cancela a consulta ao fechar.
+  - **Exportar CSV:** `GET /auditoria/documentos/exportacao` como `Blob`, com o token no cabeçalho (nunca na URL), mesmo filtro da lista e nome do `Content-Disposition`; com `X-Vistas-Truncado: true` mostra o aviso de que o arquivo foi cortado.
+  - **Faixa fixa:** "Neste protótipo, os registros ficam na memória e somem ao reiniciar o serviço."
+- **Acessos** (somente Administrador): entradas, trocas de perfil, alterações de usuários e de configuração; indicadores de acessos, alterações e usuários. **Regra:** para quem não é Administrador, o item não aparece no menu (RN08; sem cadeado de demonstração desde a S4). A rota ainda abre "em construção"; o bloco 6 a liga ao mesmo componente (sem coluna de processo nem filtro de sigilo, detalhe com antes e depois, que o componente já suporta).
 - Em ambas: período, busca, filtros por evento e usuário, gaveta de detalhe e exportação em CSV.
 
 ## 6. Configurações
