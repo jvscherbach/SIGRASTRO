@@ -43,16 +43,10 @@ export const routes: Routes = [
       },
       {
         path: 'auditoria/acessos',
-        component: EmConstrucaoComponent,
+        component: AuditoriaComponent,
         canActivate: [permissaoGuard],
         title: 'Auditoria de acessos · SIGA Vistas',
-        data: {
-          permissao: 'verAuditoriaAcessos',
-          crumb: ['Auditoria', 'Acessos'],
-          titulo: 'Auditoria de acessos',
-          descricao: 'Entradas, trocas de perfil e alterações de usuários e de configuração.',
-          sprint: 'Sprint 5',
-        },
+        data: { permissao: 'verAuditoriaAcessos', crumb: ['Auditoria', 'Acessos'], grupo: 'acessos' },
       },
       {
         path: 'configuracoes',

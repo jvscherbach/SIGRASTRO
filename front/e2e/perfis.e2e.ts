@@ -65,13 +65,15 @@ for (const perfil of [PERFIS[0], PERFIS[1]]) {
   }
 }
 
-test('Administrador abre as telas restritas (em construção)', async ({ page }) => {
+test('Administrador abre as telas restritas (Acessos pronta; Configurações em construção)', async ({ page }) => {
   await simularApi(page, { usuario: ADMIN });
-  for (const restrita of ROTAS_RESTRITAS) {
-    await page.goto(restrita.rota);
-    await expect(page).toHaveURL(new RegExp(`${restrita.rota}$`));
-    await expect(page.getByText('Em construção', { exact: true })).toBeVisible();
-  }
+  await page.goto('/auditoria/acessos');
+  await expect(page).toHaveURL(/\/auditoria\/acessos$/);
+  await expect(page.getByRole('heading', { name: 'Auditoria de acessos' })).toBeVisible();
+
+  await page.goto('/configuracoes');
+  await expect(page).toHaveURL(/\/configuracoes$/);
+  await expect(page.getByText('Em construção', { exact: true })).toBeVisible();
 });
 
 test('trocar de usuário no login atualiza o menu sem recarregar a página', async ({ page }) => {
