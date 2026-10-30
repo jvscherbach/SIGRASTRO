@@ -366,12 +366,15 @@ Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **
 | `GET /auditoria/acessos` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirAuditoriaDeAcessos` (`PERFIL_SEM_PERMISSAO`) |
 | `GET /auditoria/{grupo}/{id}` (S5) | sessão | como a lista do grupo | idem | idem | evento que o usuário não vê: 404 | mascarado como na lista | — | as mesmas da lista |
 | `GET /auditoria/{grupo}/exportacao` (S5) | sessão | como a lista do grupo | idem | idem | mesmo filtro da lista | mascarado como na lista | — | as mesmas da lista |
+| `GET /configuracoes/usuarios` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` (`PERFIL_SEM_PERMISSAO`) |
+| `POST /configuracoes/usuarios` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
+| `PATCH /configuracoes/usuarios/{id}` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
 
 Fora de `/api`: `GET /actuator/health` (pública, só a situação) e a documentação OpenAPI (`/v3/api-docs`, `/swagger-ui`), desligada por padrão (`OPENAPI_ENABLED=false`) e ligada só no perfil `local`. Toda rota de `/api/**` sem o token responde 401 `NAO_AUTENTICADO`, exceto o login e o download por ticket.
 
 **Prova (bloco 9):** `MatrizDeAcessoTest` exercita esta tabela por MockMvc (mais de 150 cenários: perfil × interessado ou não × sigiloso ou não × dono do pedido ou não) e compara três listas: os mapeamentos de `/api` do Spring, a primeira coluna desta tabela (lida deste arquivo) e os endpoints com cenário no teste. Endpoint novo sem linha aqui ou sem cenário lá quebra o teste. Todas as respostas são varridas atrás de vazamento (veja docs/12).
 
-As rotas de **Configurações** abaixo ainda **não existem** no código (S5). Quando forem criadas, entram nesta matriz e no `MatrizDeAcessoTest` (bloco 9 da S4), que falha para endpoint sem linha.
+As rotas de **parâmetros e conexões** em Configurações, abaixo, ainda **não existem** no código (S5). Quando forem criadas, entram nesta matriz e no `MatrizDeAcessoTest` (bloco 9 da S4), que falha para endpoint sem linha.
 
 **Achados do inventário (bloco 1):** nenhuma rota sem verificação. Dois reforços, registrados em D60: (1) pedido de **outro usuário** passa a exigir explicitamente perfil que acessa qualquer requerimento **e** qualquer sigiloso (antes bastava "não ser restrito ao interessado", o que hoje dá no mesmo, mas não valeria para um perfil futuro restrito ou sem sigilo); (2) o **dono** Operador só acessa o pedido enquanto o interessado gravado no pedido continuar sendo o dele (antes bastava o login).
 
@@ -413,11 +416,13 @@ Restrito ao perfil `ADMIN`. Toda escrita gera evento na auditoria de acessos.
 |---|---|---|
 | `GET` | `/configuracoes` | Parâmetros vigentes. |
 | `PUT` | `/configuracoes` | Grava os parâmetros alterados (um evento `CONFIG` com a lista de mudanças). |
-| `GET` | `/usuarios` | Usuários com perfil, situação e último acesso. |
-| `POST` | `/usuarios` | Inclui usuário. |
-| `PATCH` | `/usuarios/{id}` | Altera perfil ou situação. |
+| `GET` | `/configuracoes/usuarios` | Usuários com perfil, situação e último acesso, por nome, numa página só. |
+| `POST` | `/configuracoes/usuarios` | Inclui usuário: `{nome, login, cpfCnpj, perfil}`. 201 com o usuário. |
+| `PATCH` | `/configuracoes/usuarios/{id}` | Altera `perfil` e/ou `ativo`; o campo ausente fica como está. |
 | `GET` | `/conexoes` | Estado das conexões. |
 | `POST` | `/conexoes/{nome}/teste` | Testa uma conexão e devolve o tempo de resposta. |
+
+**Usuários (S5, bloco 7).** Cada item traz `id` (o login, que não muda), `nome`, `login`, `perfil` (código), `perfilRotulo`, `ativo`, `ultimoAcesso` (nulo até a primeira entrada depois de subir o serviço) e `cpfCnpj`, sempre mascarado (`***.456.789-**` ou `**.345.678/****-**`) ou nulo. O login é normalizado (sem espaços nas pontas, em minúsculas). Os erros próprios são 409 `LOGIN_JA_EXISTE`, `ULTIMO_ADMINISTRADOR` e `PROPRIO_USUARIO`. A mudança vale para as sessões abertas já na próxima requisição; a sessão de usuário desativado responde 401. Usuário inativo que tenta entrar recebe a mesma mensagem de credencial inválida.
 
 ## Erros
 
@@ -444,6 +449,9 @@ Todo erro segue `ProblemDetail` com `errorCode` estável e `correlationId` (head
 | 403 | `DOCUMENTO_SIGILOSO` | Documento sigiloso para perfil não autorizado |
 | 403 | `NAO_INTERESSADO` | Operador sem vínculo com o processo/requerimento |
 | 404 | `NAO_ENCONTRADO` | Requerimento, processo, documento, dossiê ou evento inexistente |
+| 409 | `LOGIN_JA_EXISTE` | Inclusão de usuário com login em uso |
+| 409 | `ULTIMO_ADMINISTRADOR` | Desativar ou rebaixar o último Administrador ativo |
+| 409 | `PROPRIO_USUARIO` | Desativar o próprio usuário |
 | 409 | `DOSSIE_SEM_ARQUIVO` | Arquivo inexistente: o pedido aguarda decisão, foi cancelado ou ainda está em andamento |
 | 409 | `DOSSIE_SEM_DECISAO_PENDENTE` | Continuação pedida para um dossiê que não está em `PENDENTE_DECISAO` (S2.2) |
 | 410 | `DOSSIE_EXPIRADO` | Dossiê expirado ou já baixado (o arquivo foi apagado) |

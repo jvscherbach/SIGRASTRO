@@ -38,7 +38,7 @@ Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTes
 |---|---|---|
 | `dossie` | `documento` | caso de uso que entrega os documentos selecionados já validados (perfil, sigilo, vínculo) |
 | `dossie`, `documento`, `consulta` | `auditoria` | porta `RegistrarEvento` (somente inclusão) |
-| todos | `acesso` | usuário atual e a `PoliticaDeAcesso` (RN07, sigilo, responsável pela tarefa, dono do pedido; S4) |
+| `configuracao` | `acesso` | `AdministrarUsuarios` (cadastro de usuários, S5; só `acesso` conhece `Perfil`) |\n| todos | `acesso` | usuário atual e a `PoliticaDeAcesso` (RN07, sigilo, responsável pela tarefa, dono do pedido; S4) |
 | `dossie`, `documento` | `configuracao` | parâmetros vigentes (expiração, origens, timeouts, modo das planilhas) |
 | `documento`, `dossie` | portas implementadas em `integration.*` | obter binário do arquivo, listar documentos pessoais |
 

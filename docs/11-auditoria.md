@@ -36,7 +36,7 @@ O evento `DOSSIE` é registrado quando a geração termina com sucesso; uma tent
 |---|---|---|---|
 | `LOGIN` | Acesso | Entrada no sistema (login bem-sucedido; login recusado não registra) | — |
 | `PERFIL` | Troca de perfil | Troca do perfil simulado (só no protótipo): um login bem-sucedido feito com uma sessão aberta de **outro perfil** registra `LOGIN` e `PERFIL`, em nome de quem entrou | Perfil novo ("Perfil novo: Administrador") |
-| `USUARIO` | Usuário alterado | Inclusão de usuário, mudança de perfil ou de situação | Antes e depois |
+| `USUARIO` | Usuário alterado | Inclusão de usuário, mudança de perfil ou de situação (um evento por gravação; sem mudança real, nenhum) | Login do alvo em `detalhe` e antes e depois, sem CPF/CNPJ |
 | `CONFIG` | Configuração alterada | Salvamento de parâmetros | Lista de mudanças (antes e depois) |
 
 **Implementação (S5, bloco 6):** o módulo `acesso` publica `EntradaRealizada` (Spring `ApplicationEvent`, só em login bem-sucedido) e `auditoria.application.EventosDeAcesso` registra `LOGIN` e `PERFIL` por `RegistrarEvento`; assim `acesso` não depende da auditoria (ArchUnit) e uma falha ao registrar nunca derruba o login. O contrato do login não mudou (o `Authorization` opcional do pedido só informa o perfil anterior). `USUARIO` e `CONFIG` entram nos blocos 7 e 8.

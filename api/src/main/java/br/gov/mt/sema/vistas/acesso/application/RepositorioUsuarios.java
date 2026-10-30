@@ -10,4 +10,8 @@ public interface RepositorioUsuarios {
     Optional<Usuario> autenticar(String login, String senha);
 
     Optional<Usuario> buscarPorLogin(String login);
+
+    /** Entrada bem-sucedida: atualiza o último acesso. */
+    default void registrarAcesso(String login) {
+    }
 }

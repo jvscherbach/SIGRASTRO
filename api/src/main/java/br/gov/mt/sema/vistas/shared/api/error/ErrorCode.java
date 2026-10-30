@@ -10,6 +10,10 @@ public enum ErrorCode {
     DOCUMENTO_SIGILOSO(HttpStatus.FORBIDDEN, "Documento sigiloso"),
     NAO_INTERESSADO(HttpStatus.FORBIDDEN, "Acesso negado"),
     NAO_ENCONTRADO(HttpStatus.NOT_FOUND, "Não encontrado"),
+    // Administração de usuários (S5).
+    LOGIN_JA_EXISTE(HttpStatus.CONFLICT, "Login já existe"),
+    ULTIMO_ADMINISTRADOR(HttpStatus.CONFLICT, "Último Administrador"),
+    PROPRIO_USUARIO(HttpStatus.CONFLICT, "Próprio usuário"),
     DOSSIE_SEM_ARQUIVO(HttpStatus.CONFLICT, "Dossiê sem arquivo"),
     DOSSIE_SEM_DECISAO_PENDENTE(HttpStatus.CONFLICT, "Dossiê sem decisão pendente"),
     DOSSIE_EXPIRADO(HttpStatus.GONE, "Dossiê expirado"),

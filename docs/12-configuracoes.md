@@ -41,6 +41,9 @@ Códigos: `OPERADOR`, `OPERADOR_SIGILO`, `ADMIN`. Na versão definitiva, a ident
 - Perfil e situação são alterados direto na lista e gravados na hora (evento `USUARIO`).
 - Inclusão por gaveta lateral: nome, login, CPF/CNPJ e perfil. Login é único; CPF/CNPJ é obrigatório para o Operador.
 - Usuário inativo não entra no sistema; o histórico de auditoria é mantido.
+- **Regras no back-end (S5, bloco 7, D68):** login de 3 a 60 caracteres (letras, números, ponto, hífen ou sublinhado), único e normalizado; CPF/CNPJ conferido pelos dígitos verificadores, guardado só como dígitos e devolvido só mascarado; perfil `OPERADOR`, `OPERADOR_SIGILO` ou `ADMIN`. Não é possível desativar nem rebaixar o último Administrador ativo, nem desativar o próprio usuário. Mudar para Operador exige CPF/CNPJ já cadastrado: a alteração não recebe documento, então quem não o tem precisa ser incluído de novo com outro login.
+- **Senha:** os usuários incluídos entram com a senha única do protótipo (`VISTAS_DEMO_SENHA`); não há autenticação nova (D09).
+- **Memória:** incluídos e alterados somem ao reiniciar, e o serviço volta aos três usuários de demonstração. O último acesso também.
 
 ### Dossiê
 

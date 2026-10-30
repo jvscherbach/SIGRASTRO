@@ -31,6 +31,7 @@ public class AutenticarUsuario {
                 .filter(Usuario::ativo)
                 .orElseThrow(() -> new NaoAutenticadoException("Usuário ou senha inválidos."));
         Sessao sessao = sessoes.abrir(usuario.login());
+        usuarios.registrarAcesso(usuario.login());
         publicar(new EntradaRealizada(usuario, anterior(tokenAnterior)));
         return new SessaoAberta(sessao.token(), sessao.expiraEm(), usuario);
     }

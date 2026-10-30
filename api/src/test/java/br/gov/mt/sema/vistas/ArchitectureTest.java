@@ -7,6 +7,7 @@ import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.sli
 import java.util.List;
 import java.util.stream.Stream;
 
+import br.gov.mt.sema.vistas.acesso.application.CadastroDeUsuarios;
 import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
 import br.gov.mt.sema.vistas.acesso.application.UsuarioAtual;
 import br.gov.mt.sema.vistas.acesso.domain.Perfil;
@@ -212,6 +213,13 @@ class ArchitectureTest {
             noFields().that().areDeclaredInClassesThat().resideInAPackage(RAIZ + "auditoria.domain..")
                     .and().areNotStatic()
                     .should().haveNameMatching("(?i).*(chave|token|cookie|senha|caminho|cpf|cnpj).*")
+                    .allowEmptyShould(true);
+
+    // S5 (bloco 7): o cadastro de usuários só é escrito por AdministrarUsuarios, dentro de acesso.
+    @ArchTest
+    static final ArchRule cadastro_de_usuarios_e_interno_ao_acesso =
+            noClasses().that().resideOutsideOfPackage(RAIZ + "acesso..")
+                    .should().dependOnClassesThat().belongToAnyOf(CadastroDeUsuarios.class)
                     .allowEmptyShould(true);
 
     private static String[] concat(String[]... partes) {

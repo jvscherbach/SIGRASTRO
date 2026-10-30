@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import java.io.ByteArrayInputStream;
@@ -84,7 +85,8 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
             "GET /api/dossies", "POST /api/dossies", "GET /api/dossies/{id}", "GET /api/dossies/{id}/arquivo",
             "POST /api/dossies/{id}/arquivo/ticket", "POST /api/dossies/{id}/continuacao", "DELETE /api/dossies/{id}",
             "GET /api/auditoria/documentos", "GET /api/auditoria/acessos", "GET /api/auditoria/{grupo}/{id}",
-            "GET /api/auditoria/{grupo}/exportacao");
+            "GET /api/auditoria/{grupo}/exportacao",
+            "GET /api/configuracoes/usuarios", "POST /api/configuracoes/usuarios", "PATCH /api/configuracoes/usuarios/{id}");
 
     private enum Perfil {
         OPERADOR("operador.demo"), GESTOR("gestor.demo"), ADMIN("admin.demo");
@@ -258,6 +260,7 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
         criacaoDeDossie();
         pedidos();
         auditoria();
+        usuarios();
         dossiesGerados();
         mascaramentoNoPdfDoOperador();
 
@@ -519,6 +522,23 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
         }
         verificar("GET /api/auditoria/documentos", "sem token", null, 401, "NAO_AUTENTICADO",
                 () -> mvc.perform(get("/api/auditoria/documentos")));
+    }
+
+    /** Usuários (S5, bloco 7): só Administrador, sem alterar o cadastro. O CPF/CNPJ fica mascarado até para ele. */
+    private void usuarios() throws Exception {
+        for (Perfil p : Perfil.values()) {
+            boolean admin = p == Perfil.ADMIN;
+            String codigo = admin ? null : "PERFIL_SEM_PERMISSAO";
+            MockHttpServletResponse lista = verificar("GET /api/configuracoes/usuarios", "lista", p, admin ? 200 : 403,
+                    codigo, () -> comToken(get("/api/configuracoes/usuarios"), p));
+            soft.assertThat(lista.getContentAsString()).doesNotContain(CNPJ_DO_OPERADOR, "12345678000190");
+            verificar("POST /api/configuracoes/usuarios", "corpo vazio", p, admin ? 400 : 403,
+                    admin ? "PARAMETRO_INVALIDO" : codigo,
+                    () -> comToken(post("/api/configuracoes/usuarios").contentType(MediaType.APPLICATION_JSON).content("{}"), p));
+            verificar("PATCH /api/configuracoes/usuarios/{id}", "inexistente", p, admin ? 404 : 403,
+                    admin ? "NAO_ENCONTRADO" : codigo, () -> comToken(patch("/api/configuracoes/usuarios/nao.existe")
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"ativo\":false}"), p));
+        }
     }
 
     /** O PDF, o andamento e a lista do Operador mascaram o sigiloso (capa, sumário, "Documentos não incluídos"). */
