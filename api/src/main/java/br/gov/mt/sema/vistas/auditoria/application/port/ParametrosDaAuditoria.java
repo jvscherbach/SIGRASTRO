@@ -13,6 +13,9 @@ public interface ParametrosDaAuditoria {
     /** Teto de eventos em memória, somando os dois grupos; acima dele saem os mais antigos. */
     int maximoDeEventos();
 
+    /** Limite de linhas do CSV; acima dele corta e avisa. */
+    int maximoDeLinhasDoCsv();
+
     int retencaoDocumentosAnos();
 
     int retencaoAcessosAnos();

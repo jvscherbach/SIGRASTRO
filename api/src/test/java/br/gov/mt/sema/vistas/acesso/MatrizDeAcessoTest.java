@@ -82,7 +82,9 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
             "GET /api/busca", "GET /api/requerimentos/{id}", "GET /api/requerimentos/{id}/documentos",
             "GET /api/requerimentos/{id}/geometrias/arquivo", "GET /api/documentos/{origem}/{id}/conteudo",
             "GET /api/dossies", "POST /api/dossies", "GET /api/dossies/{id}", "GET /api/dossies/{id}/arquivo",
-            "POST /api/dossies/{id}/arquivo/ticket", "POST /api/dossies/{id}/continuacao", "DELETE /api/dossies/{id}");
+            "POST /api/dossies/{id}/arquivo/ticket", "POST /api/dossies/{id}/continuacao", "DELETE /api/dossies/{id}",
+            "GET /api/auditoria/documentos", "GET /api/auditoria/acessos", "GET /api/auditoria/{grupo}/{id}",
+            "GET /api/auditoria/{grupo}/exportacao");
 
     private enum Perfil {
         OPERADOR("operador.demo"), GESTOR("gestor.demo"), ADMIN("admin.demo");
@@ -255,6 +257,7 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
         conteudo();
         criacaoDeDossie();
         pedidos();
+        auditoria();
         dossiesGerados();
         mascaramentoNoPdfDoOperador();
 
@@ -478,6 +481,46 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
         verificar("GET /api/dossies", "sem token", null, 401, "NAO_AUTENTICADO", () -> mvc.perform(get("/api/dossies")));
     }
 
+    /**
+     * Auditoria (S5, bloco 4): acessos só para o Administrador; eventos só do interessado para o Operador, mascarados.
+     * Roda depois dos cenários acima, que deixaram eventos de sigilosos do requerimento 101 e de documentos do 202. A
+     * varredura final cobre estas respostas; a matriz completa da S5 é do bloco 11.
+     */
+    private void auditoria() throws Exception {
+        comToken(get("/api/requerimentos/202"), Perfil.GESTOR);
+        JsonNode todos = lerJson(comToken(get("/api/auditoria/documentos?tamanho=100&tipo=CONSULTA"), Perfil.GESTOR)
+                .andReturn().getResponse());
+        long deOutro = -1;
+        for (JsonNode evento : todos.get("conteudo")) {
+            if (evento.get("idRequerimento").asLong() == 202) {
+                deOutro = evento.get("id").asLong();
+            }
+        }
+        long idDeOutro = deOutro;
+        soft.assertThat(idDeOutro).as("evento do requerimento 202").isPositive();
+        for (Perfil p : Perfil.values()) {
+            boolean op = p == Perfil.OPERADOR;
+            boolean admin = p == Perfil.ADMIN;
+            verificar("GET /api/auditoria/documentos", "lista", p, 200, null,
+                    () -> comToken(get("/api/auditoria/documentos?tamanho=100"), p));
+            verificar("GET /api/auditoria/documentos", "só sigilosos", p, op ? 400 : 200, op ? "PARAMETRO_INVALIDO" : null,
+                    () -> comToken(get("/api/auditoria/documentos?somenteSigilosos=true&tamanho=100"), p));
+            verificar("GET /api/auditoria/acessos", "lista", p, admin ? 200 : 403, admin ? null : "PERFIL_SEM_PERMISSAO",
+                    () -> comToken(get("/api/auditoria/acessos"), p));
+            verificar("GET /api/auditoria/{grupo}/{id}", "evento de outro interessado", p, op ? 404 : 200,
+                    op ? "NAO_ENCONTRADO" : null, () -> comToken(get("/api/auditoria/documentos/" + idDeOutro), p));
+            verificar("GET /api/auditoria/{grupo}/{id}", "detalhe de acessos", p, admin ? 404 : 403,
+                    admin ? "NAO_ENCONTRADO" : "PERFIL_SEM_PERMISSAO",
+                    () -> comToken(get("/api/auditoria/acessos/" + idDeOutro), p));
+            verificar("GET /api/auditoria/{grupo}/exportacao", "documentos", p, 200, null,
+                    () -> comToken(get("/api/auditoria/documentos/exportacao"), p));
+            verificar("GET /api/auditoria/{grupo}/exportacao", "acessos", p, admin ? 200 : 403,
+                    admin ? null : "PERFIL_SEM_PERMISSAO", () -> comToken(get("/api/auditoria/acessos/exportacao"), p));
+        }
+        verificar("GET /api/auditoria/documentos", "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(get("/api/auditoria/documentos")));
+    }
+
     /** O PDF, o andamento e a lista do Operador mascaram o sigiloso (capa, sumário, "Documentos não incluídos"). */
     private void mascaramentoNoPdfDoOperador() throws Exception {
         String id = novoPedido(Perfil.OPERADOR);
@@ -506,7 +549,9 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
                 tudo.append('\n').append(nome).append(": ").append(String.join(",", resposta.getHeaders(nome)));
             }
             // "instance" e "path" do ProblemDetail só ecoam a URL que o próprio cliente pediu
-            String texto = tudo.toString().replaceAll("\"(instance|path)\":\"[^\"]*\"", "");
+            // e a origem de um evento de auditoria é o IP do cliente (no MockMvc, 127.0.0.1), não um host interno
+            String texto = tudo.toString().replaceAll("\"(instance|path)\":\"[^\"]*\"", "")
+                    .replace("\"127.0.0.1\"", "");
             for (String proibido : sempre) {
                 soft.assertThat(texto).as("resposta %s de %s", resposta.getStatus(), registro.getKey()).doesNotContain(proibido);
             }

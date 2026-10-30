@@ -108,7 +108,7 @@ Credenciais ficam no arquivo de ambiente do servidor; a tela não as exibe nem e
 
 Retenção por grupo: 1, 2, 5 ou 10 anos. Valores de exemplo no protótipo: documentos 5 anos, acessos 1 ano.
 
-Variáveis de ambiente do protótipo (S5): `AUDITORIA_RETENCAO_DOCUMENTOS_ANOS` (5), `AUDITORIA_RETENCAO_ACESSOS_ANOS` (1) e `AUDITORIA_MAX_EVENTOS` (50.000; teto em memória somando os dois grupos, acima dele saem os mais antigos). Valor fora da faixa cai no padrão, com aviso no log. A retenção roda no intervalo de `vistas.agendamento.limpeza-orfaos` (1 h) e `AGENDAMENTO_ENABLED=false` a desliga.
+Variáveis de ambiente do protótipo (S5): `AUDITORIA_RETENCAO_DOCUMENTOS_ANOS` (5), `AUDITORIA_RETENCAO_ACESSOS_ANOS` (1) e `AUDITORIA_MAX_EVENTOS` (50.000; teto em memória somando os dois grupos, acima dele saem os mais antigos) e `AUDITORIA_CSV_MAX_LINHAS` (50.000; limite do CSV, com aviso no cabeçalho `X-Vistas-Truncado`). Valor fora da faixa cai no padrão, com aviso no log. A retenção roda no intervalo de `vistas.agendamento.limpeza-orfaos` (1 h) e `AGENDAMENTO_ENABLED=false` a desliga.
 
 ## Salvamento
 

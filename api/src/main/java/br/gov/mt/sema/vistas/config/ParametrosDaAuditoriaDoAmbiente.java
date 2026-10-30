@@ -17,21 +17,29 @@ class ParametrosDaAuditoriaDoAmbiente implements ParametrosDaAuditoria {
     static final int RETENCAO_ACESSOS_PADRAO = 1;
 
     private final int maximoDeEventos;
+    private final int maximoDeLinhasDoCsv;
     private final int retencaoDocumentosAnos;
     private final int retencaoAcessosAnos;
 
     ParametrosDaAuditoriaDoAmbiente(
             @Value("${vistas.auditoria.max-eventos:50000}") int maximoDeEventos,
             @Value("${vistas.auditoria.retencao-documentos-anos:5}") int retencaoDocumentosAnos,
-            @Value("${vistas.auditoria.retencao-acessos-anos:1}") int retencaoAcessosAnos) {
-        if (maximoDeEventos < 1) {
-            log.warn("AUDITORIA_MAX_EVENTOS inválido; usando {}", MAXIMO_PADRAO);
-        }
-        this.maximoDeEventos = maximoDeEventos < 1 ? MAXIMO_PADRAO : maximoDeEventos;
+            @Value("${vistas.auditoria.retencao-acessos-anos:1}") int retencaoAcessosAnos,
+            @Value("${vistas.auditoria.csv-max-linhas:50000}") int maximoDeLinhasDoCsv) {
+        this.maximoDeEventos = positivo("AUDITORIA_MAX_EVENTOS", maximoDeEventos);
+        this.maximoDeLinhasDoCsv = positivo("AUDITORIA_CSV_MAX_LINHAS", maximoDeLinhasDoCsv);
         this.retencaoDocumentosAnos = retencao("AUDITORIA_RETENCAO_DOCUMENTOS_ANOS", retencaoDocumentosAnos,
                 RETENCAO_DOCUMENTOS_PADRAO);
         this.retencaoAcessosAnos = retencao("AUDITORIA_RETENCAO_ACESSOS_ANOS", retencaoAcessosAnos,
                 RETENCAO_ACESSOS_PADRAO);
+    }
+
+    private static int positivo(String variavel, int valor) {
+        if (valor >= 1) {
+            return valor;
+        }
+        log.warn("{} inválido; usando {}", variavel, MAXIMO_PADRAO);
+        return MAXIMO_PADRAO;
     }
 
     private static int retencao(String variavel, int valor, int padrao) {
@@ -45,6 +53,11 @@ class ParametrosDaAuditoriaDoAmbiente implements ParametrosDaAuditoria {
     @Override
     public int maximoDeEventos() {
         return maximoDeEventos;
+    }
+
+    @Override
+    public int maximoDeLinhasDoCsv() {
+        return maximoDeLinhasDoCsv;
     }
 
     @Override

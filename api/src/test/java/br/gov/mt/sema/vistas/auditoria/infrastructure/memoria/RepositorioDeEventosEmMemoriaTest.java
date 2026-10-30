@@ -56,14 +56,15 @@ class RepositorioDeEventosEmMemoriaTest {
         }
     }
 
-    private record Parametros(int maximoDeEventos, int retencaoDocumentosAnos, int retencaoAcessosAnos)
+    private record Parametros(int maximoDeEventos, int retencaoDocumentosAnos, int retencaoAcessosAnos,
+            int maximoDeLinhasDoCsv)
             implements ParametrosDaAuditoria {
     }
 
     private final RelogioControlado relogio = new RelogioControlado();
 
     private RepositorioDeEventosEmMemoria repositorio(int teto) {
-        return new RepositorioDeEventosEmMemoria(new Parametros(teto, 5, 1), relogio);
+        return new RepositorioDeEventosEmMemoria(new Parametros(teto, 5, 1, 50_000), relogio);
     }
 
     private static NovoEvento login() {

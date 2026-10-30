@@ -1,9 +1,12 @@
 package br.gov.mt.sema.vistas.acesso.application;
 
+import java.util.function.Predicate;
+
 import br.gov.mt.sema.vistas.acesso.domain.RestricaoDeInteressado;
 import br.gov.mt.sema.vistas.acesso.domain.Usuario;
 import br.gov.mt.sema.vistas.shared.application.exception.DocumentoSigilosoException;
 import br.gov.mt.sema.vistas.shared.application.exception.NaoInteressadoException;
+import br.gov.mt.sema.vistas.shared.application.exception.PerfilSemPermissaoException;
 import org.springframework.stereotype.Service;
 
 /**
@@ -68,6 +71,11 @@ public class PoliticaDeAcesso {
         return !usuario.perfil().restritoAoInteressado() && podeVerDocumentoSigiloso(usuario);
     }
 
+    /** RF23: a auditoria de acessos é só do Administrador. */
+    public boolean podeVerAuditoriaDeAcessos(Usuario usuario) {
+        return usuario.perfil().podeVerAuditoriaAcessos();
+    }
+
     /** O título como sai para o usuário: o de um documento que ele não acessa é mascarado. */
     public static String mascararTitulo(boolean acessivel, String titulo) {
         return acessivel ? titulo : TITULO_SIGILOSO;
@@ -90,6 +98,22 @@ public class PoliticaDeAcesso {
         if (!podeAcessarRequerimento(usuarioAtual.obter(), cpfCnpjDoInteressado)) {
             throw new NaoInteressadoException();
         }
+    }
+
+    /** 403 {@code PERFIL_SEM_PERMISSAO} se o usuário da requisição não vê a auditoria de acessos. */
+    public void exigirAuditoriaDeAcessos() {
+        if (!podeVerAuditoriaDeAcessos(usuarioAtual.obter())) {
+            throw new PerfilSemPermissaoException("Seu perfil não acessa a auditoria de acessos.");
+        }
+    }
+
+    /**
+     * RN07 para consultas em lote fora do SIGA: diz, pelo CPF/CNPJ do interessado de cada item, se o usuário da requisição
+     * o acessa. O usuário é lido uma vez, aqui.
+     */
+    public Predicate<String> regraDoInteressadoDoUsuarioAtual() {
+        Usuario usuario = usuarioAtual.obter();
+        return cpfCnpj -> podeAcessarRequerimento(usuario, cpfCnpj);
     }
 
     public boolean podeVerDocumentoSigiloso() {

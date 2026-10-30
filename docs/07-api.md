@@ -362,25 +362,35 @@ Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **
 | `GET /dossies/{id}/arquivo?ticket=` | **ticket** de uso único (sem sessão) | quem recebeu o ticket | idem | idem | conferido ao emitir | — | conferido ao emitir | ticket inválido, usado, vencido, de outro pedido ou com sessão de outro usuário: 403 `TICKET_INVALIDO` |
 | `POST /dossies/{id}/continuacao` | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` |
 | `DELETE /dossies/{id}` | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` |
+| `GET /auditoria/documentos` (S5) | sessão | só eventos dos requerimentos em que é o interessado, de qualquer usuário | todos | todos | filtro pelo vínculo gravado no evento | mascarado para o Op, em todos os campos e na busca; `somenteSigilosos` é 400 para ele | — | `regraDoInteressadoDoUsuarioAtual`, `podeVerDocumentoSigiloso` |
+| `GET /auditoria/acessos` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirAuditoriaDeAcessos` (`PERFIL_SEM_PERMISSAO`) |
+| `GET /auditoria/{grupo}/{id}` (S5) | sessão | como a lista do grupo | idem | idem | evento que o usuário não vê: 404 | mascarado como na lista | — | as mesmas da lista |
+| `GET /auditoria/{grupo}/exportacao` (S5) | sessão | como a lista do grupo | idem | idem | mesmo filtro da lista | mascarado como na lista | — | as mesmas da lista |
 
 Fora de `/api`: `GET /actuator/health` (pública, só a situação) e a documentação OpenAPI (`/v3/api-docs`, `/swagger-ui`), desligada por padrão (`OPENAPI_ENABLED=false`) e ligada só no perfil `local`. Toda rota de `/api/**` sem o token responde 401 `NAO_AUTENTICADO`, exceto o login e o download por ticket.
 
 **Prova (bloco 9):** `MatrizDeAcessoTest` exercita esta tabela por MockMvc (mais de 150 cenários: perfil × interessado ou não × sigiloso ou não × dono do pedido ou não) e compara três listas: os mapeamentos de `/api` do Spring, a primeira coluna desta tabela (lida deste arquivo) e os endpoints com cenário no teste. Endpoint novo sem linha aqui ou sem cenário lá quebra o teste. Todas as respostas são varridas atrás de vazamento (veja docs/12).
 
-As rotas de **Auditoria** e **Configurações** abaixo ainda **não existem** no código (S5). Quando forem criadas, entram nesta matriz e no `MatrizDeAcessoTest` (bloco 9 da S4), que falha para endpoint sem linha.
+As rotas de **Configurações** abaixo ainda **não existem** no código (S5). Quando forem criadas, entram nesta matriz e no `MatrizDeAcessoTest` (bloco 9 da S4), que falha para endpoint sem linha.
 
 **Achados do inventário (bloco 1):** nenhuma rota sem verificação. Dois reforços, registrados em D60: (1) pedido de **outro usuário** passa a exigir explicitamente perfil que acessa qualquer requerimento **e** qualquer sigiloso (antes bastava "não ser restrito ao interessado", o que hoje dá no mesmo, mas não valeria para um perfil futuro restrito ou sem sigilo); (2) o **dono** Operador só acessa o pedido enquanto o interessado gravado no pedido continuar sendo o dele (antes bastava o login).
 
 ## Auditoria
 
-`{tipo}` é `documentos` (perfil `OPERADOR_SIGILO`) ou `acessos` (perfil `ADMIN`). Pedido de um tipo por perfil não autorizado retorna 403.
+`{grupo}` é `documentos` (todos os perfis, com as regras da matriz acima) ou `acessos` (só Administrador: 403 `PERFIL_SEM_PERMISSAO`); outro valor é 404.
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/auditoria/{tipo}?de=&ate=&evento=&usuario=&q=&sigiloso=&pagina=` | Lista paginada, do mais recente para o mais antigo. `sigiloso` só em `documentos`. |
-| `GET` | `/auditoria/{tipo}/resumo?de=&ate=` | Indicadores do período. |
-| `GET` | `/auditoria/{tipo}/{id}` | Detalhe do evento (documentos ou alterações antes/depois). |
-| `GET` | `/auditoria/{tipo}/exportacao?…` | CSV dos eventos filtrados. |
+| `GET` | `/auditoria/documentos?periodo=&texto=&tipo=&usuario=&somenteSigilosos=&pagina=&tamanho=` | Lista do mais recente para o mais antigo, com os indicadores do período. |
+| `GET` | `/auditoria/acessos?periodo=&texto=&tipo=&usuario=&pagina=&tamanho=` | Idem, sem filtro de sigilo. |
+| `GET` | `/auditoria/{grupo}/{id}` | Detalhe do evento: origem, correlação, documentos com o sigilo de cada um e antes e depois. |
+| `GET` | `/auditoria/{grupo}/exportacao?…` | CSV dos eventos filtrados. Mesmos filtros da lista, sem paginação. |
+
+- **Filtros:** `periodo` é `hoje`, `7d` (padrão), `30d` ou `todo` ("hoje" começa à meia-noite de Cuiabá); `texto` procura em usuário, números, documento, arquivo e código do evento, sem diferenciar maiúsculas nem acentos; `tipo` é um código do grupo (outro é 400); `usuario` é o login exato; `tamanho` vai até 100.
+- **Resposta da lista:** os campos de `PageResponse` mais `indicadores`: `dossiesGerados`, `eventosComSigilosos` e `usuarios` em documentos; `entradas`, `alteracoes` e `usuarios` em acessos. Os indicadores seguem o período e o perfil, não os demais filtros.
+- **Mascaramento:** para quem não acessa sigilosos, o documento sigiloso sai como "Documento sigiloso", sem nome de arquivo. Em evento sigiloso, `arquivo` e `detalhe` também saem, porque podem citar o documento (motivo de falha); `DOSSIE`, `DOWNLOAD` e `GEOMETRIAS` mantêm os deles, montados pelo serviço. A marca `sigiloso` continua visível, como na lista de documentos. A busca roda sobre o evento já mascarado.
+- **CSV:** `text/csv` em UTF-8 com BOM, separador `;`, todas as células entre aspas, aspas duplicadas, sem quebra de linha na célula. Célula que começa com `=`, `+`, `-`, `@`, tabulação ou retorno recebe um apóstrofo na frente. `Content-Disposition` com `auditoria-documentos-AAAAMMDD.csv`, `Cache-Control: no-store`. Acima de `AUDITORIA_CSV_MAX_LINHAS` corta nos mais recentes e responde `X-Vistas-Truncado: true`.
+- O vínculo do interessado (CPF/CNPJ) não existe em nenhuma resposta.
 
 O registro dos eventos é feito pelo próprio back-end nas rotas de consulta, conteúdo de documento, geração e download do dossiê. Não há rota de escrita exposta.
 

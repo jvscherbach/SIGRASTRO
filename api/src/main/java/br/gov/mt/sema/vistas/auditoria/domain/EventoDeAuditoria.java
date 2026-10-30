@@ -62,6 +62,23 @@ public record EventoDeAuditoria(long id, ZonedDateTime dataHora, TipoDeEvento ti
         return tipo.grupo();
     }
 
+    /**
+     * Cópia para quem não acessa sigilosos: documento sigiloso sem título real nem nome de arquivo. O detalhe e o arquivo
+     * de evento sigiloso também saem, porque podem citar o documento (motivo de falha); ficam só os de {@code DOSSIE},
+     * {@code DOWNLOAD} e {@code GEOMETRIAS}, montados pelo serviço, sem nome de documento.
+     */
+    public EventoDeAuditoria comSigilosoMascarado(String tituloMascarado, String detalheOmitido) {
+        List<DocumentoDoEvento> mascarados = documentos.stream().map(d -> d.sigiloso()
+                ? new DocumentoDoEvento(d.origem(), d.id(), tituloMascarado, null, true, d.ordem())
+                : d).toList();
+        boolean textoDoServico = tipo == TipoDeEvento.DOSSIE || tipo == TipoDeEvento.DOWNLOAD
+                || tipo == TipoDeEvento.GEOMETRIAS;
+        boolean omitir = sigiloso && !textoDoServico;
+        return new EventoDeAuditoria(id, dataHora, tipo, usuario, idRequerimento, numeroProcesso, numeroRequerimento,
+                vinculo, sigiloso, omitir ? null : arquivo, idPedido, origem,
+                omitir && detalhe != null ? detalheOmitido : detalhe, correlationId, mascarados, alteracoes);
+    }
+
     /** Campos obrigatórios por tipo, conforme "Detalhe registrado" de docs/11. */
     private static void exigirCamposDoTipo(TipoDeEvento tipo, Long idRequerimento, String arquivo, String idPedido,
             String detalhe, List<DocumentoDoEvento> documentos, List<AlteracaoDoEvento> alteracoes) {
