@@ -387,3 +387,10 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 
 **Motivo:** a permissão é o contrato que o back-end já publica e muda junto com ele; um perfil futuro não exige mexer no menu. Reaproveitar a gaveta evita duas implementações da decisão da RN09.
 **Consequência:** o aviso do Operador na Consulta ocupa um espaço reservado em todos os perfis, para a altura do quadro do topo não mudar (cerca de 42 px vazios para Gestor e Administrador). O filtro por situação de "Dossiês gerados" age só na página carregada, porque o `GET /dossies` não filtra situação.
+
+## D65 — Auditoria em memória, somente inclusão, com retrato limpo (S5, bloco 2)
+
+**Contexto:** a S5 traz a rastreabilidade ainda sem schema próprio (D09). O dossiê é usado em processos jurídicos: a auditoria não pode ser alterada pela aplicação, não pode vazar sigilo nem credencial e não pode derrubar a operação.
+**Decisão:** `EventoDeAuditoria` imutável, numerado e datado pelo repositório (fuso de Cuiabá), com retrato do usuário, dos números e dos documentos. `RepositorioDeEventos` só inclui e lê; o descarte fica à parte, em `RetencaoDeEventos` (retenção por grupo) e no teto `AUDITORIA_MAX_EVENTOS`. `RegistrarEvento` nunca lança, e montar um `NovoEvento` também não: a validação roda dentro de `registrar`. Texto longo é cortado, não recusado. Todo texto passa pela limpeza de `TextoDoEvento`. O grupo decorre do tipo. Incluído o tipo `PERFIL` de docs/11 (troca de perfil simulado, bloco 6).
+**Motivo:** um evento perdido por um título comprido seria pior do que um título cortado. A limpeza é a segunda barreira: os módulos já não mandam chave nem token, mas o motivo de falha e os títulos são texto livre. Os dígitos do interessado ficam em `VinculoDoInteressado`, sem leitura pública, porque o filtro do Operador precisa deles e nenhum DTO, CSV ou log pode recebê-los por acidente.
+**Consequência:** tudo some ao reiniciar (R50). Um título legítimo que pareça dado sensível (por exemplo, com 11 dígitos seguidos) aparece com `[removido]` na auditoria; o documento em si não muda. Quem lê os dígitos do vínculo é só a regra passada a `atende`.

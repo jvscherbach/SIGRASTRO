@@ -1,0 +1,59 @@
+package br.gov.mt.sema.vistas.config;
+
+import br.gov.mt.sema.vistas.auditoria.application.port.ParametrosDaAuditoria;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+/** Parâmetros da auditoria vindos de variáveis de ambiente (protótipo). Valor fora da faixa cai no padrão, com aviso no log. */
+@Component
+class ParametrosDaAuditoriaDoAmbiente implements ParametrosDaAuditoria {
+
+    private static final Logger log = LoggerFactory.getLogger(ParametrosDaAuditoriaDoAmbiente.class);
+
+    static final int MAXIMO_PADRAO = 50_000;
+    static final int RETENCAO_DOCUMENTOS_PADRAO = 5;
+    static final int RETENCAO_ACESSOS_PADRAO = 1;
+
+    private final int maximoDeEventos;
+    private final int retencaoDocumentosAnos;
+    private final int retencaoAcessosAnos;
+
+    ParametrosDaAuditoriaDoAmbiente(
+            @Value("${vistas.auditoria.max-eventos:50000}") int maximoDeEventos,
+            @Value("${vistas.auditoria.retencao-documentos-anos:5}") int retencaoDocumentosAnos,
+            @Value("${vistas.auditoria.retencao-acessos-anos:1}") int retencaoAcessosAnos) {
+        if (maximoDeEventos < 1) {
+            log.warn("AUDITORIA_MAX_EVENTOS inválido; usando {}", MAXIMO_PADRAO);
+        }
+        this.maximoDeEventos = maximoDeEventos < 1 ? MAXIMO_PADRAO : maximoDeEventos;
+        this.retencaoDocumentosAnos = retencao("AUDITORIA_RETENCAO_DOCUMENTOS_ANOS", retencaoDocumentosAnos,
+                RETENCAO_DOCUMENTOS_PADRAO);
+        this.retencaoAcessosAnos = retencao("AUDITORIA_RETENCAO_ACESSOS_ANOS", retencaoAcessosAnos,
+                RETENCAO_ACESSOS_PADRAO);
+    }
+
+    private static int retencao(String variavel, int valor, int padrao) {
+        if (RETENCOES_EM_ANOS.contains(valor)) {
+            return valor;
+        }
+        log.warn("{} fora de 1, 2, 5 ou 10; usando {}", variavel, padrao);
+        return padrao;
+    }
+
+    @Override
+    public int maximoDeEventos() {
+        return maximoDeEventos;
+    }
+
+    @Override
+    public int retencaoDocumentosAnos() {
+        return retencaoDocumentosAnos;
+    }
+
+    @Override
+    public int retencaoAcessosAnos() {
+        return retencaoAcessosAnos;
+    }
+}

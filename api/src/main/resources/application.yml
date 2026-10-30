@@ -98,6 +98,11 @@ vistas:
   geometrias:
     max-mb: ${GEOMETRIAS_MAX_MB:500}
     max-arquivos: ${GEOMETRIAS_MAX_ARQUIVOS:200}
+  # Auditoria em memória (S5): teto de eventos (saem os mais antigos) e retenção por grupo, em anos (1, 2, 5 ou 10).
+  auditoria:
+    max-eventos: ${AUDITORIA_MAX_EVENTOS:50000}
+    retencao-documentos-anos: ${AUDITORIA_RETENCAO_DOCUMENTOS_ANOS:5}
+    retencao-acessos-anos: ${AUDITORIA_RETENCAO_ACESSOS_ANOS:1}
   # API de arquivos do Licenciamento. URL vazia = não configurada: a geração falha com esse motivo, a listagem não.
   arquivos:
     url: ${LICENCIAMENTO_API_URL:}

@@ -4,8 +4,12 @@ Registro de quem consultou, visualizou, gerou e baixou dossiês, com destaque pa
 
 ## Situação no protótipo
 
-- A tela existe e é funcional, com eventos de exemplo e os eventos gerados durante o uso da página.
-- Os eventos ficam **apenas na memória da página**: somem ao recarregar. A persistência é item da versão definitiva.
+- **Módulo `auditoria` (S5, bloco 2):** eventos imutáveis num repositório em memória do serviço (D09, D65), somente inclusão. **Somem ao reiniciar o serviço**; o registro permanente é da versão definitiva (P14, R50). A instrumentação dos fluxos e as telas chegam nos blocos seguintes da S5 (`docs/progresso/s5.md`).
+- Os demais módulos dependem só de `RegistrarEvento`, que **nunca lança**: falha de auditoria vai para o log, só com a classe da exceção, e não impede a operação. Evento inválido é descartado do mesmo jeito.
+- Só dois mecanismos descartam eventos: a **retenção** por grupo (limpeza agendada, de hora em hora, porta `RetencaoDeEventos`, separada do repositório) e o **teto** `AUDITORIA_MAX_EVENTOS` (saem os mais antigos, somando os dois grupos).
+- **Retrato e limpeza:** todo texto passa por `TextoDoEvento`: tira controle, apara, corta no tamanho máximo (corta em vez de recusar, para não perder o evento) e troca por `[removido]` o que parecer token, cookie, URL, caminho, chave opaca ou CPF/CNPJ completo. Nome de arquivo perde as pastas. O evento não tem campo para chave, token, cookie nem caminho (`ArchitectureTest`).
+- **Vínculo do interessado:** os dígitos ficam em `VinculoDoInteressado`, sem leitura pública: só saem para a regra do filtro do Operador e não aparecem em `toString`. Valor que não é CPF nem CNPJ vira "sem vínculo", que nenhum Operador enxerga.
+- **Origem da requisição:** último endereço válido do `X-Forwarded-For` (o que o nginx acrescenta; o resto foi escrito pelo cliente) ou o endereço remoto.
 - A auditoria é dividida em duas telas:
   - **Documentos:** Gestor e Administrador veem todos os eventos. O Operador vê os eventos, de qualquer usuário, sobre processos e requerimentos vinculados a ele (RN07); nomes de documentos sigilosos aparecem como "Documento sigiloso" e o filtro "somente sigilosos" não é oferecido.
   - **Acessos:** somente Administrador.
