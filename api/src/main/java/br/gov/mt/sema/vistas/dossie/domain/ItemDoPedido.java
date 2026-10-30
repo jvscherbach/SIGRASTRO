@@ -22,6 +22,8 @@ public final class ItemDoPedido {
     private volatile int abasEmPaginaUnica;
     private final String extensao;
     private final int posicao;
+    private final String nomeArquivo;
+    private final boolean sigiloso;
 
     public ItemDoPedido(String origem, String origemDescricao, String id, String titulo, LocalDateTime data,
             String chave) {
@@ -37,6 +39,17 @@ public final class ItemDoPedido {
     /** @param extensao extensão do nome do arquivo (desempata o contêiner antigo do Office na detecção do tipo real) */
     public ItemDoPedido(String origem, String origemDescricao, String id, String titulo, LocalDateTime data,
             String chave, int posicao, String extensao) {
+        this(origem, origemDescricao, id, titulo, data, chave, posicao, extensao, null, true);
+    }
+
+    /**
+     * @param nomeArquivo nome do arquivo no momento do pedido (retrato da auditoria)
+     * @param sigiloso sigilo da lista no momento do pedido (retrato da auditoria)
+     */
+    public ItemDoPedido(String origem, String origemDescricao, String id, String titulo, LocalDateTime data,
+            String chave, int posicao, String extensao, String nomeArquivo, boolean sigiloso) {
+        this.nomeArquivo = nomeArquivo;
+        this.sigiloso = sigiloso;
         this.posicao = posicao;
         this.origem = origem;
         this.origemDescricao = origemDescricao;
@@ -69,6 +82,14 @@ public final class ItemDoPedido {
 
     public int posicao() {
         return posicao;
+    }
+
+    public String nomeArquivo() {
+        return nomeArquivo;
+    }
+
+    public boolean sigiloso() {
+        return sigiloso;
     }
 
     /** Interna: nunca vai para DTO, log nem resposta (RNF09). */

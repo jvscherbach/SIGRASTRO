@@ -18,6 +18,8 @@ import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
 import br.gov.mt.sema.vistas.acesso.application.UsuarioAtual;
 import br.gov.mt.sema.vistas.acesso.domain.Perfil;
 import br.gov.mt.sema.vistas.acesso.domain.Usuario;
+import br.gov.mt.sema.vistas.auditoria.application.ContextoDoEvento;
+import br.gov.mt.sema.vistas.auditoria.application.port.RequisicaoDoEvento;
 import br.gov.mt.sema.vistas.consulta.application.ObterRequerimento;
 import br.gov.mt.sema.vistas.consulta.application.VerificarAcessoAoRequerimento;
 import br.gov.mt.sema.vistas.documento.application.ListarDocumentos;
@@ -25,6 +27,7 @@ import br.gov.mt.sema.vistas.documento.application.ReferenciaDeDocumento;
 import br.gov.mt.sema.vistas.documento.application.SelecionarDocumentosParaDossie;
 import br.gov.mt.sema.vistas.documento.domain.OrigemDocumento;
 import br.gov.mt.sema.vistas.dossie.application.CriarDossie;
+import br.gov.mt.sema.vistas.dossie.application.EventosDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.GeradorDeDossie;
 import br.gov.mt.sema.vistas.dossie.application.PreparadorDePdf;
 import br.gov.mt.sema.vistas.dossie.application.port.ArquivosDoRepositorio;
@@ -177,11 +180,22 @@ class ConexaoDoSigaLiberadaTest {
             }
         };
         java.time.Clock relogio = java.time.Clock.systemDefaultZone();
+        EventosDoDossie eventos = new EventosDoDossie(evento -> { }, new ContextoDoEvento(atual, new RequisicaoDoEvento() {
+            @Override
+            public String origem() {
+                return null;
+            }
+
+            @Override
+            public String correlationId() {
+                return null;
+            }
+        }));
         GeradorDeDossie gerador = new GeradorDeDossie(arquivos,
                 new PreparadorDePdf(validador, null, null, ParametrosDeConversaoDeTeste.ligada()), montador, parametros,
-                d -> Long.MAX_VALUE, relogio);
+                d -> Long.MAX_VALUE, relogio, eventos);
         CriarDossie criar = new CriarDossie(obterRequerimento, selecao, atual, repositorio, Runnable::run, gerador,
-                parametros, relogio);
+                parametros, relogio, eventos);
 
         String id = criar.executar(101, List.of(new ReferenciaDeDocumento("DOCUMENTO_PROCESSO", "1"),
                 new ReferenciaDeDocumento("DOCUMENTO_REQUERIMENTO", "13"), new ReferenciaDeDocumento("COMPLEMENTACAO", "21")));

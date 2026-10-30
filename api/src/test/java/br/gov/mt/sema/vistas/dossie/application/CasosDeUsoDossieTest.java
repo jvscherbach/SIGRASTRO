@@ -112,11 +112,11 @@ class CasosDeUsoDossieTest {
         parametros = new Parametros(pasta);
         relogio = new RelogioControlado();
         montador = new Montador();
-        GeradorDeDossie gerador = new GeradorDeDossie(arquivos, Fakes.preparador(new Validador()), montador, parametros, d -> Long.MAX_VALUE, relogio);
+        GeradorDeDossie gerador = new GeradorDeDossie(arquivos, Fakes.preparador(new Validador()), montador, parametros, d -> Long.MAX_VALUE, relogio, Fakes.eventos(atual));
         localizar = new LocalizarPedido(repositorio, new PoliticaDeAcesso(atual), parametros, relogio);
-        criar = new CriarDossie(requerimentos, selecao, atual, repositorio, fila, gerador, parametros, relogio);
+        criar = new CriarDossie(requerimentos, selecao, atual, repositorio, fila, gerador, parametros, relogio, Fakes.eventos(atual));
         tickets = new Tickets();
-        obterArquivo = new ObterArquivoDoDossie(localizar, parametros, tickets, atual, relogio);
+        obterArquivo = new ObterArquivoDoDossie(localizar, parametros, tickets, atual, relogio, Fakes.eventos(atual));
         emitirTicket = new EmitirTicketDeDownload(obterArquivo, tickets, atual, relogio);
         cancelar = new CancelarDossie(localizar, parametros, gerador);
         continuar = new ContinuarDossie(localizar, fila, gerador, parametros, relogio);

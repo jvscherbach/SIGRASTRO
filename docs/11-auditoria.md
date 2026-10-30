@@ -4,7 +4,7 @@ Registro de quem consultou, visualizou, gerou e baixou dossiês, com destaque pa
 
 ## Situação no protótipo
 
-- **Módulo `auditoria` (S5, bloco 2):** eventos imutáveis num repositório em memória do serviço (D09, D65), somente inclusão. **Somem ao reiniciar o serviço**; o registro permanente é da versão definitiva (P14, R50). A instrumentação dos fluxos e as telas chegam nos blocos seguintes da S5 (`docs/progresso/s5.md`).
+- **Módulo `auditoria` (S5, bloco 2):** eventos imutáveis num repositório em memória do serviço (D09, D65), somente inclusão. **Somem ao reiniciar o serviço**; o registro permanente é da versão definitiva (P14, R50). Os eventos de documentos são registrados desde o bloco 3 (D66; momento de cada um em [07](07-api.md#auditoria)); os de acessos e as telas chegam nos blocos seguintes da S5 (`docs/progresso/s5.md`).
 - Os demais módulos dependem só de `RegistrarEvento`, que **nunca lança**: falha de auditoria vai para o log, só com a classe da exceção, e não impede a operação. Evento inválido é descartado do mesmo jeito.
 - Só dois mecanismos descartam eventos: a **retenção** por grupo (limpeza agendada, de hora em hora, porta `RetencaoDeEventos`, separada do repositório) e o **teto** `AUDITORIA_MAX_EVENTOS` (saem os mais antigos, somando os dois grupos).
 - **Retrato e limpeza:** todo texto passa por `TextoDoEvento`: tira controle, apara, corta no tamanho máximo (corta em vez de recusar, para não perder o evento) e troca por `[removido]` o que parecer token, cookie, URL, caminho, chave opaca ou CPF/CNPJ completo. Nome de arquivo perde as pastas. O evento não tem campo para chave, token, cookie nem caminho (`ArchitectureTest`).
@@ -23,10 +23,10 @@ Registro de quem consultou, visualizou, gerou e baixou dossiês, com destaque pa
 |---|---|---|---|
 | `CONSULTA` | Consulta | Abertura do detalhe de um processo ou requerimento | Número consultado |
 | `VISUALIZACAO` | Visualização | Abertura de um documento no modal | Documento visualizado e sigilo |
-| `DOSSIE` | Dossiê gerado | Pedido de geração do dossiê | Quantidade de documentos, quantos sigilosos, lista completa e nome do arquivo |
-| `FALHA` | Falha na geração | Geração com falha em documento (desde a S2.2, o pedido fica aguardando decisão; cada tentativa com falha gera um evento) | Documento e motivo |
-| `DOWNLOAD` | Download | Download do PDF do dossiê | Nome do arquivo |
-| `GEOMETRIAS` | Geometrias baixadas | Download do ZIP das geometrias (RN10; previsto desde a S4, registrado a partir da S5) | Quantidade de arquivos, quantas sigilosas e nome do ZIP |
+| `DOSSIE` | Dossiê gerado | Fim da geração com sucesso | Quantidade de documentos, quantos sigilosos, lista completa e nome do arquivo |
+| `FALHA` | Falha na geração | Geração com falha em documento (desde a S2.2, o pedido fica aguardando decisão; cada tentativa com falha gera um evento) ou falha na montagem (evento sem documento) | Documento e motivo |
+| `DOWNLOAD` | Download | Download completo do PDF do dossiê (a pré-visualização não conta) | Nome do arquivo e pedido |
+| `GEOMETRIAS` | Geometrias baixadas | Download completo do ZIP das geometrias (RN10; previsto desde a S4, registrado a partir da S5) | Quantidade de arquivos, quantas sigilosas e nome do ZIP |
 
 O evento `DOSSIE` é registrado quando a geração termina com sucesso; uma tentativa interrompida gera `FALHA`.
 

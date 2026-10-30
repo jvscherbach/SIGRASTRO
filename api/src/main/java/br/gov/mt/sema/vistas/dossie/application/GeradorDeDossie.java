@@ -50,11 +50,13 @@ public class GeradorDeDossie {
     private final ParametrosDoDossie parametros;
     private final EspacoEmDisco espaco;
     private final Clock relogio;
+    private final EventosDoDossie eventos;
     /** Thread que está convertendo um documento de cada pedido: o cancelamento a interrompe. */
     private final Map<String, Thread> convertendo = new ConcurrentHashMap<>();
 
     public GeradorDeDossie(ArquivosDoRepositorio arquivos, PreparadorDePdf preparador, MontadorDoDossie montador,
-            ParametrosDoDossie parametros, EspacoEmDisco espaco, Clock relogio) {
+            ParametrosDoDossie parametros, EspacoEmDisco espaco, Clock relogio, EventosDoDossie eventos) {
+        this.eventos = eventos;
         this.arquivos = arquivos;
         this.preparador = preparador;
         this.montador = montador;
@@ -72,8 +74,10 @@ public class GeradorDeDossie {
             Files.createDirectories(pasta);
         } catch (IOException e) {
             log.error("Não foi possível criar o diretório do dossiê {}", pedido.id(), e);
-            pedido.aguardarDecisao(new ErroDoDossie(null, null, null, "não foi possível preparar o diretório temporário",
-                    null), validade());
+            String motivo = "não foi possível preparar o diretório temporário";
+            if (pedido.aguardarDecisao(new ErroDoDossie(null, null, null, motivo, null), validade())) {
+                eventos.falhaGeral(pedido, motivo);
+            }
             return;
         }
         try {
@@ -136,23 +140,31 @@ public class GeradorDeDossie {
                 item.situacao(SituacaoItem.OK);
             } catch (CredencialArquivosRecusadaException e) {
                 ArquivosTemporarios.apagarArquivo(arquivo);
-                item.falhar(e.getMessage());
+                falhar(pedido, item, e.getMessage());
                 log.warn("Dossiê {}: credencial da API de arquivos recusada; obtenção interrompida", pedido.id());
                 return new ErroDoDossie(item.origem(), item.id(), item.titulo(), e.getMessage(),
                         ErroDoDossie.CREDENCIAL_ARQUIVOS_RECUSADA);
             } catch (FalhaNoDocumentoException e) {
                 ArquivosTemporarios.apagarArquivo(arquivo);
-                item.falhar(e.getMessage());
+                falhar(pedido, item, e.getMessage());
                 log.warn("Dossiê {}: falha no documento {}: {}", pedido.id(), item, e.getMessage());
             } catch (RuntimeException e) {
                 ArquivosTemporarios.apagarArquivo(arquivo);
                 ArquivosTemporarios.apagarArquivo(original);
-                item.falhar(FALHA_INESPERADA);
+                falhar(pedido, item, FALHA_INESPERADA);
                 log.error("Dossiê {}: falha inesperada no documento {}", pedido.id(), item, e);
             }
             pedido.registrarAtividade(validade());
         }
         return null;
+    }
+
+    /** Interrupção causada pelo cancelamento não é falha do documento: não gera evento. */
+    private void falhar(PedidoDeDossie pedido, ItemDoPedido item, String motivo) {
+        item.falhar(motivo);
+        if (!pedido.cancelamentoSolicitado()) {
+            eventos.falhaNoDocumento(pedido, item, motivo);
+        }
     }
 
     /**
@@ -200,6 +212,7 @@ public class GeradorDeDossie {
                 ArquivosTemporarios.apagarArquivo(finalizado);
                 return;
             }
+            eventos.dossieGerado(pedido);
             for (DocumentoParaMontagem documento : paraMontar) {
                 ArquivosTemporarios.apagarArquivo(documento.arquivo());
             }
@@ -218,7 +231,9 @@ public class GeradorDeDossie {
     /** Os documentos obtidos continuam no disco: "Tentar novamente" refaz só a montagem. */
     private void falhaNaMontagem(PedidoDeDossie pedido, Path finalizado, String motivo) {
         ArquivosTemporarios.apagarArquivo(finalizado);
-        pedido.aguardarDecisao(new ErroDoDossie(null, null, null, motivo, null), validade());
+        if (pedido.aguardarDecisao(new ErroDoDossie(null, null, null, motivo, null), validade())) {
+            eventos.falhaGeral(pedido, motivo);
+        }
         log.warn("Dossiê {} aguarda decisão: {}", pedido.id(), motivo);
     }
 

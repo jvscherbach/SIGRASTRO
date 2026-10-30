@@ -10,7 +10,12 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
+import br.gov.mt.sema.vistas.auditoria.application.ContextoDoEvento;
+import br.gov.mt.sema.vistas.auditoria.application.RegistrarEvento;
+import br.gov.mt.sema.vistas.auditoria.domain.DocumentoDoEvento;
+import br.gov.mt.sema.vistas.auditoria.domain.TipoDeEvento;
 import br.gov.mt.sema.vistas.consulta.application.VerificarAcessoAoRequerimento;
+import br.gov.mt.sema.vistas.consulta.domain.Requerimento;
 import br.gov.mt.sema.vistas.documento.application.port.ArquivosDoDocumento;
 import br.gov.mt.sema.vistas.documento.application.port.ConversorDeDocumentos;
 import br.gov.mt.sema.vistas.documento.application.port.ConversorDeImagens;
@@ -54,6 +59,8 @@ public class ObterConteudoDoDocumento {
     private final ConversorDeImagens conversorDeImagens;
     private final ParametrosDaConversao conversao;
     private final CacheDeVisualizacao cache;
+    private final RegistrarEvento registrar;
+    private final ContextoDoEvento contexto;
     private final int limiteDeConversoes;
     private final Semaphore vagas;
     private final AtomicInteger admitidas = new AtomicInteger();
@@ -61,7 +68,10 @@ public class ObterConteudoDoDocumento {
     public ObterConteudoDoDocumento(VerificarAcessoAoRequerimento acesso, ListarDocumentos listagem,
             PoliticaDeAcesso politica, ArquivosDoDocumento arquivos,
             ConversorDeDocumentos conversorDeDocumentos, ConversorDeImagens conversorDeImagens,
-            ParametrosDaConversao conversao, ParametrosDaVisualizacao visualizacao, CacheDeVisualizacao cache) {
+            ParametrosDaConversao conversao, ParametrosDaVisualizacao visualizacao, CacheDeVisualizacao cache,
+            RegistrarEvento registrar, ContextoDoEvento contexto) {
+        this.registrar = registrar;
+        this.contexto = contexto;
         this.acesso = acesso;
         this.listagem = listagem;
         this.politica = politica;
@@ -76,7 +86,19 @@ public class ObterConteudoDoDocumento {
     }
 
     public ConteudoDoDocumento executar(long idRequerimento, String origem, String id, Formato formato) {
+        Requerimento requerimento = acesso.executar(idRequerimento);
         Documento documento = documentoAcessivel(idRequerimento, origem, id);
+        ConteudoDoDocumento conteudo = conteudo(documento, formato);
+        registrar.registrar(contexto.novo(TipoDeEvento.VISUALIZACAO)
+                .requerimento(idRequerimento, requerimento.numeroProcesso(), requerimento.numeroRequerimento())
+                .interessado(requerimento.cpfCnpjDoInteressado())
+                .documentos(List.of(new DocumentoDoEvento(documento.origem().descricao(), documento.id(),
+                        documento.titulo(), documento.nomeArquivo(), documento.sigiloso(), null)))
+                .criar());
+        return conteudo;
+    }
+
+    private ConteudoDoDocumento conteudo(Documento documento, Formato formato) {
         Path pasta = cache.pastaDe(documento);
         return cache.comTrava(pasta, () -> {
             Path original = original(documento, pasta);
@@ -96,9 +118,8 @@ public class ObterConteudoDoDocumento {
         });
     }
 
-    /** RN07 (403/404 do requerimento), pertencimento ao requerimento (404), sigilo (403) e situação (404). */
+    /** Com a RN07 já conferida: pertencimento ao requerimento (404), sigilo (403) e situação (404). */
     private Documento documentoAcessivel(long idRequerimento, String origem, String id) {
-        acesso.executar(idRequerimento);
         String idLimpo = id == null ? "" : id.trim();
         ListarDocumentos.ListaDoRequerimento consolidada = listagem.listaComAvisos(idRequerimento);
         Documento documento = consolidada.documentos().stream()

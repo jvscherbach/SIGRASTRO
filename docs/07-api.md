@@ -384,6 +384,17 @@ As rotas de **Auditoria** e **Configurações** abaixo ainda **não existem** no
 
 O registro dos eventos é feito pelo próprio back-end nas rotas de consulta, conteúdo de documento, geração e download do dossiê. Não há rota de escrita exposta.
 
+**Eventos por endpoint (S5, bloco 3).** Nenhum muda status, `errorCode`, corpo ou cabeçalho da resposta, e acesso negado (403/404) não registra.
+
+| Endpoint | Evento | Quando |
+|---|---|---|
+| `GET /requerimentos/{id}` | `CONSULTA` | Detalhe devolvido. A criação do dossiê lê o mesmo requerimento e não gera `CONSULTA`. |
+| `GET /documentos/{origem}/{id}/conteudo` | `VISUALIZACAO` | Conteúdo pronto para entrega, em qualquer `formato`. |
+| `POST /dossies`, `POST /dossies/{id}/continuacao` | `DOSSIE` | Na thread de geração, com o PDF montado; em nome de quem criou o pedido. |
+| `POST /dossies`, `POST /dossies/{id}/continuacao` | `FALHA` | Na thread de geração, um por documento em cada tentativa com falha, e um sem documento na falha de montagem ou de preparo da pasta. Interrupção por cancelamento não conta. |
+| `GET /dossies/{id}/arquivo` com `disposicao=attachment` | `DOWNLOAD` | Arquivo lido por inteiro, em nome de quem baixou (sessão) ou de quem pediu o ticket. Pré-visualização (`inline`), download interrompido e ticket recusado não registram. |
+| `GET /requerimentos/{id}/geometrias/arquivo` | `GEOMETRIAS` | ZIP lido por inteiro. |
+
 ## Configurações
 
 Restrito ao perfil `ADMIN`. Toda escrita gera evento na auditoria de acessos.
