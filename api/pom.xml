@@ -21,9 +21,9 @@
     <java.version>21</java.version>
     <springdoc.version>2.8.17</springdoc.version>
     <archunit.version>1.5.1</archunit.version>
-    <pdfbox.version>3.0.5</pdfbox.version>
+    <pdfbox.version>3.0.8</pdfbox.version>
     <jodconverter.version>4.4.9</jodconverter.version>
-    <jsoup.version>1.21.1</jsoup.version>
+    <jsoup.version>1.23.2</jsoup.version>
     <poi.version>5.4.1</poi.version>
     <!-- -Dtestes.excluidos= -Dgroups=desempenho liga o teste de desempenho -->
     <testes.excluidos>desempenho</testes.excluidos>
