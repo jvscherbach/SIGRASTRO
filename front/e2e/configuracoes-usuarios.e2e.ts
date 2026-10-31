@@ -104,7 +104,7 @@ test('abas navegáveis por teclado com foco visível', async ({ page }) => {
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Dossiê' })).toBeFocused();
   await expect(page.getByRole('tab', { name: 'Dossiê' })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.locator('.cfg-painel')).toContainText('em construção');
+  await expect(page.locator('.cfg-painel')).toContainText('Dossiê');
   await page.keyboard.press('End');
   await expect(page.getByRole('tab', { name: 'Auditoria' })).toBeFocused();
   await page.keyboard.press('Home');

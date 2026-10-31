@@ -1,0 +1,97 @@
+@let p = parametro();
+<div class="cfg-param" [class.pendente]="store.pendente(p.nome)" [attr.data-param]="p.nome">
+  <div class="cfg-param-controle">
+    @switch (p.tipo) {
+      @case ('BOOLEANO') {
+        <label class="check" [attr.for]="idDe(p)">
+          <input
+            type="checkbox"
+            [id]="idDe(p)"
+            [checked]="store.valorDe(p) === 'true'"
+            [disabled]="store.salvando()"
+            (change)="alternar(p, $event)"
+          />
+          <span class="cfg-param-rotulo">{{ p.rotulo }}</span>
+        </label>
+      }
+      @case ('INTEIRO') {
+        <label class="cfg-param-rotulo" [attr.for]="idDe(p)">{{ p.rotulo }}</label>
+        <input
+          type="number"
+          inputmode="numeric"
+          class="cfg-numero"
+          [id]="idDe(p)"
+          [attr.min]="p.minimo"
+          [attr.max]="p.maximo"
+          [attr.aria-invalid]="!!store.errosPorNome()[p.nome]"
+          [attr.aria-describedby]="idDe(p, '-ajuda')"
+          [value]="store.valorDe(p)"
+          [disabled]="store.salvando()"
+          (input)="digitarNumero(p, $event)"
+        />
+      }
+      @default {
+        @if (comoLista(p)) {
+          <label class="cfg-param-rotulo" [attr.for]="idDe(p)">{{ p.rotulo }}</label>
+          <select
+            [id]="idDe(p)"
+            class="cfg-lista"
+            [attr.aria-describedby]="idDe(p, '-ajuda')"
+            [disabled]="store.salvando()"
+            (change)="escolher(p, $event)"
+          >
+            @for (o of p.opcoes; track o) {
+              <option [value]="o" [selected]="store.valorDe(p) === o">{{ opcaoRotulo(p, o) }}</option>
+            }
+          </select>
+        } @else {
+          <fieldset class="cfg-opcoes">
+            <legend class="cfg-param-rotulo">{{ p.rotulo }}</legend>
+            @for (o of p.opcoes; track o) {
+              <label class="check">
+                <input
+                  type="radio"
+                  [name]="p.nome"
+                  [value]="o"
+                  [checked]="store.valorDe(p) === o"
+                  [disabled]="store.salvando()"
+                  (change)="escolher(p, $event)"
+                />{{ opcaoRotulo(p, o) }}
+              </label>
+            }
+          </fieldset>
+        }
+      }
+    }
+  </div>
+
+  <div class="cfg-param-meta" [id]="idDe(p, '-ajuda')">
+    <span class="tag" [class.lime]="p.classeDeAplicacao === 'IMEDIATO'" [class.blue]="p.classeDeAplicacao === 'PROXIMA_GERACAO'" [class.amber]="p.classeDeAplicacao === 'EXIGE_REINICIO'" [attr.title]="explicacao[p.classeDeAplicacao]">
+      {{ rotuloDaClasse[p.classeDeAplicacao] }}
+    </span>
+    @if (p.pendenteDeReinicio) {
+      <span class="tag amber">Pendente de reinício</span>
+    }
+    @if (p.sobreposto) {
+      <span class="tag gray">Alterado nesta sessão</span>
+    }
+    @if (store.pendente(p.nome)) {
+      <span class="tag dark">Alteração pendente</span>
+    }
+    <span class="cfg-padrao">Padrão do ambiente: {{ textoDoValor(p, p.padrao) }}</span>
+    @if (faixa(p); as f) {
+      <span class="cfg-faixa">{{ f }}</span>
+    }
+    @if (p.sobreposto) {
+      <button type="button" class="btn sm quiet cfg-restaurar" [disabled]="store.restaurando() !== null || store.salvando()" (click)="store.restaurar(p)">
+        <app-icone nome="refresh" />Restaurar padrão
+      </button>
+    }
+  </div>
+  @if (p.classeDeAplicacao === 'EXIGE_REINICIO') {
+    <p class="cfg-aviso-reinicio">{{ explicacao.EXIGE_REINICIO }}</p>
+  }
+  @if (store.errosPorNome()[p.nome]; as e) {
+    <small class="cfg-campo-erro" role="alert">{{ e }}</small>
+  }
+</div>

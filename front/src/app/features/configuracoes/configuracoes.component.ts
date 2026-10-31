@@ -1,39 +1,72 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 
 import { FolhaSobrepostaComponent } from '../../shared/folha-sobreposta.component';
 import { IconeComponent } from '../../shared/icone.component';
 import { QuadroTopoComponent } from '../../shared/quadro-topo.component';
+import { BarraPendenciasComponent } from './barra-pendencias.component';
+import { ConexoesConfigComponent } from './conexoes-config.component';
+import { GrupoDeParametro } from './configuracoes.models';
+import { ParametrosAbaComponent } from './parametros-aba.component';
+import { ParametrosStore } from './parametros-store.service';
 import { UsuariosConfigComponent } from './usuarios-config.component';
 
 export interface AbaDeConfiguracao {
   id: string;
   rotulo: string;
-  /** Abas ainda não construídas aparecem, navegáveis, com o aviso "em construção" (bloco 10). */
-  pronta: boolean;
+  /** Grupo de parâmetros que a aba edita; ausente nas abas que não são de parâmetros. */
+  grupo?: GrupoDeParametro;
 }
 
 export const ABAS: AbaDeConfiguracao[] = [
-  { id: 'usuarios', rotulo: 'Usuários e perfis', pronta: true },
-  { id: 'dossie', rotulo: 'Dossiê', pronta: false },
-  { id: 'conversao', rotulo: 'Conversão', pronta: false },
-  { id: 'visualizacao', rotulo: 'Visualização', pronta: false },
-  { id: 'conexoes', rotulo: 'Conexões', pronta: false },
-  { id: 'auditoria', rotulo: 'Auditoria', pronta: false },
+  { id: 'usuarios', rotulo: 'Usuários e perfis' },
+  { id: 'dossie', rotulo: 'Dossiê', grupo: 'DOSSIE' },
+  { id: 'conversao', rotulo: 'Conversão', grupo: 'CONVERSAO' },
+  { id: 'visualizacao', rotulo: 'Visualização', grupo: 'VISUALIZACAO' },
+  { id: 'conexoes', rotulo: 'Conexões' },
+  { id: 'auditoria', rotulo: 'Auditoria', grupo: 'AUDITORIA' },
 ];
 
 /**
  * Configurações (RF25 a RF28, docs/08 tela 6 e docs/12): só o Administrador (guarda de rota pela permissão). Abas com
- * navegação por teclado (setas, Home e End); a aba de usuários é a deste bloco, as demais chegam no bloco 10.
+ * navegação por teclado (setas, Home e End). Usuários e perfis grava na hora; as demais abas só editam: as alterações
+ * de parâmetros ficam pendentes numa barra fixa e saem num único "Salvar alterações".
  */
 @Component({
   selector: 'app-configuracoes',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [QuadroTopoComponent, FolhaSobrepostaComponent, IconeComponent, UsuariosConfigComponent],
+  imports: [
+    QuadroTopoComponent,
+    FolhaSobrepostaComponent,
+    UsuariosConfigComponent,
+    ParametrosAbaComponent,
+    ConexoesConfigComponent,
+    BarraPendenciasComponent,
+    IconeComponent,
+  ],
+  providers: [ParametrosStore],
   templateUrl: './configuracoes.component.html',
+  host: { '(window:beforeunload)': 'aoFechar($event)' },
 })
-export class ConfiguracoesComponent {
+export class ConfiguracoesComponent implements OnInit {
+  private readonly parametros = inject(ParametrosStore);
+
   protected readonly abas = ABAS;
   protected readonly ativa = signal<string>(ABAS[0].id);
+
+  ngOnInit(): void {
+    this.parametros.carregar();
+  }
+
+  temPendencia(): boolean {
+    return this.parametros.temPendencia();
+  }
+
+  /** Recarregar ou fechar a janela com pendência: o navegador pede a confirmação. */
+  protected aoFechar(evento: BeforeUnloadEvent): void {
+    if (this.temPendencia()) {
+      evento.preventDefault();
+    }
+  }
 
   protected abaAtiva(): AbaDeConfiguracao {
     return ABAS.find((a) => a.id === this.ativa()) ?? ABAS[0];

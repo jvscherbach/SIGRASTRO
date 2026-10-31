@@ -30,7 +30,7 @@ function problema(status: number, errorCode: string, detail?: string, campos?: {
 }
 
 describe('ConfiguracoesComponent', () => {
-  let api: Record<'usuarios' | 'incluirUsuario' | 'alterarUsuario', ReturnType<typeof vi.fn>>;
+  let api: Record<'usuarios' | 'incluirUsuario' | 'alterarUsuario' | 'parametros' | 'conexoes', ReturnType<typeof vi.fn>>;
   let fixture: ComponentFixture<ConfiguracoesComponent>;
   let raiz: HTMLElement;
   let toast: ToastService;
@@ -70,6 +70,8 @@ describe('ConfiguracoesComponent', () => {
       usuarios: vi.fn(() => of({ conteudo: [ADMIN, usuario()], pagina: 0, tamanho: 2, totalElementos: 2, totalPaginas: 1 })),
       incluirUsuario: vi.fn(),
       alterarUsuario: vi.fn(),
+      parametros: vi.fn(() => of({ parametros: [] })),
+      conexoes: vi.fn(() => of({ conexoes: [] })),
     };
   });
 
@@ -79,7 +81,7 @@ describe('ConfiguracoesComponent', () => {
   });
 
   describe('abas', () => {
-    it('seis abas, a de usuários ativa, com faixa de memória; as demais ficam em construção', () => {
+    it('seis abas, a de usuários ativa, com faixa de memória', () => {
       abrir();
 
       const abas = Array.from(raiz.querySelectorAll('[role="tab"]'));
@@ -90,7 +92,8 @@ describe('ConfiguracoesComponent', () => {
       expect(texto()).toContain('Neste protótipo, as alterações ficam na memória e somem ao reiniciar o serviço.');
       (abas[1] as HTMLElement).click();
       fixture.detectChanges();
-      expect(texto()).toContain('Dossiê: em construção');
+      expect(texto()).toContain('Editar não grava');
+      expect(texto()).not.toContain('em construção');
     });
 
     it('setas, Home e End navegam e movem o foco; só a aba ativa está na ordem de tabulação', () => {

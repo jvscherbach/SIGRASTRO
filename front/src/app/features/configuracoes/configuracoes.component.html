@@ -33,13 +33,22 @@
     <div class="cfg-painel" role="tabpanel" [id]="'painel-' + abaAtiva().id" [attr.aria-labelledby]="'aba-' + abaAtiva().id" tabindex="0">
       @if (abaAtiva().id === 'usuarios') {
         <app-usuarios-config />
+      } @else if (abaAtiva().id === 'conexoes') {
+        <app-conexoes-config />
       } @else {
-        <div class="empty cfg-em-construcao">
-          <span class="tile-icon"><app-icone nome="settings" /></span>
-          <h3>{{ abaAtiva().rotulo }}: em construção</h3>
-          <p>Esta seção chega no próximo bloco da Sprint 5.</p>
+        <div class="dash-sec-head">
+          <div>
+            <h2><app-icone nome="settings" />{{ abaAtiva().rotulo }}</h2>
+            <p class="nota-historico">
+              Editar não grava: as alterações ficam pendentes na barra inferior e são salvas juntas, em um único registro
+              na auditoria de acessos.
+            </p>
+          </div>
         </div>
+        <app-parametros-aba [grupo]="abaAtiva().grupo!" />
       }
     </div>
+
+    <app-barra-pendencias />
   </app-folha-sobreposta>
 </section>

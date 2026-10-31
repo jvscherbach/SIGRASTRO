@@ -1,0 +1,41 @@
+@if (store.carregando()) {
+  <p class="muted" role="status">Carregando parâmetros…</p>
+} @else if (store.erro()) {
+  <div class="alert cfg-erro" role="alert"><app-icone nome="alert" /><span>{{ store.erro() }}</span></div>
+  <button type="button" class="btn sm" (click)="store.carregar()"><app-icone nome="refresh" />Tentar novamente</button>
+} @else {
+  @switch (grupo()) {
+    @case ('DOSSIE') {
+      <div class="note cfg-fixo">
+        <app-icone nome="lock" />
+        <span><b>Ordem cronológica:</b> fixa (RN03), não pode ser alterada. Documentos sem data vão para o final.</span>
+      </div>
+    }
+    @case ('CONVERSAO') {
+      <div class="note cfg-fixo">
+        <app-icone nome="lock" />
+        <span>Geometrias (SHP, KML, KMZ) ficam fora do dossiê, com download à parte em ZIP (RN10), e arquivos compactados são desconsiderados (RN11): regras fixas.</span>
+      </div>
+    }
+  }
+
+  <div class="cfg-parametros">
+    @for (p of gerais(); track p.nome) {
+      <app-parametro-campo [parametro]="p" />
+    }
+  </div>
+
+  @if (origens().length) {
+    <h3 class="aud-sub">Origens dos documentos</h3>
+    <p class="nota-historico">Origem desligada some da lista de documentos e não entra no dossiê.</p>
+    <div class="cfg-parametros cfg-origens">
+      @for (p of origens(); track p.nome) {
+        <app-parametro-campo [parametro]="p" />
+      }
+    </div>
+  }
+
+  @if (!gerais().length && !origens().length) {
+    <div class="empty"><h3>Nenhum parâmetro nesta seção</h3></div>
+  }
+}

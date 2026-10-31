@@ -1,8 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { autenticadoGuard, permissaoGuard, visitanteGuard } from './core/guards';
-import { AuditoriaComponent } from './features/auditoria/auditoria.component';
-import { ConfiguracoesComponent } from './features/configuracoes/configuracoes.component';
+import { pendenciasGuard } from './features/configuracoes/pendencias.guard';
 import { ConsultaComponent } from './features/consulta/consulta.component';
 import { DetalheComponent } from './features/detalhe/detalhe.component';
 import { DossiesGeradosComponent } from './features/dossies/dossies-gerados.component';
@@ -37,21 +36,23 @@ export const routes: Routes = [
       },
       {
         path: 'auditoria/documentos',
-        component: AuditoriaComponent,
+        loadComponent: () => import('./features/auditoria/auditoria.component').then((m) => m.AuditoriaComponent),
         title: 'Auditoria de documentos · SIGA Vistas',
         data: { crumb: ['Auditoria', 'Documentos'], grupo: 'documentos' },
       },
       {
         path: 'auditoria/acessos',
-        component: AuditoriaComponent,
+        loadComponent: () => import('./features/auditoria/auditoria.component').then((m) => m.AuditoriaComponent),
         canActivate: [permissaoGuard],
         title: 'Auditoria de acessos · SIGA Vistas',
         data: { permissao: 'verAuditoriaAcessos', crumb: ['Auditoria', 'Acessos'], grupo: 'acessos' },
       },
       {
         path: 'configuracoes',
-        component: ConfiguracoesComponent,
+        loadComponent: () =>
+          import('./features/configuracoes/configuracoes.component').then((m) => m.ConfiguracoesComponent),
         canActivate: [permissaoGuard],
+        canDeactivate: [pendenciasGuard],
         title: 'Configurações · SIGA Vistas',
         data: { permissao: 'acessarConfiguracoes', crumb: ['Configurações'] },
       },
