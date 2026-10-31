@@ -422,3 +422,11 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 **Decisão:** `CatalogoDeParametros` lista tudo o que é editável; o que não está lá é recusado. As implementações das portas em `config` leem `ParametrosEmVigor`, passando o valor do ambiente como padrão. As sobreposições são trocadas de uma vez (mapa imutável), e salvar valida tudo antes. Na criação, o pedido guarda um retrato dos parâmetros de classe "próxima geração"; a geração e a continuação rodam dentro de `RetratoDeParametros.comRetrato`, em que a thread lê do retrato. Parâmetro "exige reinício" fica só como pendência: as portas continuam com o valor do ambiente. Origem de documento passou a ser lida a cada consulta (`OrigensLigadas`).
 **Motivo:** o retrato na thread evita levar cada parâmetro por todas as chamadas até os adapters, e cobre também o que for lido no futuro. As conversões rodam na thread da geração.
 **Consequência:** se um adapter passar a ler parâmetro em outra thread, ele escapa do retrato. "Exige reinício" só vale de fato pela variável de ambiente (R56). O catálogo repete o nome da propriedade e o padrão de `application.yml`.
+
+## D70 — Acesso conferido na entrega, com o perfil vigente (S5, bloco 11)
+
+**Decisão:** o ticket de download confere o usuário e a política de acesso também ao ser usado, com o perfil de agora, e não só ao ser emitido. A política passa a considerar o sigilo do pedido para o próprio criador: quem o gerou com documento sigiloso e foi rebaixado a Operador perde o pedido, ainda que seja o interessado.
+
+**Motivo:** a alteração de usuário vale na requisição seguinte (RF26); ticket e autoria não podem ser uma exceção a essa regra. A recusa do ticket continua sem dizer o motivo (403 `TICKET_INVALIDO`) e o pedido perdido responde 404, como qualquer pedido que o usuário não acessa.
+
+**Consequência:** o módulo `acesso` publica `UsuariosAtivos`, a leitura do usuário vigente por login. A geração já em andamento não é interrompida pela mudança de perfil: o que é bloqueado é a entrega. Um download já em andamento na hora da alteração também termina.

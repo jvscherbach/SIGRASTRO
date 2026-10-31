@@ -113,7 +113,9 @@ class CasosDeUsoDossieTest {
         relogio = new RelogioControlado();
         montador = new Montador();
         GeradorDeDossie gerador = new GeradorDeDossie(arquivos, Fakes.preparador(new Validador()), montador, parametros, d -> Long.MAX_VALUE, relogio, Fakes.eventos(atual));
-        localizar = new LocalizarPedido(repositorio, new PoliticaDeAcesso(atual), parametros, relogio);
+        Usuario titular = usuario;
+        localizar = new LocalizarPedido(repositorio, new PoliticaDeAcesso(atual), parametros, relogio,
+                login -> java.util.Optional.of(titular));
         criar = new CriarDossie(requerimentos, selecao, atual, repositorio, fila, gerador, parametros, relogio, Fakes.eventos(atual), Fakes.semRetrato());
         tickets = new Tickets();
         obterArquivo = new ObterArquivoDoDossie(localizar, parametros, tickets, atual, relogio, Fakes.eventos(atual));

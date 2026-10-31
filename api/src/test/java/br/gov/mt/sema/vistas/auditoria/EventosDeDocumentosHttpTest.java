@@ -286,21 +286,52 @@ class EventosDeDocumentosHttpTest extends BaseHttpDeDocumentos {
     }
 
     @Test
-    void falha_do_registro_nao_muda_as_respostas() throws Exception {
-        String comAuditoria = obter("/api/requerimentos/101", "gestor.demo").getContentAsString();
-        String id = gerar("gestor.demo", COMUM);
+    void falha_do_registro_nao_muda_status_nem_corpo() throws Exception {
+        String conteudo = "/api/documentos/DOCUMENTO_PROCESSO/" + COMUM + "/conteudo?requerimento=101";
+        MockHttpServletResponse consultaNormal = obter("/api/requerimentos/101", "gestor.demo");
+        MockHttpServletResponse visualizacaoNormal = obter(conteudo, "gestor.demo");
+        String idNormal = gerar("gestor.demo", COMUM);
+        MockHttpServletResponse andamentoNormal = obter("/api/dossies/" + idNormal, "gestor.demo");
+        MockHttpServletResponse downloadNormal = baixar(idNormal);
+
+        String idPendente = gerar("gestor.demo", COMUM);
         doThrow(new IllegalStateException("repositório fora")).when(eventos).incluir(any());
 
         MockHttpServletResponse consulta = obter("/api/requerimentos/101", "gestor.demo");
-        assertThat(consulta.getStatus()).isEqualTo(200);
-        assertThat(consulta.getContentAsString()).isEqualTo(comAuditoria);
-        assertThat(obter("/api/documentos/DOCUMENTO_PROCESSO/" + COMUM + "/conteudo?requerimento=101", "gestor.demo")
-                .getStatus()).isEqualTo(200);
-        assertThat(obter("/api/dossies/" + gerar("gestor.demo", COMUM), "gestor.demo").getContentAsString())
-                .contains("CONCLUIDO");
-        assertThat(obter("/api/dossies/" + id + "/arquivo?disposicao=attachment", "gestor.demo").getStatus()).isEqualTo(200);
+        assertThat(consulta.getStatus()).isEqualTo(consultaNormal.getStatus());
+        assertThat(consulta.getContentAsString()).isEqualTo(consultaNormal.getContentAsString());
+        MockHttpServletResponse visualizacao = obter(conteudo, "gestor.demo");
+        assertThat(visualizacao.getStatus()).isEqualTo(visualizacaoNormal.getStatus());
+        assertThat(visualizacao.getContentAsByteArray()).isEqualTo(visualizacaoNormal.getContentAsByteArray());
+        String id = gerar("gestor.demo", COMUM);
+        MockHttpServletResponse andamento = obter("/api/dossies/" + id, "gestor.demo");
+        assertThat(andamento.getStatus()).isEqualTo(andamentoNormal.getStatus());
+        assertThat(semVariaveis(andamento, id)).isEqualTo(semVariaveis(andamentoNormal, idNormal)).contains("CONCLUIDO");
+        for (MockHttpServletResponse download : List.of(baixar(id), obter("/api/dossies/" + idPendente
+                + "/arquivo?disposicao=attachment", "gestor.demo"))) {
+            assertThat(download.getStatus()).isEqualTo(downloadNormal.getStatus());
+            assertThat(download.getContentType()).isEqualTo(downloadNormal.getContentType());
+            assertThat(download.getHeader(HttpHeaders.CONTENT_DISPOSITION))
+                    .isEqualTo(downloadNormal.getHeader(HttpHeaders.CONTENT_DISPOSITION));
+            assertThat(download.getContentAsByteArray()).startsWith((byte) '%', (byte) 'P', (byte) 'D', (byte) 'F');
+        }
         comGeometria();
         assertThat(obter("/api/requerimentos/101/geometrias/arquivo", "gestor.demo").getStatus()).isEqualTo(200);
+    }
+
+    /** Pelo ticket, o caminho do arquivo grande. */
+    private MockHttpServletResponse baixar(String id) throws Exception {
+        String ticket = json.readTree(mvc.perform(post("/api/dossies/" + id + "/arquivo/ticket")
+                .header(HttpHeaders.AUTHORIZATION, bearer("gestor.demo"))).andReturn().getResponse().getContentAsString())
+                .get("ticket").asText();
+        return mvc.perform(get("/api/dossies/" + id + "/arquivo?disposicao=attachment&ticket=" + ticket))
+                .andReturn().getResponse();
+    }
+
+    /** O corpo do andamento sem o que muda de um pedido para outro: id, datas e tamanho do PDF. */
+    private static String semVariaveis(MockHttpServletResponse resposta, String id) throws Exception {
+        return resposta.getContentAsString().replace(id, "ID").replaceAll("\\d{4}-\\d{2}-\\d{2}T[^\"]*", "DATA")
+                .replaceAll("\"tamanhoBytes\":\\d+", "\"tamanhoBytes\":0");
     }
 
     @Test

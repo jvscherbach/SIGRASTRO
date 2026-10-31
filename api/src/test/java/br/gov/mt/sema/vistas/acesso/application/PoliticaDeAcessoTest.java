@@ -64,6 +64,16 @@ class PoliticaDeAcessoTest {
         return casos.stream();
     }
 
+    @org.junit.jupiter.api.Test
+    void quem_criou_um_pedido_com_sigiloso_e_foi_rebaixado_perde_o_pedido() {
+        usuario = usuario(Perfil.OPERADOR);
+
+        assertThat(politica.podeAcessarPedido(usuario, new PedidoDeUsuario(usuario.login(), CNPJ_DO_OPERADOR, true))).isFalse();
+        assertThat(politica.podeAcessarPedido(usuario, new PedidoDeUsuario(usuario.login(), CNPJ_DO_OPERADOR, false))).isTrue();
+        assertThat(politica.podeAcessarPedido(usuario(Perfil.OPERADOR_SIGILO),
+                new PedidoDeUsuario(usuario(Perfil.OPERADOR_SIGILO).login(), CNPJ_DO_OPERADOR, true))).isTrue();
+    }
+
     @ParameterizedTest(name = "{0}, interessado={1}, sigiloso={2}, dono={3}")
     @MethodSource("matriz")
     void matrizCompleta(Perfil perfil, boolean interessado, boolean sigiloso, boolean dono) {

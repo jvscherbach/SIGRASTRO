@@ -52,13 +52,15 @@ public class PoliticaDeAcesso {
     }
 
     /**
-     * Pedido de dossiê: quem o criou, enquanto ainda tiver acesso ao requerimento (RN07), e quem acessa qualquer
-     * requerimento e qualquer sigiloso (Gestor e Administrador), porque o pedido de outro usuário pode conter
-     * documentos sigilosos. Para os demais o pedido não existe (o caso de uso responde 404).
+     * Pedido de dossiê: quem o criou, enquanto ainda tiver acesso ao requerimento (RN07) e aos sigilosos que ele contém
+     * (um Gestor rebaixado perde o pedido que gerou com sigiloso), e quem acessa qualquer requerimento e qualquer
+     * sigiloso (Gestor e Administrador), porque o pedido de outro usuário pode conter documentos sigilosos. Para os
+     * demais o pedido não existe (o caso de uso responde 404).
      */
     public boolean podeAcessarPedido(Usuario usuario, PedidoDeUsuario pedido) {
         if (usuario.login().equals(pedido.loginDoCriador())) {
-            return podeAcessarRequerimento(usuario, pedido.cpfCnpjDoInteressado());
+            return podeAcessarRequerimento(usuario, pedido.cpfCnpjDoInteressado())
+                    && podeAcessarDocumento(usuario, pedido.contemSigiloso());
         }
         return podeVerPedidosDeOutros(usuario);
     }

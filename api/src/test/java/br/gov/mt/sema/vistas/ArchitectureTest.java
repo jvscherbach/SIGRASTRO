@@ -13,6 +13,7 @@ import br.gov.mt.sema.vistas.acesso.application.UsuarioAtual;
 import br.gov.mt.sema.vistas.acesso.domain.Perfil;
 import br.gov.mt.sema.vistas.acesso.domain.RestricaoDeInteressado;
 import br.gov.mt.sema.vistas.acesso.domain.Usuario;
+import br.gov.mt.sema.vistas.auditoria.application.port.RetencaoDeEventos;
 import br.gov.mt.sema.vistas.auditoria.domain.EventoDeAuditoria;
 import br.gov.mt.sema.vistas.documento.domain.Documento;
 import br.gov.mt.sema.vistas.dossie.domain.ItemDoPedido;
@@ -205,6 +206,13 @@ class ArchitectureTest {
             noClasses().that().resideOutsideOfPackages(RAIZ + "auditoria..", RAIZ + "config..")
                     .should().dependOnClassesThat().resideInAPackage(RAIZ + "auditoria.application.port..")
                     .orShould().dependOnClassesThat().belongToAnyOf(EventoDeAuditoria.class)
+                    .allowEmptyShould(true);
+
+    // S5 (bloco 11): o único descarte de eventos fica na infraestrutura, longe de controller e caso de uso.
+    @ArchTest
+    static final ArchRule retencao_so_na_infraestrutura =
+            noClasses().that().resideOutsideOfPackage(RAIZ + "auditoria.infrastructure..")
+                    .should().dependOnClassesThat().belongToAnyOf(RetencaoDeEventos.class)
                     .allowEmptyShould(true);
 
     // S5 (bloco 2, RNF09): o evento não tem onde guardar chave, token, cookie, caminho nem CPF/CNPJ legível.

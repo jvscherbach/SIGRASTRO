@@ -356,10 +356,10 @@ Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **
 | `GET /requerimentos/{id}/geometrias/arquivo` (S4) | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler os documentos) | sigilosa fica fora do ZIP do Op; só sigilosas: o mesmo 404 de "sem geometrias" | — | `exigirAcessoAoRequerimento`, `podeAcessarDocumento` |
 | `GET /dossies` (S4) | sessão | só os seus | todos (ou os seus com `somenteMeus`) | idem | o Op não vê o pedido se deixar de ser o interessado gravado nele | — | lista só o que `podeAcessarPedido` permite; `geradoPor` só com `podeVerPedidosDeOutros` | `podeAcessarPedido`, `podeVerPedidosDeOutros` |
 | `POST /dossies` | sessão | ✓ | ✓ | ✓ | 403/404 | 403 se a seleção tiver sigiloso; documento fora do requerimento: 400 `PARAMETRO_INVALIDO` (é corpo da requisição) | o pedido nasce com o login de quem criou | `exigirAcessoAoRequerimento`, `exigirAcessoAoDocumento`; "Documentos não incluídos" com `mascararTitulo` |
-| `GET /dossies/{id}` | sessão | só os seus | todos | todos | o Op perde o pedido se deixar de ser o interessado gravado nele | — | 404 | `podeAcessarPedido` |
+| `GET /dossies/{id}` | sessão | só os seus | todos | todos | o Op perde o pedido se deixar de ser o interessado gravado nele | o Op perde o pedido com sigiloso (quem foi rebaixado, D70) | 404 | `podeAcessarPedido` |
 | `GET /dossies/{id}/arquivo` (com sessão) | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` |
 | `POST /dossies/{id}/arquivo/ticket` | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` (o ticket fica preso ao pedido e ao usuário) |
-| `GET /dossies/{id}/arquivo?ticket=` | **ticket** de uso único (sem sessão) | quem recebeu o ticket | idem | idem | conferido ao emitir | — | conferido ao emitir | ticket inválido, usado, vencido, de outro pedido ou com sessão de outro usuário: 403 `TICKET_INVALIDO` |
+| `GET /dossies/{id}/arquivo?ticket=` | **ticket** de uso único (sem sessão) | quem recebeu o ticket | idem | idem | conferido ao emitir e de novo ao usar, com o perfil vigente (D70) | idem | conferido ao emitir | ticket inválido, usado, vencido, de outro pedido, com sessão de outro usuário ou de quem foi desativado ou perdeu o acesso ao pedido: 403 `TICKET_INVALIDO` |
 | `POST /dossies/{id}/continuacao` | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` |
 | `DELETE /dossies/{id}` | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` |
 | `GET /auditoria/documentos` (S5) | sessão | só eventos dos requerimentos em que é o interessado, de qualquer usuário | todos | todos | filtro pelo vínculo gravado no evento | mascarado para o Op, em todos os campos e na busca; `somenteSigilosos` é 400 para ele | — | `regraDoInteressadoDoUsuarioAtual`, `podeVerDocumentoSigiloso` |
@@ -472,7 +472,7 @@ Todo erro segue `ProblemDetail` com `errorCode` estável e `correlationId` (head
 | 429 | `MUITAS_CONVERSOES` | Fila de conversões do modal cheia (S3) |
 | 413 | `GEOMETRIAS_GRANDES_DEMAIS` | Geometrias acima de `GEOMETRIAS_MAX_MB` ou de `GEOMETRIAS_MAX_ARQUIVOS` (S4) |
 | 502/504 | `GEOMETRIAS_INCOMPLETAS` | Algum arquivo das geometrias falhou: nenhum ZIP; `arquivos` lista nome e motivo (504 quando todas por tempo limite; S4) |
-| 403 | `TICKET_INVALIDO` | Ticket de download inexistente, já usado, vencido, de outro pedido ou de outro usuário (D49) |
+| 403 | `TICKET_INVALIDO` | Ticket de download inexistente, já usado, vencido, de outro pedido, de outro usuário (D49) ou de quem não acessa mais o pedido (D70) |
 | 502 | `CREDENCIAL_ARQUIVOS_RECUSADA` | API de arquivos recusou a credencial (na geração assíncrona vira `erro.codigo` do pedido) |
 | 502 | `REPOSITORIO_DE_ARQUIVOS_INDISPONIVEL` | Conteúdo do modal: API de arquivos fora do ar, não configurada ou com resposta inesperada (S3) |
 | 503 | `CONVERSOR_INDISPONIVEL` | Conteúdo do modal: LibreOffice ausente ou indisponível (S3) |

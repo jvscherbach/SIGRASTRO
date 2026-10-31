@@ -115,6 +115,11 @@ public final class PedidoDeDossie {
         return itens;
     }
 
+    /** Algum documento sigiloso segue no pedido (o removido na decisão não entra no PDF). */
+    public boolean contemSigiloso() {
+        return itens.stream().anyMatch(i -> i.sigiloso() && i.situacao() != SituacaoItem.REMOVIDO);
+    }
+
     public LocalDateTime criadoEm() {
         return criadoEm;
     }

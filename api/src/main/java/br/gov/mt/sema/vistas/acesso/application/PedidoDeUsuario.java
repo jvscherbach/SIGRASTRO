@@ -6,6 +6,11 @@ package br.gov.mt.sema.vistas.acesso.application;
  *
  * @param loginDoCriador       login de quem criou o pedido
  * @param cpfCnpjDoInteressado CPF/CNPJ do interessado do requerimento, como guardado no pedido (com ou sem máscara)
+ * @param contemSigiloso       o pedido inclui documento sigiloso
  */
-public record PedidoDeUsuario(String loginDoCriador, String cpfCnpjDoInteressado) {
+public record PedidoDeUsuario(String loginDoCriador, String cpfCnpjDoInteressado, boolean contemSigiloso) {
+
+    public PedidoDeUsuario(String loginDoCriador, String cpfCnpjDoInteressado) {
+        this(loginDoCriador, cpfCnpjDoInteressado, false);
+    }
 }

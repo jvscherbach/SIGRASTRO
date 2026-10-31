@@ -28,9 +28,9 @@ public final class TextoDoEvento {
             Pattern.compile("\\b[a-z]:[\\\\/][^\\s;,]*", FLAGS),
             Pattern.compile("\\\\\\\\\\S+", 0),
             Pattern.compile("(?<![\\w.:/])/(?:[\\w.-]+/)+[\\w.-]*", FLAGS),
-            Pattern.compile("(?<![\\d./-])\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}(?!\\d)", 0),
-            Pattern.compile("(?<![\\d./-])\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}(?!\\d)", 0),
-            Pattern.compile("(?<![\\d./-])(?:\\d{14}|\\d{11})(?!\\d)", 0),
+            Pattern.compile("(?<!\\d)\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}(?!\\d)", 0),
+            Pattern.compile("(?<!\\d)\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}(?!\\d)", 0),
+            Pattern.compile("(?<!\\d)(?:\\d{14}|\\d{11})(?!\\d)", 0),
             Pattern.compile("\\b[0-9a-f-]{32,}\\b", FLAGS),
             Pattern.compile("\\b[a-z0-9+=]{32,}\\b", FLAGS));
 

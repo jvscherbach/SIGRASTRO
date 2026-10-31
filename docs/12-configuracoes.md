@@ -22,7 +22,9 @@ Tela acessível apenas ao perfil Administrador. Toda alteração gera evento na 
 | Requerimento ou processo de outro interessado | — | ✓ | ✓ | 403 `NAO_INTERESSADO` (inexistente: 404 `NAO_ENCONTRADO`) |
 | Documento sigiloso: ver título, abrir no modal, incluir no dossiê | — | ✓ | ✓ | 403 `DOCUMENTO_SIGILOSO`; na lista, "Documento sigiloso" sem nome de arquivo nem extensão |
 | Nome do responsável pela tarefa atual (RN12) | — | ✓ | ✓ | campo omitido |
-| Pedido de dossiê criado pelo próprio usuário | ✓ (enquanto for o interessado gravado no pedido) | ✓ | ✓ | 404 `NAO_ENCONTRADO` |
+| Pedido de dossiê criado pelo próprio usuário | ✓ (enquanto for o interessado gravado no pedido e o pedido não tiver documento sigiloso) | ✓ | ✓ | 404 `NAO_ENCONTRADO` |
+| Eventos de documentos na auditoria | só dos requerimentos em que é o interessado, de qualquer usuário, com sigiloso mascarado | todos | todos | evento alheio: 404 `NAO_ENCONTRADO`; `somenteSigilosos`: 400 `PARAMETRO_INVALIDO` |
+| Eventos de acessos na auditoria e todas as configurações | — | — | ✓ | 403 `PERFIL_SEM_PERMISSAO` |
 | Pedido de dossiê de outro usuário | — | ✓ | ✓ | 404 `NAO_ENCONTRADO` (não revela que existe) |
 | Ver pedidos de outros usuários e "quem gerou" em "Dossiês gerados" | — | ✓ | ✓ | só os próprios; o campo `geradoPor` não existe |
 | Geometria sigilosa (lista e ZIP) | — | ✓ | ✓ | omitida, só a contagem `geometriasOmitidas` |
@@ -30,6 +32,8 @@ Tela acessível apenas ao perfil Administrador. Toda alteração gera evento na 
 A matriz completa, endpoint por endpoint, está em [07 — API](07-api.md#matriz-de-acesso-por-endpoint).
 
 **Testado (S4, bloco 9):** `MatrizDeAcessoTest` prova a matriz por MockMvc em todos os endpoints e varre o corpo e os cabeçalhos de todas as respostas: nunca aparecem chave de arquivo, token da API de arquivos ou do SCORP, URL do SCORP, identificador da pessoa no SCORP nem o caminho do diretório temporário; para o Operador, também nunca aparecem título ou nome de arquivo de documento sigiloso (inclusive o pessoal e a geometria), documento ou nome de outro interessado, nem o responsável pela tarefa (RN12). O texto do PDF do Operador é extraído e conferido (sumário e "Documentos não incluídos" mascarados). O `instance`/`path` do `ProblemDetail` ecoa a URL que o próprio cliente pediu e não conta como vazamento.
+
+**Testado (S5, bloco 11):** a matriz cobre `/auditoria/**` e `/configuracoes/**` por perfil, vínculo e sigilo. `VarreduraDaAuditoriaHttpTest` injeta token, cookie, URL, caminho e CPF/CNPJ no motivo de uma falha, no título e no nome de um documento e varre lista, detalhe de todos os eventos, CSV, usuários, parâmetros e conexões. `AcessoRevogadoHttpTest` prova que usuário desativado ou rebaixado perde o acesso na requisição seguinte, com sessão aberta, com ticket já emitido e com o pedido que ele mesmo gerou (D70). `ImutabilidadeDaAuditoriaTest` prova que nenhuma rota nem método público altera ou apaga evento.
 
 Códigos: `OPERADOR`, `OPERADOR_SIGILO`, `ADMIN`. Na versão definitiva, a identidade vem da autenticação institucional; o perfil é atribuído nesta tela. Itens de menu sem permissão não são exibidos (RN08).
 

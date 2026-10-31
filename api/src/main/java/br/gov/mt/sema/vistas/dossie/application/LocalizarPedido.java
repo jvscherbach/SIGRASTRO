@@ -6,6 +6,7 @@ import java.util.List;
 
 import br.gov.mt.sema.vistas.acesso.application.PedidoDeUsuario;
 import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
+import br.gov.mt.sema.vistas.acesso.application.UsuariosAtivos;
 import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.RepositorioDePedidos;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
@@ -26,18 +27,20 @@ public class LocalizarPedido {
     private final PoliticaDeAcesso politica;
     private final ParametrosDoDossie parametros;
     private final Clock relogio;
+    private final UsuariosAtivos usuarios;
 
     public LocalizarPedido(RepositorioDePedidos pedidos, PoliticaDeAcesso politica, ParametrosDoDossie parametros,
-            Clock relogio) {
+            Clock relogio, UsuariosAtivos usuarios) {
         this.pedidos = pedidos;
         this.politica = politica;
         this.parametros = parametros;
         this.relogio = relogio;
+        this.usuarios = usuarios;
     }
 
     public PedidoDeDossie executar(String id) {
         PedidoDeDossie pedido = pedidos.buscar(id == null ? "" : id)
-                .filter(p -> politica.podeAcessarPedido(new PedidoDeUsuario(p.login(), p.capa().cpfCnpj())))
+                .filter(p -> politica.podeAcessarPedido(resumo(p)))
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Dossiê não encontrado."));
         return expirarSeVenceu(pedido);
     }
@@ -45,18 +48,27 @@ public class LocalizarPedido {
     /** Todos os pedidos que o usuário da requisição acessa (mesma regra de {@link #executar}), já expirados se venceram. */
     public List<PedidoDeDossie> visiveis() {
         return pedidos.todos().stream()
-                .filter(p -> politica.podeAcessarPedido(new PedidoDeUsuario(p.login(), p.capa().cpfCnpj())))
+                .filter(p -> politica.podeAcessarPedido(resumo(p)))
                 .map(this::expirarSeVenceu)
                 .toList();
     }
 
     /**
      * Sem usuário na requisição: só para quem já provou o acesso de outro jeito (ticket de download, D49), que foi
-     * emitido depois de {@link #executar}.
+     * emitido depois de {@link #executar}. Quem usa o ticket confere {@link #titularAcessa} antes de entregar.
      */
     PedidoDeDossie semUsuario(String id) {
         return expirarSeVenceu(pedidos.buscar(id == null ? "" : id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Dossiê não encontrado.")));
+    }
+
+    /** O dono do ticket ainda acessa o pedido agora: quem foi desativado ou rebaixado depois da emissão, não (R53). */
+    boolean titularAcessa(PedidoDeDossie pedido, String login) {
+        return usuarios.porLogin(login).filter(u -> politica.podeAcessarPedido(u, resumo(pedido))).isPresent();
+    }
+
+    private static PedidoDeUsuario resumo(PedidoDeDossie pedido) {
+        return new PedidoDeUsuario(pedido.login(), pedido.capa().cpfCnpj(), pedido.contemSigiloso());
     }
 
     private PedidoDeDossie expirarSeVenceu(PedidoDeDossie pedido) {

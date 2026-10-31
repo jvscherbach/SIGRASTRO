@@ -48,8 +48,8 @@ public class ObterArquivoDoDossie {
     }
 
     /**
-     * Pelo ticket: inexistente, já usado, vencido, de outro pedido ou apresentado por outro usuário autenticado dá 403
-     * {@code TICKET_INVALIDO}, sem dizer qual.
+     * Pelo ticket: inexistente, já usado, vencido, de outro pedido, apresentado por outro usuário autenticado ou de quem
+     * não acessa mais o pedido (desativado ou rebaixado depois da emissão) dá 403 {@code TICKET_INVALIDO}, sem dizer qual.
      */
     public ArquivoDoDossie executarPorTicket(String id, String ticket) {
         TicketDeDownload valido = tickets.consumir(ticket == null || ticket.isBlank() ? null : TicketDeDownload.resumo(ticket))
@@ -60,7 +60,11 @@ public class ObterArquivoDoDossie {
         if (usuarioAtual.talvez().filter(u -> !u.login().equals(valido.login())).isPresent()) {
             throw new TicketInvalidoException();
         }
-        return arquivoDe(localizar.semUsuario(id), valido.usuario());
+        PedidoDeDossie pedido = localizar.semUsuario(id);
+        if (!localizar.titularAcessa(pedido, valido.login())) {
+            throw new TicketInvalidoException();
+        }
+        return arquivoDe(pedido, valido.usuario());
     }
 
     /**

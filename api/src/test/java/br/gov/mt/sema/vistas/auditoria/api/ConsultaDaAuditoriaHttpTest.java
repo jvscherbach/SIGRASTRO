@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -19,6 +20,8 @@ import br.gov.mt.sema.vistas.auditoria.domain.DocumentoDoEvento;
 import br.gov.mt.sema.vistas.auditoria.domain.NovoEvento;
 import br.gov.mt.sema.vistas.auditoria.domain.TipoDeEvento;
 import br.gov.mt.sema.vistas.auditoria.domain.UsuarioDoEvento;
+import br.gov.mt.sema.vistas.documento.domain.Documento;
+import br.gov.mt.sema.vistas.documento.domain.OrigemDocumento;
 import br.gov.mt.sema.vistas.testsupport.BaseHttpDeDocumentos;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.BeforeEach;
@@ -421,6 +424,29 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
         assertThat(truncado.getContentAsString(StandardCharsets.UTF_8).split("\r\n")).hasSize(6);
         assertThat(doOperador.getHeader("X-Vistas-Truncado")).isNull();
         assertThat(doOperador.getContentAsString(StandardCharsets.UTF_8).split("\r\n")).hasSize(1);
+    }
+
+    @Test
+    void csv_de_ponta_a_ponta_com_formula_no_titulo_vindo_do_siga() throws Exception {
+        String titulo = "=HYPERLINK(\"exemplo\",\"clique\")";
+        org.mockito.Mockito.when(documentos.listar(101)).thenReturn(List.of(Documento.deLinha(
+                OrigemDocumento.DOCUMENTO_PROCESSO, "55", 101, "CHAVE-INTERNA-CSV", titulo, "formula.pdf",
+                LocalDateTime.of(2025, 4, 1, 10, 0), null, 0)));
+        for (int i = 0; i < 6; i++) {
+            assertThat(chamar("/api/documentos/DOCUMENTO_PROCESSO/55/conteudo?requerimento=101", "gestor.demo").getStatus())
+                    .isEqualTo(200);
+        }
+
+        MockHttpServletResponse resposta = chamar(DOCS + "/exportacao?tipo=VISUALIZACAO", "gestor.demo");
+        byte[] bytes = resposta.getContentAsByteArray();
+        String[] linhas = new String(bytes, StandardCharsets.UTF_8).substring(1).split("\r\n");
+
+        assertThat(new byte[] {bytes[0], bytes[1], bytes[2]}).containsExactly(0xEF, 0xBB, 0xBF);
+        assertThat(linhas[0]).startsWith("\"Código\";\"Data e hora\";\"Usuário\"").contains("\"Documentos\"");
+        assertThat(resposta.getHeader("X-Vistas-Truncado")).isEqualTo("true");
+        assertThat(linhas).hasSize(6);
+        assertThat(linhas[1]).contains("\"'=HYPERLINK(\"\"exemplo\"\",\"\"clique\"\") (formula.pdf)\"")
+                .doesNotContain(";\"=HYPERLINK");
     }
 
     @Test
