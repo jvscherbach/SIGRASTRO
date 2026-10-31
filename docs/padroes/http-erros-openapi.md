@@ -19,7 +19,7 @@
 | 404 | `NAO_ENCONTRADO` | Requerimento, processo, documento, dossiê ou evento inexistente |
 | 409 | `LOGIN_JA_EXISTE` | Inclusão de usuário com login em uso |
 | 409 | `ULTIMO_ADMINISTRADOR` | Desativar ou rebaixar o último Administrador ativo |
-| 409 | `PROPRIO_USUARIO` | Desativar o próprio usuário |
+| 409 | `PROPRIO_USUARIO` | Desativar o próprio usuário |\n| 409 | `TESTE_DE_CONEXAO_EM_ANDAMENTO` | Já há um teste da mesma conexão em andamento |
 | 409 | `DOSSIE_SEM_ARQUIVO` | Download de dossiê sem arquivo (aguarda decisão, cancelado ou em andamento; RN09) |
 | 409 | `DOSSIE_SEM_DECISAO_PENDENTE` | Continuação de dossiê que não está em `PENDENTE_DECISAO` (S2.2) |
 | 410 | `DOSSIE_EXPIRADO` | Dossiê expirado |

@@ -14,6 +14,7 @@ public enum ErrorCode {
     LOGIN_JA_EXISTE(HttpStatus.CONFLICT, "Login já existe"),
     ULTIMO_ADMINISTRADOR(HttpStatus.CONFLICT, "Último Administrador"),
     PROPRIO_USUARIO(HttpStatus.CONFLICT, "Próprio usuário"),
+    TESTE_DE_CONEXAO_EM_ANDAMENTO(HttpStatus.CONFLICT, "Teste de conexão em andamento"),
     DOSSIE_SEM_ARQUIVO(HttpStatus.CONFLICT, "Dossiê sem arquivo"),
     DOSSIE_SEM_DECISAO_PENDENTE(HttpStatus.CONFLICT, "Dossiê sem decisão pendente"),
     DOSSIE_EXPIRADO(HttpStatus.GONE, "Dossiê expirado"),

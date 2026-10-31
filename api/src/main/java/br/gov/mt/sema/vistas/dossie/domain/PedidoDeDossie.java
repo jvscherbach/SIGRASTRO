@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 import br.gov.mt.sema.vistas.auditoria.domain.UsuarioDoEvento;
 
@@ -35,6 +36,7 @@ public final class PedidoDeDossie {
     private final List<DocumentoNaoIncluido> naoSelecionados;
     private final int listados;
     private final AutoriaDoPedido autoria;
+    private final Map<String, String> parametros;
 
     private StatusDossie status = StatusDossie.AGUARDANDO;
     private ErroDoDossie erro;
@@ -65,7 +67,15 @@ public final class PedidoDeDossie {
     public PedidoDeDossie(String id, String login, long idRequerimento, DadosDaCapa capa, List<ItemDoPedido> itens,
             List<DocumentoNaoIncluido> naoSelecionados, int listados, LocalDateTime criadoEm, LocalDateTime expiraEm,
             AutoriaDoPedido autoria) {
+        this(id, login, idRequerimento, capa, itens, naoSelecionados, listados, criadoEm, expiraEm, autoria, Map.of());
+    }
+
+    /** @param parametros valores de classe "próxima geração" na criação: o pedido não muda no meio */
+    public PedidoDeDossie(String id, String login, long idRequerimento, DadosDaCapa capa, List<ItemDoPedido> itens,
+            List<DocumentoNaoIncluido> naoSelecionados, int listados, LocalDateTime criadoEm, LocalDateTime expiraEm,
+            AutoriaDoPedido autoria, Map<String, String> parametros) {
         this.autoria = autoria;
+        this.parametros = Map.copyOf(parametros);
         this.id = id;
         this.naoSelecionados = List.copyOf(naoSelecionados);
         this.listados = listados;
@@ -95,6 +105,10 @@ public final class PedidoDeDossie {
 
     public AutoriaDoPedido autoria() {
         return autoria;
+    }
+
+    public Map<String, String> parametros() {
+        return parametros;
     }
 
     public List<ItemDoPedido> itens() {

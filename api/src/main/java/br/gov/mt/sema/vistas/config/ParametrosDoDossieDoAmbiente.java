@@ -2,11 +2,13 @@ package br.gov.mt.sema.vistas.config;
 
 import java.nio.file.Path;
 
+import br.gov.mt.sema.vistas.configuracao.application.ParametrosEmVigor;
+import br.gov.mt.sema.vistas.configuracao.domain.CatalogoDeParametros;
 import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-/** Parâmetros do dossiê vindos de variáveis de ambiente (protótipo). A S5 troca esta implementação pela tela de configurações. */
+/** Parâmetros do dossiê: o ambiente é o padrão; a tela de configurações sobrepõe os editáveis (gerações simultâneas só na subida). */
 @Component
 class ParametrosDoDossieDoAmbiente implements ParametrosDoDossie {
 
@@ -21,6 +23,7 @@ class ParametrosDoDossieDoAmbiente implements ParametrosDoDossie {
     private final boolean marcadores;
     private final boolean numeracao;
     private final Path diretorio;
+    private final ParametrosEmVigor vigentes;
 
     ParametrosDoDossieDoAmbiente(
             @Value("${vistas.dossie.ttl-minutos:30}") int ttlMinutos,
@@ -33,7 +36,8 @@ class ParametrosDoDossieDoAmbiente implements ParametrosDoDossie {
             @Value("${vistas.dossie.sumario:true}") boolean sumario,
             @Value("${vistas.dossie.marcadores:true}") boolean marcadores,
             @Value("${vistas.dossie.numeracao:true}") boolean numeracao,
-            @Value("${vistas.dossie.diretorio:/var/tmp/vistas}") String diretorio) {
+            @Value("${vistas.dossie.diretorio:/var/tmp/vistas}") String diretorio, ParametrosEmVigor vigentes) {
+        this.vigentes = vigentes;
         this.ttlMinutos = ttlMinutos;
         this.threads = threads;
         this.downloadTimeoutSegundos = downloadTimeoutSegundos;
@@ -49,7 +53,7 @@ class ParametrosDoDossieDoAmbiente implements ParametrosDoDossie {
 
     @Override
     public int ttlMinutos() {
-        return ttlMinutos;
+        return vigentes.inteiro(CatalogoDeParametros.DOSSIE_TTL, ttlMinutos);
     }
 
     @Override
@@ -64,7 +68,7 @@ class ParametrosDoDossieDoAmbiente implements ParametrosDoDossie {
 
     @Override
     public int downloadTimeoutSegundos() {
-        return downloadTimeoutSegundos;
+        return vigentes.inteiro(CatalogoDeParametros.DOWNLOAD_TIMEOUT, downloadTimeoutSegundos);
     }
 
     @Override
@@ -84,17 +88,17 @@ class ParametrosDoDossieDoAmbiente implements ParametrosDoDossie {
 
     @Override
     public boolean sumario() {
-        return sumario;
+        return vigentes.booleano(CatalogoDeParametros.DOSSIE_SUMARIO, sumario);
     }
 
     @Override
     public boolean marcadores() {
-        return marcadores;
+        return vigentes.booleano(CatalogoDeParametros.DOSSIE_MARCADORES, marcadores);
     }
 
     @Override
     public boolean numeracao() {
-        return numeracao;
+        return vigentes.booleano(CatalogoDeParametros.DOSSIE_NUMERACAO, numeracao);
     }
 
     @Override

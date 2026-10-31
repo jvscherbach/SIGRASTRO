@@ -1,6 +1,8 @@
 package br.gov.mt.sema.vistas.config;
 
 import br.gov.mt.sema.vistas.auditoria.application.port.ParametrosDaAuditoria;
+import br.gov.mt.sema.vistas.configuracao.application.ParametrosEmVigor;
+import br.gov.mt.sema.vistas.configuracao.domain.CatalogoDeParametros;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,12 +22,14 @@ class ParametrosDaAuditoriaDoAmbiente implements ParametrosDaAuditoria {
     private final int maximoDeLinhasDoCsv;
     private final int retencaoDocumentosAnos;
     private final int retencaoAcessosAnos;
+    private final ParametrosEmVigor vigentes;
 
     ParametrosDaAuditoriaDoAmbiente(
             @Value("${vistas.auditoria.max-eventos:50000}") int maximoDeEventos,
             @Value("${vistas.auditoria.retencao-documentos-anos:5}") int retencaoDocumentosAnos,
             @Value("${vistas.auditoria.retencao-acessos-anos:1}") int retencaoAcessosAnos,
-            @Value("${vistas.auditoria.csv-max-linhas:50000}") int maximoDeLinhasDoCsv) {
+            @Value("${vistas.auditoria.csv-max-linhas:50000}") int maximoDeLinhasDoCsv, ParametrosEmVigor vigentes) {
+        this.vigentes = vigentes;
         this.maximoDeEventos = positivo("AUDITORIA_MAX_EVENTOS", maximoDeEventos);
         this.maximoDeLinhasDoCsv = positivo("AUDITORIA_CSV_MAX_LINHAS", maximoDeLinhasDoCsv);
         this.retencaoDocumentosAnos = retencao("AUDITORIA_RETENCAO_DOCUMENTOS_ANOS", retencaoDocumentosAnos,
@@ -62,11 +66,11 @@ class ParametrosDaAuditoriaDoAmbiente implements ParametrosDaAuditoria {
 
     @Override
     public int retencaoDocumentosAnos() {
-        return retencaoDocumentosAnos;
+        return vigentes.inteiro(CatalogoDeParametros.AUDITORIA_RETENCAO_DOCUMENTOS, retencaoDocumentosAnos);
     }
 
     @Override
     public int retencaoAcessosAnos() {
-        return retencaoAcessosAnos;
+        return vigentes.inteiro(CatalogoDeParametros.AUDITORIA_RETENCAO_ACESSOS, retencaoAcessosAnos);
     }
 }

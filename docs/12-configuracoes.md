@@ -103,15 +103,47 @@ Variáveis de ambiente do protótipo: `VISUALIZACAO_TTL_MINUTOS` (10), `VISUALIZ
 
 ### Conexões
 
-Estado e teste de conexão de: banco do SIGA (somente leitura), arquivos do Licenciamento (com horas até expirar o token), SCORP e taxas (desativada até a forma de obtenção ser confirmada). Tempo limite de download: 60 s (10–300).
+Estado e teste de conexão de: banco do SIGA (somente leitura), arquivos do Licenciamento (com horas até expirar o token), SCORP e taxas (desativada até a forma de obtenção ser confirmada). Tempo limite de download: 120 s (10–300).
 
 Credenciais ficam no arquivo de ambiente do servidor; a tela não as exibe nem edita.
+
+**Testes (S5, bloco 8):** banco do SIGA, `SELECT 1 FROM DUAL` pelo datasource somente leitura (`sql/siga/verificacao.sql`); API de arquivos, `GET` numa chave que não existe, sem ler o corpo; SCORP, `GET` para uma pessoa que não existe. Nas duas APIs, 2xx ou 404 significa que o serviço respondeu e aceitou a credencial, e 401 ou 403 que a recusou (R55). Só a data de expiração do token é lida, sem validar a assinatura; token vencido nem é enviado.
 
 ### Auditoria
 
 Retenção por grupo: 1, 2, 5 ou 10 anos. Valores de exemplo no protótipo: documentos 5 anos, acessos 1 ano.
 
 Variáveis de ambiente do protótipo (S5): `AUDITORIA_RETENCAO_DOCUMENTOS_ANOS` (5), `AUDITORIA_RETENCAO_ACESSOS_ANOS` (1) e `AUDITORIA_MAX_EVENTOS` (50.000; teto em memória somando os dois grupos, acima dele saem os mais antigos) e `AUDITORIA_CSV_MAX_LINHAS` (50.000; limite do CSV, com aviso no cabeçalho `X-Vistas-Truncado`). Valor fora da faixa cai no padrão, com aviso no log. A retenção roda no intervalo de `vistas.agendamento.limpeza-orfaos` (1 h) e `AGENDAMENTO_ENABLED=false` a desliga.
+
+## Parâmetros editáveis e quando valem (S5, bloco 8)
+
+Cada parâmetro tem uma **classe de aplicação** e uma faixa. O valor do ambiente continua sendo o padrão e a fonte ao reiniciar; a tela só guarda sobreposições em memória (D69). As faixas sem definição anterior foram propostas no bloco 8 (**a revisar na homologação**).
+
+| Parâmetro (`nome`) | Variável | Faixa | Classe |
+|---|---|---|---|
+| `dossie.ttlMinutos` | `DOSSIE_TTL_MINUTOS` | 5 a 240 | próxima geração |
+| `dossie.threads` | `DOSSIE_THREADS` | 1 a 8 | exige reinício |
+| `dossie.sumario`, `dossie.marcadores`, `dossie.numeracao` | `DOSSIE_SUMARIO`, `DOSSIE_MARCADORES`, `DOSSIE_NUMERACAO` | ligado ou desligado | próxima geração |
+| `dossie.origem.<origem>` (7 origens) | `vistas.documentos.origens.<origem>` | ligado ou desligado | imediato |
+| `conexoes.downloadTimeoutSegundos` | `DOWNLOAD_TIMEOUT_SEGUNDOS` | 10 a 300 | próxima geração |
+| `conversao.habilitada`, `conversao.abasOcultas` | `CONVERSAO_HABILITADA`, `CONVERSAO_ABAS_OCULTAS` | ligado ou desligado | próxima geração |
+| `conversao.planilhaModo` | `CONVERSAO_PLANILHA_MODO` | `LARGURA` ou `PAGINA_POR_ABA` | próxima geração |
+| `conversao.imagemMaxMegapixels` | `CONVERSAO_IMAGEM_MAX_MEGAPIXELS` | 1 a 500 | próxima geração |
+| `conversao.planilhaEscalaMinima` | `CONVERSAO_PLANILHA_ESCALA_MINIMA` | 10 a 100 | próxima geração |
+| `conversao.paginasMaximas` | `CONVERSAO_PAGINAS_MAXIMAS` | 1 a 10000 | próxima geração |
+| `conversao.saidaMaxMb` | `CONVERSAO_SAIDA_MAX_MB` | 1 a 2000 | próxima geração |
+| `conversao.timeoutSegundos` | `CONVERSAO_TIMEOUT_SEGUNDOS` | 10 a 1800 | exige reinício |
+| `conversao.processos` | `CONVERSAO_PROCESSOS` | 1 a 8 | exige reinício |
+| `conversao.tarefasPorProcesso` | `CONVERSAO_TAREFAS_POR_PROCESSO` | 1 a 500 | exige reinício |
+| `visualizacao.ttlMinutos` | `VISUALIZACAO_TTL_MINUTOS` | 1 a 240 | imediato |
+| `visualizacao.cacheMaxMb` | `VISUALIZACAO_CACHE_MAX_MB` | 10 a 10000 | imediato |
+| `visualizacao.conversoesSimultaneas` | `VISUALIZACAO_CONVERSOES_SIMULTANEAS` | 1 a 8 | exige reinício |
+| `visualizacao.filaDeConversoes` | `VISUALIZACAO_FILA_CONVERSOES` | 0 a 32 | exige reinício |
+| `auditoria.retencaoDocumentosAnos`, `auditoria.retencaoAcessosAnos` | `AUDITORIA_RETENCAO_DOCUMENTOS_ANOS`, `AUDITORIA_RETENCAO_ACESSOS_ANOS` | 1, 2, 5 ou 10 | imediato |
+
+- **Próxima geração:** o pedido guarda um retrato destes valores na criação e toda a geração roda com ele, inclusive a conversão, o download e uma continuação depois da decisão. Fora de um pedido (por exemplo, o modal), o valor novo vale na próxima leitura.
+- **Exige reinício:** o valor é lido só na subida. Fica pendente e registrado no evento, mas o valor em vigor não muda. **Como as sobreposições somem ao reiniciar, para valer de fato é preciso alterar a variável de ambiente** (R56).
+- **Fora da tela:** credenciais, URLs, diretórios, `SCORP_SIGILO_PADRAO` (decisão da área, P30), `DOSSIE_ESPACO_MINIMO_MB` e os demais limites técnicos. "Orientação automática" está na tabela de Conversão, mas não existe como parâmetro no código.
 
 ## Salvamento
 

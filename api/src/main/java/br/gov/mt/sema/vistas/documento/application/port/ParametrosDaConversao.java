@@ -2,7 +2,7 @@ package br.gov.mt.sema.vistas.documento.application.port;
 
 /**
  * Parâmetros da conversão de planilhas, textos e imagens para PDF (S3). No protótipo vêm de variáveis de ambiente
- * (implementação em {@code config}); a S5 troca a implementação por parâmetros administráveis sem mudar quem os consome.
+ * com as sobreposições da tela de configurações (implementação em {@code config}).
  */
 public interface ParametrosDaConversao {
 

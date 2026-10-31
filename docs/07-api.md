@@ -369,12 +369,17 @@ Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **
 | `GET /configuracoes/usuarios` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` (`PERFIL_SEM_PERMISSAO`) |
 | `POST /configuracoes/usuarios` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
 | `PATCH /configuracoes/usuarios/{id}` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
+| `GET /configuracoes/parametros` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
+| `PUT /configuracoes/parametros` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
+| `DELETE /configuracoes/parametros/{nome}` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
+| `GET /configuracoes/conexoes` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
+| `POST /configuracoes/conexoes/{nome}/teste` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
 
 Fora de `/api`: `GET /actuator/health` (pública, só a situação) e a documentação OpenAPI (`/v3/api-docs`, `/swagger-ui`), desligada por padrão (`OPENAPI_ENABLED=false`) e ligada só no perfil `local`. Toda rota de `/api/**` sem o token responde 401 `NAO_AUTENTICADO`, exceto o login e o download por ticket.
 
 **Prova (bloco 9):** `MatrizDeAcessoTest` exercita esta tabela por MockMvc (mais de 150 cenários: perfil × interessado ou não × sigiloso ou não × dono do pedido ou não) e compara três listas: os mapeamentos de `/api` do Spring, a primeira coluna desta tabela (lida deste arquivo) e os endpoints com cenário no teste. Endpoint novo sem linha aqui ou sem cenário lá quebra o teste. Todas as respostas são varridas atrás de vazamento (veja docs/12).
 
-As rotas de **parâmetros e conexões** em Configurações, abaixo, ainda **não existem** no código (S5). Quando forem criadas, entram nesta matriz e no `MatrizDeAcessoTest` (bloco 9 da S4), que falha para endpoint sem linha.
+Toda rota nova entra nesta matriz e no `MatrizDeAcessoTest` (bloco 9 da S4), que falha para endpoint sem linha.
 
 **Achados do inventário (bloco 1):** nenhuma rota sem verificação. Dois reforços, registrados em D60: (1) pedido de **outro usuário** passa a exigir explicitamente perfil que acessa qualquer requerimento **e** qualquer sigiloso (antes bastava "não ser restrito ao interessado", o que hoje dá no mesmo, mas não valeria para um perfil futuro restrito ou sem sigilo); (2) o **dono** Operador só acessa o pedido enquanto o interessado gravado no pedido continuar sendo o dele (antes bastava o login).
 
@@ -414,13 +419,18 @@ Restrito ao perfil `ADMIN`. Toda escrita gera evento na auditoria de acessos.
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/configuracoes` | Parâmetros vigentes. |
-| `PUT` | `/configuracoes` | Grava os parâmetros alterados (um evento `CONFIG` com a lista de mudanças). |
+| `GET` | `/configuracoes/parametros` | Parâmetros editáveis. |
+| `PUT` | `/configuracoes/parametros` | Salva todas as alterações pendentes, de forma atômica (um evento `CONFIG` com a lista de mudanças). |
+| `DELETE` | `/configuracoes/parametros/{nome}` | Volta o parâmetro ao padrão do ambiente. |
 | `GET` | `/configuracoes/usuarios` | Usuários com perfil, situação e último acesso, por nome, numa página só. |
 | `POST` | `/configuracoes/usuarios` | Inclui usuário: `{nome, login, cpfCnpj, perfil}`. 201 com o usuário. |
 | `PATCH` | `/configuracoes/usuarios/{id}` | Altera `perfil` e/ou `ativo`; o campo ausente fica como está. |
-| `GET` | `/conexoes` | Estado das conexões. |
-| `POST` | `/conexoes/{nome}/teste` | Testa uma conexão e devolve o tempo de resposta. |
+| `GET` | `/configuracoes/conexoes` | Estado das conexões. |
+| `POST` | `/configuracoes/conexoes/{nome}/teste` | Testa uma conexão e devolve o tempo de resposta. |
+
+**Parâmetros (S5, bloco 8).** `GET` responde `{parametros: [...]}`. Cada item traz `nome`, `rotulo`, `grupo` (`DOSSIE`, `CONVERSAO`, `VISUALIZACAO`, `CONEXOES`, `AUDITORIA`), `tipo` (`INTEIRO`, `BOOLEANO`, `OPCAO`), `valor`, `padrao`, `minimo`, `maximo`, `opcoes`, `classeDeAplicacao` (`IMEDIATO`, `PROXIMA_GERACAO`, `EXIGE_REINICIO`), `sobreposto` e `pendenteDeReinicio`. `PUT` recebe `{alteracoes: {nome: valor}}` e devolve a lista como ficou. Valor fora da faixa ou nome desconhecido é 400 `PARAMETRO_INVALIDO` com o nome em `campos`, e nada é aplicado. Salvar o próprio padrão tira a sobreposição. Sem mudança real, 200 sem evento. `DELETE` de nome desconhecido é 404.
+
+**Conexões (S5, bloco 8).** `GET` responde `{conexoes: [...]}`, sem chamar nenhum sistema externo: `nome` (`siga`, `arquivos`, `scorp`, `taxas`), `rotulo`, `estado` (`CONFIGURADA`, `NAO_CONFIGURADA`, `DESATIVADA`), `horasAteExpirar` (só a API de arquivos com token JWT; nulo se não dá para saber) e `tokenVencido`. O teste responde 200 mesmo com a conexão fora do ar: `{nome, sucesso, tempoMs, mensagem, horasAteExpirar, tokenVencido}`. Um teste por conexão de cada vez (409 `TESTE_DE_CONEXAO_EM_ANDAMENTO`), limite de 10 s. O destino vem só da configuração do servidor; nome fora da lista é 404. Nenhuma resposta traz URL, host ou credencial.
 
 **Usuários (S5, bloco 7).** Cada item traz `id` (o login, que não muda), `nome`, `login`, `perfil` (código), `perfilRotulo`, `ativo`, `ultimoAcesso` (nulo até a primeira entrada depois de subir o serviço) e `cpfCnpj`, sempre mascarado (`***.456.789-**` ou `**.345.678/****-**`) ou nulo. O login é normalizado (sem espaços nas pontas, em minúsculas). Os erros próprios são 409 `LOGIN_JA_EXISTE`, `ULTIMO_ADMINISTRADOR` e `PROPRIO_USUARIO`. A mudança vale para as sessões abertas já na próxima requisição; a sessão de usuário desativado responde 401. Usuário inativo que tenta entrar recebe a mesma mensagem de credencial inválida.
 
@@ -451,7 +461,7 @@ Todo erro segue `ProblemDetail` com `errorCode` estável e `correlationId` (head
 | 404 | `NAO_ENCONTRADO` | Requerimento, processo, documento, dossiê ou evento inexistente |
 | 409 | `LOGIN_JA_EXISTE` | Inclusão de usuário com login em uso |
 | 409 | `ULTIMO_ADMINISTRADOR` | Desativar ou rebaixar o último Administrador ativo |
-| 409 | `PROPRIO_USUARIO` | Desativar o próprio usuário |
+| 409 | `PROPRIO_USUARIO` | Desativar o próprio usuário |\n| 409 | `TESTE_DE_CONEXAO_EM_ANDAMENTO` | Já há um teste da mesma conexão em andamento |
 | 409 | `DOSSIE_SEM_ARQUIVO` | Arquivo inexistente: o pedido aguarda decisão, foi cancelado ou ainda está em andamento |
 | 409 | `DOSSIE_SEM_DECISAO_PENDENTE` | Continuação pedida para um dossiê que não está em `PENDENTE_DECISAO` (S2.2) |
 | 410 | `DOSSIE_EXPIRADO` | Dossiê expirado ou já baixado (o arquivo foi apagado) |

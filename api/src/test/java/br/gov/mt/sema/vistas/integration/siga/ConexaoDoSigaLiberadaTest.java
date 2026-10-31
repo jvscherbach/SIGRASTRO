@@ -34,6 +34,7 @@ import br.gov.mt.sema.vistas.dossie.application.port.ArquivosDoRepositorio;
 import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.RepositorioDePedidos;
+import br.gov.mt.sema.vistas.dossie.application.port.RetratoDeParametros;
 import br.gov.mt.sema.vistas.dossie.application.port.ValidadorDePdf;
 import br.gov.mt.sema.vistas.testsupport.ParametrosDeConversaoDeTeste;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
@@ -195,7 +196,17 @@ class ConexaoDoSigaLiberadaTest {
                 new PreparadorDePdf(validador, null, null, ParametrosDeConversaoDeTeste.ligada()), montador, parametros,
                 d -> Long.MAX_VALUE, relogio, eventos);
         CriarDossie criar = new CriarDossie(obterRequerimento, selecao, atual, repositorio, Runnable::run, gerador,
-                parametros, relogio, eventos);
+                parametros, relogio, eventos, new RetratoDeParametros() {
+                    @Override
+                    public java.util.Map<String, String> retratar() {
+                        return java.util.Map.of();
+                    }
+
+                    @Override
+                    public <T> T comRetrato(java.util.Map<String, String> retrato, java.util.function.Supplier<T> tarefa) {
+                        return tarefa.get();
+                    }
+                });
 
         String id = criar.executar(101, List.of(new ReferenciaDeDocumento("DOCUMENTO_PROCESSO", "1"),
                 new ReferenciaDeDocumento("DOCUMENTO_REQUERIMENTO", "13"), new ReferenciaDeDocumento("COMPLEMENTACAO", "21")));

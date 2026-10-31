@@ -34,6 +34,7 @@ import br.gov.mt.sema.vistas.dossie.application.port.FilaDeGeracao;
 import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.RepositorioDePedidos;
+import br.gov.mt.sema.vistas.dossie.application.port.RetratoDeParametros;
 import br.gov.mt.sema.vistas.dossie.application.port.TicketsDeDownload;
 import br.gov.mt.sema.vistas.dossie.application.port.ValidadorDePdf;
 import br.gov.mt.sema.vistas.dossie.domain.DadosDaCapa;
@@ -331,6 +332,20 @@ final class Fakes {
                 geracao.run();
             }
         }
+    }
+
+    static RetratoDeParametros semRetrato() {
+        return new RetratoDeParametros() {
+            @Override
+            public Map<String, String> retratar() {
+                return Map.of();
+            }
+
+            @Override
+            public <T> T comRetrato(Map<String, String> retrato, java.util.function.Supplier<T> tarefa) {
+                return tarefa.get();
+            }
+        };
     }
 
     static RequisicaoDoEvento semRequisicao() {

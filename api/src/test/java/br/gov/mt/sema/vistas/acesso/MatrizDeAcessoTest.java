@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -86,7 +87,10 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
             "POST /api/dossies/{id}/arquivo/ticket", "POST /api/dossies/{id}/continuacao", "DELETE /api/dossies/{id}",
             "GET /api/auditoria/documentos", "GET /api/auditoria/acessos", "GET /api/auditoria/{grupo}/{id}",
             "GET /api/auditoria/{grupo}/exportacao",
-            "GET /api/configuracoes/usuarios", "POST /api/configuracoes/usuarios", "PATCH /api/configuracoes/usuarios/{id}");
+            "GET /api/configuracoes/usuarios", "POST /api/configuracoes/usuarios", "PATCH /api/configuracoes/usuarios/{id}",
+            "GET /api/configuracoes/parametros", "PUT /api/configuracoes/parametros",
+            "DELETE /api/configuracoes/parametros/{nome}", "GET /api/configuracoes/conexoes",
+            "POST /api/configuracoes/conexoes/{nome}/teste");
 
     private enum Perfil {
         OPERADOR("operador.demo"), GESTOR("gestor.demo"), ADMIN("admin.demo");
@@ -261,6 +265,7 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
         pedidos();
         auditoria();
         usuarios();
+        parametrosEConexoes();
         dossiesGerados();
         mascaramentoNoPdfDoOperador();
 
@@ -538,6 +543,26 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
             verificar("PATCH /api/configuracoes/usuarios/{id}", "inexistente", p, admin ? 404 : 403,
                     admin ? "NAO_ENCONTRADO" : codigo, () -> comToken(patch("/api/configuracoes/usuarios/nao.existe")
                             .contentType(MediaType.APPLICATION_JSON).content("{\"ativo\":false}"), p));
+        }
+    }
+
+    /** Parâmetros e conexões (S5, bloco 8): só Administrador, sem alterar nada. */
+    private void parametrosEConexoes() throws Exception {
+        for (Perfil p : Perfil.values()) {
+            boolean admin = p == Perfil.ADMIN;
+            String negado = admin ? null : "PERFIL_SEM_PERMISSAO";
+            int ok = admin ? 200 : 403;
+            verificar("GET /api/configuracoes/parametros", "lista", p, ok, negado,
+                    () -> comToken(get("/api/configuracoes/parametros"), p));
+            verificar("PUT /api/configuracoes/parametros", "sem alterações", p, ok, negado,
+                    () -> comToken(put("/api/configuracoes/parametros").contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"alteracoes\":{}}"), p));
+            verificar("DELETE /api/configuracoes/parametros/{nome}", "desconhecido", p, admin ? 404 : 403,
+                    admin ? "NAO_ENCONTRADO" : negado, () -> comToken(delete("/api/configuracoes/parametros/nao.existe"), p));
+            verificar("GET /api/configuracoes/conexoes", "lista", p, ok, negado,
+                    () -> comToken(get("/api/configuracoes/conexoes"), p));
+            verificar("POST /api/configuracoes/conexoes/{nome}/teste", "taxas", p, ok, negado,
+                    () -> comToken(post("/api/configuracoes/conexoes/taxas/teste"), p));
         }
     }
 
