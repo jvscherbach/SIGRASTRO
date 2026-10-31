@@ -207,8 +207,8 @@ Item "Auditoria" no menu, com dois subitens. Detalhes em [11 — Auditoria](11-a
 Somente Administrador. Detalhes em [12 — Configurações](12-configuracoes.md).
 
 - Topo: usuários ativos, conexões funcionando e horas até expirar a credencial de arquivos.
-- Abas: Usuários e perfis, Dossiê, Conversão, Conexões e Auditoria.
-- Usuários: perfil e situação alterados direto na lista; inclusão por gaveta lateral.
+- Abas (`ConfiguracoesComponent`, `role="tablist"`): Usuários e perfis, Dossiê, Conversão, Visualização, Conexões e Auditoria. Navegáveis por teclado (setas, Home e End movem o foco e a seleção; só a aba ativa entra na ordem de tabulação) e com foco visível. No bloco 9 só **Usuários e perfis** está pronta; as outras mostram "em construção" até o bloco 10. Faixa fixa: "Neste protótipo, as alterações ficam na memória e somem ao reiniciar o serviço."
+- **Usuários e perfis (S5, bloco 9):** lista com nome (e "você" no próprio), login, CPF/CNPJ **como a API envia** (mascarado, ou "—"), perfil, situação e último acesso; usuário inativo aparece esmaecido. Perfil e situação são alterados direto na lista, com uma **confirmação curta** na própria linha ("Mudar o perfil de X para Y?", "Desativar X? Ele deixa de entrar no sistema."); só ao confirmar sai o `PATCH` (um campo por vez, um evento `USUARIO` por alteração), e cancelar volta o controle ao valor anterior. As recusas de proteção (409 `ULTIMO_ADMINISTRADOR`, `PROPRIO_USUARIO`, `LOGIN_JA_EXISTE`) mostram a mensagem em português do servidor na linha, e o valor volta ao que estava. **Inclusão por gaveta lateral** (nome, login, perfil, CPF/CNPJ): valida antes de enviar (nome obrigatório; login de 3 a 60 caracteres, único na lista; CPF/CNPJ **obrigatório para o Operador**, com máscara e dígitos verificadores) e mostra por campo a recusa 400 do servidor. O CPF/CNPJ digitado vai só no corpo do `POST`, em dígitos, e nunca é exibido de novo por inteiro.
 - Parâmetros: alterações ficam pendentes numa barra fixa com "Descartar" e "Salvar alterações".
 
 ## Fora do escopo

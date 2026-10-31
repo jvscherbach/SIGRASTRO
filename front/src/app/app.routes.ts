@@ -2,10 +2,10 @@ import { Routes } from '@angular/router';
 
 import { autenticadoGuard, permissaoGuard, visitanteGuard } from './core/guards';
 import { AuditoriaComponent } from './features/auditoria/auditoria.component';
+import { ConfiguracoesComponent } from './features/configuracoes/configuracoes.component';
 import { ConsultaComponent } from './features/consulta/consulta.component';
 import { DetalheComponent } from './features/detalhe/detalhe.component';
 import { DossiesGeradosComponent } from './features/dossies/dossies-gerados.component';
-import { EmConstrucaoComponent } from './features/em-construcao/em-construcao.component';
 import { LoginComponent } from './features/login/login.component';
 import { ShellComponent } from './layout/shell.component';
 
@@ -50,16 +50,10 @@ export const routes: Routes = [
       },
       {
         path: 'configuracoes',
-        component: EmConstrucaoComponent,
+        component: ConfiguracoesComponent,
         canActivate: [permissaoGuard],
         title: 'Configurações · SIGA Vistas',
-        data: {
-          permissao: 'acessarConfiguracoes',
-          crumb: ['Configurações'],
-          titulo: 'Configurações',
-          descricao: 'Usuários e perfis, parâmetros do dossiê, conversão, conexões e retenção da auditoria.',
-          sprint: 'Sprint 5',
-        },
+        data: { permissao: 'acessarConfiguracoes', crumb: ['Configurações'] },
       },
     ],
   },

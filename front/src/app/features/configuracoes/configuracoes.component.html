@@ -1,0 +1,45 @@
+<section aria-label="Configurações">
+  <app-quadro-topo
+    titulo="Configurações"
+    descricao="Usuários e perfis, parâmetros do dossiê, conversão, conexões e retenção da auditoria."
+  >
+    <span etiquetas class="tag gray"><app-icone nome="clock" />Registros em memória</span>
+  </app-quadro-topo>
+
+  <app-folha-sobreposta>
+    <div class="note amber cfg-memoria" role="note">
+      <app-icone nome="info" />
+      <span>Neste protótipo, as alterações ficam na memória e somem ao reiniciar o serviço.</span>
+    </div>
+
+    <div class="cfg-abas" role="tablist" aria-label="Seções de configuração" (keydown)="aoTeclar($event)">
+      @for (a of abas; track a.id) {
+        <button
+          type="button"
+          role="tab"
+          class="cfg-aba"
+          [id]="'aba-' + a.id"
+          [attr.aria-selected]="ativa() === a.id"
+          [attr.aria-controls]="'painel-' + a.id"
+          [attr.tabindex]="ativa() === a.id ? 0 : -1"
+          [class.ativa]="ativa() === a.id"
+          (click)="escolher(a.id)"
+        >
+          {{ a.rotulo }}
+        </button>
+      }
+    </div>
+
+    <div class="cfg-painel" role="tabpanel" [id]="'painel-' + abaAtiva().id" [attr.aria-labelledby]="'aba-' + abaAtiva().id" tabindex="0">
+      @if (abaAtiva().id === 'usuarios') {
+        <app-usuarios-config />
+      } @else {
+        <div class="empty cfg-em-construcao">
+          <span class="tile-icon"><app-icone nome="settings" /></span>
+          <h3>{{ abaAtiva().rotulo }}: em construção</h3>
+          <p>Esta seção chega no próximo bloco da Sprint 5.</p>
+        </div>
+      }
+    </div>
+  </app-folha-sobreposta>
+</section>

@@ -25,3 +25,17 @@
 .aud-doc-texto{flex:1;min-width:0;display:grid;font-size:13px;overflow-wrap:anywhere}
 .aud-doc-texto small{color:var(--muted);font-size:11px}
 @media(max-width:640px){.aud-campos div{grid-template-columns:1fr;gap:2px}.aud-usuario{flex:1;min-width:0}}
+
+/* configurações (S5): abas e usuários e perfis */
+.cfg-memoria{margin-bottom:12px}
+.cfg-abas{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
+.cfg-aba{background:transparent;color:var(--muted);font-size:13px;font-weight:600;padding:10px 14px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.cfg-aba:hover{color:var(--ink)}
+.cfg-aba.ativa{color:var(--forest);border-bottom-color:var(--olive)}
+.cfg-aba:focus-visible,.cfg-painel:focus-visible{outline:2px solid var(--olive);outline-offset:2px}
+.cfg-usuarios tr.inativo td{opacity:.55}
+.cfg-usuarios tr.inativo td select{opacity:1}
+.cfg-usuarios select{border:1px solid #cfdac8;border-radius:8px;padding:0 8px;font-size:12px;background:#fff;height:34px;color:var(--ink)}
+.cfg-confirma{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;background:var(--amber-bg);border:1px solid #efe2c4;border-radius:10px;padding:10px 14px;font-size:13px}
+.cfg-campo-erro{color:var(--red);font-size:11px}
+.cfg-em-construcao{padding:30px 15px}
