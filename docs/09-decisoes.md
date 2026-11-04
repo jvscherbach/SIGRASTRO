@@ -430,3 +430,20 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 **Motivo:** a alteração de usuário vale na requisição seguinte (RF26); ticket e autoria não podem ser uma exceção a essa regra. A recusa do ticket continua sem dizer o motivo (403 `TICKET_INVALIDO`) e o pedido perdido responde 404, como qualquer pedido que o usuário não acessa.
 
 **Consequência:** o módulo `acesso` publica `UsuariosAtivos`, a leitura do usuário vigente por login. A geração já em andamento não é interrompida pela mudança de perfil: o que é bloqueado é a entrega. Um download já em andamento na hora da alteração também termina.
+
+## D71 — Geração em segundo plano: o serviço é dono do pedido, a gaveta é só a janela (S5, bloco 1)
+
+**Contexto:** na homologação da S4, clicar fora da gaveta durante a geração fechava a gaveta e parava o acompanhamento; com o `POST` ainda em envio, a requisição era cancelada e a geração nem nascia.
+**Decisão:** `AcompanhamentoDeDossieService` (singleton) é dono do pedido ativo, do `POST`, do polling (mesmo intervalo crescente), da decisão, da pré-visualização e do download. A gaveta, hospedada no shell, só mostra o estado. Fundo, Esc e "Fechar" **minimizam**; só "Cancelar geração" faz `DELETE`. Um indicador na barra do topo mostra o andamento em todas as telas e um aviso com a ação "Abrir" sai ao concluir ou parar à espera de decisão com a gaveta fechada. A tela acompanha **um pedido por vez** (o servidor aceita várias gerações); sair da aplicação ou trocar de usuário encerra o acompanhamento.
+**Motivo:** o acompanhamento não pode depender de um componente que o usuário fecha; o indicador fica dentro da barra fixa, então nenhum quadro de tela muda de altura.
+**Consequência:** o usuário que sai com um pedido ativo perde só o acompanhamento, não o pedido (ele continua em "Dossiês gerados" até expirar). `documentoRemovido$` e `gavetaFechada$` ligam a gaveta às telas de documentos e de "Dossiês gerados".
+
+## D72 — Front da S5: uma tela de auditoria, estado de parâmetros compartilhado e CSV por Blob (S5, blocos 5, 6, 9 e 10)
+
+**Decisão:**
+- **Auditoria:** um só `AuditoriaComponent` atende `documentos` e `acessos` (`data.grupo` da rota). O que cada perfil vê é decidido pelo servidor (D67); a tela só esconde o que o perfil não pode usar ("somente sigilosos" sem `verSigilosos`). O CSV vem como `Blob` com o token no cabeçalho e o nome do `Content-Disposition`, com aviso quando `X-Vistas-Truncado`. A proteção contra injeção de fórmula é do servidor (D67); a tela não reescreve o arquivo.
+- **Configurações:** abas navegáveis por teclado; usuários e perfis gravam **na hora**, com uma confirmação curta na linha e a mensagem do servidor nas recusas de proteção (último Administrador, próprio usuário, login repetido; D68). Os parâmetros ficam **pendentes** num `ParametrosStore` compartilhado pelas abas e saem num **único `PUT`** pela barra fixa, o que casa com o evento `CONFIG` único (D69). Sair com pendência pede confirmação.
+- **Credenciais:** nenhuma é exibida nem editável (RNF09); o teste de conexão mostra só estado, tempo e a mensagem do servidor.
+- **Carga sob demanda:** `AuditoriaComponent` e `ConfiguracoesComponent` usam `loadComponent`, porque o bundle inicial passou do orçamento de 500 kB.
+**Motivo:** reaproveitar a tela evita duas implementações das mesmas regras de mascaramento; as pendências em um lugar só permitem a barra única e o evento único.
+**Consequência:** a tela de Acessos e a de Documentos mudam juntas. O CPF/CNPJ de usuário nunca volta completo da API, então a tela de usuários não consegue editá-lo (só na inclusão).

@@ -15,9 +15,12 @@ Hoje o projeto é um **protótipo de validação**: o objetivo é provar que os 
 - a visualização de cada documento;
 - as geometrias em ZIP;
 - a tela "Dossiês gerados";
+- a geração do dossiê que continua em segundo plano quando a gaveta é fechada (indicador na barra do topo e aviso ao concluir);
+- a auditoria de documentos e de acessos (consulta por perfil, detalhe e exportação em CSV);
+- as configurações do Administrador (usuários e perfis, parâmetros, conexões com teste e retenção);
 - as regras de acesso por perfil, validadas no back-end.
 
-A leitura real do SIGA, dos arquivos e do SCORP depende da configuração descrita em "Conectar ao banco do SIGA", "Gerar um dossiê" e "Documentos pessoais, geometrias e Dossiês gerados". Auditoria e configurações (S5) ainda mostram a página "em construção". Toda a documentação está em [docs/README.md](docs/README.md).
+A leitura real do SIGA, dos arquivos e do SCORP depende da configuração descrita em "Conectar ao banco do SIGA", "Gerar um dossiê" e "Documentos pessoais, geometrias e Dossiês gerados". Auditoria e configurações ficam **em memória** (S5): somem ao reiniciar o serviço, e as telas avisam. Veja "Auditoria e configurações (S5)". Toda a documentação está em [docs/README.md](docs/README.md).
 
 ## Estrutura do repositório
 
@@ -243,6 +246,18 @@ Sem `LICENCIAMENTO_API_URL` a lista de documentos funciona normalmente e a gera�
 **Dossiês gerados.** No menu, a tela lista os dossiês desta sessão do serviço, com situação, expiração e as ações: pré-visualizar, baixar, decidir, cancelar e abrir o requerimento. O Operador vê só os seus; Gestor e Administrador veem todos e podem filtrar "Só os meus". O histórico fica **em memória**: some quando a `api` reinicia.
 
 O roteiro de homologação com dados reais é o [docs/homologacao/S4-roteiro-homologacao.md](docs/homologacao/S4-roteiro-homologacao.md).
+
+## Auditoria e configurações (S5)
+
+**Geração em segundo plano.** Depois de clicar em **Gerar dossiê**, você pode fechar a gaveta (clique fora, Esc ou "Fechar"): a geração continua. Um indicador na barra do topo mostra o andamento em todas as telas, avisa quando o dossiê fica pronto ou precisa da sua decisão e reabre a gaveta com um clique. Só **Cancelar geração** cancela. A tela acompanha um pedido por vez.
+
+**Auditoria.** No menu, **Auditoria › Documentos** lista consultas, visualizações, dossiês, falhas, downloads e geometrias, com período, indicadores, filtros, detalhe e **Exportar CSV** (abre direto no Excel). O Operador vê só os eventos dos **seus** processos, de qualquer usuário, e documento sigiloso aparece como "Documento sigiloso". **Auditoria › Acessos** (entradas, trocas de perfil e alterações de usuários e de configuração) é só do Administrador. A auditoria é somente inclusão: nenhuma tela altera ou apaga evento. Limites e retenção: `AUDITORIA_MAX_EVENTOS`, `AUDITORIA_RETENCAO_*` e `AUDITORIA_CSV_MAX_LINHAS` (`.env.local.example`).
+
+**Configurações (só Administrador).** Usuários e perfis (com as proteções do último Administrador e do próprio usuário), parâmetros do dossiê, da conversão, da visualização e da auditoria, e conexões com teste. Cada parâmetro mostra se vale já, na próxima geração ou só depois de reiniciar. As alterações de parâmetros ficam pendentes e saem juntas em **Salvar alterações** (um único evento na auditoria). Credenciais não aparecem nem são editáveis.
+
+> **Tudo em memória.** Eventos, usuários incluídos e parâmetros alterados pela tela **somem ao reiniciar o serviço**; volta o que está nas variáveis de ambiente e os três usuários de demonstração. O registro permanente é da versão definitiva (schema próprio).
+
+O roteiro de homologação com dados reais é o [docs/homologacao/S5-roteiro-homologacao.md](docs/homologacao/S5-roteiro-homologacao.md).
 
 ## Tutorial 2 — Rodar sem Docker (desenvolvimento)
 

@@ -17,7 +17,7 @@ O protótipo navegável (`prototipo/siga-vistas-prototipo.html`) é a referênci
   | Auditoria › Acessos | não | não | sim |
   | Configurações | não | não | sim |
 
-  - O item sem permissão **não é renderizado** (nada de cadeado: o cadeado de demonstração saiu do protótipo na S4). Auditoria e Configurações continuam "Em construção" (S5) para quem tem permissão.
+  - O item sem permissão **não é renderizado** (nada de cadeado: o cadeado de demonstração saiu do protótipo na S4). Auditoria (documentos e acessos) e Configurações estão implementadas desde a S5.
   - **Guarda de rota:** digitar ou abrir a URL de uma tela sem permissão mostra o aviso "Seu perfil não tem permissão para acessar esta área." e volta à Consulta. A decisão usa as permissões já carregadas, sem chamada ao servidor; o back-end valida de novo cada endpoint (matriz em [07 — API](07-api.md)).
   - Entrar com outro usuário (sair e entrar de novo) atualiza o menu sem recarregar a página; sem token, qualquer tela volta ao login.
   - O aviso do Operador na Consulta ("Seu perfil consulta apenas...") ocupa um espaço reservado também para os demais perfis, para que o quadro do topo tenha a mesma altura em todos.
