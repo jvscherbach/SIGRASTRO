@@ -32,8 +32,17 @@ export function formatarCpfCnpj(valor: string | null | undefined): string {
   return d.length === 11 || d.length === 14 ? mascararCpfCnpj(d) : (valor ?? '');
 }
 
-const DATA = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+/** Toda data e hora da interface é mostrada no horário de Cuiabá, seja qual for o fuso do navegador (docs/09, docs/11). */
+export const FUSO_DE_CUIABA = 'America/Cuiaba';
+
+const DATA = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: FUSO_DE_CUIABA,
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
 const DATA_HORA = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: FUSO_DE_CUIABA,
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
@@ -42,11 +51,13 @@ const DATA_HORA = new Intl.DateTimeFormat('pt-BR', {
 });
 
 /** Data e hora sem fuso, como a API entrega (relógio de Cuiabá): "2025-04-01T23:30" ou com segundos. */
-const DATA_HORA_SEM_FUSO = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?)?$/;
+const DATA_HORA_SEM_FUSO = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?)?$/;
 
 /**
- * A API entrega data e hora sem fuso (horário de Cuiabá). O texto é lido campo a campo, sem passar pelo fuso do
- * navegador: um documento das 23:30 aparece no mesmo dia em qualquer fuso (S2.2).
+ * A API entrega data e hora de duas formas. **Sem fuso** ("2025-04-01T23:30", ou só a data): já é o relógio de Cuiabá e
+ * o texto é lido campo a campo, sem converter, então uma data pura nunca muda de dia e um documento das 23:30 aparece no
+ * mesmo dia em qualquer fuso (S2.2). **Com fuso** ("...-04:00" ou "...Z", como os eventos da auditoria e o último
+ * acesso): o instante é convertido para Cuiabá, e não para o fuso do navegador (S5.1).
  */
 export function formatarData(iso: string | null | undefined): string {
   const m = iso ? DATA_HORA_SEM_FUSO.exec(iso) : null;
@@ -76,7 +87,8 @@ export function tomDaSituacao(codigo: string): 'lime' | 'gray' | 'amber' | 'red'
 }
 
 /**
- * Relógio de parede de Cuiabá como Date "local". A API manda datas sem fuso (horário de Cuiabá), e o navegador as
+ * Relógio de parede de Cuiabá como Date "local" (só para exibir ou comparar com outro relógio de parede; para cálculo de
+ * intervalos use {@link minutosAte}). A API manda datas sem fuso (horário de Cuiabá), e o navegador as
  * lê como relógio local; para calcular "quanto falta" as duas pontas precisam estar no mesmo relógio, qualquer que
  * seja o fuso do navegador.
  */
@@ -84,13 +96,29 @@ export function agoraEmCuiaba(): Date {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Cuiaba' }));
 }
 
-/** Minutos até a data da API (relógio de Cuiabá); nunca negativo. */
+/** Milissegundos de um relógio de parede, lido como se fosse UTC: dois relógios de parede se subtraem sem fuso nem horário de verão. */
+function paredeEmMs(d: Date): number {
+  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds());
+}
+
+/**
+ * Minutos até a data da API; nunca negativo. Data sem fuso é relógio de Cuiabá e se compara com o relógio de parede de
+ * Cuiabá; data com fuso é um instante e se compara com agora. Em nenhum caso entra o fuso do navegador.
+ */
 export function minutosAte(iso: string | null | undefined): number | null {
-  const alvo = iso ? new Date(iso) : null;
-  if (!alvo || Number.isNaN(alvo.getTime())) {
-    return null;
+  const m = iso ? DATA_HORA_SEM_FUSO.exec(iso) : null;
+  let restanteMs: number;
+  if (m) {
+    const alvo = Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] ?? 0), +(m[5] ?? 0), +(m[6] ?? 0));
+    restanteMs = alvo - paredeEmMs(agoraEmCuiaba());
+  } else {
+    const alvo = iso ? new Date(iso) : null;
+    if (!alvo || Number.isNaN(alvo.getTime())) {
+      return null;
+    }
+    restanteMs = alvo.getTime() - Date.now();
   }
-  return Math.max(0, Math.ceil((alvo.getTime() - agoraEmCuiaba().getTime()) / 60000));
+  return Math.max(0, Math.ceil(restanteMs / 60000));
 }
 
 /** "340 KB", "1,2 MB"; vazio quando o tamanho é desconhecido. */

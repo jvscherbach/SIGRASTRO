@@ -1,4 +1,12 @@
-import { formatarCpfCnpj, formatarData, formatarDataHora, mascararCpfCnpj, mascararNumero, tomDaSituacao } from './formato';
+import {
+  formatarCpfCnpj,
+  formatarData,
+  formatarDataHora,
+  mascararCpfCnpj,
+  mascararNumero,
+  minutosAte,
+  tomDaSituacao,
+} from './formato';
 
 describe('mascararNumero', () => {
   it('monta N/AAAA enquanto digita', () => {
@@ -59,6 +67,53 @@ describe('datas', () => {
     expect(formatarData('2025-04-02T00:30:00')).toBe('02/04/2025');
     expect(formatarDataHora('2025-04-01T23:30:00')).toBe('01/04/2025 23:30');
     expect(formatarDataHora('2025-04-02T00:30')).toBe('02/04/2025 00:30');
+  });
+});
+
+/**
+ * S5.1: a interface mostra sempre o horário de Cuiabá (UTC-4, sem horário de verão), seja qual for o fuso do navegador ou
+ * do runner. Estes testes valem igual com TZ=UTC, TZ=America/Cuiaba e TZ=Asia/Tokyo (o CI roda os três).
+ */
+describe('fuso de Cuiabá', () => {
+  it('instante com fuso (Z ou deslocamento) é convertido para Cuiabá, não para o fuso da máquina', () => {
+    expect(formatarDataHora('2026-10-21T14:30:00Z')).toBe('21/10/2026 10:30');
+    expect(formatarDataHora('2026-10-21T10:30:00-04:00')).toBe('21/10/2026 10:30');
+    expect(formatarDataHora('2026-10-21T10:30:00.123456789-04:00')).toBe('21/10/2026 10:30');
+    expect(formatarDataHora('2026-10-21T15:30:00+01:00')).toBe('21/10/2026 10:30');
+  });
+
+  it('instante que cruza a meia-noite em UTC volta para o dia anterior em Cuiabá', () => {
+    expect(formatarDataHora('2026-10-22T02:00:00Z')).toBe('21/10/2026 22:00');
+    expect(formatarData('2026-10-22T02:00:00Z')).toBe('21/10/2026');
+    expect(formatarDataHora('2026-01-01T03:59:00Z')).toBe('31/12/2025 23:59');
+  });
+
+  it('data pura e data e hora sem fuso já são de Cuiabá e nunca mudam de dia', () => {
+    expect(formatarData('2022-04-20')).toBe('20/04/2022');
+    expect(formatarData('2022-04-20T00:00:00')).toBe('20/04/2022');
+    expect(formatarDataHora('2022-04-20')).toBe('20/04/2022 00:00');
+    expect(formatarData('2022-12-31T23:59:59')).toBe('31/12/2022');
+    expect(formatarData('2022-01-01T00:00:00.000')).toBe('01/01/2022');
+  });
+
+  describe('minutos restantes', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-10-21T15:00:00Z')); // 11:00 em Cuiabá
+    });
+
+    afterEach(() => vi.useRealTimers());
+
+    it('data sem fuso é o relógio de Cuiabá; data com fuso é um instante', () => {
+      expect(minutosAte('2026-10-21T11:30:00')).toBe(30);
+      expect(minutosAte('2026-10-21T15:30:00Z')).toBe(30);
+      expect(minutosAte('2026-10-21T11:30:00-04:00')).toBe(30);
+      expect(minutosAte('2026-10-21T10:59:00-04:00')).toBe(0);
+    });
+
+    it('passa de meia-noite sem erro', () => {
+      expect(minutosAte('2026-10-22T00:00:00')).toBe(780);
+    });
   });
 });
 

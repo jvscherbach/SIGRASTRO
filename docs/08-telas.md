@@ -202,6 +202,8 @@ Item "Auditoria" no menu, com dois subitens. Detalhes em [11 — Auditoria](11-a
 - **Acessos** (somente Administrador): entradas, trocas de perfil, alterações de usuários e de configuração; indicadores de acessos, alterações e usuários. **Regra:** para quem não é Administrador, o item não aparece no menu (RN08; sem cadeado de demonstração desde a S4). Rota `/auditoria/acessos` (bloco 6): o **mesmo componente** da tela de documentos com `data.grupo = 'acessos'`, sem coluna de processo nem filtro de sigilo, indicadores de entradas, alterações e usuários, filtro de tipo (Acesso, Troca de perfil, Usuário alterado, Configuração alterada), detalhe com a tabela antes e depois, CSV e a mesma faixa de memória. Menu e guarda de rota pela permissão `verAuditoriaAcessos`: Operador e Gestor não veem o item e, digitando a URL, voltam à Consulta sem chamar a auditoria.
 - Em ambas: período, busca, filtros por evento e usuário, gaveta de detalhe e exportação em CSV.
 
+- **Horários (S5.1):** toda data e hora da interface é mostrada **sempre no horário de Cuiabá** (`America/Cuiaba`), seja qual for o fuso do navegador ou do computador. Valor com fuso (`-04:00` ou `Z`, como os eventos da auditoria e o último acesso) é convertido para Cuiabá; valor sem fuso (e data pura) já é de Cuiabá e não muda de dia. O ponto único é `shared/formato.ts` (`formatarData`, `formatarDataHora`, `minutosAte`); o CI roda os testes em `UTC`, `America/Cuiaba` e `Asia/Tokyo`.
+
 ## 6. Configurações
 
 Somente Administrador. Detalhes em [12 — Configurações](12-configuracoes.md).
