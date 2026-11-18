@@ -10,6 +10,9 @@ import { ToastService } from './toast.service';
       @for (toast of toasts.toasts(); track toast.id) {
         <div class="toast" [class.erro]="toast.tipo === 'erro'" [attr.role]="toast.tipo === 'erro' ? 'alert' : 'status'">
           {{ toast.texto }}
+          @if (toast.acao; as acao) {
+            <button type="button" class="toast-acao" (click)="toasts.executar(toast)">{{ acao.rotulo }}</button>
+          }
         </div>
       }
     </div>

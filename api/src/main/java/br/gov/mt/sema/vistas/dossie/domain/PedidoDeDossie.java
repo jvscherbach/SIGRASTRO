@@ -5,6 +5,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+
+import br.gov.mt.sema.vistas.auditoria.domain.UsuarioDoEvento;
 
 /**
  * Pedido de geração, mantido em memória (D09). Criado com o instantâneo dos documentos já resolvido, então a geração
@@ -32,6 +35,8 @@ public final class PedidoDeDossie {
     private final LocalDateTime criadoEm;
     private final List<DocumentoNaoIncluido> naoSelecionados;
     private final int listados;
+    private final AutoriaDoPedido autoria;
+    private final Map<String, String> parametros;
 
     private StatusDossie status = StatusDossie.AGUARDANDO;
     private ErroDoDossie erro;
@@ -54,6 +59,23 @@ public final class PedidoDeDossie {
      */
     public PedidoDeDossie(String id, String login, long idRequerimento, DadosDaCapa capa, List<ItemDoPedido> itens,
             List<DocumentoNaoIncluido> naoSelecionados, int listados, LocalDateTime criadoEm, LocalDateTime expiraEm) {
+        this(id, login, idRequerimento, capa, itens, naoSelecionados, listados, criadoEm, expiraEm,
+                new AutoriaDoPedido(new UsuarioDoEvento(login, login, null), null, null, null, null));
+    }
+
+    /** @param autoria retrato para os eventos de auditoria da geração */
+    public PedidoDeDossie(String id, String login, long idRequerimento, DadosDaCapa capa, List<ItemDoPedido> itens,
+            List<DocumentoNaoIncluido> naoSelecionados, int listados, LocalDateTime criadoEm, LocalDateTime expiraEm,
+            AutoriaDoPedido autoria) {
+        this(id, login, idRequerimento, capa, itens, naoSelecionados, listados, criadoEm, expiraEm, autoria, Map.of());
+    }
+
+    /** @param parametros valores de classe "próxima geração" na criação: o pedido não muda no meio */
+    public PedidoDeDossie(String id, String login, long idRequerimento, DadosDaCapa capa, List<ItemDoPedido> itens,
+            List<DocumentoNaoIncluido> naoSelecionados, int listados, LocalDateTime criadoEm, LocalDateTime expiraEm,
+            AutoriaDoPedido autoria, Map<String, String> parametros) {
+        this.autoria = autoria;
+        this.parametros = Map.copyOf(parametros);
         this.id = id;
         this.naoSelecionados = List.copyOf(naoSelecionados);
         this.listados = listados;
@@ -81,8 +103,21 @@ public final class PedidoDeDossie {
         return capa;
     }
 
+    public AutoriaDoPedido autoria() {
+        return autoria;
+    }
+
+    public Map<String, String> parametros() {
+        return parametros;
+    }
+
     public List<ItemDoPedido> itens() {
         return itens;
+    }
+
+    /** Algum documento sigiloso segue no pedido (o removido na decisão não entra no PDF). */
+    public boolean contemSigiloso() {
+        return itens.stream().anyMatch(i -> i.sigiloso() && i.situacao() != SituacaoItem.REMOVIDO);
     }
 
     public LocalDateTime criadoEm() {

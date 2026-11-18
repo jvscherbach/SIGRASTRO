@@ -7,11 +7,14 @@ import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.sli
 import java.util.List;
 import java.util.stream.Stream;
 
+import br.gov.mt.sema.vistas.acesso.application.CadastroDeUsuarios;
 import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
 import br.gov.mt.sema.vistas.acesso.application.UsuarioAtual;
 import br.gov.mt.sema.vistas.acesso.domain.Perfil;
 import br.gov.mt.sema.vistas.acesso.domain.RestricaoDeInteressado;
 import br.gov.mt.sema.vistas.acesso.domain.Usuario;
+import br.gov.mt.sema.vistas.auditoria.application.port.RetencaoDeEventos;
+import br.gov.mt.sema.vistas.auditoria.domain.EventoDeAuditoria;
 import br.gov.mt.sema.vistas.documento.domain.Documento;
 import br.gov.mt.sema.vistas.dossie.domain.ItemDoPedido;
 import com.tngtech.archunit.core.domain.JavaClasses;
@@ -187,6 +190,44 @@ class ArchitectureTest {
                             MODULOS.stream().filter(m -> !m.equals("acesso")).map(m -> RAIZ + m + "..")
                                     .toArray(String[]::new),
                             new String[] {RAIZ + "integration.."}))
+                    .allowEmptyShould(true);
+
+    // S5 (bloco 2): a auditoria recebe os dados no evento; não conhece quem o produz.
+    @ArchTest
+    static final ArchRule auditoria_nao_depende_de_quem_gera_eventos =
+            noClasses().that().resideInAPackage(RAIZ + "auditoria..")
+                    .should().dependOnClassesThat().resideInAnyPackage(RAIZ + "consulta..", RAIZ + "documento..",
+                            RAIZ + "dossie..", RAIZ + "configuracao..", RAIZ + "integration..")
+                    .allowEmptyShould(true);
+
+    // S5 (bloco 2): os demais módulos só registram. Leitura e repositório são internos à auditoria; config só liga parâmetros.
+    @ArchTest
+    static final ArchRule auditoria_so_publica_o_registro =
+            noClasses().that().resideOutsideOfPackages(RAIZ + "auditoria..", RAIZ + "config..")
+                    .should().dependOnClassesThat().resideInAPackage(RAIZ + "auditoria.application.port..")
+                    .orShould().dependOnClassesThat().belongToAnyOf(EventoDeAuditoria.class)
+                    .allowEmptyShould(true);
+
+    // S5 (bloco 11): o único descarte de eventos fica na infraestrutura, longe de controller e caso de uso.
+    @ArchTest
+    static final ArchRule retencao_so_na_infraestrutura =
+            noClasses().that().resideOutsideOfPackage(RAIZ + "auditoria.infrastructure..")
+                    .should().dependOnClassesThat().belongToAnyOf(RetencaoDeEventos.class)
+                    .allowEmptyShould(true);
+
+    // S5 (bloco 2, RNF09): o evento não tem onde guardar chave, token, cookie, caminho nem CPF/CNPJ legível.
+    @ArchTest
+    static final ArchRule evento_sem_campo_sensivel =
+            noFields().that().areDeclaredInClassesThat().resideInAPackage(RAIZ + "auditoria.domain..")
+                    .and().areNotStatic()
+                    .should().haveNameMatching("(?i).*(chave|token|cookie|senha|caminho|cpf|cnpj).*")
+                    .allowEmptyShould(true);
+
+    // S5 (bloco 7): o cadastro de usuários só é escrito por AdministrarUsuarios, dentro de acesso.
+    @ArchTest
+    static final ArchRule cadastro_de_usuarios_e_interno_ao_acesso =
+            noClasses().that().resideOutsideOfPackage(RAIZ + "acesso..")
+                    .should().dependOnClassesThat().belongToAnyOf(CadastroDeUsuarios.class)
                     .allowEmptyShould(true);
 
     private static String[] concat(String[]... partes) {

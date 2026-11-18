@@ -1,0 +1,60 @@
+<div class="scrim" (click)="aoClicarNoFundo($event)">
+  <section class="drawer" role="dialog" aria-modal="true" aria-labelledby="novo-usuario-titulo">
+    <header class="d-head">
+      <div>
+        <span class="eyebrow">Usuários e perfis</span>
+        <h2 id="novo-usuario-titulo" style="margin-top: 4px">Incluir usuário</h2>
+        <p>O usuário entra com a senha única do protótipo. O CPF/CNPJ não volta a ser exibido por inteiro.</p>
+      </div>
+      <button type="button" class="icon-btn" aria-label="Fechar" (click)="fechar.emit()"><app-icone nome="close" /></button>
+    </header>
+
+    <form class="d-body" novalidate (submit)="$event.preventDefault(); incluir()">
+      @if (erroGeral()) {
+        <div class="alert cfg-erro-geral" role="alert" style="margin: 0 0 16px"><app-icone nome="alert" /><span>{{ erroGeral() }}</span></div>
+      }
+      <div class="field-grid">
+        <div class="field full">
+          <label for="nu-nome">Nome</label>
+          <input id="nu-nome" type="text" autocomplete="off" maxlength="200" [value]="nome()" [attr.aria-invalid]="!!mensagemDe('nome')" (input)="digitar('nome', $event)" />
+          @if (mensagemDe('nome'); as m) {
+            <small class="cfg-campo-erro" role="alert">{{ m }}</small>
+          }
+        </div>
+        <div class="field full">
+          <label for="nu-login">Login</label>
+          <input id="nu-login" type="text" autocomplete="off" maxlength="60" [value]="login()" [attr.aria-invalid]="!!mensagemDe('login')" (input)="digitar('login', $event)" />
+          @if (mensagemDe('login'); as m) {
+            <small class="cfg-campo-erro" role="alert">{{ m }}</small>
+          }
+        </div>
+        <div class="field">
+          <label for="nu-perfil">Perfil</label>
+          <select id="nu-perfil" [value]="perfil()" (change)="digitar('perfil', $event)">
+            @for (p of perfis; track p.codigo) {
+              <option [value]="p.codigo" [selected]="p.codigo === perfil()">{{ p.rotulo }}</option>
+            }
+          </select>
+          @if (mensagemDe('perfil'); as m) {
+            <small class="cfg-campo-erro" role="alert">{{ m }}</small>
+          }
+        </div>
+        <div class="field">
+          <label for="nu-cpf">CPF/CNPJ{{ perfil() === 'OPERADOR' ? ' (obrigatório)' : '' }}</label>
+          <input id="nu-cpf" type="text" inputmode="numeric" autocomplete="off" placeholder="Somente números" [value]="cpfCnpj()" [attr.aria-invalid]="!!mensagemDe('cpfCnpj')" (input)="digitar('cpfCnpj', $event)" />
+          @if (mensagemDe('cpfCnpj'); as m) {
+            <small class="cfg-campo-erro" role="alert">{{ m }}</small>
+          }
+        </div>
+      </div>
+      <button type="submit" class="sr-only" tabindex="-1">Incluir</button>
+    </form>
+
+    <footer class="d-foot">
+      <button type="button" class="btn quiet" (click)="fechar.emit()">Cancelar</button>
+      <button type="button" class="btn primary cfg-incluir" [disabled]="enviando()" (click)="incluir()">
+        {{ enviando() ? 'Incluindo…' : 'Incluir usuário' }}
+      </button>
+    </footer>
+  </section>
+</div>

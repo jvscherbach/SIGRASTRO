@@ -197,12 +197,3 @@
     (fechar)="fecharVisualizacao()"
   />
 }
-
-@if (gaveta(); as referencias) {
-  <app-gaveta-dossie
-    [idRequerimento]="idRequerimento()"
-    [referencias]="referencias"
-    (documentoRemovido)="tirarDaSelecao($event)"
-    (fechar)="fecharGaveta()"
-  />
-}

@@ -1,0 +1,95 @@
+<div class="dash-sec-head">
+  <div>
+    <h2><app-icone nome="user" />Usuários e perfis</h2>
+    <p class="nota-historico">
+      Perfil e situação são gravados na hora, com uma confirmação. Usuário inativo não entra no sistema; o histórico de
+      auditoria é mantido. Usuários incluídos ou alterados somem ao reiniciar o serviço.
+    </p>
+  </div>
+  <button type="button" class="btn sm primary cfg-novo-usuario" (click)="abrirGaveta()">
+    <app-icone nome="user" />Incluir usuário
+  </button>
+</div>
+
+@if (carregando()) {
+  <p class="muted" role="status">Carregando usuários…</p>
+} @else if (erro()) {
+  <div class="alert cfg-erro" role="alert"><app-icone nome="alert" /><span>{{ erro() }}</span></div>
+  <button type="button" class="btn sm" (click)="carregar()"><app-icone nome="refresh" />Tentar novamente</button>
+} @else {
+  <div class="table-wrap">
+    <table class="cfg-usuarios">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Login</th>
+          <th>CPF/CNPJ</th>
+          <th>Perfil</th>
+          <th>Situação</th>
+          <th>Último acesso</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (u of usuarios(); track u.id) {
+          <tr [class.inativo]="!u.ativo" [attr.data-login]="u.login">
+            <td>
+              <b>{{ u.nome }}</b>
+              @if (u.login === eu()) {
+                <span class="cell-sub">você</span>
+              }
+            </td>
+            <td class="nowrap">{{ u.login }}</td>
+            <td class="nowrap">{{ u.cpfCnpj ?? '—' }}</td>
+            <td>
+              <select class="cfg-perfil" [attr.aria-label]="'Perfil de ' + u.nome" [disabled]="gravando()" (change)="escolherPerfil(u, $event)">
+                @for (p of perfis; track p.codigo) {
+                  <option [value]="p.codigo" [selected]="p.codigo === u.perfil">{{ p.rotulo }}</option>
+                }
+              </select>
+            </td>
+            <td>
+              <select class="cfg-situacao" [attr.aria-label]="'Situação de ' + u.nome" [disabled]="gravando()" (change)="escolherSituacao(u, $event)">
+                <option value="ativo" [selected]="u.ativo">Ativo</option>
+                <option value="inativo" [selected]="!u.ativo">Inativo</option>
+              </select>
+            </td>
+            <td class="nowrap">{{ u.ultimoAcesso ? formatarDataHora(u.ultimoAcesso) : '—' }}</td>
+          </tr>
+          @if (pendente(); as p) {
+            @if (p.id === u.id) {
+              <tr class="cfg-confirmacao">
+                <td colspan="6">
+                  <div class="cfg-confirma" role="alertdialog" [attr.aria-label]="'Confirmar alteração de ' + u.nome">
+                    <span>{{ descricaoDaMudanca(u, p) }}</span>
+                    <span class="row">
+                      <button type="button" class="btn sm primary cfg-confirmar" [disabled]="gravando()" (click)="confirmarMudanca()">
+                        {{ gravando() ? 'Gravando…' : 'Confirmar' }}
+                      </button>
+                      <button type="button" class="btn sm quiet cfg-cancelar" [disabled]="gravando()" (click)="cancelarMudanca()">Cancelar</button>
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+          @if (erroDaLinha(); as e) {
+            @if (e.id === u.id) {
+              <tr class="cfg-erro-linha">
+                <td colspan="6"><div class="alert" role="alert" style="margin: 0"><app-icone nome="alert" /><span>{{ e.texto }}</span></div></td>
+              </tr>
+            }
+          }
+        } @empty {
+          <tr>
+            <td colspan="6"><div class="empty"><h3>Nenhum usuário cadastrado</h3></div></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <div class="table-foot"><span>{{ usuarios().length }} usuário(s)</span></div>
+}
+
+@if (gaveta()) {
+  <app-novo-usuario [logins]="usuarios()" (incluido)="aoIncluir($event)" (fechar)="fecharGaveta()" />
+}

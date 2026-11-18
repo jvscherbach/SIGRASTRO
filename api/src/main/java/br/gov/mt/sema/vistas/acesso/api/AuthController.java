@@ -9,14 +9,17 @@ import br.gov.mt.sema.vistas.acesso.application.SessaoAberta;
 import br.gov.mt.sema.vistas.acesso.application.UsuarioAtual;
 import br.gov.mt.sema.vistas.shared.api.error.ProblemDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -43,11 +46,20 @@ public class AuthController {
     @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest")
     @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized")
     @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalError")
-    public LoginResponse login(@Valid @RequestBody LoginRequest pedido) {
-        SessaoAberta sessao = autenticarUsuario.executar(pedido.usuario(), pedido.senha());
+    public LoginResponse login(@Valid @RequestBody LoginRequest pedido,
+            @Parameter(hidden = true) @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String autorizacao) {
+        SessaoAberta sessao = autenticarUsuario.executar(pedido.usuario(), pedido.senha(), tokenDe(autorizacao));
         return new LoginResponse(sessao.token(), "Bearer",
                 sessao.expiraEm().atZone(ProblemDetails.FUSO).toOffsetDateTime(),
                 UsuarioResponse.de(sessao.usuario()));
+    }
+
+    /** Token Bearer que o pedido já trazia (sessão aberta antes do login, na troca de usuário); só informação. */
+    private static String tokenDe(String autorizacao) {
+        String prefixo = "Bearer ";
+        return autorizacao != null && autorizacao.regionMatches(true, 0, prefixo, 0, prefixo.length())
+                ? autorizacao.substring(prefixo.length()).trim()
+                : null;
     }
 
     @GetMapping("/me")

@@ -22,7 +22,9 @@ Tela acessível apenas ao perfil Administrador. Toda alteração gera evento na 
 | Requerimento ou processo de outro interessado | — | ✓ | ✓ | 403 `NAO_INTERESSADO` (inexistente: 404 `NAO_ENCONTRADO`) |
 | Documento sigiloso: ver título, abrir no modal, incluir no dossiê | — | ✓ | ✓ | 403 `DOCUMENTO_SIGILOSO`; na lista, "Documento sigiloso" sem nome de arquivo nem extensão |
 | Nome do responsável pela tarefa atual (RN12) | — | ✓ | ✓ | campo omitido |
-| Pedido de dossiê criado pelo próprio usuário | ✓ (enquanto for o interessado gravado no pedido) | ✓ | ✓ | 404 `NAO_ENCONTRADO` |
+| Pedido de dossiê criado pelo próprio usuário | ✓ (enquanto for o interessado gravado no pedido e o pedido não tiver documento sigiloso) | ✓ | ✓ | 404 `NAO_ENCONTRADO` |
+| Eventos de documentos na auditoria | só dos requerimentos em que é o interessado, de qualquer usuário, com sigiloso mascarado | todos | todos | evento alheio: 404 `NAO_ENCONTRADO`; `somenteSigilosos`: 400 `PARAMETRO_INVALIDO` |
+| Eventos de acessos na auditoria e todas as configurações | — | — | ✓ | 403 `PERFIL_SEM_PERMISSAO` |
 | Pedido de dossiê de outro usuário | — | ✓ | ✓ | 404 `NAO_ENCONTRADO` (não revela que existe) |
 | Ver pedidos de outros usuários e "quem gerou" em "Dossiês gerados" | — | ✓ | ✓ | só os próprios; o campo `geradoPor` não existe |
 | Geometria sigilosa (lista e ZIP) | — | ✓ | ✓ | omitida, só a contagem `geometriasOmitidas` |
@@ -30,6 +32,8 @@ Tela acessível apenas ao perfil Administrador. Toda alteração gera evento na 
 A matriz completa, endpoint por endpoint, está em [07 — API](07-api.md#matriz-de-acesso-por-endpoint).
 
 **Testado (S4, bloco 9):** `MatrizDeAcessoTest` prova a matriz por MockMvc em todos os endpoints e varre o corpo e os cabeçalhos de todas as respostas: nunca aparecem chave de arquivo, token da API de arquivos ou do SCORP, URL do SCORP, identificador da pessoa no SCORP nem o caminho do diretório temporário; para o Operador, também nunca aparecem título ou nome de arquivo de documento sigiloso (inclusive o pessoal e a geometria), documento ou nome de outro interessado, nem o responsável pela tarefa (RN12). O texto do PDF do Operador é extraído e conferido (sumário e "Documentos não incluídos" mascarados). O `instance`/`path` do `ProblemDetail` ecoa a URL que o próprio cliente pediu e não conta como vazamento.
+
+**Testado (S5, bloco 11):** a matriz cobre `/auditoria/**` e `/configuracoes/**` por perfil, vínculo e sigilo. `VarreduraDaAuditoriaHttpTest` injeta token, cookie, URL, caminho e CPF/CNPJ no motivo de uma falha, no título e no nome de um documento e varre lista, detalhe de todos os eventos, CSV, usuários, parâmetros e conexões. `AcessoRevogadoHttpTest` prova que usuário desativado ou rebaixado perde o acesso na requisição seguinte, com sessão aberta, com ticket já emitido e com o pedido que ele mesmo gerou (D70). `ImutabilidadeDaAuditoriaTest` prova que nenhuma rota nem método público altera ou apaga evento.
 
 Códigos: `OPERADOR`, `OPERADOR_SIGILO`, `ADMIN`. Na versão definitiva, a identidade vem da autenticação institucional; o perfil é atribuído nesta tela. Itens de menu sem permissão não são exibidos (RN08).
 
@@ -41,6 +45,9 @@ Códigos: `OPERADOR`, `OPERADOR_SIGILO`, `ADMIN`. Na versão definitiva, a ident
 - Perfil e situação são alterados direto na lista e gravados na hora (evento `USUARIO`).
 - Inclusão por gaveta lateral: nome, login, CPF/CNPJ e perfil. Login é único; CPF/CNPJ é obrigatório para o Operador.
 - Usuário inativo não entra no sistema; o histórico de auditoria é mantido.
+- **Regras no back-end (S5, bloco 7, D68):** login de 3 a 60 caracteres (letras, números, ponto, hífen ou sublinhado), único e normalizado; CPF/CNPJ conferido pelos dígitos verificadores, guardado só como dígitos e devolvido só mascarado; perfil `OPERADOR`, `OPERADOR_SIGILO` ou `ADMIN`. Não é possível desativar nem rebaixar o último Administrador ativo, nem desativar o próprio usuário. Mudar para Operador exige CPF/CNPJ já cadastrado: a alteração não recebe documento, então quem não o tem precisa ser incluído de novo com outro login.
+- **Senha:** os usuários incluídos entram com a senha única do protótipo (`VISTAS_DEMO_SENHA`); não há autenticação nova (D09).
+- **Memória:** incluídos e alterados somem ao reiniciar, e o serviço volta aos três usuários de demonstração. O último acesso também.
 
 ### Dossiê
 
@@ -55,7 +62,7 @@ Códigos: `OPERADOR`, `OPERADOR_SIGILO`, `ADMIN`. Na versão definitiva, a ident
 
 Origem desligada some da lista de documentos e não entra no dossiê. A regra de ordem cronológica é fixa (RN03) e só é exibida.
 
-**No protótipo (S2)** os parâmetros vêm de variáveis de ambiente, atrás da porta `ParametrosDoDossie` (a S5 troca a implementação pela tela): `DOSSIE_TTL_MINUTOS` (30), `DOSSIE_THREADS` (2), `DOSSIE_SUMARIO`, `DOSSIE_MARCADORES` e `DOSSIE_NUMERACAO` (ligados), `DOWNLOAD_TIMEOUT_SEGUNDOS` (inatividade da leitura; 120 desde a S2.2, antes 60), `DOWNLOAD_TOTAL_MAXIMO_SEGUNDOS` (teto total por documento, com as novas tentativas; 900), `DOSSIE_ESPACO_MINIMO_MB` (espaço livre mínimo antes de cada download; 2048), `DOSSIE_BLOB_MAX_MB` (acima disto o PDF final é baixado direto pelo navegador, com ticket de uso único e sem pré-visualização; 150; D49), `DOSSIE_HISTORICO_HORAS` (S4: horas que um pedido expirado, baixado ou cancelado continua em "Dossiês gerados" depois do vencimento, sem arquivo; 24; em memória, some num reinício) e `VISTAS_DOSSIE_DIRETORIO`. Detalhes de tempo e novas tentativas em docs/05.
+**No protótipo (S2)** os parâmetros vêm de variáveis de ambiente, atrás da porta `ParametrosDoDossie` (a S5 passou a ler a sobreposição da tela atrás da mesma porta; o ambiente continua sendo o padrão, D69): `DOSSIE_TTL_MINUTOS` (30), `DOSSIE_THREADS` (2), `DOSSIE_SUMARIO`, `DOSSIE_MARCADORES` e `DOSSIE_NUMERACAO` (ligados), `DOWNLOAD_TIMEOUT_SEGUNDOS` (inatividade da leitura; 120 desde a S2.2, antes 60), `DOWNLOAD_TOTAL_MAXIMO_SEGUNDOS` (teto total por documento, com as novas tentativas; 900), `DOSSIE_ESPACO_MINIMO_MB` (espaço livre mínimo antes de cada download; 2048), `DOSSIE_BLOB_MAX_MB` (acima disto o PDF final é baixado direto pelo navegador, com ticket de uso único e sem pré-visualização; 150; D49), `DOSSIE_HISTORICO_HORAS` (S4: horas que um pedido expirado, baixado ou cancelado continua em "Dossiês gerados" depois do vencimento, sem arquivo; 24; em memória, some num reinício) e `VISTAS_DOSSIE_DIRETORIO`. Detalhes de tempo e novas tentativas em docs/05.
 
 **Dimensionamento do volume `dossies-tmp` (S2.2).** Cada pedido guarda no volume os documentos obtidos e, ao final, o PDF montado (os documentos são apagados depois da montagem). Regra prática por pedido: **soma dos documentos + o PDF final** (o final é quase a soma, então ≈ 2 × a soma). Some os pedidos que podem estar em andamento ao mesmo tempo (`DOSSIE_THREADS`) e os concluídos que ainda não expiraram (`DOSSIE_TTL_MINUTOS`), e acrescente `DOSSIE_ESPACO_MINIMO_MB` de folga. Exemplo: arquivos de ~50 MB, dossiê de 40 documentos ≈ 2 GB de documentos + 2 GB de PDF final ≈ 4 GB por pedido; com 2 threads, ≈ 8 GB + 2 GB de folga = **10 GB**. No Compose local o volume usa o disco do Docker, sem cota; em homologação/produção o tamanho do volume é **NÃO CONFIRMADO** (depende da infraestrutura, docs/13). A medição real é a da homologação (docs/casos-de-teste.md).
 
@@ -100,13 +107,47 @@ Variáveis de ambiente do protótipo: `VISUALIZACAO_TTL_MINUTOS` (10), `VISUALIZ
 
 ### Conexões
 
-Estado e teste de conexão de: banco do SIGA (somente leitura), arquivos do Licenciamento (com horas até expirar o token), SCORP e taxas (desativada até a forma de obtenção ser confirmada). Tempo limite de download: 60 s (10–300).
+Estado e teste de conexão de: banco do SIGA (somente leitura), arquivos do Licenciamento (com horas até expirar o token), SCORP e taxas (desativada até a forma de obtenção ser confirmada). Tempo limite de download: 120 s (10–300).
 
 Credenciais ficam no arquivo de ambiente do servidor; a tela não as exibe nem edita.
+
+**Testes (S5, bloco 8):** banco do SIGA, `SELECT 1 FROM DUAL` pelo datasource somente leitura (`sql/siga/verificacao.sql`); API de arquivos, `GET` numa chave que não existe, sem ler o corpo; SCORP, `GET` para uma pessoa que não existe. Nas duas APIs, 2xx ou 404 significa que o serviço respondeu e aceitou a credencial, e 401 ou 403 que a recusou (R55). Só a data de expiração do token é lida, sem validar a assinatura; token vencido nem é enviado.
 
 ### Auditoria
 
 Retenção por grupo: 1, 2, 5 ou 10 anos. Valores de exemplo no protótipo: documentos 5 anos, acessos 1 ano.
+
+Variáveis de ambiente do protótipo (S5): `AUDITORIA_RETENCAO_DOCUMENTOS_ANOS` (5), `AUDITORIA_RETENCAO_ACESSOS_ANOS` (1) e `AUDITORIA_MAX_EVENTOS` (50.000; teto em memória somando os dois grupos, acima dele saem os mais antigos) e `AUDITORIA_CSV_MAX_LINHAS` (50.000; limite do CSV, com aviso no cabeçalho `X-Vistas-Truncado`). Valor fora da faixa cai no padrão, com aviso no log. A retenção roda no intervalo de `vistas.agendamento.limpeza-orfaos` (1 h) e `AGENDAMENTO_ENABLED=false` a desliga.
+
+## Parâmetros editáveis e quando valem (S5, bloco 8)
+
+Cada parâmetro tem uma **classe de aplicação** e uma faixa. O valor do ambiente continua sendo o padrão e a fonte ao reiniciar; a tela só guarda sobreposições em memória (D69). As faixas sem definição anterior foram propostas no bloco 8 (**a revisar na homologação**).
+
+| Parâmetro (`nome`) | Variável | Faixa | Classe |
+|---|---|---|---|
+| `dossie.ttlMinutos` | `DOSSIE_TTL_MINUTOS` | 5 a 240 | próxima geração |
+| `dossie.threads` | `DOSSIE_THREADS` | 1 a 8 | exige reinício |
+| `dossie.sumario`, `dossie.marcadores`, `dossie.numeracao` | `DOSSIE_SUMARIO`, `DOSSIE_MARCADORES`, `DOSSIE_NUMERACAO` | ligado ou desligado | próxima geração |
+| `dossie.origem.<origem>` (7 origens) | `vistas.documentos.origens.<origem>` | ligado ou desligado | imediato |
+| `conexoes.downloadTimeoutSegundos` | `DOWNLOAD_TIMEOUT_SEGUNDOS` | 10 a 300 | próxima geração |
+| `conversao.habilitada`, `conversao.abasOcultas` | `CONVERSAO_HABILITADA`, `CONVERSAO_ABAS_OCULTAS` | ligado ou desligado | próxima geração |
+| `conversao.planilhaModo` | `CONVERSAO_PLANILHA_MODO` | `LARGURA` ou `PAGINA_POR_ABA` | próxima geração |
+| `conversao.imagemMaxMegapixels` | `CONVERSAO_IMAGEM_MAX_MEGAPIXELS` | 1 a 500 | próxima geração |
+| `conversao.planilhaEscalaMinima` | `CONVERSAO_PLANILHA_ESCALA_MINIMA` | 10 a 100 | próxima geração |
+| `conversao.paginasMaximas` | `CONVERSAO_PAGINAS_MAXIMAS` | 1 a 10000 | próxima geração |
+| `conversao.saidaMaxMb` | `CONVERSAO_SAIDA_MAX_MB` | 1 a 2000 | próxima geração |
+| `conversao.timeoutSegundos` | `CONVERSAO_TIMEOUT_SEGUNDOS` | 10 a 1800 | exige reinício |
+| `conversao.processos` | `CONVERSAO_PROCESSOS` | 1 a 8 | exige reinício |
+| `conversao.tarefasPorProcesso` | `CONVERSAO_TAREFAS_POR_PROCESSO` | 1 a 500 | exige reinício |
+| `visualizacao.ttlMinutos` | `VISUALIZACAO_TTL_MINUTOS` | 1 a 240 | imediato |
+| `visualizacao.cacheMaxMb` | `VISUALIZACAO_CACHE_MAX_MB` | 10 a 10000 | imediato |
+| `visualizacao.conversoesSimultaneas` | `VISUALIZACAO_CONVERSOES_SIMULTANEAS` | 1 a 8 | exige reinício |
+| `visualizacao.filaDeConversoes` | `VISUALIZACAO_FILA_CONVERSOES` | 0 a 32 | exige reinício |
+| `auditoria.retencaoDocumentosAnos`, `auditoria.retencaoAcessosAnos` | `AUDITORIA_RETENCAO_DOCUMENTOS_ANOS`, `AUDITORIA_RETENCAO_ACESSOS_ANOS` | 1, 2, 5 ou 10 | imediato |
+
+- **Próxima geração:** o pedido guarda um retrato destes valores na criação e toda a geração roda com ele, inclusive a conversão, o download e uma continuação depois da decisão. Fora de um pedido (por exemplo, o modal), o valor novo vale na próxima leitura.
+- **Exige reinício:** o valor é lido só na subida. Fica pendente e registrado no evento, mas o valor em vigor não muda. **Como as sobreposições somem ao reiniciar, para valer de fato é preciso alterar a variável de ambiente** (R56).
+- **Fora da tela:** credenciais, URLs, diretórios, `SCORP_SIGILO_PADRAO` (decisão da área, P30), `DOSSIE_ESPACO_MINIMO_MB` e os demais limites técnicos. "Orientação automática" está na tabela de Conversão, mas não existe como parâmetro no código.
 
 ## Salvamento
 

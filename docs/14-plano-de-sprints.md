@@ -298,17 +298,52 @@ Aceite:
 
 ## S5 — Gestão: auditoria e configurações
 
-**Objetivo:** mostrar rastreabilidade e administração, ainda em memória.
+**Objetivo:** mostrar rastreabilidade e administração, ainda em memória, e deixar a geração do dossiê acompanhável em segundo plano.
 
-Entregas:
-- Módulo `auditoria`: porta `RegistrarEvento` chamada por consulta, documento e dossiê; eventos de documentos e de acessos; consulta por perfil (Operador só como interessado, com sigilosos mascarados); detalhe e exportação CSV.
-- Módulo `configuracao`: usuários e perfis, parâmetros do dossiê, conversão, conexões (com teste) e retenção; salvamento com evento de alteração.
-- Parâmetros passam a valer em tempo de execução (expiração, origens, timeouts, modo das planilhas).
-- Front: telas de auditoria (documentos e acessos) e de configurações.
+**Forma de trabalho:** 12 blocos, cada um terminando em um ponto de commit, executados por duas sessões do Claude Code (OPUS e SONNET) que recebem o mesmo prompt; o estado de cada bloco está em [`progresso/s5.md`](progresso/s5.md).
+
+| Bloco | Entrega | Sessão | Commit sugerido |
+|---|---|---|---|
+| 1 | Front: a geração continua em segundo plano ao fechar a gaveta. `AcompanhamentoDeDossieService` é dono do pedido e do polling; fundo, Esc e "Fechar" minimizam; indicador na barra do topo, aviso com "Abrir" e um pedido por vez (D71) | SONNET | `fix(front)` |
+| 2 | Módulo `auditoria`: evento imutável com retrato limpo, porta `RegistrarEvento` que nunca lança, repositório em memória só de inclusão, teto e retenção por grupo (D65) | OPUS | `feat(auditoria)` |
+| 3 | Eventos de documentos (consulta, visualização, dossiê, falha, download e geometrias) sem mudar nenhuma resposta; retrato guardado no pedido para a thread de geração (D66) | OPUS | `feat(auditoria)` |
+| 4 | Consulta da auditoria por perfil (Operador só os seus processos, sigiloso mascarado antes de filtrar), detalhe e CSV com proteção contra injeção de fórmula (D67) | OPUS | `feat(auditoria)` |
+| 5 | Front: auditoria de documentos (período, indicadores, filtros, destaque de sigilosos, gaveta de detalhe, CSV por Blob) | SONNET | `feat(front)` |
+| 6 | Eventos `LOGIN` e `PERFIL` (por evento de aplicação, sem `acesso` depender da auditoria) e a tela de acessos no mesmo componente, só Administrador | SONNET | `feat(auditoria)` |
+| 7 | Módulo `configuracao`: usuários e perfis em memória, com as proteções (último Administrador, próprio usuário) e um evento `USUARIO` por alteração (D68) | OPUS | `feat(configuracao)` |
+| 8 | Parâmetros em tempo de execução (sobreposição em memória, classes de aplicação, retrato do pedido), conexões com teste e evento `CONFIG` único (D69) | OPUS | `feat(configuracao)` |
+| 9 | Front: Configurações com abas e a aba Usuários e perfis | SONNET | `feat(front)` |
+| 10 | Front: abas de parâmetros, conexões e retenção, com alterações pendentes e salvamento único; telas sob demanda (D72) | SONNET | `feat(front)` |
+| 11 | `MatrizDeAcessoTest` e varredura de vazamento estendidas; acesso conferido na entrega, com o perfil vigente (D70, R53, R58) | OPUS | `test(acesso)` |
+| 12 | Roteiro de homologação da S5, decisões D71 e D72, riscos R59 e R60, coerência dos documentos e verificação final | SONNET | `docs(homologacao)` |
+
+Entregas (resumo do plano original):
+- Módulo `auditoria`: porta `RegistrarEvento` chamada por consulta, documento, dossiê e login; eventos de documentos e de acessos; consulta por perfil (Operador só como interessado, com sigilosos mascarados); detalhe e exportação CSV.
+- Módulo `configuracao`: usuários e perfis, parâmetros do dossiê, conversão, visualização, conexões (com teste) e retenção; salvamento com evento de alteração.
+- Parâmetros passam a valer em tempo de execução (expiração, origens, timeouts, modo das planilhas), cada um com a sua classe de aplicação.
+- Front: telas de auditoria (documentos e acessos) e de configurações, e a geração do dossiê acompanhável em segundo plano.
 
 Aceite:
 - Cada ação das sprints anteriores gera o evento correspondente.
 - Alterar um parâmetro muda o comportamento sem reiniciar a aplicação.
+- Clicar fora da gaveta durante a geração não interrompe nem perde o acompanhamento.
+
+**Estado:** implementada e testada **sem sistema externo real**. Auditoria, usuários e parâmetros ficam **em memória** (D09): somem ao reiniciar o serviço (R50, R57), e a tela avisa. A homologação com dados e arquivos reais é do responsável: [`homologacao/S5-roteiro-homologacao.md`](homologacao/S5-roteiro-homologacao.md). A verificação final da S5 está em [`progresso/s5.md`](progresso/s5.md).
+
+### Validação da S5
+
+**PENDENTE: homologação manual pelo responsável**, com dados reais de base de desenvolvimento. Roteiro: [`homologacao/S5-roteiro-homologacao.md`](homologacao/S5-roteiro-homologacao.md). CSVs, PDFs e capturas de tela reais **não** entram no repositório (pasta local `amostras-locais/`, no `.gitignore`).
+
+| Verificação (roteiro) | Resultado |
+|---|---|
+| 1. Geração em segundo plano: clicar fora, indicador, aviso, reabrir, fechar no instante do envio, falha e decisão com a gaveta fechada | |
+| 2. Auditoria de documentos com cada perfil: eventos, destaque, detalhe, filtros e CSV no Excel (acentos, separador, célula `=`) | |
+| 3. Divisão por perfil: Operador vê os dos seus processos (de qualquer usuário), sigiloso mascarado, busca que não revela; Acessos só do Administrador | |
+| 4. Usuários e perfis: inclusão, mudança, último Administrador, próprio usuário, entrada de novo e desativado, eventos `USUARIO` | |
+| 5. Parâmetros: evento `CONFIG` único, classes de aplicação, restaurar padrão, origens; **`LARGURA` × `PAGINA_POR_ABA` (D58)** | |
+| 6. Conexões: banco do SIGA, API de arquivos (horas até expirar) e SCORP; nenhuma credencial na tela nem na rede | |
+| 7. Reinício do serviço: auditoria, usuários e parâmetros somem (comportamento documentado) | |
+| 8. Logs sem token ou chave, `.env.local` ignorado, repositório limpo | |
 
 ## S6 — Validação e apresentação
 

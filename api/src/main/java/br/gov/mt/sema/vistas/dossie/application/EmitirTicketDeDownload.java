@@ -42,7 +42,7 @@ public class EmitirTicketDeDownload {
         String valor = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         LocalDateTime expiraEm = agora.plusSeconds(TicketDeDownload.SEGUNDOS_DE_VALIDADE);
         tickets.guardar(TicketDeDownload.resumo(valor),
-                new TicketDeDownload(arquivo.id(), usuarioAtual.obter().login(), expiraEm));
+                new TicketDeDownload(arquivo.id(), usuarioAtual.obter().login(), expiraEm, arquivo.baixadoPor()));
         return new TicketEmitido(valor, expiraEm);
     }
 

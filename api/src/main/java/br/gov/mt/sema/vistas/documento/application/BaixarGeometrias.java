@@ -18,8 +18,13 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import br.gov.mt.sema.vistas.acesso.application.PoliticaDeAcesso;
+import br.gov.mt.sema.vistas.auditoria.application.ContextoDoEvento;
+import br.gov.mt.sema.vistas.auditoria.application.RegistrarEvento;
+import br.gov.mt.sema.vistas.auditoria.domain.NovoEvento;
+import br.gov.mt.sema.vistas.auditoria.domain.TipoDeEvento;
 import br.gov.mt.sema.vistas.consulta.application.VerificarAcessoAoRequerimento;
 import br.gov.mt.sema.vistas.consulta.domain.Identificacao;
+import br.gov.mt.sema.vistas.consulta.domain.Requerimento;
 import br.gov.mt.sema.vistas.documento.application.port.ArquivosDoDocumento;
 import br.gov.mt.sema.vistas.documento.application.port.EspacoLivreEmDisco;
 import br.gov.mt.sema.vistas.documento.application.port.FalhaAoObterArquivoException;
@@ -60,9 +65,14 @@ public class BaixarGeometrias {
     private final ArquivosDoDocumento arquivos;
     private final ParametrosDasGeometrias parametros;
     private final EspacoLivreEmDisco espaco;
+    private final RegistrarEvento registrar;
+    private final ContextoDoEvento contexto;
 
     public BaixarGeometrias(VerificarAcessoAoRequerimento acesso, ListarDocumentos listagem, PoliticaDeAcesso politica,
-            ArquivosDoDocumento arquivos, ParametrosDasGeometrias parametros, EspacoLivreEmDisco espaco) {
+            ArquivosDoDocumento arquivos, ParametrosDasGeometrias parametros, EspacoLivreEmDisco espaco,
+            RegistrarEvento registrar, ContextoDoEvento contexto) {
+        this.registrar = registrar;
+        this.contexto = contexto;
         this.acesso = acesso;
         this.listagem = listagem;
         this.politica = politica;
@@ -73,7 +83,7 @@ public class BaixarGeometrias {
 
     /** O ZIP pronto em disco; quem entrega chama {@link ZipDeGeometrias#descartar()} ao terminar. */
     public ZipDeGeometrias executar(long idRequerimento) {
-        Identificacao identificacao = acesso.executar(idRequerimento).identificacao();
+        Requerimento requerimento = acesso.executar(idRequerimento);
         // Para o Operador, "só sigilosas" e "nenhuma" dão a mesma resposta: nada revela a diferença.
         List<Documento> geometrias = listagem.geometriasDoRequerimento(idRequerimento).stream()
                 .filter(d -> politica.podeAcessarDocumento(d.sigiloso()))
@@ -87,7 +97,6 @@ public class BaixarGeometrias {
                     + geometrias.size() + " geometrias; o download em ZIP aceita até "
                     + parametros.maximoDeArquivos() + " arquivos.");
         }
-        // S5: auditoria — evento GEOMETRIAS (docs/11): requerimento, quantidade de arquivos, quantas sigilosas e nome do ZIP.
         Path pasta = criarPasta();
         try {
             List<Path> obtidos = new ArrayList<>();
@@ -126,7 +135,17 @@ public class BaixarGeometrias {
             }
             Path zip = pasta.resolve(NOME_DO_ZIP);
             montar(zip, obtidos, nomes, geometrias);
-            return new ZipDeGeometrias(zip, nomeDoZip(identificacao), tamanho(zip), () -> apagarPasta(pasta));
+            String nomeDoZip = nomeDoZip(requerimento.identificacao());
+            long sigilosas = geometrias.stream().filter(Documento::sigiloso).count();
+            NovoEvento entrega = contexto.novo(TipoDeEvento.GEOMETRIAS)
+                    .requerimento(idRequerimento, requerimento.numeroProcesso(), requerimento.numeroRequerimento())
+                    .interessado(requerimento.cpfCnpjDoInteressado())
+                    .sigiloso(sigilosas > 0)
+                    .arquivo(nomeDoZip)
+                    .detalhe(geometrias.size() + " arquivo(s), " + sigilosas + " sigiloso(s)")
+                    .criar();
+            return new ZipDeGeometrias(zip, nomeDoZip, tamanho(zip), () -> apagarPasta(pasta),
+                    () -> registrar.registrar(entrega));
         } catch (RuntimeException e) {
             apagarPasta(pasta);
             throw e;
@@ -221,11 +240,19 @@ public class BaixarGeometrias {
         }
     }
 
-    /** O ZIP montado. {@link #descartar()} apaga a pasta do download; pode ser chamado mais de uma vez. */
-    public record ZipDeGeometrias(Path caminho, String nome, long tamanhoBytes, Runnable aoDescartar) {
+    /**
+     * O ZIP montado. {@link #descartar()} apaga a pasta do download; pode ser chamado mais de uma vez.
+     * {@link #confirmarEntrega()} registra o evento e é chamado uma vez, só com o ZIP entregue por inteiro.
+     */
+    public record ZipDeGeometrias(Path caminho, String nome, long tamanhoBytes, Runnable aoDescartar,
+            Runnable aoEntregar) {
 
         public void descartar() {
             aoDescartar.run();
+        }
+
+        public void confirmarEntrega() {
+            aoEntregar.run();
         }
     }
 }

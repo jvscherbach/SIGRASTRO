@@ -1,0 +1,187 @@
+<section [attr.aria-label]="titulo">
+  <app-quadro-topo [titulo]="titulo" [descricao]="descricao">
+    <span etiquetas class="tag gray"><app-icone nome="clock" />Registros em memória</span>
+  </app-quadro-topo>
+
+  <app-folha-sobreposta>
+    <div class="note amber aud-memoria" role="note">
+      <app-icone nome="info" />
+      <span>Neste protótipo, os registros ficam na memória e somem ao reiniciar o serviço.</span>
+    </div>
+
+    @if (restritoAoInteressado() && ehDocumentos) {
+      <p class="aud-escopo">
+        Você vê os eventos dos <b>seus</b> processos e requerimentos, feitos por qualquer usuário. Documentos sigilosos
+        aparecem como “Documento sigiloso”.
+      </p>
+    }
+
+    <section aria-label="Eventos">
+      <div class="dash-sec-head">
+        <div>
+          <h2><app-icone nome="shield" />Eventos registrados</h2>
+        </div>
+        <div class="aud-acoes">
+          <div class="aud-periodos" role="group" aria-label="Período">
+            @for (p of periodos; track p.codigo) {
+              <button
+                type="button"
+                class="btn sm"
+                [class.quiet]="filtro().periodo !== p.codigo"
+                [attr.aria-pressed]="filtro().periodo === p.codigo"
+                (click)="escolherPeriodo(p.codigo)"
+              >
+                {{ p.rotulo }}
+              </button>
+            }
+          </div>
+          <button type="button" class="btn sm aud-exportar" [disabled]="exportando() || carregando()" (click)="exportar()">
+            <app-icone nome="download" />{{ exportando() ? 'Exportando…' : 'Exportar CSV' }}
+          </button>
+        </div>
+      </div>
+
+      @if (erroDaExportacao()) {
+        <div class="alert aud-erro-exportacao" role="alert" style="margin: 0 0 12px">
+          <app-icone nome="alert" /><span>{{ erroDaExportacao() }}</span>
+        </div>
+      }
+      @if (avisoDaExportacao()) {
+        <div class="note amber aud-truncado" role="status" style="margin-bottom: 12px">
+          <app-icone nome="info" /><span>{{ avisoDaExportacao() }}</span>
+        </div>
+      }
+
+      @if (indicadores(); as i) {
+        <div class="aud-indicadores" aria-label="Indicadores do período">
+          @if (ehDocumentos) {
+            <div class="aud-ind" data-ind="dossiesGerados"><b>{{ i.dossiesGerados ?? 0 }}</b><span>Dossiês gerados</span></div>
+            <div class="aud-ind" data-ind="eventosComSigilosos"><b>{{ i.eventosComSigilosos ?? 0 }}</b><span>Eventos com sigilosos</span></div>
+          } @else {
+            <div class="aud-ind" data-ind="entradas"><b>{{ i.entradas ?? 0 }}</b><span>Entradas</span></div>
+            <div class="aud-ind" data-ind="alteracoes"><b>{{ i.alteracoes ?? 0 }}</b><span>Alterações</span></div>
+          }
+          <div class="aud-ind" data-ind="usuarios"><b>{{ i.usuarios }}</b><span>Usuários</span></div>
+        </div>
+      }
+
+      <div class="toolbar">
+        <div class="search">
+          <app-icone nome="search" />
+          <input
+            type="search"
+            [attr.aria-label]="ehDocumentos ? 'Buscar por usuário, número, documento, arquivo ou código' : 'Buscar por usuário ou código do evento'"
+            [attr.placeholder]="ehDocumentos ? 'Usuário, número, documento, arquivo ou código…' : 'Usuário ou código do evento…'"
+            [value]="filtro().texto"
+            (input)="digitarTexto($event)"
+          />
+        </div>
+        <select aria-label="Tipo de evento" [value]="filtro().tipo" (change)="escolherTipo($event)">
+          <option value="">Todos os eventos</option>
+          @for (t of tipos; track t.codigo) {
+            <option [value]="t.codigo" [selected]="filtro().tipo === t.codigo">{{ t.rotulo }}</option>
+          }
+        </select>
+        <input
+          type="text"
+          class="aud-usuario"
+          aria-label="Login do usuário"
+          placeholder="Login do usuário"
+          [value]="filtro().usuario"
+          (input)="digitarUsuario($event)"
+        />
+        @if (podeFiltrarSigilosos()) {
+          <label class="check aud-somente-sigilosos">
+            <input type="checkbox" [checked]="filtro().somenteSigilosos" (change)="alternarSigilosos($event)" />Somente sigilosos
+          </label>
+        }
+        @if (temFiltro()) {
+          <button type="button" class="btn sm quiet" (click)="limparFiltros()">Limpar filtros</button>
+        }
+      </div>
+
+      @if (carregando()) {
+        <p class="muted" role="status">Carregando eventos…</p>
+      } @else if (erro()) {
+        <div class="alert aud-erro" role="alert"><app-icone nome="alert" /><span>{{ erro() }}</span></div>
+        <button type="button" class="btn sm" (click)="carregar()"><app-icone nome="refresh" />Tentar novamente</button>
+      } @else if (!itens().length) {
+        <div class="empty aud-vazio">
+          <span class="tile-icon"><app-icone nome="shield" /></span>
+          <h3>Nenhum evento encontrado</h3>
+          <p>
+            {{ temFiltro() ? 'Nenhum evento corresponde aos filtros neste período.' : 'Não há eventos neste período.' }}
+            Como os registros ficam na memória, eventos de antes do último reinício do serviço não aparecem.
+          </p>
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table class="aud-tabela">
+            <thead>
+              <tr>
+                <th>Data e hora</th>
+                <th>Usuário</th>
+                <th>Evento</th>
+                @if (ehDocumentos) {
+                  <th>Processo / requerimento</th>
+                }
+                <th>Detalhe</th>
+                <th class="acoes"><span class="sr-only">Detalhe do evento</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (e of itens(); track e.id) {
+                <tr [class.aud-sigiloso]="e.sigiloso" [attr.data-sigiloso]="e.sigiloso">
+                  <td class="nowrap">
+                    {{ formatarDataHora(e.dataHora) }}
+                    <span class="cell-sub">{{ e.tipo }}</span>
+                  </td>
+                  <td>
+                    <b>{{ e.usuario.nome }}</b>
+                    <span class="cell-sub">{{ perfis[e.usuario.perfil] ?? e.usuario.perfil }} · {{ e.usuario.login }}</span>
+                  </td>
+                  <td class="nowrap"><span [class]="'tag ' + tomDoTipo(e.tipo)">{{ e.rotulo }}</span></td>
+                  @if (ehDocumentos) {
+                    <td class="nowrap">{{ processoOuRequerimento(e) }}</td>
+                  }
+                  <td class="aud-detalhe">
+                    @if (e.arquivo) {
+                      <span class="aud-arquivo">{{ e.arquivo }}</span>
+                    }
+                    @if (e.detalhe) {
+                      <span>{{ e.detalhe }}</span>
+                    }
+                    @if (e.sigiloso) {
+                      <span class="tag red">Sigiloso</span>
+                    }
+                  </td>
+                  <td class="acoes">
+                    <button type="button" class="btn sm quiet" [attr.aria-label]="'Ver detalhe do evento ' + e.id" (click)="abrirDetalhe(e)">
+                      <app-icone nome="eye" />Detalhe
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (resposta(); as r) {
+          <div class="table-foot">
+            <span>Exibindo {{ itens().length }} de {{ r.totalElementos }} · mais recentes primeiro</span>
+            @if (r.totalPaginas > 1) {
+              <span class="row">
+                <button type="button" class="btn sm quiet" [disabled]="r.pagina === 0" (click)="irParaPagina(r.pagina - 1)">Anterior</button>
+                <span>Página {{ r.pagina + 1 }} de {{ r.totalPaginas }}</span>
+                <button type="button" class="btn sm quiet" [disabled]="r.pagina + 1 >= r.totalPaginas" (click)="irParaPagina(r.pagina + 1)">Próxima</button>
+              </span>
+            }
+          </div>
+        }
+      }
+    </section>
+  </app-folha-sobreposta>
+</section>
+
+@if (detalhe(); as id) {
+  <app-auditoria-detalhe [grupo]="grupo" [idDoEvento]="id" (fechar)="fecharDetalhe()" />
+}

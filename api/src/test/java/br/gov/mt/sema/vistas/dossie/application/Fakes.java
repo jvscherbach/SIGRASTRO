@@ -18,6 +18,10 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
+import br.gov.mt.sema.vistas.acesso.application.UsuarioAtual;
+import br.gov.mt.sema.vistas.acesso.domain.Usuario;
+import br.gov.mt.sema.vistas.auditoria.application.ContextoDoEvento;
+import br.gov.mt.sema.vistas.auditoria.application.port.RequisicaoDoEvento;
 import br.gov.mt.sema.vistas.documento.application.port.ConversorDeDocumentos;
 import br.gov.mt.sema.vistas.documento.application.port.ConversorDeImagens;
 import br.gov.mt.sema.vistas.documento.application.port.FalhaDeConversaoException;
@@ -30,12 +34,14 @@ import br.gov.mt.sema.vistas.dossie.application.port.FilaDeGeracao;
 import br.gov.mt.sema.vistas.dossie.application.port.MontadorDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.RepositorioDePedidos;
+import br.gov.mt.sema.vistas.dossie.application.port.RetratoDeParametros;
 import br.gov.mt.sema.vistas.dossie.application.port.TicketsDeDownload;
 import br.gov.mt.sema.vistas.dossie.application.port.ValidadorDePdf;
 import br.gov.mt.sema.vistas.dossie.domain.DadosDaCapa;
 import br.gov.mt.sema.vistas.dossie.domain.ItemDoPedido;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
 import br.gov.mt.sema.vistas.dossie.domain.TicketDeDownload;
+import br.gov.mt.sema.vistas.shared.application.exception.NaoAutenticadoException;
 import br.gov.mt.sema.vistas.testsupport.ParametrosDeConversaoDeTeste;
 
 /** Portas falsas dos testes do dossiê. Os "PDFs" são texto: o que importa aqui é o fluxo, não o PDF. */
@@ -326,6 +332,57 @@ final class Fakes {
                 geracao.run();
             }
         }
+    }
+
+    static RetratoDeParametros semRetrato() {
+        return new RetratoDeParametros() {
+            @Override
+            public Map<String, String> retratar() {
+                return Map.of();
+            }
+
+            @Override
+            public <T> T comRetrato(Map<String, String> retrato, java.util.function.Supplier<T> tarefa) {
+                return tarefa.get();
+            }
+        };
+    }
+
+    static RequisicaoDoEvento semRequisicao() {
+        return new RequisicaoDoEvento() {
+            @Override
+            public String origem() {
+                return null;
+            }
+
+            @Override
+            public String correlationId() {
+                return null;
+            }
+        };
+    }
+
+    static UsuarioAtual semUsuario() {
+        return new UsuarioAtual() {
+            @Override
+            public Usuario obter() {
+                throw new NaoAutenticadoException("Sem usuário.");
+            }
+
+            @Override
+            public String token() {
+                throw new NaoAutenticadoException("Sem usuário.");
+            }
+        };
+    }
+
+    /** Sem auditoria de verdade: os testes dos eventos usam {@code EventosDaGeracaoTest} e o teste HTTP. */
+    static EventosDoDossie eventos(UsuarioAtual usuarioAtual) {
+        return new EventosDoDossie(evento -> { }, new ContextoDoEvento(usuarioAtual, semRequisicao()));
+    }
+
+    static EventosDoDossie eventos() {
+        return eventos(semUsuario());
     }
 
     static DadosDaCapa capa() {

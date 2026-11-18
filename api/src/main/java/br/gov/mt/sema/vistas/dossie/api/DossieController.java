@@ -201,6 +201,7 @@ public class DossieController {
         private final long esperado;
         private final Runnable aoTerminar;
         private long lidos;
+        private boolean avisado;
 
         AvisaAoTerminar(InputStream origem, long esperado, Runnable aoTerminar) {
             super(origem);
@@ -229,7 +230,8 @@ public class DossieController {
         @Override
         public void close() throws IOException {
             super.close();
-            if (lidos >= esperado) {
+            if (lidos >= esperado && !avisado) {
+                avisado = true;
                 aoTerminar.run();
             }
         }

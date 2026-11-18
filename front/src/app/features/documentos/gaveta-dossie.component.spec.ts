@@ -1,10 +1,12 @@
-import { HttpErrorResponse, HttpHeaders, HttpResponse } from '@angular/common/http';
+import { HttpErrorResponse, HttpHeaders, HttpResponse, provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Subject, of, throwError } from 'rxjs';
 
 import { DossiesApiService } from './documentos-api.service';
 import { AndamentoDossie, ReferenciaDocumento } from './documentos.models';
-import { GavetaDossieComponent, INTERVALO_INICIAL_MS, INTERVALO_MAXIMO_MS } from './gaveta-dossie.component';
+import { AcompanhamentoDeDossieService, INTERVALO_INICIAL_MS, INTERVALO_MAXIMO_MS } from './acompanhamento-dossie.service';
+import { GavetaDossieComponent } from './gaveta-dossie.component';
 
 const REFS: ReferenciaDocumento[] = [
   { origem: 'DOCUMENTO_PROCESSO', id: '804328' },
@@ -68,19 +70,31 @@ describe('GavetaDossieComponent', () => {
     urlDeDownloadDireto: ReturnType<typeof vi.fn>;
   };
   let fixture: ComponentFixture<GavetaDossieComponent>;
+  let servico: AcompanhamentoDeDossieService;
   let raiz: HTMLElement;
   let removidos: ReferenciaDocumento[];
   let fechou: number;
 
-  function abrir(refs: ReferenciaDocumento[] = REFS): void {
-    TestBed.configureTestingModule({ imports: [GavetaDossieComponent], providers: [{ provide: DossiesApiService, useValue: api }] });
+  function montar(): void {
+    TestBed.configureTestingModule({
+      imports: [GavetaDossieComponent],
+      providers: [{ provide: DossiesApiService, useValue: api }, provideHttpClient(), provideHttpClientTesting()],
+    });
+    servico = TestBed.inject(AcompanhamentoDeDossieService);
+    servico.documentoRemovido$.subscribe((r) => removidos.push(r));
+    servico.gavetaFechada$.subscribe(() => fechou++);
+  }
+
+  function mostrar(): void {
     fixture = TestBed.createComponent(GavetaDossieComponent);
-    fixture.componentRef.setInput('idRequerimento', 101);
-    fixture.componentRef.setInput('referencias', refs);
-    fixture.componentInstance.documentoRemovido.subscribe((r) => removidos.push(r));
-    fixture.componentInstance.fechar.subscribe(() => fechou++);
     fixture.detectChanges();
     raiz = fixture.nativeElement as HTMLElement;
+  }
+
+  function abrir(refs: ReferenciaDocumento[] = REFS): void {
+    montar();
+    servico.gerar(101, refs);
+    mostrar();
   }
 
   const texto = () => raiz.textContent!.replace(/\s+/g, ' ');
@@ -169,12 +183,9 @@ describe('GavetaDossieComponent', () => {
 
   describe('pedido existente (tela Dossiês gerados, S4)', () => {
     function abrirExistente(): void {
-      TestBed.configureTestingModule({ imports: [GavetaDossieComponent], providers: [{ provide: DossiesApiService, useValue: api }] });
-      fixture = TestBed.createComponent(GavetaDossieComponent);
-      fixture.componentRef.setInput('idRequerimento', 101);
-      fixture.componentRef.setInput('pedidoExistente', 'pedido-9');
-      fixture.detectChanges();
-      raiz = fixture.nativeElement as HTMLElement;
+      montar();
+      servico.acompanhar('pedido-9', 101);
+      mostrar();
     }
 
     it('acompanha o pedido informado, sem criar outro', () => {
@@ -246,29 +257,32 @@ describe('GavetaDossieComponent', () => {
       expect(texto()).toContain('Dossiê pronto');
     });
 
-    it('fechar a gaveta (destruir o componente) cancela o timer e a consulta em andamento', async () => {
+    it('fechar a gaveta (destruir o componente) NÃO cancela o timer nem a consulta: o serviço segue acompanhando', async () => {
       const pendente = new Subject<AndamentoDossie>();
       api.andamento.mockReturnValueOnce(of(andamento())).mockReturnValue(pendente);
       abrir();
       await avancar(INTERVALO_INICIAL_MS); // a segunda consulta fica pendurada em "pendente"
-      expect(api.andamento).toHaveBeenCalledTimes(2);
       expect(pendente.observed).toBe(true);
 
       fixture.destroy();
 
+      expect(pendente.observed).toBe(true);
+      pendente.next(andamento({ processados: 2 }));
+      expect(servico.processados()).toBe(2);
+    });
+
+    it('dispensar o pedido (ou sair da aplicação) não deixa timer, inscrição nem URL de objeto', async () => {
+      const pendente = new Subject<AndamentoDossie>();
+      api.andamento.mockReturnValueOnce(of(andamento())).mockReturnValue(pendente);
+      abrir();
+      await avancar(INTERVALO_INICIAL_MS);
+      fixture.destroy();
+
+      servico.dispensar();
+
       expect(pendente.observed).toBe(false);
       await vi.advanceTimersByTimeAsync(120_000);
       expect(api.andamento).toHaveBeenCalledTimes(2);
-      expect(vi.getTimerCount()).toBe(0);
-    });
-
-    it('destruir enquanto espera o próximo ciclo não deixa timer algum', async () => {
-      abrir();
-      expect(vi.getTimerCount()).toBe(1);
-
-      fixture.destroy();
-
-      expect(vi.getTimerCount()).toBe(0);
     });
 
     it('erro ao consultar para o polling e oferece "Atualizar"', async () => {
@@ -592,7 +606,7 @@ describe('GavetaDossieComponent', () => {
       expect(botao('Remover')!.disabled).toBe(true);
     });
 
-    it('sair da tela com a decisão pendente não deixa inscrição pendurada', () => {
+    it('fechar a gaveta com a decisão em envio não a cancela; dispensar o pedido libera a inscrição', () => {
       const decisao = new Subject<void>();
       api.continuar.mockReturnValue(decisao);
       abrir();
@@ -600,6 +614,9 @@ describe('GavetaDossieComponent', () => {
       botao('Tentar novamente')!.click();
       expect(decisao.observed).toBe(true);
       fixture.destroy();
+      expect(decisao.observed).toBe(true);
+
+      servico.dispensar();
 
       expect(decisao.observed).toBe(false);
     });
@@ -758,7 +775,7 @@ describe('GavetaDossieComponent', () => {
   });
 
   describe('fechar', () => {
-    it('o botão de fechar avisa a tela e, em andamento, informa que a geração continua', () => {
+    it('o botão de fechar minimiza e, em andamento, informa que a geração continua', () => {
       abrir();
       const fechar = raiz.querySelector<HTMLButtonElement>('.d-head .icon-btn')!;
 

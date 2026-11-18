@@ -1,5 +1,5 @@
 <div class="scrim" (click)="aoClicarNoFundo($event)">
-  <section class="drawer" role="dialog" aria-modal="true" aria-labelledby="gaveta-titulo" (keydown.escape)="fechar.emit()">
+  <section class="drawer" role="dialog" aria-modal="true" aria-labelledby="gaveta-titulo">
     <header class="d-head">
       <div>
         <span class="eyebrow">Dossiê em PDF</span>
@@ -11,8 +11,8 @@
         type="button"
         class="icon-btn"
         aria-label="Fechar"
-        [attr.title]="emAndamento() ? 'Fechar (a geração continua no servidor)' : 'Fechar'"
-        (click)="fechar.emit()"
+        [attr.title]="emAndamento() ? 'Minimizar (a geração continua)' : 'Fechar'"
+        (click)="minimizar()"
       >
         <app-icone nome="close" />
       </button>
@@ -135,7 +135,7 @@
         } @else {
           <button type="button" class="btn primary" (click)="tentarNovamente()"><app-icone nome="refresh" />Tentar novamente</button>
         }
-        <button type="button" class="btn quiet" (click)="fechar.emit()">Fechar</button>
+        <button type="button" class="btn quiet" (click)="minimizar()">Fechar</button>
       } @else if (status() === 'PENDENTE_DECISAO') {
         <button type="button" class="btn quiet" [disabled]="ocupado()" (click)="cancelarGeracao()">Cancelar</button>
         <div class="row wrap decisao-botoes">
@@ -147,7 +147,7 @@
           </button>
         </div>
       } @else if (status() === 'CONCLUIDO' && !vencido() && !baixado()) {
-        <button type="button" class="btn quiet" (click)="fechar.emit()">Fechar</button>
+        <button type="button" class="btn quiet" (click)="minimizar()">Fechar</button>
         <div class="row">
           @if (!entregaPorTicket()) {
             <button type="button" class="btn" [disabled]="ocupado()" (click)="previsualizar()"><app-icone nome="eye" />Pré-visualizar</button>
@@ -158,10 +158,10 @@
         <button type="button" class="btn quiet" [disabled]="ocupado() || fase() === 'enviando'" (click)="cancelarGeracao()">
           Cancelar geração
         </button>
-        <button type="button" class="btn" (click)="fechar.emit()">Fechar</button>
+        <button type="button" class="btn" (click)="minimizar()">Fechar</button>
       } @else {
-        <button type="button" class="btn quiet" (click)="fechar.emit()">Fechar</button>
-        @if (!pedidoExistente()) {
+        <button type="button" class="btn quiet" (click)="minimizar()">Fechar</button>
+        @if (!semGerarNovamente()) {
           <!-- Pedido aberto pela tela Dossiês gerados: gerar de novo é no detalhe do requerimento. -->
           <button type="button" class="btn primary" (click)="tentarNovamente()"><app-icone nome="refresh" />Gerar novamente</button>
         }

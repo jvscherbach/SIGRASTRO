@@ -66,7 +66,7 @@ class ConversaoNoPipelineTest {
     private GeradorDeDossie gerador(boolean conversaoLigada) {
         PreparadorDePdf preparador = new PreparadorDePdf(new Validador(), conversor, conversor,
                 conversaoLigada ? ParametrosDeConversaoDeTeste.ligada() : ParametrosDeConversaoDeTeste.desligada());
-        return new GeradorDeDossie(arquivos, preparador, montador, parametros, d -> Long.MAX_VALUE, relogio);
+        return new GeradorDeDossie(arquivos, preparador, montador, parametros, d -> Long.MAX_VALUE, relogio, Fakes.eventos());
     }
 
     /** PDF (1 página), XLSX, DOCX e PNG, nesta ordem cronológica. */

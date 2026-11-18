@@ -1,9 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
+
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { mensagemDoErro } from '../../core/mensagens-erro';
 import { formatarData } from '../../shared/formato';
 import { IconeComponent } from '../../shared/icone.component';
+import { AcompanhamentoDeDossieService } from './acompanhamento-dossie.service';
 import { DocumentosApiService } from './documentos-api.service';
 import {
   CampoDeOrdem,
@@ -22,7 +25,6 @@ import {
   visualizavel,
 } from './documentos.logic';
 import { DocumentoItem, DocumentosResposta, ReferenciaDocumento } from './documentos.models';
-import { GavetaDossieComponent } from './gaveta-dossie.component';
 import { GeometriasSecaoComponent } from './geometrias-secao.component';
 import { VisualizadorDocumentoComponent } from './visualizador-documento.component';
 
@@ -42,11 +44,13 @@ const TEXTO_DO_AVISO: Record<string, string> = {
 @Component({
   selector: 'app-documentos-secao',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconeComponent, GavetaDossieComponent, GeometriasSecaoComponent, VisualizadorDocumentoComponent],
+  imports: [IconeComponent, GeometriasSecaoComponent, VisualizadorDocumentoComponent],
   templateUrl: './documentos-secao.component.html',
 })
 export class DocumentosSecaoComponent implements OnInit {
   private readonly api = inject(DocumentosApiService);
+  private readonly acompanhamento = inject(AcompanhamentoDeDossieService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly idRequerimento = input.required<number>();
 
@@ -57,7 +61,6 @@ export class DocumentosSecaoComponent implements OnInit {
   protected readonly origem = signal('');
   protected readonly ordem = signal<Ordem>(ORDEM_PADRAO);
   protected readonly selecionados = signal<ReadonlySet<string>>(new Set());
-  protected readonly gaveta = signal<ReferenciaDocumento[] | null>(null);
   /** Documento aberto no modal de visualização. */
   protected readonly visualizando = signal<DocumentoItem | null>(null);
 
@@ -98,6 +101,8 @@ export class DocumentosSecaoComponent implements OnInit {
   protected readonly seraConvertido = seraConvertido;
 
   ngOnInit(): void {
+    // "Remover documento e gerar" (gaveta, no shell) tira o documento também da seleção desta tela.
+    this.acompanhamento.documentoRemovido$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((r) => this.tirarDaSelecao(r));
     this.carregar();
   }
 
@@ -203,7 +208,7 @@ export class DocumentosSecaoComponent implements OnInit {
   protected gerar(): void {
     const escolhidos = this.itens().filter((d) => this.selecionados().has(chaveDe(d)) && selecionavel(d));
     if (escolhidos.length) {
-      this.gaveta.set(escolhidos.map(referenciaDe));
+      this.acompanhamento.gerar(this.idRequerimento(), escolhidos.map(referenciaDe));
     }
   }
 
@@ -215,10 +220,6 @@ export class DocumentosSecaoComponent implements OnInit {
 
   protected fecharVisualizacao(): void {
     this.visualizando.set(null);
-  }
-
-  protected fecharGaveta(): void {
-    this.gaveta.set(null);
   }
 
   /** "Remover documento e gerar": o documento sai também da seleção da tela. */

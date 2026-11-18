@@ -25,8 +25,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
+import java.util.function.BooleanSupplier;
 
 import br.gov.mt.sema.vistas.documento.application.port.DocumentosPessoais;
+import br.gov.mt.sema.vistas.documento.application.port.OrigensLigadas;
+import br.gov.mt.sema.vistas.documento.domain.OrigemDocumento;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -75,7 +78,7 @@ class DocumentosDoScorpHttp implements DocumentosPessoais {
     }
 
     private final String urlBase;
-    private final boolean origemLigada;
+    private final BooleanSupplier origemLigada;
     private final CredencialDoScorp credencial;
     private final boolean modoCookie;
     private final String nomeDoCookie;
@@ -86,7 +89,7 @@ class DocumentosDoScorpHttp implements DocumentosPessoais {
 
     @Autowired
     DocumentosDoScorpHttp(@Value("${vistas.scorp.url:}") String url,
-            @Value("${vistas.documentos.origens.scorp:true}") boolean origemLigada,
+            OrigensLigadas origens,
             @Value("${vistas.scorp.token-file:}") String arquivoDoToken,
             @Value("${vistas.arquivos.token-file:}") String arquivoDoTokenDoLicenciamento,
             @Value("${vistas.arquivos.token:}") String token,
@@ -96,13 +99,18 @@ class DocumentosDoScorpHttp implements DocumentosPessoais {
             @Value("${vistas.arquivos.cookie-name:}") String nomeDoCookieDoLicenciamento,
             @Value("${vistas.scorp.timeout-segundos:15}") int timeoutSegundos,
             @Value("${vistas.scorp.chamadas-simultaneas:4}") int chamadasSimultaneas, ObjectMapper json) {
-        this(url, origemLigada, CredencialDoScorp.de(token, arquivoDoToken, arquivoDoTokenDoLicenciamento),
+        this(url, () -> origens.ligada(OrigemDocumento.SCORP), CredencialDoScorp.de(token, arquivoDoToken, arquivoDoTokenDoLicenciamento),
                 vazio(modo) ? modoDoLicenciamento : modo, vazio(nomeDoCookie) ? nomeDoCookieDoLicenciamento : nomeDoCookie,
                 Duration.ofSeconds(Math.max(1, timeoutSegundos)), chamadasSimultaneas, json,
                 duracao -> Thread.sleep(duracao.toMillis()));
     }
 
     DocumentosDoScorpHttp(String url, boolean origemLigada, CredencialDoScorp credencial, String modo,
+            String nomeDoCookie, Duration tempoLimite, int chamadasSimultaneas, ObjectMapper json, Espera espera) {
+        this(url, () -> origemLigada, credencial, modo, nomeDoCookie, tempoLimite, chamadasSimultaneas, json, espera);
+    }
+
+    private DocumentosDoScorpHttp(String url, BooleanSupplier origemLigada, CredencialDoScorp credencial, String modo,
             String nomeDoCookie, Duration tempoLimite, int chamadasSimultaneas, ObjectMapper json, Espera espera) {
         String semBarraFinal = url == null ? "" : url.trim();
         while (semBarraFinal.endsWith("/")) {
@@ -121,7 +129,7 @@ class DocumentosDoScorpHttp implements DocumentosPessoais {
 
     @Override
     public boolean habilitado() {
-        return origemLigada && !urlBase.isEmpty();
+        return origemLigada.getAsBoolean() && !urlBase.isEmpty();
     }
 
     @Override

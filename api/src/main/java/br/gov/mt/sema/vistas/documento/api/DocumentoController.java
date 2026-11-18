@@ -161,13 +161,34 @@ public class DocumentoController {
         return ResponseEntity.status(status).contentType(MediaType.APPLICATION_PROBLEM_JSON).body(problema);
     }
 
+    /** Só confirma a entrega se o cliente recebeu o ZIP inteiro; a pasta some em qualquer caso. */
     private static final class DescartaAoFechar extends FilterInputStream {
 
         private final ZipDeGeometrias zip;
+        private long lidos;
+        private boolean fechado;
 
         DescartaAoFechar(InputStream origem, ZipDeGeometrias zip) {
             super(origem);
             this.zip = zip;
+        }
+
+        @Override
+        public int read() throws IOException {
+            int b = super.read();
+            if (b >= 0) {
+                lidos++;
+            }
+            return b;
+        }
+
+        @Override
+        public int read(byte[] buffer, int inicio, int tamanho) throws IOException {
+            int n = super.read(buffer, inicio, tamanho);
+            if (n > 0) {
+                lidos += n;
+            }
+            return n;
         }
 
         @Override
@@ -176,6 +197,10 @@ public class DocumentoController {
                 super.close();
             } finally {
                 zip.descartar();
+                if (!fechado && lidos >= zip.tamanhoBytes()) {
+                    zip.confirmarEntrega();
+                }
+                fechado = true;
             }
         }
     }

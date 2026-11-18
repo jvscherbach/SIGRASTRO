@@ -2,6 +2,8 @@ package br.gov.mt.sema.vistas.config;
 
 import java.nio.file.Path;
 
+import br.gov.mt.sema.vistas.configuracao.application.ParametrosEmVigor;
+import br.gov.mt.sema.vistas.configuracao.domain.CatalogoDeParametros;
 import br.gov.mt.sema.vistas.documento.application.port.ParametrosDaVisualizacao;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -17,13 +19,15 @@ class ParametrosDaVisualizacaoDoAmbiente implements ParametrosDaVisualizacao {
     private final int conversoesSimultaneas;
     private final int filaDeConversoes;
     private final Path diretorio;
+    private final ParametrosEmVigor vigentes;
 
     ParametrosDaVisualizacaoDoAmbiente(
             @Value("${vistas.visualizacao.ttl-minutos:10}") int ttlMinutos,
             @Value("${vistas.visualizacao.cache-max-mb:500}") long cacheMaxMb,
             @Value("${vistas.visualizacao.conversoes-simultaneas:2}") int conversoesSimultaneas,
             @Value("${vistas.visualizacao.fila-de-conversoes:4}") int filaDeConversoes,
-            @Value("${vistas.dossie.diretorio:/var/tmp/vistas}") String diretorioDoDossie) {
+            @Value("${vistas.dossie.diretorio:/var/tmp/vistas}") String diretorioDoDossie, ParametrosEmVigor vigentes) {
+        this.vigentes = vigentes;
         this.ttlMinutos = ttlMinutos;
         this.cacheMaxMb = cacheMaxMb;
         this.conversoesSimultaneas = conversoesSimultaneas;
@@ -33,12 +37,12 @@ class ParametrosDaVisualizacaoDoAmbiente implements ParametrosDaVisualizacao {
 
     @Override
     public int ttlMinutos() {
-        return ttlMinutos;
+        return vigentes.inteiro(CatalogoDeParametros.VISUALIZACAO_TTL, ttlMinutos);
     }
 
     @Override
     public long cacheMaxMb() {
-        return cacheMaxMb;
+        return vigentes.inteiro(CatalogoDeParametros.VISUALIZACAO_CACHE_MB, (int) cacheMaxMb);
     }
 
     @Override

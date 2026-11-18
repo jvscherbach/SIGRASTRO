@@ -47,18 +47,18 @@
 
 | ID | Requisito |
 |---|---|
-| RF21 | Registrar eventos de documentos (consulta, visualização, dossiê gerado, download) e de acessos (entrada, troca de perfil, alteração de usuário, alteração de configuração). Ver [11 — Auditoria](11-auditoria.md). |
+| RF21 | Registrar eventos de documentos (consulta, visualização, dossiê gerado, falha na geração, download, geometrias) e de acessos (entrada, troca de perfil, alteração de usuário, alteração de configuração). Falha ao registrar não muda a resposta da operação. Ver [11 — Auditoria](11-auditoria.md). |
 | RF22 | Marcar os eventos que envolvem documento sigiloso. |
-| RF23 | Auditoria de documentos: Gestor e Administrador veem todos os eventos; o Operador vê os eventos (de qualquer usuário) sobre processos e requerimentos vinculados a ele, com o nome de documentos sigilosos mascarado. Auditoria de acessos: só Administrador; para os demais perfis, o item **não aparece no menu** (RN08). Filtros por período, evento, usuário e texto; "somente sigilosos" para Gestor e Administrador. |
-| RF24 | Exibir o detalhe do evento (lista de documentos do dossiê ou alterações antes/depois) e exportar os eventos filtrados em CSV. |
+| RF23 | Auditoria de documentos: Gestor e Administrador veem todos os eventos; o Operador vê os eventos (de qualquer usuário) sobre processos e requerimentos vinculados a ele, com documentos sigilosos mascarados em todos os campos, na busca e no CSV. Auditoria de acessos: só Administrador; para os demais perfis, o item **não aparece no menu** (RN08). Filtros por período, evento, usuário e texto; "somente sigilosos" para Gestor e Administrador. |
+| RF24 | Exibir o detalhe do evento (lista de documentos do dossiê ou alterações antes/depois) e exportar os eventos filtrados em CSV, com BOM, proteção contra fórmula e aviso de corte em `X-Vistas-Truncado`. Nenhuma rota altera ou apaga evento. |
 
 ### Configurações
 
 | ID | Requisito |
 |---|---|
 | RF25 | Tela de configurações acessível apenas ao perfil `ADMIN`. |
-| RF26 | Gerenciar usuários: incluir, alterar perfil e ativar/desativar. Cada alteração gera evento na auditoria de acessos. |
-| RF27 | Parametrizar dossiê (expiração, gerações simultâneas, sumário, marcadores, numeração, origens incluídas), conversão (modo das planilhas, orientação, abas ocultas, tempo limite), tempo limite de download e retenção da auditoria. |
+| RF26 | Gerenciar usuários: incluir, alterar perfil e ativar/desativar. Cada alteração gera evento na auditoria de acessos e vale na requisição seguinte, inclusive para sessão aberta, ticket já emitido e pedido que o próprio usuário gerou (D70). |
+| RF27 | Parametrizar dossiê (expiração, gerações simultâneas, sumário, marcadores, numeração, origens incluídas), conversão (modo das planilhas, abas ocultas, tempo limite), visualização, tempo limite de download e retenção da auditoria. No protótipo, os valores ficam em memória (R56, R57), e "orientação automática" não existe como parâmetro. |
 | RF28 | Alterações de parâmetros ficam pendentes até "Salvar alterações"; o salvamento gera um único evento com a lista de mudanças (antes e depois). |
 | RF29 | Exibir o estado das conexões (banco do SIGA, arquivos do Licenciamento, documentos pessoais, taxas) com teste de conexão. Credenciais não são exibidas nem editadas pela tela. |
 

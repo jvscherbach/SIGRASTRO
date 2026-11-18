@@ -22,6 +22,7 @@ import br.gov.mt.sema.vistas.documento.domain.Documento;
 import br.gov.mt.sema.vistas.dossie.application.port.FilaDeGeracao;
 import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.RepositorioDePedidos;
+import br.gov.mt.sema.vistas.dossie.application.port.RetratoDeParametros;
 import br.gov.mt.sema.vistas.dossie.domain.DadosDaCapa;
 import br.gov.mt.sema.vistas.dossie.domain.DocumentoNaoIncluido;
 import br.gov.mt.sema.vistas.dossie.domain.ItemDoPedido;
@@ -44,10 +45,14 @@ public class CriarDossie {
     private final GeradorDeDossie gerador;
     private final ParametrosDoDossie parametros;
     private final Clock relogio;
+    private final EventosDoDossie eventos;
+    private final RetratoDeParametros retrato;
 
     public CriarDossie(ObterRequerimento requerimentos, SelecionarDocumentosParaDossie selecao, UsuarioAtual usuarioAtual,
             RepositorioDePedidos pedidos, FilaDeGeracao fila, GeradorDeDossie gerador, ParametrosDoDossie parametros,
-            Clock relogio) {
+            Clock relogio, EventosDoDossie eventos, RetratoDeParametros retrato) {
+        this.eventos = eventos;
+        this.retrato = retrato;
         this.requerimentos = requerimentos;
         this.selecao = selecao;
         this.usuarioAtual = usuarioAtual;
@@ -78,7 +83,7 @@ public class CriarDossie {
         List<ItemDoPedido> itens = new ArrayList<>();
         for (Documento d : selecionados.escolhidos()) {
             itens.add(new ItemDoPedido(d.origem().name(), d.origem().descricao(), d.id(), d.titulo(), d.data(),
-                    d.chaveDoArquivo(), posicoes.get(d), d.extensao()));
+                    d.chaveDoArquivo(), posicoes.get(d), d.extensao(), d.nomeArquivo(), d.sigiloso()));
         }
         List<DocumentoNaoIncluido> naoSelecionados = new ArrayList<>();
         for (SelecaoParaDossie.NaoSelecionado n : selecionados.naoSelecionados()) {
@@ -88,9 +93,11 @@ public class CriarDossie {
         }
         PedidoDeDossie pedido = new PedidoDeDossie(UUID.randomUUID().toString(), usuario.login(), idRequerimento,
                 capa(detalhe, usuario, agora), itens, naoSelecionados, selecionados.listados(), agora,
-                agora.plusMinutes(parametros.ttlMinutos()));
+                agora.plusMinutes(parametros.ttlMinutos()),
+                eventos.autoria(detalhe.requerimento().numeroProcesso(), detalhe.requerimento().numeroRequerimento()),
+                retrato.retratar());
         pedidos.salvar(pedido);
-        fila.submeter(() -> gerador.processar(pedido));
+        fila.submeter(() -> retrato.executarComRetrato(pedido.parametros(), () -> gerador.processar(pedido)));
         return pedido.id();
     }
 

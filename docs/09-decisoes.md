@@ -387,3 +387,63 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 
 **Motivo:** a permissão é o contrato que o back-end já publica e muda junto com ele; um perfil futuro não exige mexer no menu. Reaproveitar a gaveta evita duas implementações da decisão da RN09.
 **Consequência:** o aviso do Operador na Consulta ocupa um espaço reservado em todos os perfis, para a altura do quadro do topo não mudar (cerca de 42 px vazios para Gestor e Administrador). O filtro por situação de "Dossiês gerados" age só na página carregada, porque o `GET /dossies` não filtra situação.
+
+## D65 — Auditoria em memória, somente inclusão, com retrato limpo (S5, bloco 2)
+
+**Contexto:** a S5 traz a rastreabilidade ainda sem schema próprio (D09). O dossiê é usado em processos jurídicos: a auditoria não pode ser alterada pela aplicação, não pode vazar sigilo nem credencial e não pode derrubar a operação.
+**Decisão:** `EventoDeAuditoria` imutável, numerado e datado pelo repositório (fuso de Cuiabá), com retrato do usuário, dos números e dos documentos. `RepositorioDeEventos` só inclui e lê; o descarte fica à parte, em `RetencaoDeEventos` (retenção por grupo) e no teto `AUDITORIA_MAX_EVENTOS`. `RegistrarEvento` nunca lança, e montar um `NovoEvento` também não: a validação roda dentro de `registrar`. Texto longo é cortado, não recusado. Todo texto passa pela limpeza de `TextoDoEvento`. O grupo decorre do tipo. Incluído o tipo `PERFIL` de docs/11 (troca de perfil simulado, bloco 6).
+**Motivo:** um evento perdido por um título comprido seria pior do que um título cortado. A limpeza é a segunda barreira: os módulos já não mandam chave nem token, mas o motivo de falha e os títulos são texto livre. Os dígitos do interessado ficam em `VinculoDoInteressado`, sem leitura pública, porque o filtro do Operador precisa deles e nenhum DTO, CSV ou log pode recebê-los por acidente.
+**Consequência:** tudo some ao reiniciar (R50). Um título legítimo que pareça dado sensível (por exemplo, com 11 dígitos seguidos) aparece com `[removido]` na auditoria; o documento em si não muda. Quem lê os dígitos do vínculo é só a regra passada a `atende`.
+
+## D66 — Eventos de documentos sem mudar respostas, com retrato guardado para a geração (S5, bloco 3)
+
+**Contexto:** o bloco 3 instrumenta fluxos sensíveis. A geração roda sem usuário na requisição, e o download por ticket pode vir sem sessão.
+**Decisão:** `AutoriaDoPedido` guarda no pedido o retrato do usuário, os números, a origem e a correlação; `DOSSIE` e `FALHA` usam esse retrato. `ItemDoPedido` guarda nome do arquivo e sigilo da lista no momento do pedido. `TicketDeDownload` guarda o retrato de quem o pediu, e `DOWNLOAD` sai em nome de quem baixou, que pode não ser quem gerou (Gestor baixando pedido de Operador). `ContextoDoEvento` lê usuário, origem e correlação sem lançar. `AbrirRequerimento` registra `CONSULTA` à parte de `ObterRequerimento`, que a criação do dossiê também usa. `DOWNLOAD` e `GEOMETRIAS` saem só com o arquivo lido por inteiro. Interrupção causada pelo cancelamento não gera `FALHA`.
+**Motivo:** o contexto da requisição não existe na thread de geração; e registrar `DOWNLOAD` antes do fim contaria download interrompido, que nem apaga o dossiê.
+**Consequência:** decisão de "tentar novamente" tomada por outro usuário gera `FALHA` e `DOSSIE` em nome de quem criou o pedido. `auditoria` passa a depender de `acesso` (usuário atual e, no bloco 4, a política); por isso `acesso` não pode chamar `RegistrarEvento` direto (ciclo e regra do `ArchitectureTest`). O bloco 6 precisa de uma porta declarada em `acesso` e implementada em `auditoria` para `LOGIN` e `PERFIL`.
+
+## D67 — Consulta da auditoria: mascarar antes de filtrar (S5, bloco 4)
+
+**Contexto:** o Operador vê eventos de outros usuários sobre os processos dele, e esses eventos podem citar documento sigiloso. A busca por texto é o caminho mais fácil para descobrir o nome de um documento por tentativa.
+**Decisão:** `ConsultarAuditoria` aplica, nesta ordem e nos três caminhos (lista, detalhe e CSV): permissão do grupo, vínculo do interessado, mascaramento e só então os filtros. A regra do vínculo e o sigilo vêm da `PoliticaDeAcesso` (`regraDoInteressadoDoUsuarioAtual`, `exigirAuditoriaDeAcessos`). Evento que o usuário não vê é 404 no detalhe. Em evento sigiloso, `detalhe` e `arquivo` saem por inteiro para quem não acessa sigilosos, salvo em `DOSSIE`, `DOWNLOAD` e `GEOMETRIAS`, cujo texto é montado pelo serviço e não cita documento. A marca `sigiloso` e os indicadores continuam visíveis ao Operador.
+**Motivo:** filtrar sobre o evento já mascarado torna impossível a correspondência com o que o usuário não pode ler, sem regra especial na busca. Trocar só o título dentro do motivo de falha seria frágil: o motivo é texto livre.
+**Consequência:** o Operador sabe que houve evento sigiloso no processo dele, como já sabe na lista de documentos, mas não qual. Cada consulta percorre os eventos do período (até o teto de 50.000); para o CSV são duas passagens, uma para saber se trunca antes de escrever o cabeçalho. A versão definitiva troca isso por consulta no banco.
+
+## D68 — Usuários e perfis: regras em `acesso`, tela em `configuracao` (S5, bloco 7)
+
+**Contexto:** a administração precisa decidir por perfil (último Administrador, Operador exige CPF/CNPJ), mas só `acesso` pode conhecer `Perfil` (D60, `ArchitectureTest`), e `acesso` não pode depender de `auditoria`.
+**Decisão:** `acesso.application.AdministrarUsuarios` guarda as regras do cadastro e devolve `UsuarioAdministrado`, com CPF/CNPJ só mascarado. `configuracao.application.GerirUsuarios` confere a permissão na política, chama esse caso de uso e registra o evento `USUARIO`. A escrita fica em `CadastroDeUsuarios`, interna a `acesso`. O id da rota é o login, que é único e não muda. Inclusão e alteração são serializadas. Um PATCH gera um evento, com uma linha por campo alterado; sem mudança real, nenhum.
+**Motivo:** mantém a regra da S4 sem exceção e não cria um segundo lugar que conheça perfis. As sessões abertas não precisaram de mudança: `ObterUsuarioAtual` relê o usuário do cadastro a cada requisição.
+**Consequência:** mudar um usuário sem documento para Operador é 400, porque o PATCH só recebe perfil e situação (a inclusão exige CPF/CNPJ). Usuários incluídos usam a senha única do protótipo (R54).
+
+## D69 — Parâmetros em tempo de execução por sobreposição e retrato do pedido (S5, bloco 8)
+
+**Contexto:** o Administrador altera parâmetros sem reiniciar, mas um pedido em andamento não pode mudar de comportamento no meio, e o contrato das portas não pode mudar. Os valores são lidos em muitos lugares, inclusive nos adapters de conversão e de download.
+**Decisão:** `CatalogoDeParametros` lista tudo o que é editável; o que não está lá é recusado. As implementações das portas em `config` leem `ParametrosEmVigor`, passando o valor do ambiente como padrão. As sobreposições são trocadas de uma vez (mapa imutável), e salvar valida tudo antes. Na criação, o pedido guarda um retrato dos parâmetros de classe "próxima geração"; a geração e a continuação rodam dentro de `RetratoDeParametros.comRetrato`, em que a thread lê do retrato. Parâmetro "exige reinício" fica só como pendência: as portas continuam com o valor do ambiente. Origem de documento passou a ser lida a cada consulta (`OrigensLigadas`).
+**Motivo:** o retrato na thread evita levar cada parâmetro por todas as chamadas até os adapters, e cobre também o que for lido no futuro. As conversões rodam na thread da geração.
+**Consequência:** se um adapter passar a ler parâmetro em outra thread, ele escapa do retrato. "Exige reinício" só vale de fato pela variável de ambiente (R56). O catálogo repete o nome da propriedade e o padrão de `application.yml`.
+
+## D70 — Acesso conferido na entrega, com o perfil vigente (S5, bloco 11)
+
+**Decisão:** o ticket de download confere o usuário e a política de acesso também ao ser usado, com o perfil de agora, e não só ao ser emitido. A política passa a considerar o sigilo do pedido para o próprio criador: quem o gerou com documento sigiloso e foi rebaixado a Operador perde o pedido, ainda que seja o interessado.
+
+**Motivo:** a alteração de usuário vale na requisição seguinte (RF26); ticket e autoria não podem ser uma exceção a essa regra. A recusa do ticket continua sem dizer o motivo (403 `TICKET_INVALIDO`) e o pedido perdido responde 404, como qualquer pedido que o usuário não acessa.
+
+**Consequência:** o módulo `acesso` publica `UsuariosAtivos`, a leitura do usuário vigente por login. A geração já em andamento não é interrompida pela mudança de perfil: o que é bloqueado é a entrega. Um download já em andamento na hora da alteração também termina.
+
+## D71 — Geração em segundo plano: o serviço é dono do pedido, a gaveta é só a janela (S5, bloco 1)
+
+**Contexto:** na homologação da S4, clicar fora da gaveta durante a geração fechava a gaveta e parava o acompanhamento; com o `POST` ainda em envio, a requisição era cancelada e a geração nem nascia.
+**Decisão:** `AcompanhamentoDeDossieService` (singleton) é dono do pedido ativo, do `POST`, do polling (mesmo intervalo crescente), da decisão, da pré-visualização e do download. A gaveta, hospedada no shell, só mostra o estado. Fundo, Esc e "Fechar" **minimizam**; só "Cancelar geração" faz `DELETE`. Um indicador na barra do topo mostra o andamento em todas as telas e um aviso com a ação "Abrir" sai ao concluir ou parar à espera de decisão com a gaveta fechada. A tela acompanha **um pedido por vez** (o servidor aceita várias gerações); sair da aplicação ou trocar de usuário encerra o acompanhamento.
+**Motivo:** o acompanhamento não pode depender de um componente que o usuário fecha; o indicador fica dentro da barra fixa, então nenhum quadro de tela muda de altura.
+**Consequência:** o usuário que sai com um pedido ativo perde só o acompanhamento, não o pedido (ele continua em "Dossiês gerados" até expirar). `documentoRemovido$` e `gavetaFechada$` ligam a gaveta às telas de documentos e de "Dossiês gerados".
+
+## D72 — Front da S5: uma tela de auditoria, estado de parâmetros compartilhado e CSV por Blob (S5, blocos 5, 6, 9 e 10)
+
+**Decisão:**
+- **Auditoria:** um só `AuditoriaComponent` atende `documentos` e `acessos` (`data.grupo` da rota). O que cada perfil vê é decidido pelo servidor (D67); a tela só esconde o que o perfil não pode usar ("somente sigilosos" sem `verSigilosos`). O CSV vem como `Blob` com o token no cabeçalho e o nome do `Content-Disposition`, com aviso quando `X-Vistas-Truncado`. A proteção contra injeção de fórmula é do servidor (D67); a tela não reescreve o arquivo.
+- **Configurações:** abas navegáveis por teclado; usuários e perfis gravam **na hora**, com uma confirmação curta na linha e a mensagem do servidor nas recusas de proteção (último Administrador, próprio usuário, login repetido; D68). Os parâmetros ficam **pendentes** num `ParametrosStore` compartilhado pelas abas e saem num **único `PUT`** pela barra fixa, o que casa com o evento `CONFIG` único (D69). Sair com pendência pede confirmação.
+- **Credenciais:** nenhuma é exibida nem editável (RNF09); o teste de conexão mostra só estado, tempo e a mensagem do servidor.
+- **Carga sob demanda:** `AuditoriaComponent` e `ConfiguracoesComponent` usam `loadComponent`, porque o bundle inicial passou do orçamento de 500 kB.
+**Motivo:** reaproveitar a tela evita duas implementações das mesmas regras de mascaramento; as pendências em um lugar só permitem a barra única e o evento único.
+**Consequência:** a tela de Acessos e a de Documentos mudam juntas. O CPF/CNPJ de usuário nunca volta completo da API, então a tela de usuários não consegue editá-lo (só na inclusão).

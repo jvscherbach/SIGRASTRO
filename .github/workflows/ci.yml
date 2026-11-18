@@ -130,7 +130,18 @@ jobs:
         run: npm ci
       - name: Build
         run: npm run build
-      - name: Testes unitários
+      # Data e hora da interface são sempre as de Cuiabá (S5.1): a suíte roda em três fusos para o problema não voltar.
+      - name: Testes unitários (fuso UTC)
+        env:
+          TZ: UTC
+        run: npm test -- --watch=false
+      - name: Testes unitários (fuso de Cuiabá)
+        env:
+          TZ: America/Cuiaba
+        run: npm test -- --watch=false
+      - name: Testes unitários (fuso de Tóquio, cruza a data)
+        env:
+          TZ: Asia/Tokyo
         run: npm test -- --watch=false
       - name: Auditoria das dependências de produção (alta ou crítica falha)
         run: npm audit --omit=dev --audit-level=high

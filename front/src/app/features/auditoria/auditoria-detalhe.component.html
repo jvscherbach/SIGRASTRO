@@ -1,0 +1,94 @@
+<div class="scrim" (click)="aoClicarNoFundo($event)">
+  <section class="drawer" role="dialog" aria-modal="true" aria-labelledby="auditoria-detalhe-titulo">
+    <header class="d-head">
+      <div>
+        <span class="eyebrow">Evento de auditoria</span>
+        <h2 id="auditoria-detalhe-titulo" style="margin-top: 4px">{{ evento()?.rotulo ?? 'Detalhe do evento' }}</h2>
+        @if (evento(); as e) {
+          <p>{{ formatarDataHora(e.dataHora) }} · código {{ e.tipo }}</p>
+        }
+      </div>
+      <button type="button" class="icon-btn" aria-label="Fechar" (click)="fechar.emit()"><app-icone nome="close" /></button>
+    </header>
+
+    <div class="d-body">
+      @if (carregando()) {
+        <p class="muted" role="status">Carregando evento…</p>
+      } @else if (erro()) {
+        <div class="alert" role="alert" style="margin: 0 0 12px"><app-icone nome="alert" /><span>{{ erro() }}</span></div>
+        <button type="button" class="btn sm" (click)="carregar()"><app-icone nome="refresh" />Tentar novamente</button>
+      } @else if (evento(); as e) {
+        @if (e.sigiloso) {
+          <p class="aud-aviso-sigiloso"><span class="tag red">Sigiloso</span> Evento que envolve documento sigiloso.</p>
+        }
+        <dl class="aud-campos">
+          <div><dt>Usuário</dt><dd>{{ e.usuario.nome }} ({{ e.usuario.login }})</dd></div>
+          <div><dt>Perfil</dt><dd>{{ perfis[e.usuario.perfil] ?? e.usuario.perfil }}</dd></div>
+          @if (e.numeroProcesso) {
+            <div><dt>Processo</dt><dd>{{ e.numeroProcesso }}</dd></div>
+          }
+          @if (e.numeroRequerimento) {
+            <div><dt>Requerimento</dt><dd>{{ e.numeroRequerimento }}</dd></div>
+          }
+          @if (e.arquivo) {
+            <div><dt>Arquivo</dt><dd>{{ e.arquivo }}</dd></div>
+          }
+          @if (e.idPedido) {
+            <div><dt>Pedido de dossiê</dt><dd>{{ e.idPedido }}</dd></div>
+          }
+          @if (e.detalhe) {
+            <div><dt>Detalhe</dt><dd>{{ e.detalhe }}</dd></div>
+          }
+          <div><dt>Origem da requisição</dt><dd>{{ e.origem || '—' }}</dd></div>
+          <div><dt>Correlação</dt><dd>{{ e.correlationId || '—' }}</dd></div>
+        </dl>
+
+        @if (e.documentos.length) {
+          <h3 class="aud-sub">Documentos ({{ e.documentos.length }})</h3>
+          <ol class="aud-documentos" aria-label="Documentos do evento">
+            @for (d of e.documentos; track d.origem + ':' + d.id) {
+              <li [class.sigiloso]="d.sigiloso">
+                <span class="aud-doc-ordem">{{ d.ordem ?? '·' }}</span>
+                <span class="aud-doc-texto">
+                  <b>{{ d.titulo }}</b>
+                  @if (d.nomeDoArquivo) {
+                    <small>{{ d.nomeDoArquivo }}</small>
+                  }
+                </span>
+                @if (d.sigiloso) {
+                  <span class="tag red">Sigiloso</span>
+                } @else {
+                  <span class="tag gray">Comum</span>
+                }
+              </li>
+            }
+          </ol>
+        }
+
+        @if (e.alteracoes.length) {
+          <h3 class="aud-sub">Alterações (antes e depois)</h3>
+          <div class="table-wrap">
+            <table class="aud-alteracoes">
+              <thead>
+                <tr><th>Item</th><th>Antes</th><th>Depois</th></tr>
+              </thead>
+              <tbody>
+                @for (a of e.alteracoes; track $index) {
+                  <tr>
+                    <td>{{ a.item }}</td>
+                    <td>{{ a.valorAnterior ?? '—' }}</td>
+                    <td>{{ a.valorNovo ?? '—' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+    </div>
+
+    <footer class="d-foot">
+      <button type="button" class="btn quiet" (click)="fechar.emit()">Fechar</button>
+    </footer>
+  </section>
+</div>

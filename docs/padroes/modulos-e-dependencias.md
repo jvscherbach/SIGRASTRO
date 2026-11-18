@@ -26,6 +26,10 @@ Regras adicionadas na S2 ao `ArchitectureTest`: (a) **HTTP de saída** (`RestCli
 
 Regras adicionadas na S4 (bloco 1, RNF10): (c) **só a `PoliticaDeAcesso` decide acesso**: fora de `acesso`, nenhuma classe depende de `Perfil` nem chama `Usuario.perfil()`, `Usuario.cpfCnpj()`, `RestricaoDeInteressado.de(...)` ou `RestricaoDeInteressado.permite(...)`; (d) **controllers não decidem acesso**: classes de `..api..` fora de `acesso` não dependem de `PoliticaDeAcesso`, `UsuarioAtual`, `RestricaoDeInteressado` nem `Usuario` (delegam ao caso de uso); (e) o módulo `acesso` não depende dos demais módulos de negócio nem de `integration.*`.
 
+Contrato da auditoria (S5, blocos 2 e 3): os módulos usam só `auditoria.application.RegistrarEvento`, `auditoria.application.ContextoDoEvento` (retrato da requisição; nunca lança) e os tipos de `auditoria.domain` para montar o `NovoEvento` (montar nunca lança; a validação fica em `EventoDeAuditoria`, dentro de `registrar`, que nunca lança). `auditoria.application.port` (`ConsultarEventos`, `RepositorioDeEventos`, `RetencaoDeEventos`, `ParametrosDaAuditoria`) e `EventoDeAuditoria` são internos; só `config` liga `ParametrosDaAuditoria`.
+
+Regras adicionadas na S5 (bloco 2): (f) `auditoria` não depende de `consulta`, `documento`, `dossie`, `configuracao` nem `integration.*`: os dados chegam no evento; (g) fora de `auditoria` e `config`, ninguém depende de `auditoria.application.port` nem de `EventoDeAuditoria`; (h) nenhum campo de instância de `auditoria.domain` tem no nome chave, token, cookie, senha, caminho, CPF ou CNPJ.
+
 Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTest test` (não precisa de Docker). O teste ignora pacotes vazios e passa a inspecioná-los quando recebem classes.
 
 ## Contratos internos usados no Vistas
@@ -34,8 +38,8 @@ Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTes
 |---|---|---|
 | `dossie` | `documento` | caso de uso que entrega os documentos selecionados já validados (perfil, sigilo, vínculo) |
 | `dossie`, `documento`, `consulta` | `auditoria` | porta `RegistrarEvento` (somente inclusão) |
-| todos | `acesso` | usuário atual e a `PoliticaDeAcesso` (RN07, sigilo, responsável pela tarefa, dono do pedido; S4) |
-| `dossie`, `documento` | `configuracao` | parâmetros vigentes (expiração, origens, timeouts, modo das planilhas) |
+| `configuracao` | `acesso` | `AdministrarUsuarios` (cadastro de usuários, S5; só `acesso` conhece `Perfil`) |\n| todos | `acesso` | usuário atual e a `PoliticaDeAcesso` (RN07, sigilo, responsável pela tarefa, dono do pedido; S4) |
+| `dossie`, `documento`, `auditoria` | `configuracao`, por `config` | parâmetros vigentes: leem só as próprias portas (`ParametrosDoDossie`, `OrigensLigadas`, `RetratoDeParametros`...); as implementações em `config` usam `configuracao.ParametrosEmVigor` (S5) |\n| `configuracao` | `integration.*` | porta `VerificadorDeConexao` (teste de conexão, S5) |
 | `documento`, `dossie` | portas implementadas em `integration.*` | obter binário do arquivo, listar documentos pessoais |
 
 **Contratos internos entregues na S2:**

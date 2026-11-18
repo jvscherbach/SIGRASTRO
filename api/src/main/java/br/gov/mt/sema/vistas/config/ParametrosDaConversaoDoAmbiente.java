@@ -2,11 +2,13 @@ package br.gov.mt.sema.vistas.config;
 
 import java.util.Locale;
 
+import br.gov.mt.sema.vistas.configuracao.application.ParametrosEmVigor;
+import br.gov.mt.sema.vistas.configuracao.domain.CatalogoDeParametros;
 import br.gov.mt.sema.vistas.documento.application.port.ParametrosDaConversao;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-/** Parâmetros da conversão vindos de variáveis de ambiente (protótipo). A S5 troca esta implementação pela tela de configurações. */
+/** Parâmetros da conversão: o ambiente é o padrão; a tela sobrepõe os editáveis (tempo, instâncias e tarefas só na subida). */
 @Component
 class ParametrosDaConversaoDoAmbiente implements ParametrosDaConversao {
 
@@ -20,6 +22,7 @@ class ParametrosDaConversaoDoAmbiente implements ParametrosDaConversao {
     private final int planilhaEscalaMinima;
     private final int paginasMaximas;
     private final int saidaMaxMb;
+    private final ParametrosEmVigor vigentes;
 
     ParametrosDaConversaoDoAmbiente(
             @Value("${vistas.conversao.habilitada:true}") boolean habilitada,
@@ -31,7 +34,8 @@ class ParametrosDaConversaoDoAmbiente implements ParametrosDaConversao {
             @Value("${vistas.conversao.imagem-max-megapixels:100}") int imagemMaxMegapixels,
             @Value("${vistas.conversao.planilha-escala-minima:40}") int planilhaEscalaMinima,
             @Value("${vistas.conversao.paginas-maximas:2000}") int paginasMaximas,
-            @Value("${vistas.conversao.saida-max-mb:500}") int saidaMaxMb) {
+            @Value("${vistas.conversao.saida-max-mb:500}") int saidaMaxMb, ParametrosEmVigor vigentes) {
+        this.vigentes = vigentes;
         this.habilitada = habilitada;
         this.timeoutSegundos = timeoutSegundos;
         this.processos = processos;
@@ -55,7 +59,7 @@ class ParametrosDaConversaoDoAmbiente implements ParametrosDaConversao {
 
     @Override
     public boolean habilitada() {
-        return habilitada;
+        return vigentes.booleano(CatalogoDeParametros.CONVERSAO_HABILITADA, habilitada);
     }
 
     @Override
@@ -75,31 +79,31 @@ class ParametrosDaConversaoDoAmbiente implements ParametrosDaConversao {
 
     @Override
     public PlanilhaModo planilhaModo() {
-        return planilhaModo;
+        return modo(vigentes.texto(CatalogoDeParametros.CONVERSAO_PLANILHA_MODO, planilhaModo.name()));
     }
 
     @Override
     public boolean abasOcultas() {
-        return abasOcultas;
+        return vigentes.booleano(CatalogoDeParametros.CONVERSAO_ABAS_OCULTAS, abasOcultas);
     }
 
     @Override
     public int imagemMaxMegapixels() {
-        return imagemMaxMegapixels;
+        return vigentes.inteiro(CatalogoDeParametros.CONVERSAO_IMAGEM_MEGAPIXELS, imagemMaxMegapixels);
     }
 
     @Override
     public int planilhaEscalaMinima() {
-        return planilhaEscalaMinima;
+        return vigentes.inteiro(CatalogoDeParametros.CONVERSAO_ESCALA_MINIMA, planilhaEscalaMinima);
     }
 
     @Override
     public int paginasMaximas() {
-        return paginasMaximas;
+        return vigentes.inteiro(CatalogoDeParametros.CONVERSAO_PAGINAS, paginasMaximas);
     }
 
     @Override
     public int saidaMaxMb() {
-        return saidaMaxMb;
+        return vigentes.inteiro(CatalogoDeParametros.CONVERSAO_SAIDA_MB, saidaMaxMb);
     }
 }

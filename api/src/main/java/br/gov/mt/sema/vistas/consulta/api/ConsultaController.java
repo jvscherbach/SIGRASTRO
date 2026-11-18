@@ -2,8 +2,8 @@ package br.gov.mt.sema.vistas.consulta.api;
 
 import br.gov.mt.sema.vistas.consulta.api.dto.RequerimentoResponse;
 import br.gov.mt.sema.vistas.consulta.api.dto.ResultadoBuscaResponse;
+import br.gov.mt.sema.vistas.consulta.application.AbrirRequerimento;
 import br.gov.mt.sema.vistas.consulta.application.BuscarRequerimentos;
-import br.gov.mt.sema.vistas.consulta.application.ObterRequerimento;
 import br.gov.mt.sema.vistas.consulta.application.PedidoDeBusca;
 import br.gov.mt.sema.vistas.consulta.domain.Pagina;
 import br.gov.mt.sema.vistas.consulta.domain.ResumoRequerimento;
@@ -24,11 +24,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ConsultaController {
 
     private final BuscarRequerimentos buscarRequerimentos;
-    private final ObterRequerimento obterRequerimento;
+    private final AbrirRequerimento abrirRequerimento;
 
-    public ConsultaController(BuscarRequerimentos buscarRequerimentos, ObterRequerimento obterRequerimento) {
+    public ConsultaController(BuscarRequerimentos buscarRequerimentos, AbrirRequerimento abrirRequerimento) {
         this.buscarRequerimentos = buscarRequerimentos;
-        this.obterRequerimento = obterRequerimento;
+        this.abrirRequerimento = abrirRequerimento;
     }
 
     @GetMapping("/busca")
@@ -66,6 +66,6 @@ public class ConsultaController {
     @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalError")
     @ApiResponse(responseCode = "503", description = "Banco do SIGA indisponível (SIGA_INDISPONIVEL).")
     public RequerimentoResponse obter(@PathVariable long id) {
-        return RequerimentoResponse.de(obterRequerimento.executar(id));
+        return RequerimentoResponse.de(abrirRequerimento.executar(id));
     }
 }

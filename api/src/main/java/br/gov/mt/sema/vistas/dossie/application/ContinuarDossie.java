@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 
 import br.gov.mt.sema.vistas.dossie.application.port.FilaDeGeracao;
 import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
+import br.gov.mt.sema.vistas.dossie.application.port.RetratoDeParametros;
 import br.gov.mt.sema.vistas.dossie.domain.AcaoDeContinuacao;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
 import br.gov.mt.sema.vistas.shared.application.exception.DossieSemDecisaoPendenteException;
@@ -24,9 +25,11 @@ public class ContinuarDossie {
     private final GeradorDeDossie gerador;
     private final ParametrosDoDossie parametros;
     private final Clock relogio;
+    private final RetratoDeParametros retrato;
 
     public ContinuarDossie(LocalizarPedido localizar, FilaDeGeracao fila, GeradorDeDossie gerador,
-            ParametrosDoDossie parametros, Clock relogio) {
+            ParametrosDoDossie parametros, Clock relogio, RetratoDeParametros retrato) {
+        this.retrato = retrato;
         this.localizar = localizar;
         this.fila = fila;
         this.gerador = gerador;
@@ -37,13 +40,14 @@ public class ContinuarDossie {
     public void executar(String id, String acao) {
         AcaoDeContinuacao decisao = interpretar(acao);
         PedidoDeDossie pedido = localizar.executar(id);
-        LocalDateTime validade = LocalDateTime.now(relogio).plusMinutes(parametros.ttlMinutos());
+        LocalDateTime validade = retrato.comRetrato(pedido.parametros(),
+                () -> LocalDateTime.now(relogio).plusMinutes(parametros.ttlMinutos()));
         switch (pedido.decidir(decisao, validade)) {
             case NAO_PENDENTE -> throw new DossieSemDecisaoPendenteException(
                     "O dossiê não está aguardando decisão (situação: " + pedido.status() + ").");
             case NADA_A_MONTAR -> throw new ParametroInvalidoException("acao",
                     "Nenhum documento foi obtido: não há o que montar. Tente novamente ou cancele.");
-            case ACEITA -> fila.submeter(() -> gerador.processar(pedido));
+            case ACEITA -> fila.submeter(() -> retrato.executarComRetrato(pedido.parametros(), () -> gerador.processar(pedido)));
         }
     }
 

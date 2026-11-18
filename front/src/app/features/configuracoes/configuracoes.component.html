@@ -1,0 +1,54 @@
+<section aria-label="Configurações">
+  <app-quadro-topo
+    titulo="Configurações"
+    descricao="Usuários e perfis, parâmetros do dossiê, conversão, conexões e retenção da auditoria."
+  >
+    <span etiquetas class="tag gray"><app-icone nome="clock" />Registros em memória</span>
+  </app-quadro-topo>
+
+  <app-folha-sobreposta>
+    <div class="note amber cfg-memoria" role="note">
+      <app-icone nome="info" />
+      <span>Neste protótipo, as alterações ficam na memória e somem ao reiniciar o serviço.</span>
+    </div>
+
+    <div class="cfg-abas" role="tablist" aria-label="Seções de configuração" (keydown)="aoTeclar($event)">
+      @for (a of abas; track a.id) {
+        <button
+          type="button"
+          role="tab"
+          class="cfg-aba"
+          [id]="'aba-' + a.id"
+          [attr.aria-selected]="ativa() === a.id"
+          [attr.aria-controls]="'painel-' + a.id"
+          [attr.tabindex]="ativa() === a.id ? 0 : -1"
+          [class.ativa]="ativa() === a.id"
+          (click)="escolher(a.id)"
+        >
+          {{ a.rotulo }}
+        </button>
+      }
+    </div>
+
+    <div class="cfg-painel" role="tabpanel" [id]="'painel-' + abaAtiva().id" [attr.aria-labelledby]="'aba-' + abaAtiva().id" tabindex="0">
+      @if (abaAtiva().id === 'usuarios') {
+        <app-usuarios-config />
+      } @else if (abaAtiva().id === 'conexoes') {
+        <app-conexoes-config />
+      } @else {
+        <div class="dash-sec-head">
+          <div>
+            <h2><app-icone nome="settings" />{{ abaAtiva().rotulo }}</h2>
+            <p class="nota-historico">
+              Editar não grava: as alterações ficam pendentes na barra inferior e são salvas juntas, em um único registro
+              na auditoria de acessos.
+            </p>
+          </div>
+        </div>
+        <app-parametros-aba [grupo]="abaAtiva().grupo!" />
+      }
+    </div>
+
+    <app-barra-pendencias />
+  </app-folha-sobreposta>
+</section>

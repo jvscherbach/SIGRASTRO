@@ -356,33 +356,62 @@ Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **
 | `GET /requerimentos/{id}/geometrias/arquivo` (S4) | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler os documentos) | sigilosa fica fora do ZIP do Op; só sigilosas: o mesmo 404 de "sem geometrias" | — | `exigirAcessoAoRequerimento`, `podeAcessarDocumento` |
 | `GET /dossies` (S4) | sessão | só os seus | todos (ou os seus com `somenteMeus`) | idem | o Op não vê o pedido se deixar de ser o interessado gravado nele | — | lista só o que `podeAcessarPedido` permite; `geradoPor` só com `podeVerPedidosDeOutros` | `podeAcessarPedido`, `podeVerPedidosDeOutros` |
 | `POST /dossies` | sessão | ✓ | ✓ | ✓ | 403/404 | 403 se a seleção tiver sigiloso; documento fora do requerimento: 400 `PARAMETRO_INVALIDO` (é corpo da requisição) | o pedido nasce com o login de quem criou | `exigirAcessoAoRequerimento`, `exigirAcessoAoDocumento`; "Documentos não incluídos" com `mascararTitulo` |
-| `GET /dossies/{id}` | sessão | só os seus | todos | todos | o Op perde o pedido se deixar de ser o interessado gravado nele | — | 404 | `podeAcessarPedido` |
+| `GET /dossies/{id}` | sessão | só os seus | todos | todos | o Op perde o pedido se deixar de ser o interessado gravado nele | o Op perde o pedido com sigiloso (quem foi rebaixado, D70) | 404 | `podeAcessarPedido` |
 | `GET /dossies/{id}/arquivo` (com sessão) | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` |
 | `POST /dossies/{id}/arquivo/ticket` | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` (o ticket fica preso ao pedido e ao usuário) |
-| `GET /dossies/{id}/arquivo?ticket=` | **ticket** de uso único (sem sessão) | quem recebeu o ticket | idem | idem | conferido ao emitir | — | conferido ao emitir | ticket inválido, usado, vencido, de outro pedido ou com sessão de outro usuário: 403 `TICKET_INVALIDO` |
+| `GET /dossies/{id}/arquivo?ticket=` | **ticket** de uso único (sem sessão) | quem recebeu o ticket | idem | idem | conferido ao emitir e de novo ao usar, com o perfil vigente (D70) | idem | conferido ao emitir | ticket inválido, usado, vencido, de outro pedido, com sessão de outro usuário ou de quem foi desativado ou perdeu o acesso ao pedido: 403 `TICKET_INVALIDO` |
 | `POST /dossies/{id}/continuacao` | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` |
 | `DELETE /dossies/{id}` | sessão | só os seus | todos | todos | idem | — | 404 | `podeAcessarPedido` |
+| `GET /auditoria/documentos` (S5) | sessão | só eventos dos requerimentos em que é o interessado, de qualquer usuário | todos | todos | filtro pelo vínculo gravado no evento | mascarado para o Op, em todos os campos e na busca; `somenteSigilosos` é 400 para ele | — | `regraDoInteressadoDoUsuarioAtual`, `podeVerDocumentoSigiloso` |
+| `GET /auditoria/acessos` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirAuditoriaDeAcessos` (`PERFIL_SEM_PERMISSAO`) |
+| `GET /auditoria/{grupo}/{id}` (S5) | sessão | como a lista do grupo | idem | idem | evento que o usuário não vê: 404 | mascarado como na lista | — | as mesmas da lista |
+| `GET /auditoria/{grupo}/exportacao` (S5) | sessão | como a lista do grupo | idem | idem | mesmo filtro da lista | mascarado como na lista | — | as mesmas da lista |
+| `GET /configuracoes/usuarios` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` (`PERFIL_SEM_PERMISSAO`) |
+| `POST /configuracoes/usuarios` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
+| `PATCH /configuracoes/usuarios/{id}` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
+| `GET /configuracoes/parametros` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
+| `PUT /configuracoes/parametros` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
+| `DELETE /configuracoes/parametros/{nome}` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
+| `GET /configuracoes/conexoes` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
+| `POST /configuracoes/conexoes/{nome}/teste` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
 
 Fora de `/api`: `GET /actuator/health` (pública, só a situação) e a documentação OpenAPI (`/v3/api-docs`, `/swagger-ui`), desligada por padrão (`OPENAPI_ENABLED=false`) e ligada só no perfil `local`. Toda rota de `/api/**` sem o token responde 401 `NAO_AUTENTICADO`, exceto o login e o download por ticket.
 
 **Prova (bloco 9):** `MatrizDeAcessoTest` exercita esta tabela por MockMvc (mais de 150 cenários: perfil × interessado ou não × sigiloso ou não × dono do pedido ou não) e compara três listas: os mapeamentos de `/api` do Spring, a primeira coluna desta tabela (lida deste arquivo) e os endpoints com cenário no teste. Endpoint novo sem linha aqui ou sem cenário lá quebra o teste. Todas as respostas são varridas atrás de vazamento (veja docs/12).
 
-As rotas de **Auditoria** e **Configurações** abaixo ainda **não existem** no código (S5). Quando forem criadas, entram nesta matriz e no `MatrizDeAcessoTest` (bloco 9 da S4), que falha para endpoint sem linha.
+Toda rota nova entra nesta matriz e no `MatrizDeAcessoTest` (bloco 9 da S4), que falha para endpoint sem linha.
 
 **Achados do inventário (bloco 1):** nenhuma rota sem verificação. Dois reforços, registrados em D60: (1) pedido de **outro usuário** passa a exigir explicitamente perfil que acessa qualquer requerimento **e** qualquer sigiloso (antes bastava "não ser restrito ao interessado", o que hoje dá no mesmo, mas não valeria para um perfil futuro restrito ou sem sigilo); (2) o **dono** Operador só acessa o pedido enquanto o interessado gravado no pedido continuar sendo o dele (antes bastava o login).
 
 ## Auditoria
 
-`{tipo}` é `documentos` (perfil `OPERADOR_SIGILO`) ou `acessos` (perfil `ADMIN`). Pedido de um tipo por perfil não autorizado retorna 403.
+`{grupo}` é `documentos` (todos os perfis, com as regras da matriz acima) ou `acessos` (só Administrador: 403 `PERFIL_SEM_PERMISSAO`); outro valor é 404.
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/auditoria/{tipo}?de=&ate=&evento=&usuario=&q=&sigiloso=&pagina=` | Lista paginada, do mais recente para o mais antigo. `sigiloso` só em `documentos`. |
-| `GET` | `/auditoria/{tipo}/resumo?de=&ate=` | Indicadores do período. |
-| `GET` | `/auditoria/{tipo}/{id}` | Detalhe do evento (documentos ou alterações antes/depois). |
-| `GET` | `/auditoria/{tipo}/exportacao?…` | CSV dos eventos filtrados. |
+| `GET` | `/auditoria/documentos?periodo=&texto=&tipo=&usuario=&somenteSigilosos=&pagina=&tamanho=` | Lista do mais recente para o mais antigo, com os indicadores do período. |
+| `GET` | `/auditoria/acessos?periodo=&texto=&tipo=&usuario=&pagina=&tamanho=` | Idem, sem filtro de sigilo. |
+| `GET` | `/auditoria/{grupo}/{id}` | Detalhe do evento: origem, correlação, documentos com o sigilo de cada um e antes e depois. |
+| `GET` | `/auditoria/{grupo}/exportacao?…` | CSV dos eventos filtrados. Mesmos filtros da lista, sem paginação. |
+
+- **Filtros:** `periodo` é `hoje`, `7d` (padrão), `30d` ou `todo` ("hoje" começa à meia-noite de Cuiabá); `texto` procura em usuário, números, documento, arquivo e código do evento, sem diferenciar maiúsculas nem acentos; `tipo` é um código do grupo (outro é 400); `usuario` é o login exato; `tamanho` vai até 100.
+- **Resposta da lista:** os campos de `PageResponse` mais `indicadores`: `dossiesGerados`, `eventosComSigilosos` e `usuarios` em documentos; `entradas`, `alteracoes` e `usuarios` em acessos. Os indicadores seguem o período e o perfil, não os demais filtros.
+- **Mascaramento:** para quem não acessa sigilosos, o documento sigiloso sai como "Documento sigiloso", sem nome de arquivo. Em evento sigiloso, `arquivo` e `detalhe` também saem, porque podem citar o documento (motivo de falha); `DOSSIE`, `DOWNLOAD` e `GEOMETRIAS` mantêm os deles, montados pelo serviço. A marca `sigiloso` continua visível, como na lista de documentos. A busca roda sobre o evento já mascarado.
+- **CSV:** `text/csv` em UTF-8 com BOM, separador `;`, todas as células entre aspas, aspas duplicadas, sem quebra de linha na célula. Célula que começa com `=`, `+`, `-`, `@`, tabulação ou retorno recebe um apóstrofo na frente. `Content-Disposition` com `auditoria-documentos-AAAAMMDD.csv`, `Cache-Control: no-store`. Acima de `AUDITORIA_CSV_MAX_LINHAS` corta nos mais recentes e responde `X-Vistas-Truncado: true`.
+- O vínculo do interessado (CPF/CNPJ) não existe em nenhuma resposta.
 
 O registro dos eventos é feito pelo próprio back-end nas rotas de consulta, conteúdo de documento, geração e download do dossiê. Não há rota de escrita exposta.
+
+**Eventos por endpoint (S5, bloco 3).** Nenhum muda status, `errorCode`, corpo ou cabeçalho da resposta, e acesso negado (403/404) não registra.
+
+| Endpoint | Evento | Quando |
+|---|---|---|
+| `GET /requerimentos/{id}` | `CONSULTA` | Detalhe devolvido. A criação do dossiê lê o mesmo requerimento e não gera `CONSULTA`. |
+| `GET /documentos/{origem}/{id}/conteudo` | `VISUALIZACAO` | Conteúdo pronto para entrega, em qualquer `formato`. |
+| `POST /dossies`, `POST /dossies/{id}/continuacao` | `DOSSIE` | Na thread de geração, com o PDF montado; em nome de quem criou o pedido. |
+| `POST /dossies`, `POST /dossies/{id}/continuacao` | `FALHA` | Na thread de geração, um por documento em cada tentativa com falha, e um sem documento na falha de montagem ou de preparo da pasta. Interrupção por cancelamento não conta. |
+| `GET /dossies/{id}/arquivo` com `disposicao=attachment` | `DOWNLOAD` | Arquivo lido por inteiro, em nome de quem baixou (sessão) ou de quem pediu o ticket. Pré-visualização (`inline`), download interrompido e ticket recusado não registram. |
+| `GET /requerimentos/{id}/geometrias/arquivo` | `GEOMETRIAS` | ZIP lido por inteiro. |
 
 ## Configurações
 
@@ -390,13 +419,20 @@ Restrito ao perfil `ADMIN`. Toda escrita gera evento na auditoria de acessos.
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/configuracoes` | Parâmetros vigentes. |
-| `PUT` | `/configuracoes` | Grava os parâmetros alterados (um evento `CONFIG` com a lista de mudanças). |
-| `GET` | `/usuarios` | Usuários com perfil, situação e último acesso. |
-| `POST` | `/usuarios` | Inclui usuário. |
-| `PATCH` | `/usuarios/{id}` | Altera perfil ou situação. |
-| `GET` | `/conexoes` | Estado das conexões. |
-| `POST` | `/conexoes/{nome}/teste` | Testa uma conexão e devolve o tempo de resposta. |
+| `GET` | `/configuracoes/parametros` | Parâmetros editáveis. |
+| `PUT` | `/configuracoes/parametros` | Salva todas as alterações pendentes, de forma atômica (um evento `CONFIG` com a lista de mudanças). |
+| `DELETE` | `/configuracoes/parametros/{nome}` | Volta o parâmetro ao padrão do ambiente. |
+| `GET` | `/configuracoes/usuarios` | Usuários com perfil, situação e último acesso, por nome, numa página só. |
+| `POST` | `/configuracoes/usuarios` | Inclui usuário: `{nome, login, cpfCnpj, perfil}`. 201 com o usuário. |
+| `PATCH` | `/configuracoes/usuarios/{id}` | Altera `perfil` e/ou `ativo`; o campo ausente fica como está. |
+| `GET` | `/configuracoes/conexoes` | Estado das conexões. |
+| `POST` | `/configuracoes/conexoes/{nome}/teste` | Testa uma conexão e devolve o tempo de resposta. |
+
+**Parâmetros (S5, bloco 8).** `GET` responde `{parametros: [...]}`. Cada item traz `nome`, `rotulo`, `grupo` (`DOSSIE`, `CONVERSAO`, `VISUALIZACAO`, `CONEXOES`, `AUDITORIA`), `tipo` (`INTEIRO`, `BOOLEANO`, `OPCAO`), `valor`, `padrao`, `minimo`, `maximo`, `opcoes`, `classeDeAplicacao` (`IMEDIATO`, `PROXIMA_GERACAO`, `EXIGE_REINICIO`), `sobreposto` e `pendenteDeReinicio`. `PUT` recebe `{alteracoes: {nome: valor}}` e devolve a lista como ficou. Valor fora da faixa ou nome desconhecido é 400 `PARAMETRO_INVALIDO` com o nome em `campos`, e nada é aplicado. Salvar o próprio padrão tira a sobreposição. Sem mudança real, 200 sem evento. `DELETE` de nome desconhecido é 404.
+
+**Conexões (S5, bloco 8).** `GET` responde `{conexoes: [...]}`, sem chamar nenhum sistema externo: `nome` (`siga`, `arquivos`, `scorp`, `taxas`), `rotulo`, `estado` (`CONFIGURADA`, `NAO_CONFIGURADA`, `DESATIVADA`), `horasAteExpirar` (só a API de arquivos com token JWT; nulo se não dá para saber) e `tokenVencido`. O teste responde 200 mesmo com a conexão fora do ar: `{nome, sucesso, tempoMs, mensagem, horasAteExpirar, tokenVencido}`. Um teste por conexão de cada vez (409 `TESTE_DE_CONEXAO_EM_ANDAMENTO`), limite de 10 s. O destino vem só da configuração do servidor; nome fora da lista é 404. Nenhuma resposta traz URL, host ou credencial.
+
+**Usuários (S5, bloco 7).** Cada item traz `id` (o login, que não muda), `nome`, `login`, `perfil` (código), `perfilRotulo`, `ativo`, `ultimoAcesso` (nulo até a primeira entrada depois de subir o serviço) e `cpfCnpj`, sempre mascarado (`***.456.789-**` ou `**.345.678/****-**`) ou nulo. O login é normalizado (sem espaços nas pontas, em minúsculas). Os erros próprios são 409 `LOGIN_JA_EXISTE`, `ULTIMO_ADMINISTRADOR` e `PROPRIO_USUARIO`. A mudança vale para as sessões abertas já na próxima requisição; a sessão de usuário desativado responde 401. Usuário inativo que tenta entrar recebe a mesma mensagem de credencial inválida.
 
 ## Erros
 
@@ -423,6 +459,9 @@ Todo erro segue `ProblemDetail` com `errorCode` estável e `correlationId` (head
 | 403 | `DOCUMENTO_SIGILOSO` | Documento sigiloso para perfil não autorizado |
 | 403 | `NAO_INTERESSADO` | Operador sem vínculo com o processo/requerimento |
 | 404 | `NAO_ENCONTRADO` | Requerimento, processo, documento, dossiê ou evento inexistente |
+| 409 | `LOGIN_JA_EXISTE` | Inclusão de usuário com login em uso |
+| 409 | `ULTIMO_ADMINISTRADOR` | Desativar ou rebaixar o último Administrador ativo |
+| 409 | `PROPRIO_USUARIO` | Desativar o próprio usuário |\n| 409 | `TESTE_DE_CONEXAO_EM_ANDAMENTO` | Já há um teste da mesma conexão em andamento |
 | 409 | `DOSSIE_SEM_ARQUIVO` | Arquivo inexistente: o pedido aguarda decisão, foi cancelado ou ainda está em andamento |
 | 409 | `DOSSIE_SEM_DECISAO_PENDENTE` | Continuação pedida para um dossiê que não está em `PENDENTE_DECISAO` (S2.2) |
 | 410 | `DOSSIE_EXPIRADO` | Dossiê expirado ou já baixado (o arquivo foi apagado) |
@@ -433,7 +472,7 @@ Todo erro segue `ProblemDetail` com `errorCode` estável e `correlationId` (head
 | 429 | `MUITAS_CONVERSOES` | Fila de conversões do modal cheia (S3) |
 | 413 | `GEOMETRIAS_GRANDES_DEMAIS` | Geometrias acima de `GEOMETRIAS_MAX_MB` ou de `GEOMETRIAS_MAX_ARQUIVOS` (S4) |
 | 502/504 | `GEOMETRIAS_INCOMPLETAS` | Algum arquivo das geometrias falhou: nenhum ZIP; `arquivos` lista nome e motivo (504 quando todas por tempo limite; S4) |
-| 403 | `TICKET_INVALIDO` | Ticket de download inexistente, já usado, vencido, de outro pedido ou de outro usuário (D49) |
+| 403 | `TICKET_INVALIDO` | Ticket de download inexistente, já usado, vencido, de outro pedido, de outro usuário (D49) ou de quem não acessa mais o pedido (D70) |
 | 502 | `CREDENCIAL_ARQUIVOS_RECUSADA` | API de arquivos recusou a credencial (na geração assíncrona vira `erro.codigo` do pedido) |
 | 502 | `REPOSITORIO_DE_ARQUIVOS_INDISPONIVEL` | Conteúdo do modal: API de arquivos fora do ar, não configurada ou com resposta inesperada (S3) |
 | 503 | `CONVERSOR_INDISPONIVEL` | Conteúdo do modal: LibreOffice ausente ou indisponível (S3) |

@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 
 import br.gov.mt.sema.vistas.acesso.application.UsuarioAtual;
+import br.gov.mt.sema.vistas.auditoria.domain.UsuarioDoEvento;
 import br.gov.mt.sema.vistas.dossie.application.port.ParametrosDoDossie;
 import br.gov.mt.sema.vistas.dossie.application.port.TicketsDeDownload;
 import br.gov.mt.sema.vistas.dossie.domain.PedidoDeDossie;
@@ -30,23 +31,25 @@ public class ObterArquivoDoDossie {
     private final TicketsDeDownload tickets;
     private final UsuarioAtual usuarioAtual;
     private final Clock relogio;
+    private final EventosDoDossie eventos;
 
     public ObterArquivoDoDossie(LocalizarPedido localizar, ParametrosDoDossie parametros, TicketsDeDownload tickets,
-            UsuarioAtual usuarioAtual, Clock relogio) {
+            UsuarioAtual usuarioAtual, Clock relogio, EventosDoDossie eventos) {
         this.localizar = localizar;
         this.parametros = parametros;
         this.tickets = tickets;
         this.usuarioAtual = usuarioAtual;
         this.relogio = relogio;
+        this.eventos = eventos;
     }
 
     public ArquivoDoDossie executar(String id) {
-        return arquivoDe(localizar.executar(id));
+        return arquivoDe(localizar.executar(id), eventos.usuarioAtual());
     }
 
     /**
-     * Pelo ticket: inexistente, já usado, vencido, de outro pedido ou apresentado por outro usuário autenticado dá 403
-     * {@code TICKET_INVALIDO}, sem dizer qual.
+     * Pelo ticket: inexistente, já usado, vencido, de outro pedido, apresentado por outro usuário autenticado ou de quem
+     * não acessa mais o pedido (desativado ou rebaixado depois da emissão) dá 403 {@code TICKET_INVALIDO}, sem dizer qual.
      */
     public ArquivoDoDossie executarPorTicket(String id, String ticket) {
         TicketDeDownload valido = tickets.consumir(ticket == null || ticket.isBlank() ? null : TicketDeDownload.resumo(ticket))
@@ -57,12 +60,20 @@ public class ObterArquivoDoDossie {
         if (usuarioAtual.talvez().filter(u -> !u.login().equals(valido.login())).isPresent()) {
             throw new TicketInvalidoException();
         }
-        return arquivoDe(localizar.semUsuario(id));
+        PedidoDeDossie pedido = localizar.semUsuario(id);
+        if (!localizar.titularAcessa(pedido, valido.login())) {
+            throw new TicketInvalidoException();
+        }
+        return arquivoDe(pedido, valido.usuario());
     }
 
-    /** Chamado quando o download terminou por inteiro: o arquivo (e o diretório do pedido) não precisa mais existir. */
+    /**
+     * Chamado quando o download terminou por inteiro: o arquivo (e o diretório do pedido) não precisa mais existir. Só
+     * aqui sai o evento {@code DOWNLOAD}: pré-visualização e download interrompido não passam por este método.
+     */
     public void concluirDownload(ArquivoDoDossie arquivo) {
         PedidoDeDossie pedido = localizar.semUsuario(arquivo.id());
+        eventos.download(pedido, arquivo.baixadoPor());
         pedido.marcarBaixado();
         if (pedido.expirar()) {
             ArquivosTemporarios.apagarPasta(ArquivosTemporarios.pastaDo(parametros, pedido));
@@ -73,7 +84,7 @@ public class ObterArquivoDoDossie {
         concluirDownload(executar(id));
     }
 
-    private static ArquivoDoDossie arquivoDe(PedidoDeDossie pedido) {
+    private static ArquivoDoDossie arquivoDe(PedidoDeDossie pedido, UsuarioDoEvento baixadoPor) {
         StatusDossie status = pedido.status();
         if (status == StatusDossie.EXPIRADO) {
             throw new DossieExpiradoException();
@@ -82,7 +93,7 @@ public class ObterArquivoDoDossie {
         if (status != StatusDossie.CONCLUIDO || arquivo == null) {
             throw new DossieSemArquivoException(mensagem(status));
         }
-        return new ArquivoDoDossie(pedido.id(), arquivo, pedido.capa().nomeDoArquivo(), pedido.tamanhoBytes());
+        return new ArquivoDoDossie(pedido.id(), arquivo, pedido.capa().nomeDoArquivo(), pedido.tamanhoBytes(), baixadoPor);
     }
 
     private static String mensagem(StatusDossie status) {
@@ -93,6 +104,11 @@ public class ObterArquivoDoDossie {
         };
     }
 
-    public record ArquivoDoDossie(String id, Path caminho, String nome, long tamanhoBytes) {
+    /** @param baixadoPor retrato de quem baixa (usuário da sessão ou de quem pediu o ticket) */
+    public record ArquivoDoDossie(String id, Path caminho, String nome, long tamanhoBytes, UsuarioDoEvento baixadoPor) {
+
+        public ArquivoDoDossie(String id, Path caminho, String nome, long tamanhoBytes) {
+            this(id, caminho, nome, tamanhoBytes, null);
+        }
     }
 }

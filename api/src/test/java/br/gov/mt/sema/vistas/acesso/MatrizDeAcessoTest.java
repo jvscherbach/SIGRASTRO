@@ -6,7 +6,9 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -82,7 +84,13 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
             "GET /api/busca", "GET /api/requerimentos/{id}", "GET /api/requerimentos/{id}/documentos",
             "GET /api/requerimentos/{id}/geometrias/arquivo", "GET /api/documentos/{origem}/{id}/conteudo",
             "GET /api/dossies", "POST /api/dossies", "GET /api/dossies/{id}", "GET /api/dossies/{id}/arquivo",
-            "POST /api/dossies/{id}/arquivo/ticket", "POST /api/dossies/{id}/continuacao", "DELETE /api/dossies/{id}");
+            "POST /api/dossies/{id}/arquivo/ticket", "POST /api/dossies/{id}/continuacao", "DELETE /api/dossies/{id}",
+            "GET /api/auditoria/documentos", "GET /api/auditoria/acessos", "GET /api/auditoria/{grupo}/{id}",
+            "GET /api/auditoria/{grupo}/exportacao",
+            "GET /api/configuracoes/usuarios", "POST /api/configuracoes/usuarios", "PATCH /api/configuracoes/usuarios/{id}",
+            "GET /api/configuracoes/parametros", "PUT /api/configuracoes/parametros",
+            "DELETE /api/configuracoes/parametros/{nome}", "GET /api/configuracoes/conexoes",
+            "POST /api/configuracoes/conexoes/{nome}/teste");
 
     private enum Perfil {
         OPERADOR("operador.demo"), GESTOR("gestor.demo"), ADMIN("admin.demo");
@@ -142,6 +150,7 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
     private final SoftAssertions soft = new SoftAssertions();
     private final Set<String> cobertos = new TreeSet<>();
     private final List<Map.Entry<Perfil, MockHttpServletResponse>> respostas = new ArrayList<>();
+    private final List<String[]> rotasS5 = new ArrayList<>();
     private final Map<Perfil, String> tokens = new LinkedHashMap<>();
     private int cenarios;
 
@@ -255,12 +264,15 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
         conteudo();
         criacaoDeDossie();
         pedidos();
+        auditoria();
+        usuarios();
+        parametrosEConexoes();
         dossiesGerados();
         mascaramentoNoPdfDoOperador();
 
         varreduraDeVazamento();
         assertThat(cobertos).as("endpoints exercitados").containsExactlyInAnyOrderElementsOf(ENDPOINTS);
-        assertThat(cenarios).as("cenários").isGreaterThan(150);
+        assertThat(cenarios).as("cenários").isGreaterThan(230);
         soft.assertAll();
     }
 
@@ -478,6 +490,139 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
         verificar("GET /api/dossies", "sem token", null, 401, "NAO_AUTENTICADO", () -> mvc.perform(get("/api/dossies")));
     }
 
+    /**
+     * Auditoria (S5): acessos só para o Administrador; eventos só do interessado para o Operador, de qualquer usuário e
+     * mascarados. Roda depois dos cenários acima, que deixaram eventos de sigilosos do requerimento 101 e de documentos
+     * do 202. Cada id de evento vem da leitura do Gestor; a varredura final cobre estas respostas.
+     */
+    private void auditoria() throws Exception {
+        comToken(get("/api/requerimentos/202"), Perfil.GESTOR);
+        comToken(get("/api/documentos/DOCUMENTO_PROCESSO/" + SIGILOSO + "/conteudo?requerimento=101"), Perfil.GESTOR);
+        long idDeOutro = idDoEvento("CONSULTA", 202);
+        long idSigiloso = idDoEvento("VISUALIZACAO", 101);
+        JsonNode entradas = lerJson(comToken(get("/api/auditoria/acessos?tipo=LOGIN"), Perfil.ADMIN).andReturn().getResponse());
+        long idDeAcesso = entradas.get("conteudo").get(0).get("id").asLong();
+        String detalheDeAcesso = "GET /api/auditoria/{grupo}/{id}";
+        for (Perfil p : Perfil.values()) {
+            boolean op = p == Perfil.OPERADOR;
+            boolean admin = p == Perfil.ADMIN;
+            String soAdmin = admin ? null : "PERFIL_SEM_PERMISSAO";
+            JsonNode lista = lerJson(verificar("GET /api/auditoria/documentos", "lista", p, 200, null,
+                    () -> comToken(get("/api/auditoria/documentos?tamanho=100&periodo=todo"), p)));
+            soft.assertThat(lista.get("totalElementos").asInt()).as("eventos vistos por %s", p).isPositive();
+            for (JsonNode evento : lista.get("conteudo")) {
+                if (op) {
+                    soft.assertThat(evento.get("idRequerimento").asLong()).as("Operador só vê o 101").isEqualTo(101);
+                }
+            }
+            // O Operador vê os eventos dos seus requerimentos feitos por qualquer usuário.
+            JsonNode deOutroUsuario = lerJson(verificar("GET /api/auditoria/documentos", "feitos pelo Gestor", p, 200, null,
+                    () -> comToken(get("/api/auditoria/documentos?usuario=gestor.demo&tamanho=100"), p)));
+            soft.assertThat(deOutroUsuario.get("totalElementos").asInt()).as("eventos do Gestor vistos por %s", p).isPositive();
+            JsonNode busca = lerJson(verificar("GET /api/auditoria/documentos", "busca por título sigiloso", p, 200, null,
+                    () -> comToken(get("/api/auditoria/documentos?texto=Laudo&tamanho=100"), p)));
+            soft.assertThat(busca.get("totalElementos").asInt() > 0).as("busca por sigiloso de %s", p).isEqualTo(!op);
+            verificar("GET /api/auditoria/documentos", "só sigilosos", p, op ? 400 : 200, op ? "PARAMETRO_INVALIDO" : null,
+                    () -> comToken(get("/api/auditoria/documentos?somenteSigilosos=true&tamanho=100"), p));
+            verificar("GET /api/auditoria/acessos", "lista", p, admin ? 200 : 403, soAdmin,
+                    () -> comToken(get("/api/auditoria/acessos"), p));
+            verificar(detalheDeAcesso, "evento de outro interessado", p, op ? 404 : 200,
+                    op ? "NAO_ENCONTRADO" : null, () -> comToken(get("/api/auditoria/documentos/" + idDeOutro), p));
+            JsonNode detalhe = lerJson(verificar(detalheDeAcesso, "evento sigiloso do interessado", p, 200, null,
+                    () -> comToken(get("/api/auditoria/documentos/" + idSigiloso), p)));
+            soft.assertThat(detalhe.at("/documentos/0/titulo").asText()).as("título visto por %s", p)
+                    .isEqualTo(op ? "Documento sigiloso" : TITULO_SIGILOSO);
+            soft.assertThat(detalhe.at("/documentos/0/nomeDoArquivo").isNull()).as("arquivo mascarado para %s", p).isEqualTo(op);
+            verificar(detalheDeAcesso, "evento de acessos", p, admin ? 200 : 403, soAdmin,
+                    () -> comToken(get("/api/auditoria/acessos/" + idDeAcesso), p));
+            verificar(detalheDeAcesso, "evento de documentos pelo grupo de acessos", p, admin ? 404 : 403,
+                    admin ? "NAO_ENCONTRADO" : soAdmin, () -> comToken(get("/api/auditoria/acessos/" + idDeOutro), p));
+            verificar(detalheDeAcesso, "grupo desconhecido", p, 404, "NAO_ENCONTRADO",
+                    () -> comToken(get("/api/auditoria/outro/1"), p));
+            String documentosCsv = "GET /api/auditoria/{grupo}/exportacao";
+            MockHttpServletResponse csv = verificar(documentosCsv, "documentos", p, 200, null,
+                    () -> comToken(get("/api/auditoria/documentos/exportacao?periodo=todo"), p));
+            soft.assertThat(csv.getContentAsString(StandardCharsets.UTF_8).contains(TITULO_SIGILOSO))
+                    .as("título sigiloso no CSV de %s", p).isEqualTo(!op);
+            verificar(documentosCsv, "só sigilosos", p, op ? 400 : 200, op ? "PARAMETRO_INVALIDO" : null,
+                    () -> comToken(get("/api/auditoria/documentos/exportacao?somenteSigilosos=true"), p));
+            verificar(documentosCsv, "acessos", p, admin ? 200 : 403, soAdmin,
+                    () -> comToken(get("/api/auditoria/acessos/exportacao"), p));
+            verificar(documentosCsv, "grupo desconhecido", p, 404, "NAO_ENCONTRADO",
+                    () -> comToken(get("/api/auditoria/outro/exportacao"), p));
+        }
+        for (String url : List.of("/api/auditoria/documentos", "/api/auditoria/acessos", "/api/auditoria/documentos/1",
+                "/api/auditoria/documentos/exportacao")) {
+            verificar(rotaDaAuditoria(url), "sem token", null, 401, "NAO_AUTENTICADO", () -> mvc.perform(get(url)));
+        }
+    }
+
+    private static String rotaDaAuditoria(String url) {
+        return url.endsWith("/exportacao") ? "GET /api/auditoria/{grupo}/exportacao"
+                : url.endsWith("/1") ? "GET /api/auditoria/{grupo}/{id}" : "GET " + url;
+    }
+
+    /** O evento mais recente do tipo no requerimento, como o Gestor o vê. */
+    private long idDoEvento(String tipo, long requerimento) throws Exception {
+        JsonNode pagina = lerJson(comToken(get("/api/auditoria/documentos?tamanho=100&periodo=todo&tipo=" + tipo), Perfil.GESTOR)
+                .andReturn().getResponse());
+        for (JsonNode evento : pagina.get("conteudo")) {
+            if (evento.get("idRequerimento").asLong() == requerimento) {
+                return evento.get("id").asLong();
+            }
+        }
+        throw new AssertionError("nenhum evento " + tipo + " do requerimento " + requerimento);
+    }
+
+    /** Usuários (S5, bloco 7): só Administrador, sem alterar o cadastro. O CPF/CNPJ fica mascarado até para ele. */
+    private void usuarios() throws Exception {
+        for (Perfil p : Perfil.values()) {
+            boolean admin = p == Perfil.ADMIN;
+            String codigo = admin ? null : "PERFIL_SEM_PERMISSAO";
+            MockHttpServletResponse lista = verificar("GET /api/configuracoes/usuarios", "lista", p, admin ? 200 : 403,
+                    codigo, () -> comToken(get("/api/configuracoes/usuarios"), p));
+            soft.assertThat(lista.getContentAsString()).doesNotContain(CNPJ_DO_OPERADOR, "12345678000190");
+            verificar("POST /api/configuracoes/usuarios", "corpo vazio", p, admin ? 400 : 403,
+                    admin ? "PARAMETRO_INVALIDO" : codigo,
+                    () -> comToken(post("/api/configuracoes/usuarios").contentType(MediaType.APPLICATION_JSON).content("{}"), p));
+            verificar("PATCH /api/configuracoes/usuarios/{id}", "inexistente", p, admin ? 404 : 403,
+                    admin ? "NAO_ENCONTRADO" : codigo, () -> comToken(patch("/api/configuracoes/usuarios/nao.existe")
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"ativo\":false}"), p));
+        }
+    }
+
+    /** Parâmetros e conexões (S5, bloco 8): só Administrador, sem alterar nada. */
+    private void parametrosEConexoes() throws Exception {
+        for (Perfil p : Perfil.values()) {
+            boolean admin = p == Perfil.ADMIN;
+            String negado = admin ? null : "PERFIL_SEM_PERMISSAO";
+            int ok = admin ? 200 : 403;
+            verificar("GET /api/configuracoes/parametros", "lista", p, ok, negado,
+                    () -> comToken(get("/api/configuracoes/parametros"), p));
+            verificar("PUT /api/configuracoes/parametros", "sem alterações", p, ok, negado,
+                    () -> comToken(put("/api/configuracoes/parametros").contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"alteracoes\":{}}"), p));
+            verificar("DELETE /api/configuracoes/parametros/{nome}", "desconhecido", p, admin ? 404 : 403,
+                    admin ? "NAO_ENCONTRADO" : negado, () -> comToken(delete("/api/configuracoes/parametros/nao.existe"), p));
+            verificar("GET /api/configuracoes/conexoes", "lista", p, ok, negado,
+                    () -> comToken(get("/api/configuracoes/conexoes"), p));
+            for (String nome : List.of("siga", "arquivos", "scorp", "taxas")) {
+                verificar("POST /api/configuracoes/conexoes/{nome}/teste", nome, p, ok, negado,
+                        () -> comToken(post("/api/configuracoes/conexoes/" + nome + "/teste"), p));
+            }
+            verificar("POST /api/configuracoes/conexoes/{nome}/teste", "desconhecida", p, admin ? 404 : 403,
+                    admin ? "NAO_ENCONTRADO" : negado, () -> comToken(post("/api/configuracoes/conexoes/outra/teste"), p));
+        }
+        verificar("GET /api/configuracoes/usuarios", "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(get("/api/configuracoes/usuarios")));
+        verificar("GET /api/configuracoes/parametros", "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(get("/api/configuracoes/parametros")));
+        verificar("GET /api/configuracoes/conexoes", "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(get("/api/configuracoes/conexoes")));
+        verificar("POST /api/configuracoes/conexoes/{nome}/teste", "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(post("/api/configuracoes/conexoes/siga/teste")));
+    }
+
     /** O PDF, o andamento e a lista do Operador mascaram o sigiloso (capa, sumário, "Documentos não incluídos"). */
     private void mascaramentoNoPdfDoOperador() throws Exception {
         String id = novoPedido(Perfil.OPERADOR);
@@ -494,6 +639,11 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
     // ------------------------------------------------------------------ varredura
 
     private void varreduraDeVazamento() throws IOException {
+        // Consulta e dossiê mostram o interessado a quem o acessa; auditoria e configurações nunca trazem CPF/CNPJ completo.
+        for (String[] registro : rotasS5) {
+            soft.assertThat(registro[1]).as("resposta da auditoria ou das configurações")
+                    .doesNotContain(CNPJ_DO_OPERADOR, CNPJ_DE_OUTRO, "12345678000190", "98765432000110");
+        }
         List<String> sempre = new ArrayList<>(List.of(SEGREDOS));
         sempre.addAll(List.of(CHAVE_SCORP, "CHAVE-INTERNA", TOKEN_SCORP, PESSOA_SCORP, SCORP.url(), "127.0.0.1",
                 "pessoa-licenciamento", diretorioTemporario().toString(), diretorioTemporario().getFileName().toString()));
@@ -506,7 +656,9 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
                 tudo.append('\n').append(nome).append(": ").append(String.join(",", resposta.getHeaders(nome)));
             }
             // "instance" e "path" do ProblemDetail só ecoam a URL que o próprio cliente pediu
-            String texto = tudo.toString().replaceAll("\"(instance|path)\":\"[^\"]*\"", "");
+            // e a origem de um evento de auditoria é o IP do cliente (no MockMvc, 127.0.0.1), não um host interno
+            String texto = tudo.toString().replaceAll("\"(instance|path)\":\"[^\"]*\"", "")
+                    .replace("\"127.0.0.1\"", "");
             for (String proibido : sempre) {
                 soft.assertThat(texto).as("resposta %s de %s", resposta.getStatus(), registro.getKey()).doesNotContain(proibido);
             }
@@ -531,6 +683,9 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
         cobertos.add(endpoint);
         MockHttpServletResponse resposta = chamada.executar().andReturn().getResponse();
         respostas.add(new java.util.AbstractMap.SimpleEntry<>(perfil, resposta));
+        if (endpoint.contains("/api/auditoria") || endpoint.contains("/api/configuracoes")) {
+            rotasS5.add(new String[] {endpoint, resposta.getContentAsString(StandardCharsets.UTF_8)});
+        }
         String descricao = endpoint + " [" + caso + "] como " + (perfil == null ? "anônimo" : perfil);
         soft.assertThat(resposta.getStatus()).as(descricao).isEqualTo(status);
         if (codigo != null) {

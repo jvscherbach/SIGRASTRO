@@ -1,9 +1,12 @@
 package br.gov.mt.sema.vistas.acesso.application;
 
+import java.util.function.Predicate;
+
 import br.gov.mt.sema.vistas.acesso.domain.RestricaoDeInteressado;
 import br.gov.mt.sema.vistas.acesso.domain.Usuario;
 import br.gov.mt.sema.vistas.shared.application.exception.DocumentoSigilosoException;
 import br.gov.mt.sema.vistas.shared.application.exception.NaoInteressadoException;
+import br.gov.mt.sema.vistas.shared.application.exception.PerfilSemPermissaoException;
 import org.springframework.stereotype.Service;
 
 /**
@@ -49,13 +52,15 @@ public class PoliticaDeAcesso {
     }
 
     /**
-     * Pedido de dossiê: quem o criou, enquanto ainda tiver acesso ao requerimento (RN07), e quem acessa qualquer
-     * requerimento e qualquer sigiloso (Gestor e Administrador), porque o pedido de outro usuário pode conter
-     * documentos sigilosos. Para os demais o pedido não existe (o caso de uso responde 404).
+     * Pedido de dossiê: quem o criou, enquanto ainda tiver acesso ao requerimento (RN07) e aos sigilosos que ele contém
+     * (um Gestor rebaixado perde o pedido que gerou com sigiloso), e quem acessa qualquer requerimento e qualquer
+     * sigiloso (Gestor e Administrador), porque o pedido de outro usuário pode conter documentos sigilosos. Para os
+     * demais o pedido não existe (o caso de uso responde 404).
      */
     public boolean podeAcessarPedido(Usuario usuario, PedidoDeUsuario pedido) {
         if (usuario.login().equals(pedido.loginDoCriador())) {
-            return podeAcessarRequerimento(usuario, pedido.cpfCnpjDoInteressado());
+            return podeAcessarRequerimento(usuario, pedido.cpfCnpjDoInteressado())
+                    && podeAcessarDocumento(usuario, pedido.contemSigiloso());
         }
         return podeVerPedidosDeOutros(usuario);
     }
@@ -66,6 +71,16 @@ public class PoliticaDeAcesso {
      */
     public boolean podeVerPedidosDeOutros(Usuario usuario) {
         return !usuario.perfil().restritoAoInteressado() && podeVerDocumentoSigiloso(usuario);
+    }
+
+    /** RF23: a auditoria de acessos é só do Administrador. */
+    public boolean podeVerAuditoriaDeAcessos(Usuario usuario) {
+        return usuario.perfil().podeVerAuditoriaAcessos();
+    }
+
+    /** RF25: as configurações são só do Administrador. */
+    public boolean podeAcessarConfiguracoes(Usuario usuario) {
+        return usuario.perfil().podeAcessarConfiguracoes();
     }
 
     /** O título como sai para o usuário: o de um documento que ele não acessa é mascarado. */
@@ -90,6 +105,29 @@ public class PoliticaDeAcesso {
         if (!podeAcessarRequerimento(usuarioAtual.obter(), cpfCnpjDoInteressado)) {
             throw new NaoInteressadoException();
         }
+    }
+
+    /** 403 {@code PERFIL_SEM_PERMISSAO} se o usuário da requisição não vê a auditoria de acessos. */
+    public void exigirAuditoriaDeAcessos() {
+        if (!podeVerAuditoriaDeAcessos(usuarioAtual.obter())) {
+            throw new PerfilSemPermissaoException("Seu perfil não acessa a auditoria de acessos.");
+        }
+    }
+
+    /** 403 {@code PERFIL_SEM_PERMISSAO} se o usuário da requisição não acessa as configurações. */
+    public void exigirConfiguracoes() {
+        if (!podeAcessarConfiguracoes(usuarioAtual.obter())) {
+            throw new PerfilSemPermissaoException("Seu perfil não acessa as configurações.");
+        }
+    }
+
+    /**
+     * RN07 para consultas em lote fora do SIGA: diz, pelo CPF/CNPJ do interessado de cada item, se o usuário da requisição
+     * o acessa. O usuário é lido uma vez, aqui.
+     */
+    public Predicate<String> regraDoInteressadoDoUsuarioAtual() {
+        Usuario usuario = usuarioAtual.obter();
+        return cpfCnpj -> podeAcessarRequerimento(usuario, cpfCnpj);
     }
 
     public boolean podeVerDocumentoSigiloso() {

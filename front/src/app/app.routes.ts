@@ -1,10 +1,10 @@
 import { Routes } from '@angular/router';
 
 import { autenticadoGuard, permissaoGuard, visitanteGuard } from './core/guards';
+import { pendenciasGuard } from './features/configuracoes/pendencias.guard';
 import { ConsultaComponent } from './features/consulta/consulta.component';
 import { DetalheComponent } from './features/detalhe/detalhe.component';
 import { DossiesGeradosComponent } from './features/dossies/dossies-gerados.component';
-import { EmConstrucaoComponent } from './features/em-construcao/em-construcao.component';
 import { LoginComponent } from './features/login/login.component';
 import { ShellComponent } from './layout/shell.component';
 
@@ -36,40 +36,25 @@ export const routes: Routes = [
       },
       {
         path: 'auditoria/documentos',
-        component: EmConstrucaoComponent,
+        loadComponent: () => import('./features/auditoria/auditoria.component').then((m) => m.AuditoriaComponent),
         title: 'Auditoria de documentos · SIGA Vistas',
-        data: {
-          crumb: ['Auditoria', 'Documentos'],
-          titulo: 'Auditoria de documentos',
-          descricao: 'Consultas, visualizações, dossiês, falhas e downloads de documentos.',
-          sprint: 'Sprint 5',
-        },
+        data: { crumb: ['Auditoria', 'Documentos'], grupo: 'documentos' },
       },
       {
         path: 'auditoria/acessos',
-        component: EmConstrucaoComponent,
+        loadComponent: () => import('./features/auditoria/auditoria.component').then((m) => m.AuditoriaComponent),
         canActivate: [permissaoGuard],
         title: 'Auditoria de acessos · SIGA Vistas',
-        data: {
-          permissao: 'verAuditoriaAcessos',
-          crumb: ['Auditoria', 'Acessos'],
-          titulo: 'Auditoria de acessos',
-          descricao: 'Entradas, trocas de perfil e alterações de usuários e de configuração.',
-          sprint: 'Sprint 5',
-        },
+        data: { permissao: 'verAuditoriaAcessos', crumb: ['Auditoria', 'Acessos'], grupo: 'acessos' },
       },
       {
         path: 'configuracoes',
-        component: EmConstrucaoComponent,
+        loadComponent: () =>
+          import('./features/configuracoes/configuracoes.component').then((m) => m.ConfiguracoesComponent),
         canActivate: [permissaoGuard],
+        canDeactivate: [pendenciasGuard],
         title: 'Configurações · SIGA Vistas',
-        data: {
-          permissao: 'acessarConfiguracoes',
-          crumb: ['Configurações'],
-          titulo: 'Configurações',
-          descricao: 'Usuários e perfis, parâmetros do dossiê, conversão, conexões e retenção da auditoria.',
-          sprint: 'Sprint 5',
-        },
+        data: { permissao: 'acessarConfiguracoes', crumb: ['Configurações'] },
       },
     ],
   },
