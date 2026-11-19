@@ -31,11 +31,11 @@ Objetivo do protótipo: comprovar, com processos reais, que (1) os processos que
 | S4 | Regras de acesso | Perfis, sigilo, interessado, geometrias e tela "Dossiês gerados" |
 | S5 | Gestão | Auditoria (documentos e acessos) e configurações, em memória |
 | S6 | Validação e apresentação | Casos de teste executados, evidências e material da apresentação |
-| S6 (correções) | Correções da homologação, CI mais leve e ferramentas do Claude Code | Prompt [S6-correcoes-ci-e-ferramentas-claude-code.md](prompts/S6-correcoes-ci-e-ferramentas-claude-code.md); blocos 1 a 7 concluídos, 8 em curso e 9 pendente, em [progresso/s6.md](progresso/s6.md). O prompt é o da S6 vigente; o tema "Validação e apresentação" da linha acima ainda não tem prompt (NÃO CONFIRMADO: em qual sprint entra) |
-| R1 | Renomeação para Rastro | Nome visível e documentação com "Rastro" (Fase 1, blocos 1 a 4); nomes técnicos só depois da apresentação e da marca `vistas-1.0` (Fase 2, blocos 5 a 7). Ver [R1](#r1--renomeação-para-rastro) |
+| S6 (correções) | Correções da homologação, CI mais leve e ferramentas do Claude Code | Prompt [S6-correcoes-ci-e-ferramentas-claude-code.md](prompts/S6-correcoes-ci-e-ferramentas-claude-code.md); **blocos 1 a 9 concluídos** (em [progresso/s6.md](progresso/s6.md); verificação em [progresso/verificacao-s6.md](progresso/verificacao-s6.md); roteiro de homologação em [roteiros/s6-homologacao.md](roteiros/s6-homologacao.md), a executar pelo responsável). Entrega: nome do arquivo × tipo, layout de Usuários e Detalhe, disco cheio, teste de conexão, CI sem LibreOffice em PR, hooks, MCP e subagentes. O prompt é o da S6 vigente; o tema "Validação e apresentação" da linha acima ainda não tem prompt (NÃO CONFIRMADO: em qual sprint entra) |
+| R1 | Renomeação para Rastro (concluída, blocos 1 a 7) | Nome visível e documentação com "Rastro" (Fase 1, blocos 1 a 4); nomes técnicos só depois da apresentação e da marca `vistas-1.0` (Fase 2, blocos 5 a 7). Ver [R1](#r1--renomeação-para-rastro) |
 | S7, S8, S9 | Tramitação e financeiro (prompts já escritos) | [S7](prompts/S7-tramitacao-onde-esta-e-com-quem.md) (onde está e com quem), [S8](prompts/S8-tramitacao-historico-e-fluxograma.md) (histórico e fluxograma), [S9](prompts/S9-financeiro-taxas-dar-e-pagamentos.md) (taxas, DAR e pagamentos). Ainda sem resultado demonstrável neste plano |
 
-> **Lista incompleta:** faltam no plano as sprints S10 e S11. Não existe índice em `docs/prompts/` para consultar; completar quando forem definidas.
+> **Lista incompleta:** faltam no plano as sprints S10 e S11 (NÃO CONFIRMADO o escopo de cada uma). Não existe `docs/prompts/INDICE.md`; a ordem acima vem dos prompts existentes em `docs/prompts/` (R1, S6, S7, S8, S9). Completar quando S10 e S11 forem definidas.
 
 ## R1 — Renomeação para Rastro
 
