@@ -59,6 +59,9 @@ rastro:
     senha: ${VISTAS_DEMO_SENHA:}
   sessao:
     duracao: PT8H
+  conexoes:
+    # Tempo limite de cada chamada do teste de conexão (S6, bloco 4).
+    teste-timeout-segundos: ${CONEXAO_TESTE_TIMEOUT_SEGUNDOS:15}
   dossie:
     diretorio: ${VISTAS_DOSSIE_DIRETORIO:/var/tmp/vistas}
     ttl-minutos: ${DOSSIE_TTL_MINUTOS:30}

@@ -44,7 +44,7 @@ class EventoDeAuditoriaTest {
     void grupos_de_docs_11() {
         assertThat(Arrays.stream(TipoDeEvento.values()).filter(t -> t.grupo() == GrupoDeEvento.ACESSOS))
                 .containsExactlyInAnyOrder(TipoDeEvento.LOGIN, TipoDeEvento.PERFIL, TipoDeEvento.USUARIO,
-                        TipoDeEvento.CONFIG);
+                        TipoDeEvento.CONFIG, TipoDeEvento.CONEXAO);
     }
 
     @Test

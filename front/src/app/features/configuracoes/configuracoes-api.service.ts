@@ -52,7 +52,7 @@ export class ConfiguracoesApiService {
     });
   }
 
-  conexoes(): Observable<{ conexoes: Conexao[] }> {
+  conexoes(): Observable<{ conexoes: Conexao[]; tempoLimiteDoTesteSegundos?: number }> {
     return this.http.get<{ conexoes: Conexao[] }>('/api/configuracoes/conexoes', { context: SEM_AVISO() });
   }
 

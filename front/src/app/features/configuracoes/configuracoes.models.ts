@@ -67,14 +67,37 @@ export interface Conexao {
   tokenVencido: boolean;
 }
 
+/** Resultado do teste (S6, bloco 4): alcançável é diferente de funcional. */
+export type ClassificacaoDoTeste = 'OK' | 'ALCANCAVEL_COM_RESSALVA' | 'FALHA_DE_AUTENTICACAO' | 'FALHA';
+
 export interface TesteDeConexao {
   nome: string;
+  /** OK ou alcançável com ressalva (o serviço respondeu). */
   sucesso: boolean;
+  classificacao: ClassificacaoDoTeste;
+  /** Status da resposta do serviço; ausente sem resposta HTTP. */
+  codigoHttp?: number;
   tempoMs: number;
+  tempoLimiteSegundos: number;
   mensagem: string;
   horasAteExpirar: number | null;
   tokenVencido: boolean;
 }
+
+/** Texto do resultado na tela, sempre com palavras (não só cor). */
+export const ROTULO_DA_CLASSIFICACAO: Record<ClassificacaoDoTeste, string> = {
+  OK: 'OK',
+  ALCANCAVEL_COM_RESSALVA: 'Alcançável com ressalva',
+  FALHA_DE_AUTENTICACAO: 'Falha de autenticação',
+  FALHA: 'Falha',
+};
+
+export const TOM_DA_CLASSIFICACAO: Record<ClassificacaoDoTeste, string> = {
+  OK: 'ok',
+  ALCANCAVEL_COM_RESSALVA: 'ressalva',
+  FALHA_DE_AUTENTICACAO: 'falha',
+  FALHA: 'falha',
+};
 
 /** Texto das etiquetas de classe de aplicação (docs/12). */
 export const ROTULO_DA_CLASSE: Record<ClasseDeAplicacao, string> = {

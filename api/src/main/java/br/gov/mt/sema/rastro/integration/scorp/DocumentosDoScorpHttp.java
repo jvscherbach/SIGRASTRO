@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.http.HttpTimeoutException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -36,13 +35,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.util.UriUtils;
 
 /**
  * Cliente do SCORP (S4, docs/05): {@code GET {SCORP_API_URL}/documentos/pessoa-licenciamento/{idCorporativo}}, que
@@ -64,7 +59,7 @@ class DocumentosDoScorpHttp implements DocumentosPessoais {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentosDoScorpHttp.class);
 
-    static final String CAMINHO = "/documentos/pessoa-licenciamento/";
+    static final String CAMINHO = AcessoAoScorp.CAMINHO;
     /** Resposta acima disto é tratada como inválida (o SCORP devolve só metadados). */
     static final int MAXIMO_DE_BYTES = 5 * 1024 * 1024;
     static final Duration ESPERA_DA_NOVA_TENTATIVA = Duration.ofSeconds(1);
@@ -77,11 +72,9 @@ class DocumentosDoScorpHttp implements DocumentosPessoais {
         void aguardar(Duration duracao) throws InterruptedException;
     }
 
-    private final String urlBase;
+    private final AcessoAoScorp acesso;
     private final BooleanSupplier origemLigada;
     private final CredencialDoScorp credencial;
-    private final boolean modoCookie;
-    private final String nomeDoCookie;
     private final Duration tempoLimite;
     private final Semaphore vagas;
     private final ObjectMapper json;
@@ -112,15 +105,9 @@ class DocumentosDoScorpHttp implements DocumentosPessoais {
 
     private DocumentosDoScorpHttp(String url, BooleanSupplier origemLigada, CredencialDoScorp credencial, String modo,
             String nomeDoCookie, Duration tempoLimite, int chamadasSimultaneas, ObjectMapper json, Espera espera) {
-        String semBarraFinal = url == null ? "" : url.trim();
-        while (semBarraFinal.endsWith("/")) {
-            semBarraFinal = semBarraFinal.substring(0, semBarraFinal.length() - 1);
-        }
-        this.urlBase = semBarraFinal;
+        this.acesso = new AcessoAoScorp(url, modo, nomeDoCookie);
         this.origemLigada = origemLigada;
         this.credencial = credencial;
-        this.modoCookie = "cookie".equalsIgnoreCase(modo == null ? "" : modo.trim());
-        this.nomeDoCookie = nomeDoCookie == null ? "" : nomeDoCookie.trim();
         this.tempoLimite = tempoLimite;
         this.vagas = new Semaphore(Math.max(1, chamadasSimultaneas), true);
         this.json = json;
@@ -129,7 +116,7 @@ class DocumentosDoScorpHttp implements DocumentosPessoais {
 
     @Override
     public boolean habilitado() {
-        return origemLigada.getAsBoolean() && !urlBase.isEmpty();
+        return origemLigada.getAsBoolean() && acesso.configurado();
     }
 
     @Override
@@ -168,7 +155,7 @@ class DocumentosDoScorpHttp implements DocumentosPessoais {
     }
 
     private List<DocumentoPessoal> consultarPessoa(String idCorporativo) throws InterruptedException {
-        URI uri = URI.create(urlBase + CAMINHO + UriUtils.encodePathSegment(idCorporativo.trim(), StandardCharsets.UTF_8));
+        URI uri = acesso.documentosDaPessoa(idCorporativo);
         for (int tentativa = 1; ; tentativa++) {
             try {
                 return chamar(uri);
@@ -186,7 +173,8 @@ class DocumentosDoScorpHttp implements DocumentosPessoais {
     private List<DocumentoPessoal> chamar(URI uri) {
         String valorDoToken = credencial.obter();
         try {
-            return cliente().get().uri(uri).headers(h -> autenticar(h, valorDoToken)).exchange((requisicao, resposta) -> {
+            return AcessoAoScorp.cliente(tempoLimite).get().uri(uri).headers(h -> acesso.autenticar(h, valorDoToken))
+                    .exchange((requisicao, resposta) -> {
                 int status = resposta.getStatusCode().value();
                 if (status >= 500) {
                     throw new FalhaDoScorp("HTTP " + status, true);
@@ -281,25 +269,6 @@ class DocumentosDoScorpHttp implements DocumentosPessoais {
             return LocalDate.parse(texto, BR_DATA).atStartOfDay();
         } catch (DateTimeParseException ignorada) {
             return null;
-        }
-    }
-
-    private RestClient cliente() {
-        SimpleClientHttpRequestFactory fabrica = new SimpleClientHttpRequestFactory();
-        int milissegundos = (int) Math.min(Integer.MAX_VALUE, tempoLimite.toMillis());
-        fabrica.setConnectTimeout(milissegundos);
-        fabrica.setReadTimeout(milissegundos);
-        return RestClient.builder().requestFactory(fabrica).build();
-    }
-
-    private void autenticar(HttpHeaders cabecalhos, String valorDoToken) {
-        if (valorDoToken.isEmpty()) {
-            return;
-        }
-        if (modoCookie) {
-            cabecalhos.set(HttpHeaders.COOKIE, nomeDoCookie + "=" + valorDoToken);
-        } else {
-            cabecalhos.setBearerAuth(valorDoToken);
         }
     }
 

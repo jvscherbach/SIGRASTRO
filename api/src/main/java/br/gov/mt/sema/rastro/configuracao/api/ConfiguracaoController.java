@@ -87,7 +87,9 @@ public class ConfiguracaoController {
 
     @PostMapping("/conexoes/{nome}/teste")
     @Operation(summary = "Testa uma conexão",
-            description = "O destino vem só da configuração do servidor. Um teste por conexão de cada vez (409 "
+            description = "O destino vem só da configuração do servidor, com o mesmo cliente, URL e autenticação do "
+                    + "consumo real (S6). Classificação: OK, ALCANCAVEL_COM_RESSALVA, FALHA_DE_AUTENTICACAO ou FALHA; "
+                    + "503 isolado ganha uma nova tentativa. Um teste por conexão de cada vez (409 "
                     + "TESTE_DE_CONEXAO_EM_ANDAMENTO). A falha da conexão é resposta 200 com sucesso=false.")
     @ApiResponse(responseCode = "200", description = "Resultado, com tempo de resposta e mensagem.")
     @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized")

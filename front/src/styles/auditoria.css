@@ -83,4 +83,8 @@
 .cfg-teste{display:inline-flex;gap:6px;align-items:center;font-size:12px;overflow-wrap:anywhere}
 .cfg-teste.ok{color:#2c5207}
 .cfg-teste.falha{color:var(--red)}
+.cfg-teste.ressalva{color:#7a5a00}
+.cfg-teste{align-items:flex-start}
+.cfg-teste .cfg-teste-mensagem{display:block;color:var(--muted);margin-top:2px}
+.cfg-limite-teste{font-size:12px;color:var(--muted);margin:4px 0 0}
 @media(max-width:640px){.cfg-numero{width:90px}.cfg-barra{bottom:8px}}

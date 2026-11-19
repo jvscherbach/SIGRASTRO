@@ -25,6 +25,7 @@ export const TIPOS_DO_GRUPO: Record<GrupoDeAuditoria, { codigo: string; rotulo: 
     { codigo: 'PERFIL', rotulo: 'Troca de perfil' },
     { codigo: 'USUARIO', rotulo: 'Usuário alterado' },
     { codigo: 'CONFIG', rotulo: 'Configuração alterada' },
+    { codigo: 'CONEXAO', rotulo: 'Teste de conexão' },
   ],
 };
 
