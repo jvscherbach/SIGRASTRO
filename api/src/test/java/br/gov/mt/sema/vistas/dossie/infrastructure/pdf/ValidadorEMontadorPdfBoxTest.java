@@ -21,6 +21,7 @@ import br.gov.mt.sema.vistas.dossie.domain.DocumentoNaoIncluido;
 import br.gov.mt.sema.vistas.testsupport.PdfsDeTeste;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDDocumentInformation;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationLink;
@@ -147,6 +148,24 @@ class ValidadorEMontadorPdfBoxTest {
             assertThat(texto(pdf, 3, 3)).contains("Oficio - pagina 1");
             // a última página está girada em 270°: o extrator quebra o texto vertical, então confere-se o rodapé
             assertThat(texto(pdf, 9, 9)).contains("Página 9 de 9");
+        }
+    }
+
+    @Test
+    void metadadosDoPdfIdentificamORastroSemDadoPessoal() throws IOException {
+        Path saida = pasta.resolve("metadados.pdf");
+
+        montador.montar(capa(), List.of(doc("Oficio", 1, PDRectangle.A4, 0)), TUDO, saida);
+
+        try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+            PDDocumentInformation info = pdf.getDocumentInformation();
+            assertThat(info.getProducer()).isEqualTo("Rastro");
+            assertThat(info.getCreator()).isEqualTo("Rastro");
+            assertThat(info.getTitle()).isEqualTo("Dossiê do Processo 2825/2025");
+            assertThat(info.getSubject()).contains("SIGA Licenciamento").doesNotContainIgnoringCase("SIGA Vistas");
+            // o metadado viaja com o arquivo: nada do interessado nem do usuário que gerou
+            assertThat(String.join("|", info.getTitle(), info.getSubject(), info.getAuthor() == null ? "" : info.getAuthor(),
+                    info.getKeywords() == null ? "" : info.getKeywords())).doesNotContain("Vale Verde");
         }
     }
 

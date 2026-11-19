@@ -42,9 +42,9 @@ public class OpenApiConfig {
 
         return new OpenAPI()
                 .info(new Info()
-                        .title("SIGA Vistas API")
+                        .title("Rastro API")
                         .version("0.1.0")
-                        .description("Consulta de requerimentos e processos e geração do dossiê em PDF."))
+                        .description("Rastro, complemento de consulta ao SIGA Licenciamento (protótipo): consulta de requerimentos e processos e geração do dossiê em PDF (módulo Vistas)."))
                 .components(components)
                 .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH));
     }

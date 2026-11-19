@@ -15,6 +15,7 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.io.IOUtils;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDDocumentInformation;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
@@ -75,6 +76,7 @@ class MontagemPdfBox implements MontadorDoDossie {
             OpcoesDeMontagem opcoes, Path destino) {
         List<PDDocument> abertos = new ArrayList<>();
         try (PDDocument saida = new PDDocument(IOUtils.createTempFileOnlyStreamCache())) {
+            definirMetadados(saida, capa);
             PDPage paginaDaCapa = paginaA4(saida);
             int convertidos = (int) documentos.stream().filter(DocumentoParaMontagem::convertido).count();
             desenharCapa(saida, paginaDaCapa, capa, documentos.size(), inventario.listados(), convertidos);
@@ -185,6 +187,18 @@ class MontagemPdfBox implements MontadorDoDossie {
         } catch (IOException | RuntimeException e) {
             log.debug("Anotações não tratadas: {}", e.getMessage());
         }
+    }
+
+    /** Produtor do dossiê. Só o título (tipo e número), sem dado pessoal: o metadado viaja com o arquivo. */
+    static final String PRODUTOR = "Rastro";
+
+    private static void definirMetadados(PDDocument saida, DadosDaCapa capa) {
+        PDDocumentInformation informacao = new PDDocumentInformation();
+        informacao.setTitle(capa.titulo());
+        informacao.setSubject("Dossiê de requerimento ou processo do SIGA Licenciamento (módulo Vistas)");
+        informacao.setCreator(PRODUTOR);
+        informacao.setProducer(PRODUTOR);
+        saida.setDocumentInformation(informacao);
     }
 
     // --- capa

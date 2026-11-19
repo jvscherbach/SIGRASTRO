@@ -375,7 +375,7 @@ Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **
 | `GET /configuracoes/conexoes` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
 | `POST /configuracoes/conexoes/{nome}/teste` (S5) | sessão | 403 | 403 | ✓ | — | — | — | `exigirConfiguracoes` |
 
-Fora de `/api`: `GET /actuator/health` (pública, só a situação) e a documentação OpenAPI (`/v3/api-docs`, `/swagger-ui`), desligada por padrão (`OPENAPI_ENABLED=false`) e ligada só no perfil `local`. Toda rota de `/api/**` sem o token responde 401 `NAO_AUTENTICADO`, exceto o login e o download por ticket.
+Fora de `/api`: `GET /actuator/health` (pública, só a situação) e a documentação OpenAPI (`/v3/api-docs`, `/swagger-ui`), desligada por padrão (`OPENAPI_ENABLED=false`) e ligada só no perfil `local`. Toda rota de `/api/**` sem o token responde 401 `NAO_AUTENTICADO`, exceto o login e o download por ticket. O título da documentação é "Rastro API" (R1); a descrição cita o módulo Vistas.
 
 **Prova (bloco 9):** `MatrizDeAcessoTest` exercita esta tabela por MockMvc (mais de 150 cenários: perfil × interessado ou não × sigiloso ou não × dono do pedido ou não) e compara três listas: os mapeamentos de `/api` do Spring, a primeira coluna desta tabela (lida deste arquivo) e os endpoints com cenário no teste. Endpoint novo sem linha aqui ou sem cenário lá quebra o teste. Todas as respostas são varridas atrás de vazamento (veja docs/12).
 
