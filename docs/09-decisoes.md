@@ -464,3 +464,14 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 - **Não mudam:** variáveis de ambiente (`VISTAS_*`, D73), rotas `/api`, SQL, cabeçalhos HTTP `X-Vistas-Truncado` e `X-Vistas-Convertido-De` (contrato com o front; decisão do responsável), o usuário `vistas` e o diretório `/var/tmp/vistas` do container (ligados ao volume `dossies-tmp`, bloco 6), o nome interno `VistasAba` das abas da planilha convertida (mudaria a saída da conversão) e o formato e os níveis do log.
 **Motivo:** renomear sem mudar comportamento e sem exigir que o responsável altere configuração já em uso no mesmo dia.
 **Consequência:** o alias é temporário. A remoção (apagar a classe e a linha do `spring.factories`) fica para depois de a configuração externa usar só `rastro.*`; até lá, o aviso no log mostra o que falta trocar.
+
+## D75 — Renomeação técnica do front e da infraestrutura, sem perder sessão nem volume (R1, bloco 6)
+
+**Contexto:** a Fase 2 da R1 (D73) também troca os nomes técnicos do front, do Compose e do CI. Não pode deslogar ninguém, apagar preferências nem perder o volume do responsável.
+**Decisão:**
+- **Navegador:** `vistas.token` (sessionStorage) → `rastro.token` e `vistas.recentes.<login>` (localStorage) → `rastro.recentes.<login>`. Por esta versão a chave antiga é **reserva**: sem a nova, o valor da antiga é copiado para a nova e a antiga é apagada; com as duas, vale a nova (`core/armazenamento.ts`). O logout apaga as duas.
+- **Compose:** projeto `siga-vistas` → `rastro` (containers, rede e imagens locais passam a `rastro-*`). Os serviços `api` e `front` e a rede `interna` já não tinham o nome antigo. O **volume mantém o nome** `siga-vistas_dossies-tmp` (`name:` fixo em `compose.local.yaml`); a renomeação manual está em [13](13-padroes-tecnicos.md), "Renomeação do Rastro".
+- **CI:** só as tags locais das imagens do job `docker` mudam (`rastro-api:ci`, `rastro-front:ci`). Os workflows não têm segredo nem variável próprios; nomes de workflow, de job e de artefato não tinham o nome antigo.
+- **Não mudam:** `name` do `package.json` e projeto do `angular.json` (`front`, sem o nome antigo; `outputPath` e o `Dockerfile` do front ficam intactos), `nginx.conf` (upstream `api`, sem nome antigo), rotas `/api`, os cabeçalhos `X-Vistas-*` (D74), o usuário `vistas`, o diretório `/var/tmp/vistas` e o caminho de montagem `/run/secrets-vistas` (citado no `.env.local` do responsável), e a senha de demonstração `vistas-demo` (é um valor, igual ao padrão do back-end).
+**Motivo:** trocar o nome sem efeito para quem usa: sessão, recentes e temporários continuam.
+**Consequência:** o fallback das chaves e o nome fixo do volume são temporários (R62). Renomear o repositório, a pasta, o remoto e os pacotes do GHCR fica com o responsável ([13](13-padroes-tecnicos.md), lista manual).

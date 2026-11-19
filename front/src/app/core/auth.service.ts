@@ -2,9 +2,11 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, catchError, map, of, tap } from 'rxjs';
 
+import { PREFIXO, lerComMigracao, removerComAntiga } from './armazenamento';
 import { LoginResposta, Usuario } from './usuario.model';
 
-const CHAVE_TOKEN = 'vistas.token';
+const NOME_TOKEN = 'token';
+const CHAVE_TOKEN = PREFIXO + NOME_TOKEN;
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -17,7 +19,7 @@ export class AuthService {
 
   token(): string | null {
     try {
-      return sessionStorage.getItem(CHAVE_TOKEN);
+      return lerComMigracao(sessionStorage, NOME_TOKEN);
     } catch {
       return null;
     }
@@ -61,7 +63,7 @@ export class AuthService {
   limparSessao(): void {
     this.usuarioAtual.set(null);
     try {
-      sessionStorage.removeItem(CHAVE_TOKEN);
+      removerComAntiga(sessionStorage, NOME_TOKEN);
     } catch {
       // sessionStorage indisponível: nada a limpar.
     }

@@ -156,11 +156,43 @@ Só usa o que é gratuito em repositório privado no plano Free. Faça depois do
    - só faça o merge com `api`, `front`, `e2e`, `docker` e `compose` verdes (ou pulados por ser só documentação) no PR;
    - nada de *force push* na `main`.
 4. **Dependabot.** Settings → *Code security* (o nome da seção varia: *Security* ou *Advanced Security*): ligar **Dependency graph**, **Dependabot alerts** e **Dependabot security updates**. As atualizações de versão já vêm do `dependabot.yml`. Secret scanning e push protection **não** aparecem ou pedem plano pago em privado: não contrate.
-5. **Pacotes no GHCR: acesso e retenção.** O pacote nasce **privado** na primeira publicação. Em Packages (perfil) abra `siga-vistas/api` e `siga-vistas/front` → Package settings: confira *Manage Actions access* (o repositório com permissão de escrita). Mantenha os pacotes privados (R27). **Retenção** (manual, sem custo): a cada release, apague as versões com tag que não serão mais usadas (por exemplo, guarde as três últimas) pelo menu da versão → *Delete version*; uma versão apagada pode ser restaurada em até 30 dias. **Não apague versões sem tag** soltas: cada imagem leva manifestos sem tag (plataforma, `provenance` e `sbom`) e apagar um que ainda faz parte de uma versão com tag quebra essa imagem (P29).
+5. **Pacotes no GHCR: acesso e retenção.** O pacote nasce **privado** na primeira publicação. Em Packages (perfil) abra `<repositório>/api` e `<repositório>/front` (`siga-vistas/...` até a renomeação do repositório; veja "Renomeação do Rastro") → Package settings: confira *Manage Actions access* (o repositório com permissão de escrita). Mantenha os pacotes privados (R27). **Retenção** (manual, sem custo): a cada release, apague as versões com tag que não serão mais usadas (por exemplo, guarde as três últimas) pelo menu da versão → *Delete version*; uma versão apagada pode ser restaurada em até 30 dias. **Não apague versões sem tag** soltas: cada imagem leva manifestos sem tag (plataforma, `provenance` e `sbom`) e apagar um que ainda faz parte de uma versão com tag quebra essa imagem (P29).
 6. **Varredura de segredos local (substitui o secret scanning).** Antes de tornar o repositório ou um pacote público (R27), e de vez em quando, rode o [gitleaks](https://github.com/gitleaks/gitleaks) (código aberto) na sua máquina, sobre todo o histórico, com os valores mascarados. Com o binário da página de releases oficial: `gitleaks detect --source . --log-opts="--all" --redact`. Com Docker, fixe uma versão publicada da imagem oficial: `docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:<versão> detect --source /repo --log-opts="--all" --redact`. Um achado é tratado fora do repositório (troca da credencial e limpeza do histórico); o relatório não é versionado. **Não entra na pipeline.**
 7. **Criar uma versão e conferir as imagens.** Veja "Como publicar uma versão" acima. Depois: Actions → Release deve ficar verde (`validar-ref`, `ci`, `publicar (api)` e `publicar (front)`); o resumo de cada job lista as tags e o digest; em Packages devem aparecer `vX.Y.Z`, `X.Y` e `sha-<curto>`, e **nenhuma** `latest`.
 
 **Alternativa registrada, sem recomendação:** tornar o repositório público torna gratuitos o code scanning, o secret scanning, a proteção de branch, os Environments e os minutos do runner padrão (4 vCPU). Depende antes da varredura do histórico (R27, passo 6) e de decisão do responsável.
+
+## Renomeação do Rastro (R1, Fase 2)
+
+O que a Fase 2 trocou e o que ficou de propósito está em D74 (back-end) e D75 (front e infraestrutura), em [09](09-decisoes.md).
+
+### O que muda na máquina do responsável
+
+- **Projeto Compose:** `name: rastro`. Containers passam a `rastro-api-1` e `rastro-front-1`, a rede a `rastro_interna` e as imagens construídas a `rastro-api` e `rastro-front`.
+- **Volume:** **mantém o nome** `siga-vistas_dossies-tmp` (`name:` fixo em `compose.local.yaml`), então nada se perde. Ao subir, o Compose pode avisar que o volume "já existe e foi criado para o projeto siga-vistas": é esperado e inofensivo.
+- **Primeira subida depois da troca:** se ainda houver containers do projeto antigo rodando, derrube-os antes, **sem `-v`**: `docker compose -p siga-vistas down`. Senão as portas 8080 e 8081 ficam ocupadas pelos antigos.
+- **Imagens antigas** (`siga-vistas-api`, `siga-vistas-front`) ficam no cache do Docker sem uso; apague quando quiser com `docker image rm siga-vistas-api siga-vistas-front`.
+- **Sessão e preferências do navegador:** `vistas.token` (sessionStorage) e `vistas.recentes.<login>` (localStorage) são lidas como reserva e migradas para `rastro.*` na primeira leitura; ninguém é deslogado nem perde os recentes. O fallback sai numa versão futura (risco em [10](10-pendencias-e-riscos.md)).
+
+### Renomear o volume à mão (opcional)
+
+O volume só guarda temporários do dossiê, do modal e das geometrias (todos expiram em minutos ou horas), então descartá-lo é seguro; mesmo assim a decisão é do responsável. Para manter os dados com o nome novo:
+
+1. `docker compose -f compose.yaml -f compose.local.yaml -f compose.verificacao.yaml down` (sem `-v`).
+2. `docker volume create rastro_dossies-tmp`
+3. `docker run --rm -v siga-vistas_dossies-tmp:/de -v rastro_dossies-tmp:/para alpine sh -c "cp -a /de/. /para/"`
+4. Em `compose.local.yaml`, troque `name: siga-vistas_dossies-tmp` por `name: rastro_dossies-tmp` (ou apague a linha `name:`).
+5. Suba de novo e confira; só então, se quiser, `docker volume rm siga-vistas_dossies-tmp`.
+
+### Lista manual do responsável (o Claude não executa nada disto)
+
+1. Renomear o repositório no GitHub (Settings → General → *Repository name*) de `siga-vistas` para o nome novo. O GitHub redireciona o endereço antigo, mas atualize o remoto: `git remote set-url origin <novo endereço>`.
+2. Renomear a pasta local `siga-vistas`. O Docker não depende do nome da pasta (o projeto Compose tem `name:` fixo).
+3. README: o selo do CI e o `cd rastro` do tutorial já apontam para `jvscherbach/rastro` (R1, bloco 6). O selo só funciona depois do passo 1; até lá aparece quebrado. Se a pasta local ainda se chamar `siga-vistas` (passo 2), o `cd rastro` só vale depois de renomeá-la.
+4. **CI:** os workflows não têm segredos nem variáveis próprios (só o `GITHUB_TOKEN` automático), então nada a renomear em Settings → Secrets and variables. Os nomes de workflow e de job (`CI`, `Release`, `api`, `front`, `e2e`, `docker`, `compose`) não tinham o nome antigo e não mudaram; só as tags locais das imagens do job `docker` passaram a `rastro-api:ci` e `rastro-front:ci`.
+5. **GHCR:** o nome da imagem publicada vem do nome do repositório (`ghcr.io/<dono>/<repositório>/api`). Depois do passo 1, a próxima release cria pacotes novos; os antigos (`siga-vistas/api`, `siga-vistas/front`) continuam lá até você apagá-los (passo 5 da seção anterior).
+6. `.env.local`: nenhuma variável mudou de nome; nada a fazer. Se ele tiver `LICENCIAMENTO_API_TOKEN_FILE=/run/secrets-vistas/...`, continua certo (o caminho de montagem não mudou).
+7. Renomear a skill `vistas-banco` é decisão sua (não foi renomeada aqui: o nome é citado no `CLAUDE.md` e nos prompts).
 
 ## Verificação sem sistemas externos
 

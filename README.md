@@ -2,7 +2,7 @@
 
 > Rastro, complemento de consulta ao SIGA Licenciamento (protótipo). Antes chamado "SIGA Vistas".
 
-[![CI](https://github.com/jvscherbach/siga-vistas/actions/workflows/ci.yml/badge.svg)](https://github.com/jvscherbach/siga-vistas/actions/workflows/ci.yml)
+[![CI](https://github.com/jvscherbach/rastro/actions/workflows/ci.yml/badge.svg)](https://github.com/jvscherbach/rastro/actions/workflows/ci.yml)
 
 Integração contínua: veja [Integração contínua](docs/13-padroes-tecnicos.md#integração-contínua) e o [passo a passo no GitHub](docs/13-padroes-tecnicos.md#configuração-no-github-passo-a-passo-feita-pelo-responsável).
 
@@ -87,7 +87,7 @@ Os comandos abaixo funcionam no **Bash** (Linux, macOS, Git Bash) e no **PowerSh
 ### 1. Entre na pasta do projeto
 
 ```bash
-cd siga-vistas
+cd rastro
 ```
 
 Se a pasta estiver em outro lugar, use o caminho dela. Confira com `ls` (Bash) ou `dir` (PowerShell): você deve ver `compose.yaml`, `api` e `front`.

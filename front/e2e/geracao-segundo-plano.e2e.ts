@@ -47,7 +47,7 @@ interface Controle {
 
 async function simular(page: Page, sobre: Partial<Controle> = {}): Promise<Controle> {
   const c: Controle = { postsConcluidos: 0, deletes: 0, consultas: 0, terminaNaConsulta: 3, statusFinal: 'CONCLUIDO', atrasoDoPostMs: 0, ...sobre };
-  await page.addInitScript(() => sessionStorage.setItem('vistas.token', 'token-de-teste'));
+  await page.addInitScript(() => sessionStorage.setItem('rastro.token', 'token-de-teste'));
   await page.route('**/api/**', async (route: Route) => {
     const url = new URL(route.request().url());
     const caminho = url.pathname;

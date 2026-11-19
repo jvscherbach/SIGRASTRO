@@ -43,7 +43,7 @@ describe('AuthService', () => {
     expect(auth.usuario()).toEqual(USUARIO);
     expect(auth.autenticado()).toBe(true);
     expect(auth.token()).toBe('abc');
-    expect(sessionStorage.getItem('vistas.token')).toBe('abc');
+    expect(sessionStorage.getItem('rastro.token')).toBe('abc');
   });
 
   it('restaurar sem token emite false sem chamar a API', () => {
@@ -55,7 +55,7 @@ describe('AuthService', () => {
   });
 
   it('restaurar com token válido carrega o usuário', () => {
-    sessionStorage.setItem('vistas.token', 'abc');
+    sessionStorage.setItem('rastro.token', 'abc');
     let resultado: boolean | undefined;
     auth.restaurar().subscribe((ok) => (resultado = ok));
 
@@ -65,8 +65,21 @@ describe('AuthService', () => {
     expect(auth.usuario()).toEqual(USUARIO);
   });
 
+  it('restaurar com o token na chave antiga vistas.token não desloga e migra a chave (R1, D75)', () => {
+    sessionStorage.setItem('vistas.token', 'abc');
+    let resultado: boolean | undefined;
+    auth.restaurar().subscribe((ok) => (resultado = ok));
+
+    http.expectOne('/api/auth/me').flush(USUARIO);
+
+    expect(resultado).toBe(true);
+    expect(auth.token()).toBe('abc');
+    expect(sessionStorage.getItem('rastro.token')).toBe('abc');
+    expect(sessionStorage.getItem('vistas.token')).toBeNull();
+  });
+
   it('restaurar com token recusado limpa a sessão', () => {
-    sessionStorage.setItem('vistas.token', 'velho');
+    sessionStorage.setItem('rastro.token', 'velho');
     let resultado: boolean | undefined;
     auth.restaurar().subscribe((ok) => (resultado = ok));
 
@@ -78,7 +91,7 @@ describe('AuthService', () => {
   });
 
   it('logout chama a API e limpa a sessão mesmo se a API falhar', () => {
-    sessionStorage.setItem('vistas.token', 'abc');
+    sessionStorage.setItem('rastro.token', 'abc');
     let concluiu = false;
     auth.logout().subscribe(() => (concluiu = true));
 

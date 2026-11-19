@@ -53,7 +53,7 @@ interface Simulacao {
 async function simular(page: Page, usuario: UsuarioSimulado, lista: Lista = 'cheia'): Promise<Simulacao> {
   const sim: Simulacao = { lista, chamadasDaLista: [], arquivos: [], tickets: 0, cancelados: [] };
   const comGeradoPor = usuario !== OPERADOR;
-  await page.addInitScript(() => sessionStorage.setItem('vistas.token', 'token-de-teste'));
+  await page.addInitScript(() => sessionStorage.setItem('rastro.token', 'token-de-teste'));
   await page.route('**/api/**', async (route: Route) => {
     const url = new URL(route.request().url());
     const caminho = url.pathname;

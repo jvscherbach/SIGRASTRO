@@ -207,7 +207,7 @@ jobs:
         with:
           context: api
           push: false
-          tags: siga-vistas-api:ci
+          tags: rastro-api:ci
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
       - name: Construir imagem do front
@@ -215,7 +215,7 @@ jobs:
         with:
           context: front
           push: false
-          tags: siga-vistas-front:ci
+          tags: rastro-front:ci
           cache-from: type=gha,scope=front
           cache-to: type=gha,mode=max,scope=front
 
