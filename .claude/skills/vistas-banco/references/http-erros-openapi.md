@@ -7,7 +7,7 @@
 - Todo erro serializado traz: `status`, `title`, `detail` (seguro), `errorCode` estável, `timestamp`, `path`, `correlationId`. Validação traz também os campos inválidos.
 - **Nunca** serializar stack trace, SQL, nomes de tabela do SIGA, chave de arquivo, token ou credencial.
 
-### Códigos de erro do Vistas
+### Códigos de erro do Rastro
 
 | HTTP | `errorCode` | Situação |
 |---|---|---|

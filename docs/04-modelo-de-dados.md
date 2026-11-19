@@ -7,7 +7,7 @@ Somente leitura. Schemas: `SIGA2_LICENCIAMENTO` (negócio), `SIGA2_CAMUNDA` (mot
 | Tabela | Uso | Colunas principais |
 |---|---|---|
 | `REQUERIMENTO` | Requerimento | `ID`, `NUMERO` (`N/AAAA`), `NUMERO_PROCESSO`, `DATA_ABERTURA`, `DATA_PROTOCOLO_PROCESSO`, `DATA_ALTERACAO`, `SITUACAO_PROCESSO`, `ID_PESSOA`, `ID_TIPO_PROCESSO`, `ID_TIPO_REQUERIMENTO`, `ID_PROCESSO`, `PESO_PRIORIDADE` |
-| `PROCESSO` | Histórico do que foi protocolado (o SIGA Vistas **não lê**; ver [P01](#número-de-processo-requerimentonumero_processo)) | `ID`, `NUMERO`, `NUMERO_PROTOCOLO`, `DATA_ABERTURA` |
+| `PROCESSO` | Histórico do que foi protocolado (o Rastro **não lê**; ver [P01](#número-de-processo-requerimentonumero_processo)) | `ID`, `NUMERO`, `NUMERO_PROTOCOLO`, `DATA_ABERTURA` |
 | `PESSOA` | Interessado, representantes legais e responsáveis técnicos (S4, SCORP) e nome de reserva do responsável pela tarefa | `ID`, `ID_CORPORATIVO` (chave no SCORP), `NOME`, `CPF_CNPJ` (só dígitos, 11 ou 14) |
 | `TIPO_PROCESSO` | Tipo de processo | `DESCRICAO` |
 | `TIPO_REQUERIMENTO` | Tipo do requerimento | `ID`, `DESCRICAO` |
@@ -80,13 +80,13 @@ Removidas na S2.1 (SQL, mapeamento, propriedades, testes e grants). Só voltam c
 
 - *Título exibido:* `TITULO`; senão `NOME_ARQUIVO`; senão `"<descrição da origem> <id>"`. `NOME_ARQUIVO` nulo ou em branco (imóvel, documento do processo) nunca derruba a listagem.
 - *Data:* a da própria origem (tabela acima); a regra "maior data de assinatura" foi removida. `DATA_DOC` nula não derruba nada: o documento vai ao final (RN03).
-- *Situação (RN01):* `INDISPONIVEL` se a chave for nula, vazia ou `"0"` (precedência); `SUBSTITUIDO` se `DATA_FIM` estiver preenchida; senão `VIGENTE`. A Vista exibe esses documentos com a data em "Sem efeito"; o SIGA Vistas também os lista.
-- *Sigilo (RN06):* as seis colunas são `NUMBER` (0/1); normalização tolerante e "na dúvida, sigiloso": número diferente de 0 e `S`, `SIM`, `Y`, `YES`, `T`, `TRUE`, `1` são sigilosos; nulo, 0 e `N`, `NAO`, `NÃO`, `NO`, `F`, `FALSE`, `0` não são; qualquer outro valor não nulo é sigiloso (R18). **Divergência consciente da Vista:** em representante legal e responsável técnico o SIGA Vistas usa a coluna real `SIGILO`, **mesmo que a Vista do SIGA a ignore e mostre sempre "Não"**; a nossa regra é mais restritiva, de propósito (D43, `docs/09`).
+- *Situação (RN01):* `INDISPONIVEL` se a chave for nula, vazia ou `"0"` (precedência); `SUBSTITUIDO` se `DATA_FIM` estiver preenchida; senão `VIGENTE`. A Vista exibe esses documentos com a data em "Sem efeito"; o Rastro também os lista.
+- *Sigilo (RN06):* as seis colunas são `NUMBER` (0/1); normalização tolerante e "na dúvida, sigiloso": número diferente de 0 e `S`, `SIM`, `Y`, `YES`, `T`, `TRUE`, `1` são sigilosos; nulo, 0 e `N`, `NAO`, `NÃO`, `NO`, `F`, `FALSE`, `0` não são; qualquer outro valor não nulo é sigiloso (R18). **Divergência consciente da Vista:** em representante legal e responsável técnico o Rastro usa a coluna real `SIGILO`, **mesmo que a Vista do SIGA a ignore e mostre sempre "Não"**; a nossa regra é mais restritiva, de propósito (D43, `docs/09`).
 - *Deduplicação (RN05):* mesma chave válida (diferente de `"0"`) em mais de uma origem aparece uma vez; vence a primeira origem na ordem da tabela acima. **Divergência da Vista**, que não deduplica: aqui a deduplicação evita repetir páginas no dossiê. Os documentos de representante legal e responsável técnico não duplicam por construção do SQL (uma linha por documento).
 - *Ordem (RN03):* data crescente; sem data ao final; empate por origem (ordem da tabela) e id (numérico).
 - *Tipo de arquivo pela extensão:* PDF; PLANILHA (xls, xlsx, ods); TEXTO (doc, docx, odt, rtf, html, txt); IMAGEM (png, jpg, jpeg); GEOMETRIA (shp, kml, kmz); COMPACTADO (zip, rar, 7z). **Sem extensão ou extensão não reconhecida: `DESCONHECIDO`** (o antigo `OUTRO` deixou de existir). **Compactados nunca aparecem (RN11); geometrias saem da lista de documentos e vêm à parte, em `geometrias`, com download em ZIP (RN10, S4).**
 - *Bloqueio:* `INDISPONIVEL` > `SIGILOSO` (sem perfil) > `NAO_PDF`. `DESCONHECIDO` **não** recebe `NAO_PDF`: é selecionável (se vigente, chave válida e acessível pelo perfil).
-- *Seleção inicial:* a Vista não pré-seleciona nada; desde a S2.2 o SIGA Vistas seleciona **todo documento selecionável** (sem bloqueio: vigente ou sem efeito, inclusive `DESCONHECIDO`), RN13 e D47.
+- *Seleção inicial:* a Vista não pré-seleciona nada; desde a S2.2 o Rastro seleciona **todo documento selecionável** (sem bloqueio: vigente ou sem efeito, inclusive `DESCONHECIDO`), RN13 e D47.
 - *Tipo desconhecido ao baixar:* o validador do dossiê confere a assinatura `%PDF-`. Se for PDF, segue normal; se não, falha **do documento** com "o arquivo não é um PDF (tipo detectado: X)" e vale a RN09. Desde a S3, com a conversão ligada, o tipo real (planilha, texto, HTML, imagem) é convertido para PDF em vez de falhar; só o compactado e o tipo irreconhecível continuam falhando (docs/06). O mesmo vale para documento marcado como PDF cujo conteúdo não é PDF. O tipo detectado vem dos primeiros bytes; o `Content-Type` do repositório não chega à porta de arquivos e não é usado (não é confiável, RNF09).
 
 ## Camunda
@@ -166,16 +166,16 @@ Comportamento das consultas:
 
 ## Mapeamento de objeto e prioridade (P01)
 
-> Origem: análise do código do SIGA Licenciamento (front `cabecalho-requerimento`, back `RequerimentoOutorgaService`, `PrioridadeProcessoService`, `ServidorService`, entidades JPA) e conferência no banco pelo responsável em 21/10/2026. Os nomes de colunas foram confirmados em `ALL_TAB_COLUMNS`. O usuário de leitura do SIGA Vistas tem `SELECT` em todas as tabelas abaixo. A tela atual foi comparada campo a campo com o processo 6023/2025 (outorga), e todos os campos bateram.
+> Origem: análise do código do SIGA Licenciamento (front `cabecalho-requerimento`, back `RequerimentoOutorgaService`, `PrioridadeProcessoService`, `ServidorService`, entidades JPA) e conferência no banco pelo responsável em 21/10/2026. Os nomes de colunas foram confirmados em `ALL_TAB_COLUMNS`. O usuário de leitura do Rastro tem `SELECT` em todas as tabelas abaixo. A tela atual foi comparada campo a campo com o processo 6023/2025 (outorga), e todos os campos bateram.
 
 ### Campos
 
 | Campo da tela | Origem | Junção a partir de `REQUERIMENTO.ID` | Cardinalidade | Regra |
 |---|---|---|---|---|
 | Objetivo (outorga) | `SIGA2_OUTORGA.OBJETIVO_OUTORGA.DESCRICAO` | `REQUERIMENTO_OUTORGA.ID_REQUERIMENTO` → `OBJETIVO_REQUERIMENTO_OUTORGA.ID_REQUERIMENTO_OUTORGA` → `OBJETIVO_OUTORGA.ID` | 1:N | Só objetivos vigentes: `OBJETIVO_REQUERIMENTO_OUTORGA.DATA_FIM IS NULL OR DATA_FIM > SYSTIMESTAMP` |
-| Tipo (bloco Tipo/Objetivo) | `SIGA2_OUTORGA.OBJETIVO_OUTORGA.TIPO_OUTORGA` | igual ao Objetivo | 1:N | Valores `SUBTERRANEA`, `SUPERFICIAL`, `BARRAMENTO`. O SIGA Vistas exibe "Subterrânea", "Superficial" e "Barramento"; valor desconhecido aparece cru |
+| Tipo (bloco Tipo/Objetivo) | `SIGA2_OUTORGA.OBJETIVO_OUTORGA.TIPO_OUTORGA` | igual ao Objetivo | 1:N | Valores `SUBTERRANEA`, `SUPERFICIAL`, `BARRAMENTO`. O Rastro exibe "Subterrânea", "Superficial" e "Barramento"; valor desconhecido aparece cru |
 | Finalidade (outorga) | `SIGA2_OUTORGA.FINALIDADE.DESCRICAO` | `REQUERIMENTO_FINALIDADE_ATIVIDADE.ID_REQUERIMENTO` → `FINALIDADE_ATIVIDADE.ID` → `FINALIDADE.ID` | 1:N pares finalidade/atividade | Remoção física no SIGA (sem vigência) |
-| Atividade (outorga) | `SIGA2_ARRECADACAO.ATIVIDADE.DESCRICAO` | mesma cadeia da Finalidade, por `FINALIDADE_ATIVIDADE.ID_ATIVIDADE_ARRECADACAO = ATIVIDADE.ID` | 1 por par | O SIGA busca pela API da Arrecadação; o SIGA Vistas lê a tabela diretamente (mesmo texto, conferido no processo 6023/2025, atividade 4054). `LEFT JOIN`: sem linha, "—" |
+| Atividade (outorga) | `SIGA2_ARRECADACAO.ATIVIDADE.DESCRICAO` | mesma cadeia da Finalidade, por `FINALIDADE_ATIVIDADE.ID_ATIVIDADE_ARRECADACAO = ATIVIDADE.ID` | 1 por par | O SIGA busca pela API da Arrecadação; o Rastro lê a tabela diretamente (mesmo texto, conferido no processo 6023/2025, atividade 4054). `LEFT JOIN`: sem linha, "—" |
 | Objetivo (licenciamento) | `SIGA2_LICENCIAMENTO.OBJETIVO_LICENCIAMENTO.DESCRICAO_OBJETIVO_LICENCIAMENTO` | `REQUERIMENTO_LICENCIAMENTO.ID_REQUERIMENTO` → `OBJETIVO_LICENCIAMENTO.ID_REQUERIMENTO_LICENCIAMENTO` | 1:N | Sem vigência |
 | Atividade (licenciamento) | `SIGA2_LICENCIAMENTO.REQUERIMENTO_LICENCIAMENTO.DESCRICAO_ATIVIDADE` (e `DESCRICAO_GRUPO_ATIVIDADE`) | `REQUERIMENTO_LICENCIAMENTO.ID_REQUERIMENTO` | 1:1 | — |
 | Prioridade de atendimento | `SIGA2_LICENCIAMENTO.PRIORIDADE_PROCESSO_CRITERIO` | `PRIORIDADE_PROCESSO.ID_REQUERIMENTO` → `PRIORIDADE_PROCESSO_CRITERIO.ID_PRIORIDADE_PROCESSO` | 1:N critérios | Pelo menos 1 critério: "Atendimento prioritário"; nenhum: "Atendimento normal". **Não usar `REQUERIMENTO.PESO_PRIORIDADE`** (o cadastro manual de critérios não o atualiza) |
@@ -183,7 +183,7 @@ Comportamento das consultas:
 
 **Regras de apresentação:**
 - Objetivos e pares Finalidade/Atividade são **listas independentes**, como na tela do SIGA. Não existe pareamento objetivo↔finalidade, e nunca se faz JOIN entre as duas listas.
-- Processos de outorga têm linhas em `REQUERIMENTO_OUTORGA` e os de licenciamento, em `REQUERIMENTO_LICENCIAMENTO`. O SIGA Vistas consulta os dois blocos e mostra o que tiver dados; sem dados, "—". O bloco Tipo/Objetivo só aparece quando há objetivos de outorga.
+- Processos de outorga têm linhas em `REQUERIMENTO_OUTORGA` e os de licenciamento, em `REQUERIMENTO_LICENCIAMENTO`. O Rastro consulta os dois blocos e mostra o que tiver dados; sem dados, "—". O bloco Tipo/Objetivo só aparece quando há objetivos de outorga.
 
 ### Critérios de prioridade (`PRIORIDADE_PROCESSO_CRITERIO.ID_TIPO_PRIORIDADE_PROCESSO`)
 
@@ -211,21 +211,21 @@ Descrições do enum `EnumTipoPrioridadeProcesso` do código do SIGA. O domínio
   - CPF de 11 dígitos com nome encontrado: o nome;
   - CPF sem nome, ou qualquer outro formato: "Responsável não identificado".
   - O CPF do servidor **nunca** sai na API nem aparece na tela.
-- Visibilidade (regra do SIGA Vistas; o SIGA não tem regra própria): o nome só aparece para **Gestor** (`OPERADOR_SIGILO`) e **Administrador**. O Operador não recebe o campo.
+- Visibilidade (regra do Rastro; o SIGA não tem regra própria): o nome só aparece para **Gestor** (`OPERADOR_SIGILO`) e **Administrador**. O Operador não recebe o campo.
 
 ### Número de processo (`REQUERIMENTO.NUMERO_PROCESSO`)
 
 - Não é único: não há constraint nem índice em `NUMERO_PROCESSO` (conferido em `ALL_IND_COLUMNS`), e o código do SIGA não impede repetição. O SIGA também tem um fluxo que copia o número de processo legado para um segundo requerimento.
-- A tabela `PROCESSO` é um histórico do que foi protocolado, usado pelo SIGA para abrir alteração, renovação, cancelamento ou transferência sobre título emitido. O SIGA Vistas **não a consulta** e não filtra por origem: só a `REQUERIMENTO` importa (decisão do responsável).
+- A tabela `PROCESSO` é um histórico do que foi protocolado, usado pelo SIGA para abrir alteração, renovação, cancelamento ou transferência sobre título emitido. O Rastro **não a consulta** e não filtra por origem: só a `REQUERIMENTO` importa (decisão do responsável).
 - Em 21/10/2026 havia 1 número repetido, `445/2022`, nos requerimentos 3391/2022 (concluído, protocolado) e 3798/2023 (cancelado pelo cadastrante, sem data de protocolo), ambos no mesmo `ID_PROCESSO` e de origem SIGA. É anomalia de dado, a comunicar à equipe do SIGA.
-- Regra do SIGA Vistas: a busca por número de processo trata o resultado como **1:N**. Com 1 resultado, abre o detalhe; com mais de 1, lista todos para o usuário escolher. A chave é sempre `REQUERIMENTO.ID`.
+- Regra do Rastro: a busca por número de processo trata o resultado como **1:N**. Com 1 resultado, abre o detalhe; com mais de 1, lista todos para o usuário escolher. A chave é sempre `REQUERIMENTO.ID`.
 - Sem índice em `NUMERO_PROCESSO`, a busca por número de processo lê a tabela inteira, cerca de 63 mil requerimentos (risco de desempenho baixo, registrado em `docs/10`).
 
 ### Busca por CPF/CNPJ
 
 `PESSOA.CPF_CNPJ` guarda só dígitos (11 ou 14). A busca compara direto (`p.CPF_CNPJ = :digitos`), sem `REGEXP_REPLACE`.
 
-### Tabelas do SIGA lidas pelo SIGA Vistas (para o grant do usuário de leitura)
+### Tabelas do SIGA lidas pelo Rastro (para o grant do usuário de leitura)
 
 `SIGA2_LICENCIAMENTO`: `REQUERIMENTO`, `PESSOA`, `TIPO_PROCESSO`, `TIPO_REQUERIMENTO`, `PRIORIDADE_PROCESSO`, `PRIORIDADE_PROCESSO_CRITERIO`, `REQUERIMENTO_LICENCIAMENTO`, `OBJETIVO_LICENCIAMENTO`, `SERVIDOR`.
 `SIGA2_OUTORGA`: `REQUERIMENTO_OUTORGA`, `OBJETIVO_REQUERIMENTO_OUTORGA`, `OBJETIVO_OUTORGA`, `REQUERIMENTO_FINALIDADE_ATIVIDADE`, `FINALIDADE_ATIVIDADE`, `FINALIDADE`.
@@ -249,7 +249,7 @@ Somente `CREATE SESSION` e `SELECT` em (na versão definitiva, preferir views `V
 
 **Grants da S2.1:** `SELECT` nas 11 tabelas lidas pelas seis origens, no script do [roteiro da S2](homologacao/S2-roteiro-homologacao.md): `DOCUMENTO_PROCESSO`, `DOCUMENTO_REQUERIMENTO`, `COMPLEMENTACAO`, `COMPLEMENTACAO_ITEM`, `COMPLEMENTACAO_ITEM_ARQUIVO`, `IMOVEL`, `DOCUMENTO_IMOVEL`, `REQUERIMENTO_REPRESENTANTE_LEGAL`, `REQ_REP_LEGAL_DOCUMENTO`, `REQUERIMENTO_RESPONSAVEL_TECNICO`, `REQ_RESP_TECNICO_DOCUMENTO`.
 
-**Grants necessários até a S1.1** (só estes): `CREATE SESSION` e `SELECT` nas tabelas da lista "Tabelas do SIGA lidas pelo SIGA Vistas" (seção P01), mais `SIGA2_CAMUNDA.ACT_RU_EXECUTION`, `ACT_RU_TASK` e `ACT_RE_PROCDEF`. Os testes de integração criam um usuário com exatamente esses grants. O script de referência para o DBA está no [roteiro da S1.1](homologacao/S1.1-roteiro-homologacao.md).
+**Grants necessários até a S1.1** (só estes): `CREATE SESSION` e `SELECT` nas tabelas da lista "Tabelas do SIGA lidas pelo Rastro" (seção P01), mais `SIGA2_CAMUNDA.ACT_RU_EXECUTION`, `ACT_RU_TASK` e `ACT_RE_PROCDEF`. Os testes de integração criam um usuário com exatamente esses grants. O script de referência para o DBA está no [roteiro da S1.1](homologacao/S1.1-roteiro-homologacao.md).
 
 ## Apêndice A — Situações
 

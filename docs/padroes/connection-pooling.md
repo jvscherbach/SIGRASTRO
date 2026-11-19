@@ -32,7 +32,7 @@ vistas:
 
 ## Pool de leitura do SIGA: pequeno de propósito
 
-- O banco do SIGA atende o próprio SIGA em produção. O Vistas é um consumidor secundário e não pode competir por sessões.
+- O banco do SIGA atende o próprio SIGA em produção. O Rastro é um consumidor secundário e não pode competir por sessões.
 - As consultas são curtas (lista de documentos, tarefa atual). A parte demorada da geração do dossiê é download e conversão, que **não** seguram conexão.
 - Regra de código: nunca manter conexão do SIGA aberta durante download, conversão ou montagem do PDF. Ler os metadados, liberar a conexão, depois processar.
 - `maximum-pool-size × réplicas` é o que chega ao SIGA. Pedir ao DBA do SIGA o limite aceitável antes de fixar.

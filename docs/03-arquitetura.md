@@ -1,5 +1,7 @@
 # 03 — Arquitetura
 
+> Nome do produto: **Rastro** (antes "SIGA Vistas"). O módulo do dossiê é o **Vistas**. Os nomes técnicos (pacote `br.gov.mt.sema.vistas`, propriedades `vistas.*`, variáveis `VISTAS_*`, schemas) continuam como estão até a Fase 2 da R1 ([01](01-visao-geral.md)).
+
 ## Visão geral
 
 ```

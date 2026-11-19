@@ -1,8 +1,8 @@
-# Vistas do Processo — Protótipo
+# Rastro — Protótipo
 
-Serviço externo ao SIGA Licenciamento que gera o **dossiê em PDF** de um requerimento ou processo, reunindo os documentos selecionados em ordem cronológica.
+Serviço externo ao SIGA Licenciamento que gera o **dossiê em PDF** de um requerimento ou processo, reunindo os documentos selecionados em ordem cronológica. O módulo do dossiê se chama **Vistas** (Vista do Processo).
 
-> Nome do projeto provisório.
+> Produto: **Rastro** (antes "SIGA Vistas"). Ver [01 — Visão geral](01-visao-geral.md) e a decisão D73.
 
 ## Status
 

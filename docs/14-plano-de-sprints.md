@@ -31,6 +31,18 @@ Objetivo do protótipo: comprovar, com processos reais, que (1) os processos que
 | S4 | Regras de acesso | Perfis, sigilo, interessado, geometrias e tela "Dossiês gerados" |
 | S5 | Gestão | Auditoria (documentos e acessos) e configurações, em memória |
 | S6 | Validação e apresentação | Casos de teste executados, evidências e material da apresentação |
+| R1 | Renomeação para Rastro | Nome visível e documentação com "Rastro" (Fase 1, blocos 1 a 4); nomes técnicos só depois da apresentação e da marca `vistas-1.0` (Fase 2, blocos 5 a 7). Ver [R1](#r1--renomeação-para-rastro) |
+| S7, S8, S9 | Tramitação e financeiro (prompts já escritos) | [S7](prompts/S7-tramitacao-onde-esta-e-com-quem.md) (onde está e com quem), [S8](prompts/S8-tramitacao-historico-e-fluxograma.md) (histórico e fluxograma), [S9](prompts/S9-financeiro-taxas-dar-e-pagamentos.md) (taxas, DAR e pagamentos). Ainda sem resultado demonstrável neste plano |
+
+> **Lista incompleta:** faltam no plano as sprints S6 (lista própria), S10 e S11. Não existe índice em `docs/prompts/` para consultar; completar quando forem definidas.
+
+## R1 — Renomeação para Rastro
+
+Prompt: [R1-renomeacao-rastro.md](prompts/R1-renomeacao-rastro.md). Andamento por bloco em [progresso/r1.md](progresso/r1.md). Decisão D73.
+
+- **Fase 1 (blocos 1 a 4, antes da apresentação):** o nome visível do produto passa a ser **Rastro** (front, PDF, OpenAPI e documentação). "Vistas" continua sendo o nome do módulo do dossiê. Não muda comportamento nem nome técnico.
+- **Parada:** a Fase 2 só começa depois da apresentação e da marca de versão `vistas-1.0`, criada pelo responsável.
+- **Fase 2 (blocos 5 a 7, depois da marca):** pacote Java, artefatos e containers, chaves do navegador e propriedades `vistas.*` (com alias), CI e varredura final. Rotas `/api`, SQL, schemas `SIGA2_*`, variáveis de ambiente e regras de negócio não mudam.
 
 ---
 
@@ -109,7 +121,7 @@ Aceite:
 | Tipos | `ACT_RU_TASK.ASSIGNEE_` é `NVARCHAR2(510)`; `PESSOA.CPF_CNPJ` é `VARCHAR2(20)`; `SERVIDOR.CPF` é `VARCHAR2(11)` |
 | Outorga (6023/2025) | Tipo do requerimento, objetivo, tipo, finalidade e atividade conferem com o SIGA; prioridade "Atendimento normal" confere; responsável aparece **só com o nome** |
 | Outorga com prioridade (4162/2026) | 2 objetivos, finalidade/atividade e o critério "Pessoa com idade igual ou superior a 60 anos" conferem com o SIGA |
-| Licenciamento (3040/2022, LAC) | Atividade confere; **diverge no Objetivo:** o SIGA mostra "LAC" e o SIGA Vistas mostra "—" (ver P20); o grupo da atividade aparecia junto da atividade (corrigido na S2, A2) |
+| Licenciamento (3040/2022, LAC) | Atividade confere; **diverge no Objetivo:** o SIGA mostra "LAC" e o Rastro mostra "—" (ver P20); o grupo da atividade aparecia junto da atividade (corrigido na S2, A2) |
 | Número repetido (445/2022) | Lista os 2 requerimentos com o aviso |
 | Busca por CPF/CNPJ | Totais da tela iguais ao `SELECT COUNT(*)` na base de desenvolvimento (8 e 2) |
 | Quadro do topo | **Ainda mudava de tamanho** (corrigido na S2, A1, com medição automática) |
@@ -351,7 +363,7 @@ Aceite:
 
 Entregas:
 - Execução de todos os casos de `casos-de-teste.md`, com resultado, tempo e páginas de cada dossiê.
-- Comparativo: Vista atual do SIGA × SIGA Vistas para os mesmos processos (gera/não gera, planilhas incluídas, documentos listados).
+- Comparativo: Vista atual do SIGA × Rastro para os mesmos processos (gera/não gera, planilhas incluídas, documentos listados).
 - Ajustes finais de usabilidade e correções.
 - Material de apresentação: problema, solução, demonstração, evidências e pedidos (Pandora ou credencial de serviço, ambiente no SIGA, schema próprio Oracle 19c).
 - Atualização de `10-pendencias-e-riscos.md` com o que fica para a versão definitiva.

@@ -1,5 +1,19 @@
 # 01 — Visão geral
 
+## Produto, módulos e fases
+
+O produto se chama **Rastro**: um complemento de consulta ao SIGA Licenciamento (protótipo). Ele reúne consultas sobre o requerimento ou processo: onde está, por onde passou, histórico financeiro e, mais adiante, painel do Gestor. Cada parte é um **módulo**. O primeiro é o **Vistas**, que gera o dossiê da Vista do Processo. Os próximos previstos são "Tramitação", "Taxas" e "Painel" (decisão D73).
+
+- Não usar "SIGA Rastro" nem "Rastro SIGA". O nome antigo, "SIGA Vistas", aparece só em documentos históricos (prompts, progresso e roteiros homologados) e nas decisões antigas.
+- "Vista do Processo" é a funcionalidade do SIGA Licenciamento. "Vistas do Processo" é o rótulo do módulo nas telas e no PDF.
+
+**Escopo em fases da renomeação (R1):**
+
+- **Fase 1 (antes da apresentação):** nome visível (front, PDF, OpenAPI), documentação e instruções do projeto. Não muda comportamento.
+- **Fase 2 (depois da apresentação e da marca `vistas-1.0`):** nomes técnicos, como pacote Java, artefatos, containers, chaves do navegador e propriedades `vistas.*` (com alias). Rotas `/api`, SQL, schemas `SIGA2_*`, variáveis de ambiente e regras de negócio não mudam.
+
+Detalhes em [14 — Plano de sprints](14-plano-de-sprints.md#r1--renomeação-para-rastro).
+
 ## Contexto
 
 O SIGA Licenciamento tem a funcionalidade **Vista do Processo**: o usuário localiza um requerimento ou processo, seleciona documentos e recebe um pacote com eles ("Fazer Carga do Processo").

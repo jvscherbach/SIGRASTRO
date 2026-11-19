@@ -1,10 +1,12 @@
-# SIGA Vistas
+# Rastro
+
+> Rastro, complemento de consulta ao SIGA Licenciamento (protótipo). Antes chamado "SIGA Vistas".
 
 [![CI](https://github.com/jvscherbach/siga-vistas/actions/workflows/ci.yml/badge.svg)](https://github.com/jvscherbach/siga-vistas/actions/workflows/ci.yml)
 
 Integração contínua: veja [Integração contínua](docs/13-padroes-tecnicos.md#integração-contínua) e o [passo a passo no GitHub](docs/13-padroes-tecnicos.md#configuração-no-github-passo-a-passo-feita-pelo-responsável).
 
-O **SIGA Vistas** (nome provisório) é um serviço externo ao SIGA Licenciamento. Ele consulta requerimentos e processos, lista os documentos de cada um e gera um **dossiê em PDF**, com os documentos escolhidos em ordem cronológica.
+O **Rastro** é um serviço externo ao SIGA Licenciamento. Seu primeiro módulo, o **Vistas**, consulta requerimentos e processos, lista os documentos de cada um e gera um **dossiê em PDF**, com os documentos escolhidos em ordem cronológica.
 
 Hoje o projeto é um **protótipo de validação**: o objetivo é provar que os problemas da "Vista do Processo" atual têm solução (processos que não geram a vista e planilhas que ficam fora do PDF). Estão prontas as sprints **S0 a S4**:
 

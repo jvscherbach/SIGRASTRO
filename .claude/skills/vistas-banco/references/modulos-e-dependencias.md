@@ -32,7 +32,7 @@ Regras adicionadas na S5 (bloco 2): (f) `auditoria` não depende de `consulta`, 
 
 Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTest test` (não precisa de Docker). O teste ignora pacotes vazios e passa a inspecioná-los quando recebem classes.
 
-## Contratos internos usados no Vistas
+## Contratos internos usados no Rastro
 
 | Consumidor | Contrato publicado por | Exemplo |
 |---|---|---|
