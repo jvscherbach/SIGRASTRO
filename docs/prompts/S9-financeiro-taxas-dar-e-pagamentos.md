@@ -1,6 +1,6 @@
 # S9: financeiro: taxas, DAR e pagamentos
 
-> **Forma de trabalho:** a sprint é dividida em **11 blocos**, cada um terminando em um **ponto de commit**. Duas sessões do Claude Code (**OPUS** e **SONNET**) recebem **este mesmo prompt**; cada uma executa **somente os blocos atribuídos ao seu modelo**. O responsável alterna as sessões, revisa e commita cada bloco.
+> **Forma de trabalho:** a sprint é dividida em **11 blocos**, cada um terminando em um **ponto de commit**. Três sessões do Claude Code (**OPUS**, **SONNET** e **HAIKU**) recebem **este mesmo prompt**; cada uma executa **somente os blocos atribuídos ao seu modelo**. O responsável alterna as sessões, revisa e commita cada bloco.
 
 ## Contexto
 
@@ -47,9 +47,9 @@ Leia antes de começar: `docs/02`, `docs/03`, `docs/04`, `docs/07`, `docs/08`, `
 - **Relógio injetável:** toda regra que depende de "hoje" usa um `Clock` do projeto (testes com data fixa, inclusive virada do dia e fuso UTC × Cuiabá).
 - Dinheiro: use `BigDecimal` (nunca `double`) e formate em reais pela utilidade de formatação do front.
 
-## Protocolo das duas sessões
+## Protocolo das três sessões
 
-1. **Identifique a sessão:** a primeira mensagem do responsável traz `SESSÃO: OPUS` ou `SESSÃO: SONNET`. Sem essa linha, pergunte e espere; não deduza pelo seu nome de modelo.
+1. **Identifique a sessão:** a primeira mensagem do responsável traz `SESSÃO: OPUS`, `SESSÃO: SONNET` ou `SESSÃO: HAIKU`. Sem essa linha, pergunte e espere; não deduza pelo seu nome de modelo.
 2. **Descubra onde parou:** leia `docs/progresso/s9.md`. Se não existir, nenhum bloco foi feito (bloco atual = 1). O primeiro bloco **não concluído** é o atual.
 3. **O bloco é seu?** Se sim, execute só ele. Se não, **não faça nada nem altere arquivo** e responda: `PRÓXIMO BLOCO: N (<título>), atribuído à sessão <X>. Volte para essa sessão e envie o mesmo prompt com "SESSÃO: <X>".`
 4. **Ao concluir o bloco:**
@@ -59,17 +59,19 @@ Leia antes de começar: `docs/02`, `docs/03`, `docs/04`, `docs/07`, `docs/08`, `
    - rode `git diff --stat` e responda:
 
 ```
-BLOCO N CONCLUÍDO (sessão <OPUS|SONNET>): <título>
+BLOCO N CONCLUÍDO (sessão <OPUS|SONNET|HAIKU>): <título>
 Testes: <rodaram / falharam / pulados>
 Arquivos: <resumo do git diff --stat>
 Mensagem de commit sugerida (Conventional Commits, português):
   <tipo>(<escopo>): <resumo de até 72 caracteres>
 
   <corpo curto: o que muda e por quê>
-PRÓXIMO BLOCO: N+1 (<título>), sessão <OPUS|SONNET>.
+PRÓXIMO BLOCO: N+1 (<título>), sessão <OPUS|SONNET|HAIKU>.
 ```
 
 5. **Pare.** Mesma sessão no próximo bloco: espere "continuar". Outra sessão: a atual termina ali.
+
+**Blocos da sessão HAIKU (documentação mecânica, para economizar tokens).** O Haiku só recebe blocos de documentação cujo conteúdo já está decidido e escrito em outros arquivos (cenários, tabelas, planos). Nesses blocos: **não invente** cenário, número, regra nem nome; copie e organize só o que existe em `docs/`, nos testes e nas fixtures (leia-os antes); o que não achar, escreva como **NÃO CONFIRMADO** em vez de preencher; **nenhum dado real**; rode a varredura de dados pessoais ao final. Se o bloco exigir uma decisão de projeto ou de código, **pare** e responda `Este bloco precisa da sessão SONNET.` O responsável revisa o `git diff` do bloco com mais atenção do que nos demais.
 
 Tipos de commit permitidos: `feat`, `fix`, `refactor`, `test`, `docs`, `perf`, `chore`, `ci`. A mensagem **não** começa com espaço.
 
@@ -87,7 +89,7 @@ Tipos de commit permitidos: `feat`, `fix`, `refactor`, `test`, `docs`, `perf`, `
 | 8 | Front: bloco "Taxas e pagamentos" | **SONNET** | Interface |
 | 9 | Front: marcas financeiras na linha do tempo e no fluxograma | **SONNET** | Interface |
 | 10 | Configurações: parâmetros do financeiro | **SONNET** | Reuso da tela de Configurações |
-| 11 | Roteiro de homologação e fechamento | **SONNET** | Documentação |
+| 11 | Roteiro de homologação e fechamento | **HAIKU** | Documentação a partir de cenários já definidos |
 
 ---
 
@@ -194,13 +196,14 @@ Cenários (números `N/2026` evidentes, dados fictícios; NUM_DAR fictício evid
 - Testes: alteração gera um evento com antes e depois; o Operador não vê a seção (403 `PERFIL_SEM_PERMISSAO`).
 - Docs: `docs/12`.
 
-## Bloco 11 (SONNET): roteiro de homologação e fechamento
+## Bloco 11 (HAIKU): roteiro de homologação e fechamento
 
 **Commit sugerido:** `docs(financeiro): roteiro de homologação e fechamento da S9`
 
 - `docs/roteiros/s9-homologacao.md`: uma linha por cenário FIN01 a FIN16 (o que abrir, o que a tela deve mostrar, "Resultado"). Inclua a **conferência com dados reais (feita pelo responsável, fora do repositório)**: 5 requerimentos com taxa **paga**, 3 **isentos**, 3 com taxa **vencida por data**, 1 com taxa inicial e da correção, comparando o Rastro com o SIGA e com `LANCAMENTO_TAXA`; e a **validação da data do "Isento de Taxa"** (qual coluna vem preenchida nos isentos reais), que **fecha** a decisão provisória do bloco 4. **Nenhum número real entra no repositório.**
 - Atualize `docs/14` (S10 painel do Gestor; S11 pago que virou isento, que usa os dados já lidos) e `docs/progresso/s9.md`; `docs/10` revisado (regras provisórias, índice recomendado, `PASSOU_POR_REAPROV_TAXA_CORREC`, `STATUS_PROCESSADO`).
 - Varredura final de dados reais e `git diff --stat`.
+- **Pendências da S6 que entram aqui:** (a) o roteiro inclui um passo para o responsável **rodar `/verificar-sprint 9` numa sessão nova** e guardar `docs/progresso/verificacao-s9.md`; (b) em `docs/10`, **reordene** as linhas de risco que ficaram fora de sequência (R-números), **sem renumerar** nem mudar o texto, e confira que nenhum R-número se repete; (c) em `docs/14`, deixe a seção antiga "S6 — Validação e apresentação" marcada como **decisão do responsável** (ele decide em qual sprint entra o material de apresentação), sem reescrevê-la.
 
 ---
 
