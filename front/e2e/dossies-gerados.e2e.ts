@@ -248,7 +248,7 @@ test('atualização automática a cada 30 s, parada ao sair da tela', async ({ p
   await page.clock.runFor(30_000);
   await expect.poll(() => sim.chamadasDaLista.length).toBe(2);
 
-  await page.getByRole('link', { name: 'Consulta' }).click();
+  await page.getByRole('link', { name: 'Consulta', exact: true }).click();
   await expect(page).toHaveURL(/\/consulta$/);
   await page.clock.runFor(120_000);
   expect(sim.chamadasDaLista).toHaveLength(2);

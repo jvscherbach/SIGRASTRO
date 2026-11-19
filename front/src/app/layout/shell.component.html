@@ -2,7 +2,7 @@
   <div class="mobile-veil" (click)="menuMobileAberto.set(false)"></div>
 
   <aside class="sidebar" aria-label="Menu principal">
-    <a class="brand" routerLink="/consulta"><img src="assets/img/logo-sema.png" alt="" /><b>SIGA VISTAS</b></a>
+    <a class="brand" routerLink="/consulta"><img src="assets/img/logo-sema.png" alt="" /><span class="brand-nome"><b>RASTRO</b><small>consulta ao SIGA Licenciamento (protótipo)</small></span></a>
     <div class="side-content">
       @for (secao of menu(); track secao.rotulo; let primeira = $first) {
         @if (!primeira) {
@@ -91,7 +91,7 @@
   <main class="main">
     <router-outlet />
     <footer class="page-footer">
-      <span>SIGA Vistas · Dossiê de requerimentos e processos do SIGA Licenciamento</span>
+      <span>Rastro · Complemento de consulta ao SIGA Licenciamento (protótipo)</span>
       <span>SEMA-MT · STI / CSTI · dados fictícios</span>
     </footer>
   </main>
