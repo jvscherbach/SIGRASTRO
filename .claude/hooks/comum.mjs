@@ -97,6 +97,10 @@ export function caminhoDeSegredo(valor) {
   if (/(^|[/=:@<>])\.secrets(\/|$)/.test(barras) || /(^|[=:@<>/])\/?run\/secrets[^/]*(\/|$)/.test(barras)) {
     return true;
   }
+  // Pasta dos segredos fora do projeto (S6.1, bloco 2; docs/claude-code/segredos.md): ~/.rastro/ e qualquer `.rastro/`.
+  if (/(^|[/=:@<>~])\.rastro(\/|$)/.test(barras)) {
+    return true;
+  }
   // Credenciais do usuário fora do projeto (S6.1): chaves SSH, nuvem, Docker, Kubernetes, GPG e tokens de ferramentas.
   if (/(^|[/=:@<>~])\.(ssh|aws|gnupg|kube)(\/|$)/.test(barras) || /(^|\/)\.docker\/config\.json$/.test(barras)) {
     return true;
