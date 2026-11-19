@@ -225,3 +225,5 @@ Somente Administrador. Detalhes em [12 — Configurações](12-configuracoes.md)
 ## Termos na interface
 
 A interface não menciona o motor de fluxo (Camunda). O bloco é chamado apenas de "Tarefa atual".
+
+**Tabelas de Usuários e perfis e de Auditoria (S6, bloco 2).** O detalhe da auditoria (Acessos e Documentos) fica numa célula de tabela comum (a flexibilidade de linha é interna, num `div`), com largura entre 200 e 420 px, quebra de texto longo e o texto completo no `title`. Em Configurações › Usuários e perfis, até 768 px cada usuário aparece como um cartão (rótulo e valor) em vez de linha de tabela, sem rolagem horizontal; acima disso, a tabela de seis colunas. Teste: `front/e2e/layout-tabelas.e2e.ts` (geometria em 1280, 1024, 768 e 360 px).

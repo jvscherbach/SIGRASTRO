@@ -145,15 +145,17 @@
                     <td class="nowrap">{{ processoOuRequerimento(e) }}</td>
                   }
                   <td class="aud-detalhe">
-                    @if (e.arquivo) {
-                      <span class="aud-arquivo">{{ e.arquivo }}</span>
-                    }
-                    @if (e.detalhe) {
-                      <span>{{ e.detalhe }}</span>
-                    }
-                    @if (e.sigiloso) {
-                      <span class="tag red">Sigiloso</span>
-                    }
+                    <div class="aud-detalhe-texto" [attr.title]="textoDoDetalhe(e)">
+                      @if (e.arquivo) {
+                        <span class="aud-arquivo">{{ e.arquivo }}</span>
+                      }
+                      @if (e.detalhe) {
+                        <span>{{ e.detalhe }}</span>
+                      }
+                      @if (e.sigiloso) {
+                        <span class="tag red">Sigiloso</span>
+                      }
+                    </div>
                   </td>
                   <td class="acoes">
                     <button type="button" class="btn sm quiet" [attr.aria-label]="'Ver detalhe do evento ' + e.id" (click)="abrirDetalhe(e)">
