@@ -77,18 +77,33 @@ export function principal(urlDoModulo, nome, avaliar) {
 
 // --- arquivos de segredo (usado pelas duas guardas de leitura)
 
+/** Nomes de arquivo de credencial conhecidos (S6.1): nunca são lidos, nem fora do projeto. */
+export const ARQUIVOS_DE_CREDENCIAL = new Set([
+  '.git-credentials', '.netrc', '_netrc', '.pgpass', '.npmrc', '.pypirc', '.credentials.json', 'id_rsa', 'id_dsa',
+  'id_ecdsa', 'id_ed25519',
+]);
+
 /**
- * `.env`, `.env.local` e `.env.<qualquer coisa>` que não termine em `.example`, e `mapa-local.csv`. Recebe um caminho
- * ou um trecho de comando (com aspas, `=`, `<`, separadores de Windows ou Unix).
+ * `.env`, `.env.local` e `.env.<qualquer coisa>` que não termine em `.example`, `mapa-local.csv` e os arquivos de token
+ * montados (`.secrets/` do projeto e `/run/secrets*` do container, compose.local.yaml). Recebe um caminho ou um trecho
+ * de comando (com aspas, `=`, `<`, `@` de envio, separadores de Windows ou Unix).
  */
 export function caminhoDeSegredo(valor) {
   if (typeof valor !== 'string' || !valor) {
     return false;
   }
   const limpo = valor.replace(/^['"`]+|['"`;,)]+$/g, '').trim();
-  const ultimo = limpo.split(/[\\/=:<>]/).pop() ?? '';
+  const barras = limpo.replace(/\\/g, '/').toLowerCase();
+  if (/(^|[/=:@<>])\.secrets(\/|$)/.test(barras) || /(^|[=:@<>/])\/?run\/secrets[^/]*(\/|$)/.test(barras)) {
+    return true;
+  }
+  // Credenciais do usuário fora do projeto (S6.1): chaves SSH, nuvem, Docker, Kubernetes, GPG e tokens de ferramentas.
+  if (/(^|[/=:@<>~])\.(ssh|aws|gnupg|kube)(\/|$)/.test(barras) || /(^|\/)\.docker\/config\.json$/.test(barras)) {
+    return true;
+  }
+  const ultimo = limpo.split(/[\\/=:<>@]/).pop() ?? '';
   const nome = ultimo.toLowerCase();
-  if (nome === 'mapa-local.csv') {
+  if (nome === 'mapa-local.csv' || ARQUIVOS_DE_CREDENCIAL.has(nome)) {
     return true;
   }
   if (!nome.startsWith('.env')) {
