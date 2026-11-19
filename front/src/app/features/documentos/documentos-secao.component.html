@@ -112,7 +112,7 @@
               <td class="chk">
                 <input
                   type="checkbox"
-                  [attr.aria-label]="'Selecionar ' + d.titulo"
+                  [attr.aria-label]="'Selecionar ' + nome(d)"
                   [checked]="selecionados().has(chaveDe(d))"
                   [disabled]="!selecionavel(d)"
                   (change)="alternar(d)"
@@ -122,9 +122,9 @@
                 <div class="doc-cell">
                   <span [class]="'ext ' + classeDaExtensao(d)">{{ d.extensao ? d.extensao.toUpperCase() : '—' }}</span>
                   <span>
-                    <b>{{ d.titulo || 'Documento ' + d.id }}</b>
+                    <b>{{ nome(d) }}</b>
                     <small>
-                      ID {{ d.id }}@if (d.nomeArquivo) { · {{ d.nomeArquivo }} }
+                      ID {{ d.id }}@if (d.nomeArquivo && d.titulo) { · {{ d.titulo }} }
                       @if (rotuloDoBloqueio(d); as rotulo) {
                         · <span class="doc-aviso-linha">{{ rotulo }}</span>
                       }
@@ -149,7 +149,7 @@
               </td>
               <td class="nowrap acoes">
                 @if (visualizavel(d)) {
-                  <button type="button" class="btn sm quiet visualizar" [attr.aria-label]="'Visualizar ' + d.titulo" (click)="visualizar(d)">
+                  <button type="button" class="btn sm quiet visualizar" [attr.aria-label]="'Visualizar ' + nome(d)" (click)="visualizar(d)">
                     <app-icone nome="eye" />Visualizar
                   </button>
                 }

@@ -63,6 +63,9 @@
           </div>
           <dl class="vis-ficha">
             <div><dt>Arquivo</dt><dd>{{ documento().nomeArquivo || nome() }}</dd></div>
+            @if (documento().titulo && documento().titulo !== documento().nomeArquivo) {
+              <div><dt>Título</dt><dd>{{ documento().titulo }}</dd></div>
+            }
             <div><dt>Tipo</dt><dd>{{ tipo() }}</dd></div>
           </dl>
           <button type="button" class="btn sm" [disabled]="baixando()" (click)="baixarOriginal()">

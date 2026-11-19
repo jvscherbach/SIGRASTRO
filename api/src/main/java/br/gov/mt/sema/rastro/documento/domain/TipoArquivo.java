@@ -45,6 +45,29 @@ public enum TipoArquivo {
     }
 
     /** Extensão em minúsculas, sem o ponto; vazia quando o nome não tem extensão. */
+    /**
+     * Nome do arquivo sem a extensão ({@code Teste de bombeamento.xlsx} vira {@code Teste de bombeamento}). Só é
+     * extensão o que vem depois do último ponto quando tem de 1 a 5 letras ou dígitos (ponto no meio, como em
+     * {@code Relatório v1.2 final}, não é extensão). Sem extensão devolve o próprio nome; nome só com extensão
+     * ({@code .xlsx}) ou vazio devolve vazio.
+     */
+    public static String semExtensao(String nomeArquivo) {
+        if (nomeArquivo == null) {
+            return "";
+        }
+        String nome = nomeArquivo.trim();
+        int ponto = nome.lastIndexOf('.');
+        if (ponto < 0) {
+            return nome;
+        }
+        String sufixo = nome.substring(ponto + 1);
+        boolean extensao = !sufixo.isEmpty() && sufixo.length() <= 5 && sufixo.chars().allMatch(Character::isLetterOrDigit);
+        if (extensao) {
+            return nome.substring(0, ponto).trim();
+        }
+        return sufixo.isEmpty() ? nome.substring(0, ponto).trim() : nome;
+    }
+
     public static String extensaoDe(String nomeArquivo) {
         if (nomeArquivo == null) {
             return "";

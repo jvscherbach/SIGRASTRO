@@ -475,3 +475,10 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 - **Não mudam:** `name` do `package.json` e projeto do `angular.json` (`front`, sem o nome antigo; `outputPath` e o `Dockerfile` do front ficam intactos), `nginx.conf` (upstream `api`, sem nome antigo), rotas `/api`, os cabeçalhos `X-Vistas-*` (D74), o usuário `vistas`, o diretório `/var/tmp/vistas` e o caminho de montagem `/run/secrets-vistas` (citado no `.env.local` do responsável), e a senha de demonstração `vistas-demo` (é um valor, igual ao padrão do back-end).
 **Motivo:** trocar o nome sem efeito para quem usa: sessão, recentes e temporários continuam.
 **Consequência:** o fallback das chaves e o nome fixo do volume são temporários (R62). Renomear o repositório, a pasta, o remoto e os pacotes do GHCR fica com o responsável ([13](13-padroes-tecnicos.md), lista manual).
+
+## D76 — Nome do arquivo na coluna do nome; título é o tipo (S6, bloco 1)
+
+**Contexto:** a homologação da S5 comparou com a Vista do SIGA: o Rastro mostrava o `TITULO` (tipo/descrição, ex.: "Teste de bombeamento.") onde o SIGA mostra o nome do arquivo, e o cabeçalho da planilha convertida repetia o tipo. O mapeamento do SQL (`TITULO`, `NOME_ARQUIVO`) já estava certo; o erro era de exibição.
+**Decisão:** o nome exibido é o nome do arquivo (`Documento.nome()`), com o título como linha secundária; o cabeçalho da planilha é o nome do arquivo sem extensão. O DTO e o formato dos eventos de auditoria não mudam.
+**Motivo:** reproduzir a Vista do SIGA; o sumário, o modal e a planilha falam do mesmo nome.
+**Consequência:** `ItemDoPedido.titulo()` passou a guardar o nome exibido; `descricao()` guarda o título/tipo (retrato da auditoria) e `tituloDeCabecalho()` o texto da planilha.

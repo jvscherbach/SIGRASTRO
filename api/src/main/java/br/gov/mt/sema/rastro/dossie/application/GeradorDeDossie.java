@@ -174,7 +174,7 @@ public class GeradorDeDossie {
     private PdfPreparado preparar(PedidoDeDossie pedido, Path original, ItemDoPedido item, Path pdf) {
         convertendo.put(pedido.id(), Thread.currentThread());
         try {
-            return preparador.preparar(original, item.extensao(), pdf, item.titulo());
+            return preparador.preparar(original, item.extensao(), pdf, item.tituloDeCabecalho());
         } finally {
             convertendo.remove(pedido.id());
             Thread.interrupted();

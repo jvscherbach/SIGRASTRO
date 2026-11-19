@@ -82,8 +82,9 @@ public class CriarDossie {
         LocalDateTime agora = LocalDateTime.now(relogio);
         List<ItemDoPedido> itens = new ArrayList<>();
         for (Documento d : selecionados.escolhidos()) {
-            itens.add(new ItemDoPedido(d.origem().name(), d.origem().descricao(), d.id(), d.titulo(), d.data(),
-                    d.chaveDoArquivo(), posicoes.get(d), d.extensao(), d.nomeArquivo(), d.sigiloso()));
+            itens.add(new ItemDoPedido(d.origem().name(), d.origem().descricao(), d.id(), d.nome(), d.data(),
+                    d.chaveDoArquivo(), posicoes.get(d), d.extensao(), d.nomeArquivo(), d.sigiloso(), d.titulo(),
+                    d.nomeParaCabecalho()));
         }
         List<DocumentoNaoIncluido> naoSelecionados = new ArrayList<>();
         for (SelecaoParaDossie.NaoSelecionado n : selecionados.naoSelecionados()) {

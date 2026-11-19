@@ -3,6 +3,7 @@ import {
   chaveDe,
   classeDaExtensao,
   filtrar,
+  nomeExibido,
   normalizar,
   ordenar,
   referenciaDe,
@@ -184,6 +185,30 @@ describe('documentos.logic', () => {
     it('normalizar tira acento, maiúsculas e espaços das pontas', () => {
       expect(normalizar('  AÇÃO Média ')).toBe('acao media');
       expect(normalizar(null)).toBe('');
+    });
+  });
+
+  describe('nome do arquivo × tipo (S6)', () => {
+    it('a coluna do nome mostra o nome do arquivo; sem ele, o título; sem ambos, o rótulo', () => {
+      expect(nomeExibido({ nomeArquivo: 'Planilha de vazão.v2.xlsx', titulo: 'Teste de bombeamento.' }, 'Documento 1')).toBe(
+        'Planilha de vazão.v2.xlsx',
+      );
+      expect(nomeExibido({ nomeArquivo: null, titulo: 'Documento sigiloso' }, 'Documento 1')).toBe('Documento sigiloso');
+      expect(nomeExibido({ nomeArquivo: null, titulo: null }, 'Documento 1')).toBe('Documento 1');
+    });
+
+    it('ordena pelo nome do arquivo, não pelo título (tipo)', () => {
+      const itens = [
+        documento({ id: '1', titulo: 'Alfa', nomeArquivo: 'zeta.pdf' }),
+        documento({ id: '2', titulo: 'Zeta', nomeArquivo: 'alfa.pdf' }),
+      ];
+      expect(ordenar(itens, { campo: 'titulo', direcao: 1 }).map((d) => d.id)).toEqual(['2', '1']);
+    });
+
+    it('o filtro de busca continua achando pelo tipo e pelo nome do arquivo', () => {
+      const itens = [documento({ id: '1', titulo: 'Teste de bombeamento.', nomeArquivo: 'laudo-final.xlsx' })];
+      expect(filtrar(itens, 'bombeamento', '')).toHaveLength(1);
+      expect(filtrar(itens, 'laudo', '')).toHaveLength(1);
     });
   });
 });

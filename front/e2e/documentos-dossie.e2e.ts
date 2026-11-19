@@ -373,7 +373,7 @@ test('Visualizar abre o PDF por Blob (token no cabeçalho, nunca na URL), fecha 
   const alturaAntes = await page.locator('.dash-hero').evaluate((e) => e.getBoundingClientRect().height);
 
   await page.locator('tbody tr', { hasText: 'Requerimento assinado' }).getByRole('button', { name: /Visualizar/ }).click();
-  const modal = page.getByRole('dialog', { name: 'Requerimento assinado' });
+  const modal = page.getByRole('dialog', { name: 'requerimento-assinado.pdf' });
   await expect(modal).toBeVisible();
   const moldura = modal.locator('iframe');
   await expect(moldura).toBeVisible();
@@ -448,4 +448,15 @@ test('sigiloso sem perfil: o modal mostra o motivo e nenhuma requisição de con
 
   await expect(page.locator('app-visualizador-documento .vis-sigiloso')).toContainText('sigiloso e não está disponível para o seu perfil');
   expect(pedidos).toHaveLength(0);
+});
+
+test('a coluna do documento mostra o nome do arquivo e o tipo/título na linha de baixo (S6)', async ({ page }) => {
+  await simular(page);
+  await page.goto('/consulta/requerimentos/101');
+
+  const linha = page.locator('tbody tr', { hasText: 'Requerimento assinado' });
+  await expect(linha.locator('b')).toHaveText('requerimento-assinado.pdf');
+  await expect(linha.locator('small')).toContainText('Requerimento assinado');
+  // sem nome de arquivo (tipo não informado): o título aparece como nome
+  await expect(page.locator('tbody tr', { hasText: 'Planta' }).locator('b')).toHaveText('Planta');
 });

@@ -109,11 +109,12 @@ Seção própria logo abaixo de Documentos (S4, RN10), a partir de `geometrias` 
 
 ### Documentos
 
-Como implementado (S2), no detalhe, abaixo do objeto. Colunas: seleção, documento (título, ID e nome do arquivo), origem (descrição), data e sigilo. A coluna "Sem efeito" da tela atual e a situação (vigente, substituído) não são exibidas como coluna.
+Como implementado (S2), no detalhe, abaixo do objeto. Colunas: seleção, documento (**nome do arquivo** em destaque e, na linha de baixo, ID e título/tipo; S6), origem (descrição), data e sigilo. A coluna "Sem efeito" da tela atual e a situação (vigente, substituído) não são exibidas como coluna.
 
 Comportamento:
 
 - ordenação padrão por data crescente (RN03); clicar em **Documento**, **Origem** ou **Data** ordena (e inverte); sem data vai sempre ao final; `aria-sort` no cabeçalho;
+- **ordenação** pelo nome do arquivo (sem ele, pelo título); a mesma regra vale nas geometrias, no título do modal "Visualizar" (que também mostra o título) e no detalhe da auditoria (nome do arquivo em destaque);
 - **busca** por texto (título, ID e nome do arquivo, sem acento e sem diferenciar maiúsculas) e **filtro por origem** (as opções vêm dos documentos recebidos);
 - todos os **selecionáveis** vêm selecionados (S2.2, RN13): vigentes e sem efeito, inclusive tipo não informado; **Seleção padrão** volta a marcar todos eles e **Limpar seleção** zera; a caixa do cabeçalho seleciona (ou desmarca) todos os **listados e selecionáveis** (respeita o filtro);
 - substituídos (sem efeito) aparecem selecionados e podem ser desmarcados;

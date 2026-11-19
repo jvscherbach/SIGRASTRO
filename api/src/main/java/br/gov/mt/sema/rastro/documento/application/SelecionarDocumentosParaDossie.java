@@ -74,7 +74,7 @@ public class SelecionarDocumentosParaDossie {
             if (!escolhidos.contains(documento)) {
                 boolean acessivel = politica.podeAcessarDocumento(documento.sigiloso());
                 fora.add(new SelecaoParaDossie.NaoSelecionado(documento,
-                        PoliticaDeAcesso.mascararTitulo(acessivel, documento.titulo()),
+                        PoliticaDeAcesso.mascararTitulo(acessivel, documento.nome()),
                         motivo(documento.bloqueio(podeVerSigilosos, converte))));
             }
         }

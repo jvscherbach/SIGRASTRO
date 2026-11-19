@@ -69,7 +69,7 @@ export class VisualizadorDocumentoComponent implements OnInit {
   private download: Subscription | null = null;
 
   protected readonly podeSelecionar = computed(() => selecionavel(this.documento()));
-  protected readonly nome = computed(() => this.documento().titulo || `Documento ${this.documento().id}`);
+  protected readonly nome = computed(() => this.documento().nomeArquivo || this.documento().titulo || `Documento ${this.documento().id}`);
   protected readonly tipo = computed(() => (this.documento().extensao ?? '').toUpperCase() || 'tipo não informado');
   protected readonly classeDaExtensao = classeDaExtensao;
   protected readonly convertivel = computed(() => {
