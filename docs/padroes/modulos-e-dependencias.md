@@ -4,7 +4,7 @@
 
 Cada módulo materializa **apenas** os pacotes que a funcionalidade usa.
 
-- **`api`**: controllers REST e mapeadores HTTP. DTOs de entrada/saída ficam em `br.gov.mt.sema.vistas.<modulo>.api.dto`. O controller valida (Bean Validation), traduz HTTP e chama um caso de uso — sem regra de negócio.
+- **`api`**: controllers REST e mapeadores HTTP. DTOs de entrada/saída ficam em `br.gov.mt.sema.rastro.<modulo>.api.dto`. O controller valida (Bean Validation), traduz HTTP e chama um caso de uso — sem regra de negócio.
 - **`application`**: casos de uso, comandos, consultas e portas.
 - **`domain`**: modelos, regras, objetos de valor, exceções específicas. Ex.: `SituacaoDocumento` (vigente/substituído/indisponível), regra de ordem cronológica (RN03), regra "completo ou nenhum" (RN09), perfis e permissões.
 - **`infrastructure`**: implementações das portas (persistência própria, adapters em memória do protótipo, PDFBox, LibreOffice, disco temporário).

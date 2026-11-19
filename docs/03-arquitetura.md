@@ -1,6 +1,6 @@
 # 03 — Arquitetura
 
-> Nome do produto: **Rastro** (antes "SIGA Vistas"). O módulo do dossiê é o **Vistas**. Os nomes técnicos (pacote `br.gov.mt.sema.vistas`, propriedades `vistas.*`, variáveis `VISTAS_*`, schemas) continuam como estão até a Fase 2 da R1 ([01](01-visao-geral.md)).
+> Nome do produto: **Rastro** (antes "SIGA Vistas"). O módulo do dossiê é o **Vistas**. Desde a Fase 2 da R1 (bloco 5) o pacote é `br.gov.mt.sema.rastro`, o artefato `rastro-api` e as propriedades `rastro.*` (o prefixo antigo `vistas.*` vale como alias, D74). Variáveis `VISTAS_*`, schemas e o diretório `/var/tmp/vistas` não mudaram ([01](01-visao-geral.md)).
 
 ## Visão geral
 
@@ -30,7 +30,7 @@ O front-end conversa apenas com o back-end. O back-end concentra o acesso ao ban
 | Leitura do SIGA | `NamedParameterJdbcTemplate` (JDBC), driver Oracle `ojdbc11`, datasource somente leitura |
 | Schema próprio (definitivo) | Oracle (23 Free no desenvolvimento, compatível com 19c, ambiente final); Spring Data JPA + Flyway, `ddl-auto=validate` |
 | Agendamento | Spring `@Scheduled` em processo (limpeza de dossiês expirados) |
-| Arquitetura de código | Monólito modular por domínio, pacote raiz `br.gov.mt.sema.vistas`, fiscalizado por ArchUnit |
+| Arquitetura de código | Monólito modular por domínio, pacote raiz `br.gov.mt.sema.rastro` (antes `br.gov.mt.sema.vistas`; R1), fiscalizado por ArchUnit |
 | Montagem de PDF | Apache PDFBox 3 |
 | Conversão de formatos | LibreOffice headless, via JODConverter |
 | Cliente HTTP | `RestClient` (Spring) |

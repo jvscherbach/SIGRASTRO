@@ -130,7 +130,7 @@ Para ver o log da `api` em tempo real (saia com `Ctrl + C`; isso não para o sis
 docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml logs -f api
 ```
 
-Procure a linha `Started VistasApplication`.
+Procure a linha `Started RastroApplication`.
 
 ### 5. Abra no navegador
 
@@ -281,7 +281,7 @@ cd api
 .\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local" "-Dspring-boot.run.arguments=--server.port=8081"
 ```
 
-Mantenha as aspas. A primeira vez baixa o Maven e as dependências (alguns minutos). A API subiu quando aparece `Started VistasApplication` e `Tomcat started on port 8081`. Confira em outro terminal:
+Mantenha as aspas. A primeira vez baixa o Maven e as dependências (alguns minutos). A API subiu quando aparece `Started RastroApplication` e `Tomcat started on port 8081`. Confira em outro terminal:
 
 ```bash
 curl http://localhost:8081/actuator/health

@@ -28,8 +28,8 @@ api/
 ├── mvnw, mvnw.cmd, .mvn/
 └── src/
     ├── main/
-    │   ├── java/br/gov/mt/sema/vistas/
-    │   │   ├── VistasApplication.java
+    │   ├── java/br/gov/mt/sema/rastro/
+    │   │   ├── RastroApplication.java
     │   │   ├── config/                    # datasource do SIGA, RestClient, agendamento, OpenAPI
     │   │   ├── shared/
     │   │   │   ├── api/                   # PageResponse, filtro de correlação
@@ -77,7 +77,7 @@ api/
     │       ├── application-local.yml
     │       └── sql/siga/                  # consultas ao SIGA (.sql)
     └── test/
-        ├── java/br/gov/mt/sema/vistas/
+        ├── java/br/gov/mt/sema/rastro/
         │   ├── ArchitectureTest.java
         │   └── <mesmos pacotes de main>
         └── resources/

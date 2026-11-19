@@ -1,6 +1,6 @@
 spring:
   application:
-    name: siga-vistas-api
+    name: rastro-api
   autoconfigure:
     # Os datasources são configurados pelo projeto (siga agora; vistas na versão definitiva).
     exclude:
@@ -42,7 +42,7 @@ logging:
   pattern:
     level: "%5p [%X{correlationId:-}]"
 
-vistas:
+rastro:
   datasource:
     siga:
       # Vazia = SIGA não configurado: a api sobe e as consultas respondem 503 SIGA_INDISPONIVEL.

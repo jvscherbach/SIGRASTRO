@@ -1,0 +1,2 @@
+# Alias das propriedades antigas vistas.* -> rastro.* (R1, bloco 5; D74).
+org.springframework.boot.env.EnvironmentPostProcessor=br.gov.mt.sema.rastro.config.AliasDasPropriedadesAntigas

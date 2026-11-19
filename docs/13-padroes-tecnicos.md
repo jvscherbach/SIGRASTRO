@@ -24,7 +24,7 @@ Pontos que moldam todas as regras abaixo:
 
 ## Módulos e quem é dono de cada funcionalidade
 
-Pacote raiz `br.gov.mt.sema.vistas` (nome do projeto provisório).
+Pacote raiz `br.gov.mt.sema.rastro` (antes `br.gov.mt.sema.vistas`; renomeado na Fase 2 da R1, D74). Propriedades com prefixo `rastro.*`; o prefixo antigo `vistas.*` continua aceito como alias, a antiga vence e o log avisa a depreciação sem o valor (`config.AliasDasPropriedadesAntigas`).
 
 | Pacote | Responsabilidade |
 |---|---|

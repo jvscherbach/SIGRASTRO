@@ -1,6 +1,6 @@
 ---
 name: vistas-banco
-description: Contexto arquitetural e padrão de banco do SIGA Vistas (serviço de dossiê da Vista do Processo; Spring Boot 3/Java 21 em monólito modular, pacote raiz br.gov.mt.sema.vistas, front Angular, leitura somente do Oracle do SIGA e schema próprio Oracle via Flyway, desenvolvido em Oracle 23 Free compatível com 19c). Use sempre que o trabalho for no SIGA Vistas — criar módulo, endpoint, caso de uso, consulta ao banco do SIGA, adapter de integração, tarefa agendada, entidade, migration, DTO, contrato HTTP, teste ArchUnit, Compose, ou decidir em qual módulo (acesso, consulta, documento, dossie, auditoria, configuracao, integration.*) algo entra. Não substitui o padrão genérico de DBA (dba-oracle-padrao): este documento registra as decisões específicas do SIGA Vistas e prevalece sobre o genérico quando divergirem.
+description: Contexto arquitetural e padrão de banco do SIGA Vistas (serviço de dossiê da Vista do Processo; Spring Boot 3/Java 21 em monólito modular, pacote raiz br.gov.mt.sema.rastro, front Angular, leitura somente do Oracle do SIGA e schema próprio Oracle via Flyway, desenvolvido em Oracle 23 Free compatível com 19c). Use sempre que o trabalho for no SIGA Vistas — criar módulo, endpoint, caso de uso, consulta ao banco do SIGA, adapter de integração, tarefa agendada, entidade, migration, DTO, contrato HTTP, teste ArchUnit, Compose, ou decidir em qual módulo (acesso, consulta, documento, dossie, auditoria, configuracao, integration.*) algo entra. Não substitui o padrão genérico de DBA (dba-oracle-padrao): este documento registra as decisões específicas do SIGA Vistas e prevalece sobre o genérico quando divergirem.
 ---
 
 # Contexto arquitetural do Rastro
@@ -29,7 +29,7 @@ Pontos que moldam todas as regras abaixo:
 
 ## Módulos e quem é dono de cada funcionalidade
 
-Pacote raiz `br.gov.mt.sema.vistas` (nome do projeto provisório).
+Pacote raiz `br.gov.mt.sema.rastro` (antes `br.gov.mt.sema.vistas`; renomeado na Fase 2 da R1, D74). Propriedades com prefixo `rastro.*`; o prefixo antigo `vistas.*` continua aceito como alias, a antiga vence e o log avisa a depreciação sem o valor (`config.AliasDasPropriedadesAntigas`).
 
 | Pacote | Responsabilidade |
 |---|---|
