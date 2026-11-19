@@ -4,7 +4,7 @@ O repositório traz configuração do próprio Claude Code, versionada, que serv
 
 | Ferramenta | Onde | O que faz | Estado |
 |---|---|---|---|
-| **Hooks (guardas)** | [`.claude/settings.json`](../../.claude/settings.json), [`.claude/hooks/`](../../.claude/hooks/) | Bloqueiam git além de `git diff`, `gh`, apagar volumes, ler arquivo de segredo, despejar variáveis de ambiente; avisam quando um arquivo gravado tem CPF/CNPJ válido, token ou chave privada | S6, bloco 6 — [hooks.md](hooks.md) |
+| **Hooks (guardas)** | [`.claude/settings.json`](../../.claude/settings.json), [`.claude/hooks/`](../../.claude/hooks/) | Bloqueiam git além de `git diff`, `gh`, apagar volumes, ler arquivo de segredo, despejar variáveis de ambiente; avisam quando um arquivo gravado tem CPF/CNPJ válido, token ou chave privada | S6, bloco 6 e S6.1 (postura "na dúvida, bloqueia", camadas e corpus com isca) — [hooks.md](hooks.md), [segredos.md](segredos.md) |
 | **Servidor MCP `rastro`** | [`.mcp.json`](../../.mcp.json), [`tools/mcp-rastro/`](../../tools/mcp-rastro/) | Consultas somente leitura ao Rastro local em modo de demonstração, com saída mascarada | S6, bloco 7 — [mcp.md](mcp.md) |
 | **Subagentes e `/verificar-sprint`** | `.claude/agents/`, `.claude/commands/` | Revisão de segurança, execução de testes e conferência das docs, em paralelo; relatório em `docs/progresso/verificacao-s<N>.md` | S6, bloco 8 — [agentes.md](agentes.md) |
 
@@ -23,7 +23,7 @@ Remova a entrada do hook em `.claude/settings.json` (o bloco com o `matcher` cor
 ## Como rodar os testes
 
 ```bash
-node --test .claude/hooks/guarda-bash.test.mjs .claude/hooks/guarda-arquivos.test.mjs .claude/hooks/varrer-dados.test.mjs
+node --test .claude/hooks/guarda-bash.test.mjs .claude/hooks/guarda-arquivos.test.mjs .claude/hooks/varrer-dados.test.mjs .claude/hooks/vazamento.test.mjs
 ```
 
 (No Node 22 também vale `node --test ".claude/hooks/*.test.mjs"`.) Os testes usam só entradas simuladas: nenhum commit é tentado e nenhum segredo é lido. O CI roda o mesmo comando no job `mudancas`, que sempre executa (docs/13).

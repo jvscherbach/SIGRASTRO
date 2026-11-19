@@ -175,6 +175,16 @@ export function trechosDetalhados(texto) {
       atual += c + texto[++i];
       continue;
     }
+    // `${NOME}` é uma palavra só (expansão de parâmetro): partir nas chaves fazia `echo ${TOKEN}` virar `echo $` e `TOKEN`,
+    // e a variável sensível deixava de ser vista (S6.1, bloco 3: achado do corpus de vazamento).
+    if (c === '$' && texto[i + 1] === '{') {
+      const fim = texto.indexOf('}', i + 2);
+      if (fim !== -1) {
+        atual += texto.slice(i, fim + 1);
+        i = fim;
+        continue;
+      }
+    }
     if ('&|;\n\r(){}`'.includes(c)) {
       if (c === '|' && texto[i + 1] === '|') {
         fechar('||');

@@ -68,12 +68,12 @@ jobs:
             echo "Só documentação mudou: api, front, e2e e docker ficam pulados."
             echo "codigo=false" >> "$GITHUB_OUTPUT"
           fi
-      # Guardas do Claude Code (S6, bloco 6): node --test com o Node que já vem no runner, sem instalar nada (segundos).
+      # Guardas do Claude Code (S6, bloco 6; S6.1, bloco 3: corpus de vazamento com isca): node --test com o Node que já vem no runner, sem instalar nada (segundos).
       # Fica aqui porque este job sempre roda: o filtro acima trata .claude/ como documentação.
       - name: Testes das guardas do Claude Code (.claude/hooks)
         run: >-
           node --test .claude/hooks/guarda-bash.test.mjs .claude/hooks/guarda-arquivos.test.mjs
-          .claude/hooks/varrer-dados.test.mjs
+          .claude/hooks/varrer-dados.test.mjs .claude/hooks/vazamento.test.mjs
 
   api:
     name: api
