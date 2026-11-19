@@ -114,11 +114,6 @@
                       }
                       <button type="button" class="btn sm quiet" (click)="abrirRequerimento(d)"><app-icone nome="arrow" />Abrir requerimento</button>
                     </div>
-                    @if (d.baixado && d.temArquivo) {
-                      <span class="cell-sub nota-baixado">
-                        Entregue ao navegador. Se não apareceu nos downloads, baixe de novo até {{ formatarDataHora(d.expiraEm) }}.
-                      </span>
-                    }
                     @if (mensagemDaAcao(); as m) {
                       @if (m.id === d.id) {
                         <span class="cell-sub erro-acao" role="alert">{{ m.texto }}</span>

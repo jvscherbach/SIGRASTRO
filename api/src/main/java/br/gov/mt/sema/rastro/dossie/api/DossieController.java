@@ -120,8 +120,7 @@ public class DossieController {
 
     @GetMapping("/{id}/arquivo")
     @Operation(summary = "PDF final",
-            description = "inline para pré-visualização, attachment para download. Depois do download completo o "
-                    + "arquivo fica mais 5 minutos para uma nova tentativa e então é apagado (D77). "
+            description = "inline para pré-visualização, attachment para download (o arquivo é apagado ao fim do download). "
                     + "Com ticket (dossiê grande, D49): attachment direto pelo navegador, sem cabeçalho de sessão; "
                     + "ticket inválido, usado, vencido ou de outro pedido dá 403 TICKET_INVALIDO. "
                     + "409 se não há arquivo; 410 se expirou, já foi baixado ou o arquivo sumiu do disco; 500 "

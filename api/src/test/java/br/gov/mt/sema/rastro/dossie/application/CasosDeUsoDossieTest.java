@@ -311,37 +311,16 @@ class CasosDeUsoDossieTest {
     }
 
     @Test
-    void concluirDownloadDeixaAJanelaDeNovaTentativaEDepoisApagaEEh410() {
+    void concluirDownloadApagaOArquivoEDepoisEh410() {
         PedidoDeDossie pedido = criarPedido();
         Path caminho = obterArquivo.executar(pedido.id()).caminho();
 
         obterArquivo.concluirDownload(pedido.id());
 
-        // D77: o servidor não sabe se o navegador gravou; o arquivo fica para "Tentar novamente".
-        assertThat(caminho).exists();
-        assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
-        assertThat(pedido.baixado()).isTrue();
-        assertThat(pedido.expiraEm()).isEqualTo(LocalDateTime.now(relogio)
-                .plusMinutes(ObterArquivoDoDossie.JANELA_DE_NOVA_TENTATIVA_MINUTOS));
-        assertThat(obterArquivo.executar(pedido.id()).caminho()).isEqualTo(caminho);
-
-        relogio.avancarMinutos(ObterArquivoDoDossie.JANELA_DE_NOVA_TENTATIVA_MINUTOS);
-
-        assertThatThrownBy(() -> obterArquivo.executar(pedido.id())).isInstanceOf(DossieExpiradoException.class);
         assertThat(caminho).doesNotExist();
-        assertThat(pasta.resolve(pedido.id())).as("o diretório do pedido some ao fim da janela").doesNotExist();
+        assertThat(pasta.resolve(pedido.id())).as("o diretório do pedido some com o download").doesNotExist();
         assertThat(pedido.status()).isEqualTo(StatusDossie.EXPIRADO);
-    }
-
-    @Test
-    void janelaDeNovaTentativaNuncaEstendeAValidade() {
-        PedidoDeDossie pedido = criarPedido();
-        relogio.avancarMinutos(28);
-
-        obterArquivo.concluirDownload(pedido.id());
-
-        assertThat(pedido.expiraEm()).as("faltavam 2 min: a janela não dá 5")
-                .isEqualTo(LocalDateTime.now(relogio).plusMinutes(2));
+        assertThatThrownBy(() -> obterArquivo.executar(pedido.id())).isInstanceOf(DossieExpiradoException.class);
     }
 
     @Test
@@ -505,7 +484,7 @@ class CasosDeUsoDossieTest {
     }
 
     @Test
-    void downloadPorTicketConcluidoAceitaNovoTicketNaJanelaEDepoisApagaEEh410() {
+    void downloadPorTicketConcluidoApagaODiretorioEDepoisEh410() {
         PedidoDeDossie pedido = criarPedido();
         String ticket = emitirTicket.executar(pedido.id()).ticket();
         usuario = null;
@@ -513,11 +492,9 @@ class CasosDeUsoDossieTest {
         ObterArquivoDoDossie.ArquivoDoDossie arquivo = obterArquivo.executarPorTicket(pedido.id(), ticket);
         obterArquivo.concluirDownload(arquivo);
 
-        usuario = new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true);
-        assertThat(emitirTicket.executar(pedido.id()).ticket()).as("nova tentativa na janela (D77)").isNotBlank();
-        relogio.avancarMinutos(ObterArquivoDoDossie.JANELA_DE_NOVA_TENTATIVA_MINUTOS);
-        assertThatThrownBy(() -> emitirTicket.executar(pedido.id())).isInstanceOf(DossieExpiradoException.class);
         assertThat(pasta.resolve(pedido.id())).doesNotExist();
+        usuario = new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true);
+        assertThatThrownBy(() -> emitirTicket.executar(pedido.id())).isInstanceOf(DossieExpiradoException.class);
     }
 
     @Test
@@ -1015,12 +992,6 @@ class CasosDeUsoDossieTest {
         arquivos.comportamentos.remove("K2");
         String baixado = criarComo(GESTOR);
         obterArquivo.concluirDownload(baixado);
-        assertThat(unico(baixado).situacao()).as("na janela de nova tentativa (D77)")
-                .isEqualTo(ListarDossiesGerados.Situacao.CONCLUIDO);
-        assertThat(unico(baixado).baixado()).isTrue();
-        assertThat(unico(baixado).temArquivo()).isTrue();
-        // Fim da janela só para este pedido (os outros seguem dentro da validade).
-        repositorio.buscar(baixado).orElseThrow().registrarAtividade(LocalDateTime.now(relogio).minusSeconds(1));
 
         assertThat(unico(naFila).situacao()).isEqualTo(ListarDossiesGerados.Situacao.AGUARDANDO);
         assertThat(unico(obtendo).situacao()).isEqualTo(ListarDossiesGerados.Situacao.OBTENDO);

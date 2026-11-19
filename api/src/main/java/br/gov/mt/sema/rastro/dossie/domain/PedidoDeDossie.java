@@ -190,19 +190,10 @@ public final class PedidoDeDossie {
         return baixado;
     }
 
-    /**
-     * Download completo do PDF final (o servidor enviou o último byte). O arquivo continua por uma janela curta para
-     * "Tentar novamente" (S6, bloco 3, D77): o servidor não sabe se o navegador conseguiu gravar (ex.: disco cheio no
-     * computador do usuário). A validade passa a ser o menor entre a atual e {@code fimDaJanela}; ao vencer, o pedido
-     * expira como "baixado" e o arquivo é apagado (RNF05).
-     */
-    public synchronized void marcarBaixado(LocalDateTime fimDaJanela) {
-        if (status != StatusDossie.CONCLUIDO) {
-            return;
-        }
-        baixado = true;
-        if (expiraEm == null || fimDaJanela.isBefore(expiraEm)) {
-            expiraEm = fimDaJanela;
+    /** Download completo do PDF final: marca antes de expirar. */
+    public synchronized void marcarBaixado() {
+        if (status == StatusDossie.CONCLUIDO) {
+            baixado = true;
         }
     }
 

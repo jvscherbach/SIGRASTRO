@@ -64,14 +64,13 @@ public class ListarDossiesGerados {
      * @param tamanhoBytes só com arquivo para baixar
      * @param arquivoGerado o PDF chegou a ser montado (EXPIRADO sem ele = "nenhum arquivo gerado")
      * @param geradoPor    nome de quem gerou; nulo para o Operador
-     * @param baixado      o download já foi completo e o arquivo está na janela de nova tentativa (D77)
      * @param codigoDaFalha código do motivo em FALHA (ex.: ARMAZENAMENTO_INSUFICIENTE); nulo nas outras situações
      * @param motivoDaFalha texto para o usuário em FALHA, sem caminho de arquivo; nulo nas outras situações
      */
     public record DossieGerado(String id, long idRequerimento, String rotulo, String numero, Situacao situacao,
             LocalDateTime criadoEm, LocalDateTime expiraEm, int documentos, int falhas, int listados,
             Long tamanhoBytes, boolean entregaPorTicket, boolean temArquivo, boolean arquivoGerado, String geradoPor,
-            boolean baixado, String codigoDaFalha, String motivoDaFalha) {
+            String codigoDaFalha, String motivoDaFalha) {
     }
 
     public record Pagina(List<DossieGerado> itens, int pagina, int tamanho, long total) {
@@ -113,7 +112,7 @@ public class ListarDossiesGerados {
                 situacao(pedido), pedido.criadoEm(), pedido.expiraEm(), documentos, pedido.falhas().size(),
                 pedido.listados(), tamanho, tamanho != null && tamanho > limiteDoBlob, temArquivo,
                 pedido.arquivoGerado(), veOutros ? pedido.capa().usuario() : null,
-                temArquivo && pedido.baixado(), erro == null ? null : erro.codigo(), erro == null ? null : erro.motivo());
+                erro == null ? null : erro.codigo(), erro == null ? null : erro.motivo());
     }
 
     private static Situacao situacao(PedidoDeDossie pedido) {

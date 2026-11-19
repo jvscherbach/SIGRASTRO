@@ -495,8 +495,8 @@ export class AcompanhamentoDeDossieService {
 
   /**
    * Baixa o PDF por Blob. Só depois de conferir que o corpo chegou inteiro (tamanho e assinatura %PDF-) o arquivo é
-   * entregue ao navegador e a gaveta diz "entregue". O servidor guarda o arquivo mais alguns minutos (D77): como a
-   * página não sabe se o navegador conseguiu gravar (ex.: disco cheio), "Tentar novamente" continua possível.
+   * entregue ao navegador e a gaveta diz "entregue" (nota neutra: a página não sabe se o navegador conseguiu gravar).
+   * O servidor apaga o arquivo ao fim do download (RNF05, D77): baixar outra vez exige gerar de novo.
    */
   baixar(): void {
     const pedido = this.pedido;
@@ -526,15 +526,13 @@ export class AcompanhamentoDeDossieService {
           baixarBlob(resposta.body as Blob, nome);
           this.baixado.set(true);
           this.descartarPrevia();
-          // A validade encurta para a janela de nova tentativa: o andamento traz o novo prazo.
-          this.consultar();
         });
       },
       error: (erro: unknown) => this.falhaDeArquivo(erro),
     });
   }
 
-  /** "Tentar novamente" depois de um download que falhou ou que o navegador não gravou: repete o download. */
+  /** "Tentar novamente" depois de um download que falhou antes de chegar inteiro: repete o download. */
   tentarDownloadDeNovo(): void {
     this.baixado.set(false);
     this.baixadoDireto.set(false);
@@ -576,7 +574,6 @@ export class AcompanhamentoDeDossieService {
         baixarDireto(this.api.urlDeDownloadDireto(pedido, ticket));
         this.baixadoDireto.set(true);
         this.baixado.set(true);
-        this.consultar();
       },
       error: (erro: unknown) => this.falhaDeArquivo(erro),
     });

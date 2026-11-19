@@ -48,15 +48,8 @@ const TOM_DA_SITUACAO: Record<SituacaoDossieGerado, string> = {
 };
 
 /** "Expirado · nenhum arquivo gerado" quando expirou à espera de decisão (docs/08). */
-export function rotuloDaSituacao(d: Pick<DossieGerado, 'situacao' | 'arquivoGerado' | 'baixado'>): string {
-  if (d.situacao === 'EXPIRADO' && !d.arquivoGerado) {
-    return 'Expirado · nenhum arquivo gerado';
-  }
-  if (d.situacao === 'CONCLUIDO' && d.baixado) {
-    // Janela de nova tentativa (D77): entregue ao navegador, ainda dá para baixar de novo.
-    return 'Pronto · já baixado';
-  }
-  return ROTULO_DA_SITUACAO[d.situacao];
+export function rotuloDaSituacao(d: Pick<DossieGerado, 'situacao' | 'arquivoGerado'>): string {
+  return d.situacao === 'EXPIRADO' && !d.arquivoGerado ? 'Expirado · nenhum arquivo gerado' : ROTULO_DA_SITUACAO[d.situacao];
 }
 
 /** Erro de uma ação na linha: o texto real e se "Tentar novamente" (repetir o download) faz sentido. */
@@ -265,7 +258,7 @@ export class DossiesGeradosComponent implements OnInit {
         }
         const nome = nomeDoContentDisposition(resposta.headers.get('Content-Disposition')) ?? 'dossie.pdf';
         baixarBlob(resposta.body as Blob, nome);
-        // O servidor guarda o arquivo alguns minutos (D77): a linha passa a "Pronto · já baixado" e depois a "Arquivo baixado".
+        // O servidor apaga o arquivo ao fim do download (RNF05, D77): a linha passa a "Arquivo baixado".
         this.descartarPrevia();
         this.carregar();
       });

@@ -247,12 +247,6 @@ describe('DossiesGeradosComponent', () => {
       clique.mockRestore();
     });
 
-    it('já baixado na janela: diz que foi entregue e que dá para baixar de novo', () => {
-      abrir([pedido({ baixado: true })]);
-      expect(linhas()[0].querySelector('.tag')!.textContent!.trim()).toBe('Pronto · já baixado');
-      expect(linhas()[0].textContent).toContain('Se não apareceu nos downloads, baixe de novo');
-    });
-
     it('rótulo da situação', () => {
       expect(rotuloDaSituacao({ situacao: 'EXPIRADO', arquivoGerado: true })).toBe('Expirado');
       expect(rotuloDaSituacao({ situacao: 'EXPIRADO', arquivoGerado: false })).toBe('Expirado · nenhum arquivo gerado');

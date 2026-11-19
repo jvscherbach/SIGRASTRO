@@ -415,14 +415,13 @@ describe('GavetaDossieComponent', () => {
       expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:http://localhost/previa-1');
     });
 
-    it('baixar usa Blob e o nome do Content-Disposition; depois diz "entregue", sem sucesso falso, e permite tentar de novo', async () => {
+    it('baixar usa Blob e o nome do Content-Disposition; depois diz "entregue", sem sucesso falso, e oferece gerar de novo', async () => {
       api.arquivo.mockReturnValue(of(pdf("attachment; filename*=UTF-8''dossie-processo-2825-2025.pdf")));
       const baixados: { nome: string; href: string }[] = [];
       vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
         baixados.push({ nome: this.download, href: this.href });
       });
       abrir();
-      api.andamento.mockClear();
 
       botao('Baixar PDF')!.click();
       await vi.waitFor(() => expect(baixados.length).toBe(1));
@@ -432,14 +431,11 @@ describe('GavetaDossieComponent', () => {
       expect(baixados).toEqual([{ nome: 'dossie-processo-2825-2025.pdf', href: 'blob:http://localhost/previa-1' }]);
       expect(texto()).toContain('Arquivo entregue ao navegador. Confira o arquivo na pasta de downloads');
       expect(texto()).not.toContain('Arquivo baixado');
+      expect(texto()).toContain('O arquivo foi descartado do servidor');
       expect(raiz.querySelector('.gaveta-entregue.lime')).toBeNull();
-      expect(api.andamento).toHaveBeenCalledWith('pedido-1');
       expect(botao('Baixar PDF')).toBeUndefined();
-      expect(botao('Tentar novamente')).toBeTruthy();
-
-      botao('Tentar novamente')!.click();
-      await vi.waitFor(() => expect(baixados.length).toBe(2));
-      expect(api.arquivo).toHaveBeenCalledTimes(2);
+      expect(botao('Tentar novamente')).toBeUndefined();
+      expect(botao('Gerar novamente')).toBeTruthy();
     });
 
     it('sem Content-Disposition o nome padrão é dossie.pdf', async () => {
@@ -613,7 +609,7 @@ describe('GavetaDossieComponent', () => {
       expect(URL.createObjectURL).not.toHaveBeenCalled();
       expect(urls).toEqual(['/api/dossies/pedido-1/arquivo?disposicao=attachment&ticket=TICKET-DE-TESTE']);
       expect(texto()).toContain('Download enviado ao navegador');
-      expect(botao('Tentar novamente')).toBeTruthy();
+      expect(botao('Gerar novamente')).toBeTruthy();
     });
 
     it('ticket recusado (410) mostra que expirou', () => {

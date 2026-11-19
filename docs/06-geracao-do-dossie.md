@@ -170,7 +170,7 @@ Situações do **item**: `AGUARDANDO`, `OBTENDO`, `OK`, `FALHA`, `REMOVIDO`. Sit
 AGUARDANDO → OBTENDO ─┬─ sem falhas ─→ MONTANDO → CONCLUIDO
      ↑                └─ com falhas ─→ PENDENTE_DECISAO
      └──────── TENTAR_NOVAMENTE / REMOVER_E_CONTINUAR ─┘
-(download completo: CONCLUIDO com a marca "baixado" por mais 5 min, a janela de nova tentativa da S6/D77; depois → EXPIRADO, que "Dossiês gerados" mostra como BAIXADO, S4)
+(download completo: CONCLUIDO → EXPIRADO com a marca "baixado", que "Dossiês gerados" mostra como BAIXADO, S4; sem janela de nova tentativa, D77)
 (sem espaço em disco: OBTENDO ou MONTANDO → FALHA; arquivo final perdido: CONCLUIDO → FALHA; S6)
 (cancelar: de qualquer situação não terminal → CANCELADO; sem atividade no TTL: CONCLUIDO ou PENDENTE_DECISAO → EXPIRADO)
 ```

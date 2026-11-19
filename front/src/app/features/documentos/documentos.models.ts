@@ -164,8 +164,6 @@ export interface DossieGerado {
   temArquivo: boolean;
   arquivoGerado: boolean;
   geradoPor?: string;
-  /** S6 (D77): o download já foi completo e o arquivo está na janela de nova tentativa. */
-  baixado?: boolean;
   /** S6: só em FALHA, com o código e o texto para o usuário. */
   falha?: { codigo: string | null; mensagem: string | null };
 }

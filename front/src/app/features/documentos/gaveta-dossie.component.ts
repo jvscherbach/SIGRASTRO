@@ -131,7 +131,7 @@ export class GavetaDossieComponent implements OnInit {
     this.servico.baixar();
   }
 
-  /** Repete o download (o servidor guarda o arquivo alguns minutos depois de entregá-lo, D77). */
+  /** Repete um download que falhou antes de chegar inteiro (o servidor ainda tem o arquivo). */
   protected tentarDownloadDeNovo(): void {
     this.servico.tentarDownloadDeNovo();
   }

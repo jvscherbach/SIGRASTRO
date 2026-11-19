@@ -145,10 +145,10 @@ test('lista, seleção padrão, geração com acompanhamento, pré-visualizaçã
   await page.getByRole('button', { name: 'Baixar PDF' }).click();
   const download = await baixando;
   expect(download.suggestedFilename()).toBe('dossie-processo-2825-2025.pdf');
-  // S6, bloco 3: nota neutra (a página não sabe se o navegador gravou) e "Tentar novamente" para baixar de novo
+  // S6, bloco 3: nota neutra (a página não sabe se o navegador gravou); o arquivo saiu do servidor (D77)
   await expect(page.locator('.d-body')).toContainText('Arquivo entregue ao navegador');
   await expect(page.locator('.gaveta-entregue.lime')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Gerar novamente' })).toBeVisible();
 });
 
 test('Operador: documento sigiloso aparece mascarado e sem seleção', async ({ page }) => {
@@ -345,7 +345,7 @@ test('dossiê grande: sem pré-visualização; o navegador baixa pela URL do tic
   expect(download.suggestedFilename()).toBe('dossie-processo-2825-2025.pdf');
   expect(pedidosDoArquivo).toEqual([{ url: '?disposicao=attachment&ticket=TICKET-DE-TESTE', autorizacao: undefined }]);
   await expect(page.locator('.d-body')).toContainText('Download enviado ao navegador');
-  await expect(page.getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Gerar novamente' })).toBeVisible();
 });
 
 // --- visualização de documentos (S3): modal com PDF por Blob, faixa de convertido, erro, seleção e sigilo

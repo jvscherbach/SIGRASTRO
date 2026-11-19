@@ -31,18 +31,15 @@ import org.springframework.stereotype.Service;
  * dois casos o pedido vai para FALHA, o diretório é apagado e sai um evento de falha com o código, sem caminho. Nunca
  * 200 com corpo vazio ou truncado.
  *
- * <p>Download completo (o último byte saiu do servidor): o arquivo fica mais {@value #JANELA_DE_NOVA_TENTATIVA_MINUTOS}
- * minutos (ou até a validade, o que vier antes) para "Tentar novamente", porque o servidor não sabe se o navegador
- * conseguiu gravar (D77). Depois o pedido expira como baixado e o arquivo é apagado (RNF05).
+ * <p>O arquivo é apagado quando o download (attachment) termina por inteiro do lado do servidor (RNF05). O servidor
+ * não sabe se o navegador conseguiu gravar: por decisão do responsável (D77) não há nova tentativa, o caminho é gerar
+ * de novo.
  *
  * <p>Dossiê grande (S2.2, D49): o navegador baixa direto, sem cabeçalho de sessão, com um ticket de uso único emitido
  * por {@link EmitirTicketDeDownload}. O ticket é consumido na primeira tentativa, válida ou não.
  */
 @Service
 public class ObterArquivoDoDossie {
-
-    /** Minutos que o arquivo continua depois de um download completo, para uma nova tentativa (D77). */
-    public static final int JANELA_DE_NOVA_TENTATIVA_MINUTOS = 5;
 
     private static final Logger log = LoggerFactory.getLogger(ObterArquivoDoDossie.class);
 
@@ -88,14 +85,16 @@ public class ObterArquivoDoDossie {
     }
 
     /**
-     * Chamado quando o download terminou por inteiro (do lado do servidor). Só aqui sai o evento {@code DOWNLOAD}:
-     * pré-visualização e download interrompido não passam por este método. O arquivo fica a janela de nova tentativa e
-     * expira depois, pela validade (D77).
+     * Chamado quando o download terminou por inteiro: o arquivo (e o diretório do pedido) não precisa mais existir. Só
+     * aqui sai o evento {@code DOWNLOAD}: pré-visualização e download interrompido não passam por este método.
      */
     public void concluirDownload(ArquivoDoDossie arquivo) {
         PedidoDeDossie pedido = localizar.semUsuario(arquivo.id());
         eventos.download(pedido, arquivo.baixadoPor());
-        pedido.marcarBaixado(LocalDateTime.now(relogio).plusMinutes(JANELA_DE_NOVA_TENTATIVA_MINUTOS));
+        pedido.marcarBaixado();
+        if (pedido.expirar()) {
+            ArquivosTemporarios.apagarPasta(ArquivosTemporarios.pastaDo(parametros, pedido));
+        }
     }
 
     public void concluirDownload(String id) {

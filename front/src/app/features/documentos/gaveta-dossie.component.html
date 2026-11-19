@@ -87,8 +87,8 @@
               <app-icone nome="download" />
               <span>
                 {{ baixadoDireto() ? 'Download enviado ao navegador.' : 'Arquivo entregue ao navegador.' }}
-                Confira o arquivo na pasta de downloads. Se o navegador não conseguiu salvar (por exemplo, por falta de
-                espaço em disco), use Tentar novamente até {{ expiraAs() }}; depois disso o arquivo é descartado do servidor.
+                Confira o arquivo na pasta de downloads. O arquivo foi descartado do servidor: se o navegador não
+                conseguiu salvar (por exemplo, por falta de espaço em disco), libere espaço e gere o dossiê novamente.
               </span>
             </div>
           } @else {
@@ -179,14 +179,6 @@
           <button type="button" class="btn primary" [disabled]="ocupado()" (click)="tentarNovamente()">
             <app-icone nome="refresh" />{{ rotuloTentar() }}
           </button>
-        </div>
-      } @else if (status() === 'CONCLUIDO' && !vencido() && baixado()) {
-        <button type="button" class="btn quiet" (click)="minimizar()">Fechar</button>
-        <div class="acao-de-erro">
-          <button type="button" class="btn" [disabled]="ocupado()" (click)="tentarDownloadDeNovo()" aria-describedby="explica-baixar-de-novo">
-            <app-icone nome="refresh" />Tentar novamente
-          </button>
-          <small id="explica-baixar-de-novo">Se o arquivo não apareceu nos downloads, baixa de novo.</small>
         </div>
       } @else if (status() === 'CONCLUIDO' && !vencido() && !baixado()) {
         <button type="button" class="btn quiet" (click)="minimizar()">Fechar</button>

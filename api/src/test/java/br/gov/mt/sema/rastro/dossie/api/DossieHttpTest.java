@@ -65,14 +65,6 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
         return json.readTree(criacao.andReturn().getResponse().getContentAsString()).get("id").asText();
     }
 
-    @org.springframework.beans.factory.annotation.Autowired
-    br.gov.mt.sema.rastro.dossie.application.port.RepositorioDePedidos repositorio;
-
-    /** Simula o fim da janela de nova tentativa (D77) sem esperar 5 minutos. */
-    private void encerrarJanela(String id) {
-        repositorio.buscar(id).orElseThrow().registrarAtividade(java.time.LocalDateTime.of(2000, 1, 1, 0, 0));
-    }
-
     private String criarComSucesso(String usuario) throws Exception {
         return idDe(criar(usuario, 101, "DOCUMENTO_PROCESSO", "804328", "COMPLEMENTACAO", "900118").andExpect(status().isAccepted()));
     }
@@ -468,10 +460,6 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
         mvc.perform(get("/api/dossies/" + id + "/arquivo").param("disposicao", "attachment").param("ticket", ticket))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("TICKET_INVALIDO"));
-        // D77: na janela de nova tentativa o arquivo ainda está lá; ao fim dela, 410.
-        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
-                .andExpect(status().isOk());
-        encerrarJanela(id);
         mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
                 .andExpect(status().isGone());
     }
@@ -541,18 +529,14 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     }
 
     @Test
-    void arquivoAttachmentBaixaDeNovoNaJanelaEDepoisEh410() throws Exception {
+    void arquivoAttachmentBaixaUmaVezEDepoisEh410() throws Exception {
         String id = criarComSucesso("gestor.demo");
 
-        mvc.perform(get("/api/dossies/" + id + "/arquivo?disposicao=attachment").header("Authorization", bearer("gestor.demo")))
-                .andExpect(status().isOk());
-        // "Tentar novamente" (D77): o navegador pode não ter gravado; o arquivo fica 5 minutos.
         mvc.perform(get("/api/dossies/" + id + "/arquivo?disposicao=attachment").header("Authorization", bearer("gestor.demo")))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", startsWith("attachment")))
                 .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("dossie-processo-2825-2025.pdf")));
 
-        encerrarJanela(id);
         mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
                 .andExpect(status().isGone())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
