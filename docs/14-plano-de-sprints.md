@@ -38,7 +38,9 @@ Objetivo do protótipo: comprovar, com processos reais, que (1) os processos que
 
 ## R1 — Renomeação para Rastro
 
-Prompt: [R1-renomeacao-rastro.md](prompts/R1-renomeacao-rastro.md). Andamento por bloco em [progresso/r1.md](progresso/r1.md). Decisão D73.
+Prompt: [R1-renomeacao-rastro.md](prompts/R1-renomeacao-rastro.md). Andamento por bloco em [progresso/r1.md](progresso/r1.md). Decisões D73 (nome e fases), D74 (pacote e propriedades com alias) e D75 (chaves do navegador com migração). Roteiro de conferência: [roteiros/r1-homologacao.md](roteiros/r1-homologacao.md).
+
+**Situação:** blocos 1 a 7 concluídos (Fase 1 e Fase 2). Commits, testes e verificação com Docker estão em `docs/progresso/r1.md`. Ficam para o responsável: renomear o repositório e a pasta, migrar o volume e remover os aliases quando o prazo passar (lista em `docs/13` e R62 em [10](10-pendencias-e-riscos.md)).
 
 - **Fase 1 (blocos 1 a 4, antes da apresentação):** o nome visível do produto passa a ser **Rastro** (front, PDF, OpenAPI e documentação). "Vistas" continua sendo o nome do módulo do dossiê. Não muda comportamento nem nome técnico.
 - **Parada:** a Fase 2 só começa depois da apresentação e da marca de versão `vistas-1.0`, criada pelo responsável.

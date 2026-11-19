@@ -681,3 +681,40 @@ Mesmo conteúdo de `docs/padroes/` (regra do `CLAUDE.md`): as linhas estão deta
 | .claude/skills/vistas-banco/references/persistencia-e-migrations.md | 7 |
 | .claude/skills/vistas-banco/references/seguranca-privilegios.md | 15 |
 | .claude/skills/vistas-banco/references/tipos-dados.md | 1 |
+
+## Resultado final (bloco 7, após a Fase 2)
+
+Varredura feita em **2026-11-19** com `grep` sem diferenciar caixa, por `siga[ _-]?vistas`, `sigavistas` e `siga-vistas`, excluindo `docs/prompts/`, `docs/progresso/`, `docs/homologacao/` e este inventário. Restaram **18 arquivos**, todos em uma das categorias abaixo. Nenhum é texto visível ao usuário do produto.
+
+| Categoria | Arquivos e linhas | Motivo de manter |
+|---|---|---|
+| Nota histórica (classe C) | `CLAUDE.md:21`, `docs/01:7`, `docs/03:3`, `docs/README.md:5`, `README.md:3` | Dizem "antes SIGA Vistas" de propósito |
+| Decisões antigas (classe C) | `docs/09` linhas 164, 239, 248, 250, 255, 294, 364, 453 | Texto de decisão da época; o D73 (linha 453) registra a origem |
+| Cabeçalhos de tabela de homologação | `docs/14:87`, `docs/casos-de-teste.md:3,21` | Dados do roteiro do responsável; a `casos-de-teste` é preenchida por ele |
+| Nomes de arquivo e pasta | `docs/prototipo/siga-vistas-prototipo.html`, `front/src/styles/tokens.css:1`, `docs/08:3`, `README.md:378`, `CLAUDE.md:49`, `docs/padroes/estrutura-de-pastas.md:8,122` e cópia em `references/`, `.claude/skills/.../references/estrutura-de-pastas.md` | Arquivo do protótipo (classe D, referência visual); o nome da pasta do repositório é trocado pelo responsável (D73) |
+| Texto de teste que **verifica a ausência** do nome | `api/src/test/.../config/OpenApiConfigTest.java:17`, `.../ValidadorEMontadorPdfBoxTest.java:165` | São as asserções de que o nome antigo não aparece no título nem nos metadados |
+| Volume e migração do Docker | `compose.local.yaml:24,26`, `README.md:355`, `docs/13` (seção "Renomeação do Rastro" e GHCR) | O volume `siga-vistas_dossies-tmp` foi mantido de propósito para não perder dados (D75); as instruções citam o nome antigo |
+| Descrição da skill | `.claude/skills/vistas-banco/SKILL.md:3` | Frontmatter que define o gatilho da skill; o nome `vistas-banco` foi mantido (decisão do responsável) |
+| Decisões de texto (dupla) | `docs/09-decisoes.md` e `docs/14` já listados | Idem acima |
+
+### Aliases documentados (ainda ativos, remover depois)
+
+- Propriedades `vistas.*` → `rastro.*` (a antiga vence, aviso de depreciação sem valor): `config.AliasDasPropriedadesAntigas`, D74, R62 em `docs/10`.
+- Chaves do navegador `vistas.token` e `vistas.recentes.<login>` → `rastro.*` (migração e apagamento da antiga): `front/src/app/core/armazenamento.ts`, D75.
+
+### Mantidos por contrato, decisão ou risco (não são nome do produto)
+
+- Cabeçalhos `X-Vistas-Truncado` e `X-Vistas-Convertido-De` (contrato HTTP com o front; D74).
+- Variáveis de ambiente `VISTAS_*` (não renomeadas; o `.env.local` do responsável não é aberto).
+- Usuário `vistas` e diretório `/var/tmp/vistas` no `Dockerfile` (ligados ao volume).
+- Schema próprio `VISTAS` / `APP_VISTAS` (versão definitiva, sem tabela ainda).
+- Senha de demonstração `vistas-demo` (padrão do perfil `local`).
+- Rótulo "Vistas do Processo" e módulo "Vistas" (rótulo do módulo, D73).
+
+### Pendências para o responsável (não decididas aqui)
+
+1. Renomear o repositório e a pasta local `siga-vistas` para `rastro` (lista em `docs/13`).
+2. Migrar o volume `siga-vistas_dossies-tmp` (passos em `docs/13`), se quiser remover o nome antigo.
+3. Remover os aliases quando o prazo combinado passar (R62).
+4. Pasta `siga-vistas/` citada em `docs/padroes/estrutura-de-pastas.md` e na cópia da skill: atualizar junto com a pasta.
+5. Ajuste de texto na `docs/padroes/nomenclatura.md` ("VISTAS (nome provisório, acompanha o nome do projeto)"): o nome do projeto já é Rastro; o schema segue `VISTAS` até a versão definitiva.
