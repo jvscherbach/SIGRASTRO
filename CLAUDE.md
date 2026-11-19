@@ -36,6 +36,7 @@ npm --prefix front test -- --watch=false
 npm --prefix front run e2e                     # Playwright com API simulada (só desenvolvimento); 1ª vez: npx playwright install chromium
 docker compose --env-file .env.local.example -f compose.yaml -f compose.local.yaml -f compose.verificacao.yaml config --services
 git diff --check
+node --test .claude/hooks/guarda-bash.test.mjs .claude/hooks/guarda-arquivos.test.mjs .claude/hooks/varrer-dados.test.mjs
 ```
 
 - Nunca rode `docker compose down -v`.
@@ -79,6 +80,10 @@ Entre módulos, a comunicação acontece só por caso de uso ou porta publicada 
 - **RN06, sigilo:** considera todas as variações de coluna; na dúvida, o documento é sigiloso.
 - **RN07, perfil Operador:** o Operador só acessa processos em que é o interessado. Gestor e Administrador acessam tudo.
 - **RN02, RN10, RN11, exclusões:** doença grave nunca é listada; geometrias (SHP/KML/KMZ) ficam fora do dossiê; arquivos compactados são ignorados.
+
+## Ferramentas do Claude Code
+
+O repositório versiona guardas do próprio Claude Code (`docs/claude-code/`). **Hooks** em `.claude/settings.json` e `.claude/hooks/` (Node, sem dependências) bloqueiam automaticamente o que as regras acima proíbem: `git` além de `git diff` e qualquer `gh`; `docker compose down -v`, `docker volume rm/prune`, `docker system prune --volumes`; abrir, procurar ou citar `.env`, `.env.local`, `.env.*` (menos `*.example`) e `mapa-local.csv`; despejar variáveis de ambiente (`printenv`, `env`, `docker ... exec env`, `docker inspect`, `docker compose config` com valores). Depois de gravar um arquivo, avisam se ele tem CPF/CNPJ válido, token ou chave privada, sem repetir o valor. Erro interno de uma guarda não trava a sessão. Recebeu um bloqueio: siga a orientação da mensagem, não tente contornar. Testes: `node --test .claude/hooks/guarda-bash.test.mjs .claude/hooks/guarda-arquivos.test.mjs .claude/hooks/varrer-dados.test.mjs`. `.claude/settings.local.json` é pessoal e fica fora do Git.
 
 ## Documentação
 

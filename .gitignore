@@ -2,6 +2,8 @@
 .env.local
 .env.*
 !.env.*.example
+# Configuração pessoal do Claude Code (a do projeto, .claude/settings.json, é versionada)
+.claude/settings.local.json
 # Token da API de arquivos montado no container (LICENCIAMENTO_API_TOKEN_FILE)
 .secrets/
 
