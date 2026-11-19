@@ -91,7 +91,7 @@ describe('DetalheComponent', () => {
       const { fixture } = criar();
 
       expect(TestBed.inject(TrilhaService).complemento()).toEqual(['Consulta', 'Processo 2825/2025']);
-      expect(JSON.parse(localStorage.getItem('vistas.recentes.u.demo')!)).toEqual([
+      expect(JSON.parse(localStorage.getItem('rastro.recentes.u.demo')!)).toEqual([
         { id: 101, rotulo: 'Processo 2825/2025', numeroRequerimento: '3331/2025', situacao: 'Em análise' },
       ]);
       fixture.destroy();

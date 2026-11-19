@@ -423,7 +423,7 @@ describe('ConsultaComponent', () => {
     });
 
     it('mostra os recentes do usuário e abre o detalhe ao clicar', () => {
-      localStorage.setItem('vistas.recentes.u.demo', JSON.stringify([{ id: 7, rotulo: 'Processo 2825/2025' }]));
+      localStorage.setItem('rastro.recentes.u.demo', JSON.stringify([{ id: 7, rotulo: 'Processo 2825/2025' }]));
       const raiz = criar();
 
       const atalhos = raiz.querySelectorAll<HTMLButtonElement>('.tile');
@@ -435,7 +435,7 @@ describe('ConsultaComponent', () => {
 
     it('dois requerimentos do mesmo processo aparecem desempatados, com a situação em texto pequeno', () => {
       localStorage.setItem(
-        'vistas.recentes.u.demo',
+        'rastro.recentes.u.demo',
         JSON.stringify([
           { id: 2, rotulo: 'Processo 445/2022', numeroRequerimento: '3798/2023', situacao: 'Cancelado' },
           { id: 1, rotulo: 'Processo 445/2022', numeroRequerimento: '3391/2022', situacao: 'Concluído' },

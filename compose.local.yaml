@@ -20,4 +20,7 @@ services:
       - "8080:8080"
 
 volumes:
-  dossies-tmp: {}
+  # R1 (bloco 6, D75): o projeto Compose virou "rastro", mas o volume mantém o nome que já existe na máquina
+  # (siga-vistas_dossies-tmp), para não perder nada. Como renomear à mão: docs/13, "Renomeação do Rastro".
+  dossies-tmp:
+    name: siga-vistas_dossies-tmp

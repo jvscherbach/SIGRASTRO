@@ -3,7 +3,7 @@
 ## `COMMENT ON` obrigatório (schema próprio)
 
 ```sql
-COMMENT ON TABLE AUDITORIA_EVENTO IS 'Evento de auditoria do SIGA Vistas (somente inclusão). Grupos DOCUMENTOS e ACESSOS.';
+COMMENT ON TABLE AUDITORIA_EVENTO IS 'Evento de auditoria do Rastro (somente inclusão). Grupos DOCUMENTOS e ACESSOS.';
 COMMENT ON COLUMN AUDITORIA_EVENTO.NUMERO_PROCESSO IS 'Retrato do número do processo no momento do evento. Não é sincronizado com o SIGA.';
 COMMENT ON COLUMN AUDITORIA_EVENTO.ID_REQUERIMENTO IS 'Referência lógica a SIGA2_LICENCIAMENTO.REQUERIMENTO.ID (sem FK: banco externo).';
 ```

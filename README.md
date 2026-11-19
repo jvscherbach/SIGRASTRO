@@ -1,10 +1,12 @@
-# SIGA Vistas
+# Rastro
 
-[![CI](https://github.com/jvscherbach/siga-vistas/actions/workflows/ci.yml/badge.svg)](https://github.com/jvscherbach/siga-vistas/actions/workflows/ci.yml)
+> Rastro, complemento de consulta ao SIGA Licenciamento (protótipo). Antes chamado "SIGA Vistas".
+
+[![CI](https://github.com/jvscherbach/rastro/actions/workflows/ci.yml/badge.svg)](https://github.com/jvscherbach/rastro/actions/workflows/ci.yml)
 
 Integração contínua: veja [Integração contínua](docs/13-padroes-tecnicos.md#integração-contínua) e o [passo a passo no GitHub](docs/13-padroes-tecnicos.md#configuração-no-github-passo-a-passo-feita-pelo-responsável).
 
-O **SIGA Vistas** (nome provisório) é um serviço externo ao SIGA Licenciamento. Ele consulta requerimentos e processos, lista os documentos de cada um e gera um **dossiê em PDF**, com os documentos escolhidos em ordem cronológica.
+O **Rastro** é um serviço externo ao SIGA Licenciamento. Seu primeiro módulo, o **Vistas**, consulta requerimentos e processos, lista os documentos de cada um e gera um **dossiê em PDF**, com os documentos escolhidos em ordem cronológica.
 
 Hoje o projeto é um **protótipo de validação**: o objetivo é provar que os problemas da "Vista do Processo" atual têm solução (processos que não geram a vista e planilhas que ficam fora do PDF). Estão prontas as sprints **S0 a S4**:
 
@@ -85,7 +87,7 @@ Os comandos abaixo funcionam no **Bash** (Linux, macOS, Git Bash) e no **PowerSh
 ### 1. Entre na pasta do projeto
 
 ```bash
-cd siga-vistas
+cd rastro
 ```
 
 Se a pasta estiver em outro lugar, use o caminho dela. Confira com `ls` (Bash) ou `dir` (PowerShell): você deve ver `compose.yaml`, `api` e `front`.
@@ -128,7 +130,7 @@ Para ver o log da `api` em tempo real (saia com `Ctrl + C`; isso não para o sis
 docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml logs -f api
 ```
 
-Procure a linha `Started VistasApplication`.
+Procure a linha `Started RastroApplication`.
 
 ### 5. Abra no navegador
 
@@ -279,7 +281,7 @@ cd api
 .\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local" "-Dspring-boot.run.arguments=--server.port=8081"
 ```
 
-Mantenha as aspas. A primeira vez baixa o Maven e as dependências (alguns minutos). A API subiu quando aparece `Started VistasApplication` e `Tomcat started on port 8081`. Confira em outro terminal:
+Mantenha as aspas. A primeira vez baixa o Maven e as dependências (alguns minutos). A API subiu quando aparece `Started RastroApplication` e `Tomcat started on port 8081`. Confira em outro terminal:
 
 ```bash
 curl http://localhost:8081/actuator/health

@@ -56,7 +56,7 @@ const CENARIOS = [
 ];
 
 async function simular(page: Page, lista: object): Promise<void> {
-  await page.addInitScript(() => sessionStorage.setItem('vistas.token', 'token-de-teste'));
+  await page.addInitScript(() => sessionStorage.setItem('rastro.token', 'token-de-teste'));
   await page.route('**/api/**', async (route: Route) => {
     const caminho = new URL(route.request().url()).pathname;
     if (caminho === '/api/auth/me') return route.fulfill({ json: GESTOR });

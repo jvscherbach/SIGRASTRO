@@ -41,7 +41,7 @@ describe('RecentesService', () => {
       { id: 2, rotulo: 'Requerimento 1187/2026' },
       { id: 1, rotulo: 'Processo 2825/2025' },
     ]);
-    expect(localStorage.getItem('vistas.recentes.operador.demo')).not.toContain('interessado');
+    expect(localStorage.getItem('rastro.recentes.operador.demo')).not.toContain('interessado');
   });
 
   it('não duplica: reabrir move para o início', () => {
@@ -79,11 +79,24 @@ describe('RecentesService', () => {
     expect(localStorage.length).toBe(0);
   });
 
+  it('recentes guardados na chave antiga vistas.recentes.* continuam e passam para a nova (R1, D75)', () => {
+    localStorage.setItem('vistas.recentes.operador.demo', JSON.stringify([{ id: 9, rotulo: 'Processo 2825/2025' }]));
+
+    expect(recentes.listar()).toEqual([{ id: 9, rotulo: 'Processo 2825/2025' }]);
+    recentes.registrar({ id: 10, rotulo: 'Requerimento 1187/2026' });
+
+    expect(JSON.parse(localStorage.getItem('rastro.recentes.operador.demo')!)).toEqual([
+      { id: 10, rotulo: 'Requerimento 1187/2026' },
+      { id: 9, rotulo: 'Processo 2825/2025' },
+    ]);
+    expect(localStorage.getItem('vistas.recentes.operador.demo')).toBeNull();
+  });
+
   it('ignora conteúdo corrompido ou de formato inesperado', () => {
-    localStorage.setItem('vistas.recentes.operador.demo', '{nao-e-json');
+    localStorage.setItem('rastro.recentes.operador.demo', '{nao-e-json');
     expect(recentes.listar()).toEqual([]);
 
-    localStorage.setItem('vistas.recentes.operador.demo', JSON.stringify([{ id: 'x' }, { id: 3, rotulo: 'C' }, 7]));
+    localStorage.setItem('rastro.recentes.operador.demo', JSON.stringify([{ id: 'x' }, { id: 3, rotulo: 'C' }, 7]));
     expect(recentes.listar()).toEqual([{ id: 3, rotulo: 'C' }]);
   });
 
@@ -108,7 +121,7 @@ describe('RecentesService', () => {
 
     it('atalho antigo (só id e rótulo) continua sendo lido e, repetido, não inventa o que não tem', () => {
       localStorage.setItem(
-        'vistas.recentes.operador.demo',
+        'rastro.recentes.operador.demo',
         JSON.stringify([
           { id: 1, rotulo: 'Processo 445/2022' },
           { id: 2, rotulo: 'Processo 445/2022', numeroRequerimento: '3798/2023', situacao: 'Cancelado' },
@@ -127,7 +140,7 @@ describe('RecentesService', () => {
 
     it('campos novos com tipo errado no localStorage são descartados', () => {
       localStorage.setItem(
-        'vistas.recentes.operador.demo',
+        'rastro.recentes.operador.demo',
         JSON.stringify([{ id: 1, rotulo: 'A', numeroRequerimento: 7, situacao: { x: 1 }, extra: '<script>' }]),
       );
 

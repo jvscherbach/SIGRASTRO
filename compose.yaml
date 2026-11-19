@@ -1,4 +1,4 @@
-name: siga-vistas
+name: rastro
 
 services:
   api:

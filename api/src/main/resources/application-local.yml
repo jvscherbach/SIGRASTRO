@@ -4,6 +4,6 @@ springdoc:
   swagger-ui:
     enabled: true
 
-vistas:
+rastro:
   demo:
     senha: ${VISTAS_DEMO_SENHA:vistas-demo}

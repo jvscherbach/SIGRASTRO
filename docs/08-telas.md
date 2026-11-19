@@ -2,6 +2,8 @@
 
 O protótipo navegável (`prototipo/siga-vistas-prototipo.html`) é a referência visual: tema claro, paleta verde, barra lateral e padrão de quadros sobrepostos do SIGATIC, com ilustração da Cachoeira Véu de Noiva no quadro principal e, no login, ilustração de chapadas com curvas de nível. Este documento define **informações e comportamento**.
 
+**Nome do produto e do módulo (R1).** O produto se chama **Rastro** ("consulta ao SIGA Licenciamento (protótipo)"). O nome aparece no `<title>` (`Rastro`, e `<Tela> · Rastro` em cada rota), na marca do topo da barra lateral e do login (`RASTRO` com o rótulo curto abaixo) e no rodapé ("Rastro · Complemento de consulta ao SIGA Licenciamento (protótipo)"). **"Vistas do Processo" é o módulo** do dossiê e continua como rótulo da trilha do topo e do quadro da Consulta; os próximos módulos virão como Tramitação, Taxas e Painel. Nenhum texto visível traz o nome antigo (`front/e2e/nome-do-produto.e2e.ts`). A logo da SEMA no topo e no favicon fica como está: a decisão sobre a marca é da S6. As chaves de armazenamento do navegador (`vistas.token`, `vistas.recentes.*`) mudam só na Fase 2.
+
 ## 1. Login (simulado)
 
 - Usuário e senha.
@@ -88,7 +90,7 @@ Como ajustado (S1.1), com o mapeamento P01:
   - **Finalidade e atividade** (outorga): agrupado por finalidade, com o nome da finalidade como subtítulo e as atividades dela em lista; finalidade repetida aparece uma vez.
   - **Atividade** (licenciamento): a atividade é o texto principal; o grupo só aparece, como legenda "Grupo: ...", se for diferente da atividade (comparação sem acento e sem diferenciar maiúsculas).
   - **Sem nenhum dado de objeto:** um aviso único, "Sem objeto cadastrado para este requerimento". Não há cartões com "—".
-  - Pendência P20: o SIGA mostra "LAC" como Objetivo em licenciamento por adesão sem objetivos cadastrados; o SIGA Vistas não mostra (regra de origem ainda não levantada).
+  - Pendência P20: o SIGA mostra "LAC" como Objetivo em licenciamento por adesão sem objetivos cadastrados; o Rastro não mostra (regra de origem ainda não levantada).
 - **Responsável na tarefa atual (RN12):** a linha "Responsável" só é renderizada quando a API manda o campo, isto é, para Gestor e Administrador: o nome, "Não atribuída" ou "Responsável não identificado". Para o Operador a linha não aparece (RN08). O front não esconde dado que a API mandou: a regra é do back-end, e a tela só reflete a resposta.
 
 O requerimento vira processo após o pagamento da taxa e a conclusão do protocolo. O topo da tela mostra sempre o número do processo; o número do requerimento só aparece, com a marca "Não protocolado", enquanto não houver processo. A mesma regra vale para a navegação, os atalhos, a lista de resultados e o dossiê.

@@ -35,7 +35,7 @@ interface Controle {
 
 async function abrir(page: Page, usuario: UsuarioSimulado, rota = '/auditoria/acessos'): Promise<Controle> {
   const c: Controle = { chamadasDeAuditoria: [], listas: [], exportacoes: [] };
-  await page.addInitScript(() => sessionStorage.setItem('vistas.token', 'token-de-teste'));
+  await page.addInitScript(() => sessionStorage.setItem('rastro.token', 'token-de-teste'));
   await page.route('**/api/**', async (route: Route) => {
     const url = new URL(route.request().url());
     const caminho = url.pathname;

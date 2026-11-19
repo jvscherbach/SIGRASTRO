@@ -49,7 +49,7 @@ const ITENS = [
 
 async function simular(page: Page, aoCriar: (corpo: unknown) => void = () => undefined) {
   let consultas = 0;
-  await page.addInitScript(() => sessionStorage.setItem('vistas.token', 'token-de-teste'));
+  await page.addInitScript(() => sessionStorage.setItem('rastro.token', 'token-de-teste'));
   await page.route('**/api/**', async (route: Route) => {
     const url = new URL(route.request().url());
     const caminho = url.pathname;
@@ -189,7 +189,7 @@ function andamento(status: string, situacoes: string[], sobre: object = {}) {
 
 /** API simulada com um roteiro de andamentos: cada GET devolve o próximo; o último se repete. */
 async function simularDecisao(page: Page, roteiro: object[], chamadas: string[]) {
-  await page.addInitScript(() => sessionStorage.setItem('vistas.token', 'token-de-teste'));
+  await page.addInitScript(() => sessionStorage.setItem('rastro.token', 'token-de-teste'));
   await page.route('**/api/**', async (route: Route) => {
     const caminho = new URL(route.request().url()).pathname;
     const metodo = route.request().method();
@@ -299,7 +299,7 @@ test('pedido expirado à espera de decisão oferece gerar de novo', async ({ pag
 
 test('dossiê grande: sem pré-visualização; o navegador baixa pela URL do ticket, sem o token de sessão', async ({ page }) => {
   const pedidosDoArquivo: { url: string; autorizacao: string | undefined }[] = [];
-  await page.addInitScript(() => sessionStorage.setItem('vistas.token', 'token-de-teste'));
+  await page.addInitScript(() => sessionStorage.setItem('rastro.token', 'token-de-teste'));
   await page.route('**/api/**', async (route: Route) => {
     const url = new URL(route.request().url());
     const caminho = url.pathname;

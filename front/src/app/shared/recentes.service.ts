@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 
+import { PREFIXO, lerComMigracao } from '../core/armazenamento';
 import { AuthService } from '../core/auth.service';
 
 /**
@@ -31,12 +32,12 @@ export class RecentesService {
   private readonly auth = inject(AuthService);
 
   listar(): Recente[] {
-    const chave = this.chave();
+    const chave = this.nomeDaChave();
     if (!chave) {
       return [];
     }
     try {
-      const itens = JSON.parse(localStorage.getItem(chave) ?? '[]') as unknown;
+      const itens = JSON.parse(lerComMigracao(localStorage, chave) ?? '[]') as unknown;
       return Array.isArray(itens) ? itens.filter(ehRecente).map(normalizar).slice(0, MAXIMO) : [];
     } catch {
       return [];
@@ -58,21 +59,22 @@ export class RecentesService {
   }
 
   registrar(recente: Recente): void {
-    const chave = this.chave();
+    const chave = this.nomeDaChave();
     if (!chave) {
       return;
     }
     const lista = [recente, ...this.listar().filter((r) => r.id !== recente.id)].slice(0, MAXIMO);
     try {
-      localStorage.setItem(chave, JSON.stringify(lista));
+      localStorage.setItem(PREFIXO + chave, JSON.stringify(lista));
     } catch {
       // sem localStorage (modo privado, cota): a lista de recentes simplesmente não é guardada.
     }
   }
 
-  private chave(): string | null {
+  /** Nome sem prefixo (`recentes.<login>`); a chave é `rastro.recentes.<login>` (antes `vistas.`, D75). */
+  private nomeDaChave(): string | null {
     const login = this.auth.usuario()?.login;
-    return login ? `vistas.recentes.${login}` : null;
+    return login ? `recentes.${login}` : null;
   }
 }
 

@@ -33,7 +33,7 @@ RUN apt-get update \
     && chown vistas:vistas /var/tmp/vistas
 
 WORKDIR /app
-COPY --from=build /build/target/siga-vistas-api.jar app.jar
+COPY --from=build /build/target/rastro-api.jar app.jar
 
 USER vistas
 EXPOSE 8080

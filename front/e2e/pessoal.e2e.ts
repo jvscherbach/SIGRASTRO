@@ -69,7 +69,7 @@ function lista(scorp: Scorp, extras: object[]) {
 
 async function simular(page: Page, scorp: Scorp, opcoes: { usuario?: UsuarioSimulado; extras?: object[] } = {}): Promise<Simulacao> {
   const sim: Simulacao = { scorp, listagens: 0, corpoDoDossie: null };
-  await page.addInitScript(() => sessionStorage.setItem('vistas.token', 'token-de-teste'));
+  await page.addInitScript(() => sessionStorage.setItem('rastro.token', 'token-de-teste'));
   await page.route('**/api/**', async (route: Route) => {
     const caminho = new URL(route.request().url()).pathname;
     const metodo = route.request().method();

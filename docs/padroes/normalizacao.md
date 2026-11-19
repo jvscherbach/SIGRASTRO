@@ -8,7 +8,7 @@ Toda tabela do schema próprio nasce em 3FN. Desnormalização só deliberada e 
 2. **2FN**: com PK composta, nenhum atributo depende de parte da chave.
 3. **3FN**: sem dependência transitiva. Ex.: perfil e nome do usuário pertencem a `USUARIO`, não a cada pedido de dossiê.
 
-## Desnormalização deliberada do Vistas: o "retrato" na auditoria
+## Desnormalização deliberada do Rastro: o "retrato" na auditoria
 
 A auditoria grava **cópias** de dados que pertencem a outros lugares: nome e perfil do usuário, número do processo/requerimento, título, nome de arquivo e sigilo dos documentos.
 

@@ -9,7 +9,7 @@ import { IconeComponent } from '../../shared/icone.component';
 import { ToastService } from '../../shared/toast.service';
 import { cenaLogin } from './cena-login';
 
-/** Senha de demonstração do perfil local (vistas.demo.senha). Só existe para o clique rápido do protótipo. */
+/** Senha de demonstração do perfil local (rastro.demo.senha). Só existe para o clique rápido do protótipo. */
 const SENHA_DEMO = 'vistas-demo';
 
 interface UsuarioDemo {

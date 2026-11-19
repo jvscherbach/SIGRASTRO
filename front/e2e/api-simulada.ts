@@ -93,7 +93,7 @@ export async function simularApi(page: Page, opcoes: OpcoesDaSimulacao = {}): Pr
   const api: ApiSimulada = { estadoDaBusca: 'ok', chamadas: [] };
   let usuario = opcoes.usuario ?? GESTOR;
   if (opcoes.comSessao !== false) {
-    await page.addInitScript(() => sessionStorage.setItem('vistas.token', 'token-de-teste'));
+    await page.addInitScript(() => sessionStorage.setItem('rastro.token', 'token-de-teste'));
   }
 
   await page.route('**/api/**', async (route: Route) => {
