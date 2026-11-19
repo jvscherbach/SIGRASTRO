@@ -350,6 +350,7 @@ Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **
 |---|---|:---:|:---:|:---:|---|---|---|---|
 | `POST /auth/login` | pública | ✓ | ✓ | ✓ | — | — | — | — |
 | `GET /auth/me` | sessão | ✓ | ✓ | ✓ | — | — | — | só o próprio usuário |
+| `GET /estado` (S6) | sessão | ✓ | ✓ | ✓ | — | — | — | só status e modo; sem URL, host ou credencial |
 | `POST /auth/logout` | sessão | ✓ | ✓ | ✓ | — | — | — | só a própria sessão |
 | `GET /busca` (por número de requerimento) | sessão | ✓ | ✓ | ✓ | 403/404 | — | — | `exigirAcessoAoRequerimento` |
 | `GET /busca` (por número de processo, 1:N) | sessão | ✓ | ✓ | ✓ | filtro na consulta; nenhum dele e o número existe: 403; não existe: 404 | — | — | `restricaoDoUsuarioAtual` |
@@ -431,6 +432,8 @@ Restrito ao perfil `ADMIN`. Toda escrita gera evento na auditoria de acessos.
 | `PATCH` | `/configuracoes/usuarios/{id}` | Altera `perfil` e/ou `ativo`; o campo ausente fica como está. |
 | `GET` | `/configuracoes/conexoes` | Estado das conexões. |
 | `POST` | `/configuracoes/conexoes/{nome}/teste` | Testa uma conexão e devolve a classificação, o código HTTP e o tempo de resposta. |
+
+**Estado do serviço (S6, bloco 7).** `GET /api/estado`, para qualquer usuário autenticado: `{status: "UP", modo, sistemasExternos}`. `modo` é `demonstracao` só com `RASTRO_MODO=demonstracao` **e** nenhum sistema externo configurado (SIGA, API de arquivos, SCORP); senão `padrao`. `sistemasExternos` diz só se algum está configurado (sim/não), sem URL, host ou credencial. Usado pelo servidor MCP do Rastro, que só opera em demonstração (docs/claude-code/mcp.md).
 
 **Parâmetros (S5, bloco 8).** `GET` responde `{parametros: [...]}`. Cada item traz `nome`, `rotulo`, `grupo` (`DOSSIE`, `CONVERSAO`, `VISUALIZACAO`, `CONEXOES`, `AUDITORIA`), `tipo` (`INTEIRO`, `BOOLEANO`, `OPCAO`), `valor`, `padrao`, `minimo`, `maximo`, `opcoes`, `classeDeAplicacao` (`IMEDIATO`, `PROXIMA_GERACAO`, `EXIGE_REINICIO`), `sobreposto` e `pendenteDeReinicio`. `PUT` recebe `{alteracoes: {nome: valor}}` e devolve a lista como ficou. Valor fora da faixa ou nome desconhecido é 400 `PARAMETRO_INVALIDO` com o nome em `campos`, e nada é aplicado. Salvar o próprio padrão tira a sobreposição. Sem mudança real, 200 sem evento. `DELETE` de nome desconhecido é 404.
 

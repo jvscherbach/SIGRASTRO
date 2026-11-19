@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "rastro": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["tools/mcp-rastro/servidor.mjs"],
+      "env": {
+        "RASTRO_MCP_URL": "${RASTRO_MCP_URL:-http://localhost:8080}",
+        "RASTRO_MCP_USUARIO": "${RASTRO_MCP_USUARIO:-}",
+        "RASTRO_MCP_SENHA": "${RASTRO_MCP_SENHA:-}"
+      }
+    }
+  }
+}

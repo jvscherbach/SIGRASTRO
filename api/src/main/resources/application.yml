@@ -43,6 +43,8 @@ logging:
     level: "%5p [%X{correlationId:-}]"
 
 rastro:
+  # demonstracao (compose.verificacao.yaml) só vale sem nenhum sistema externo configurado (S6, bloco 7).
+  modo: ${RASTRO_MODO:padrao}
   datasource:
     siga:
       # Vazia = SIGA não configurado: a api sobe e as consultas respondem 503 SIGA_INDISPONIVEL.

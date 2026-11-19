@@ -88,6 +88,8 @@ O dono é o módulo que define o **significado de negócio**. Ex.: "quais docume
 
 ## Exceções registradas a "sem dependências novas"
 
+- **S6, bloco 7, servidor MCP** (`tools/mcp-rastro/package.json`, versões fixas, `package-lock.json` versionado, fora das imagens; só para o Claude Code local): `@modelcontextprotocol/sdk` **1.32.2** (MIT, publicado em 23/10/2026) e `zod` **4.6.7** (MIT; a 3.25.x tinha alerta alto de consumo de memória, GHSA-mrhx-c7xc-m3w5, corrigido na 4.6.6). Transitivas: 85 MIT, 7 ISC, 2 BSD-3-Clause e 1 BSD-2-Clause; `npm audit --omit=dev` em 0. Testes (`npm --prefix tools/mcp-rastro test`) só locais, fora do CI, porque exigiriam `npm ci` da pasta a cada PR.
+
 - **`@playwright/test`** (devDependency do `front`, versão fixa, D35): testes e2e com API simulada; fora das imagens de produção, `npm audit` em 0.
 - **`org.apache.pdfbox:pdfbox`** (produção, `api`), prevista desde a S0 como stack do PDF.
 - **S3, conversão** (todas gratuitas e de código aberto, sem copyleft forte; versões fixas no `pom.xml`):

@@ -115,6 +115,17 @@ Credenciais ficam no arquivo de ambiente do servidor; a tela não as exibe nem e
 
 **`CONEXAO_TESTE_TIMEOUT_SEGUNDOS`** (S6, padrão **15**; antes 5 s fixos): tempo limite de conexão e de leitura de cada chamada do teste, mostrado na aba antes de testar e no resultado ("120 ms (limite 15 s)"). O teste inteiro tem teto de 2 × o valor + 5 s (duas chamadas e a espera). Variável de ambiente, fora da tela.
 
+### Modo de demonstração e servidor MCP (S6, bloco 7)
+
+Variáveis de ambiente, fora da tela:
+
+| Variável | Onde | Padrão | O que faz |
+|---|---|---|---|
+| `RASTRO_MODO` | serviço (`api`) | `padrao` | `demonstracao` declara o modo em `GET /api/estado`, **só** se SIGA, API de arquivos e SCORP estiverem vazios. O `compose.verificacao.yaml` liga |
+| `RASTRO_MCP_URL` | servidor MCP (ambiente do processo do Claude Code) | `http://localhost:8080` (porta do front no `compose.local.yaml`) | base do Rastro local; host diferente de `localhost`, `127.0.0.1` e `host.docker.internal` é recusado |
+| `RASTRO_MCP_USUARIO` / `RASTRO_MCP_SENHA` | servidor MCP | sem padrão | usuário de demonstração; nunca lidos do `.env.local` |
+| `RASTRO_MCP_TIMEOUT_MS` | servidor MCP | 10000 | tempo limite de cada pedido ao Rastro |
+
 ### Auditoria
 
 Retenção por grupo: 1, 2, 5 ou 10 anos. Valores de exemplo no protótipo: documentos 5 anos, acessos 1 ano.

@@ -17,6 +17,7 @@ hs_err_pid*
 
 # Node / Angular
 front/node_modules/
+tools/mcp-rastro/node_modules/
 front/dist/
 front/.angular/
 front/coverage/
