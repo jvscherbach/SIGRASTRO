@@ -65,6 +65,14 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
         return json.readTree(criacao.andReturn().getResponse().getContentAsString()).get("id").asText();
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    br.gov.mt.sema.rastro.dossie.application.port.RepositorioDePedidos repositorio;
+
+    /** Simula o fim da janela de nova tentativa (D77) sem esperar 5 minutos. */
+    private void encerrarJanela(String id) {
+        repositorio.buscar(id).orElseThrow().registrarAtividade(java.time.LocalDateTime.of(2000, 1, 1, 0, 0));
+    }
+
     private String criarComSucesso(String usuario) throws Exception {
         return idDe(criar(usuario, 101, "DOCUMENTO_PROCESSO", "804328", "COMPLEMENTACAO", "900118").andExpect(status().isAccepted()));
     }
@@ -180,7 +188,7 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
                 .andExpect(jsonPath("$.itens", hasSize(2)))
                 .andExpect(jsonPath("$.itens[0].origem").value("DOCUMENTO_PROCESSO"))
                 .andExpect(jsonPath("$.itens[0].id").value("804328"))
-                .andExpect(jsonPath("$.itens[0].titulo").value("Requerimento assinado"))
+                .andExpect(jsonPath("$.itens[0].titulo").value("requerimento.pdf"))
                 .andExpect(jsonPath("$.itens[0].situacao").value("OK"))
                 .andExpect(jsonPath("$.itens[1].situacao").value("OK"));
     }
@@ -420,7 +428,7 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
             assertThat(texto).contains("1 documento incluído de 6 listados", "Documentos não incluídos",
                     "não selecionado pelo usuário", "indisponível (chave do arquivo inválida)",
                     "não é PDF: aguardando conversão", "sigiloso: o perfil de quem gerou não tem acesso",
-                    "Documento sigiloso", "Antigo", "oficio.pdf", "Planilha", "Perdido");
+                    "Documento sigiloso", "antigo.pdf", "oficio.pdf", "calculo.xlsx", "perdido.pdf");
             assertThat(texto).doesNotContain("Laudo reservado", "laudo-reservado");
             for (String segredo : SEGREDOS) {
                 assertThat(texto).doesNotContain(segredo);
@@ -460,6 +468,10 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
         mvc.perform(get("/api/dossies/" + id + "/arquivo").param("disposicao", "attachment").param("ticket", ticket))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("TICKET_INVALIDO"));
+        // D77: na janela de nova tentativa o arquivo ainda está lá; ao fim dela, 410.
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
+                .andExpect(status().isOk());
+        encerrarJanela(id);
         mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
                 .andExpect(status().isGone());
     }
@@ -529,14 +541,18 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     }
 
     @Test
-    void arquivoAttachmentBaixaUmaVezEDepoisEh410() throws Exception {
+    void arquivoAttachmentBaixaDeNovoNaJanelaEDepoisEh410() throws Exception {
         String id = criarComSucesso("gestor.demo");
 
+        mvc.perform(get("/api/dossies/" + id + "/arquivo?disposicao=attachment").header("Authorization", bearer("gestor.demo")))
+                .andExpect(status().isOk());
+        // "Tentar novamente" (D77): o navegador pode não ter gravado; o arquivo fica 5 minutos.
         mvc.perform(get("/api/dossies/" + id + "/arquivo?disposicao=attachment").header("Authorization", bearer("gestor.demo")))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", startsWith("attachment")))
                 .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("dossie-processo-2825-2025.pdf")));
 
+        encerrarJanela(id);
         mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
                 .andExpect(status().isGone())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))

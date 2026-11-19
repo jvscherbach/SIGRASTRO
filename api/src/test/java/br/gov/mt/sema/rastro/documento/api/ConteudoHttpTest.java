@@ -205,7 +205,7 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
         verify(conversor).converter(any(Path.class),
                 eq(new br.gov.mt.sema.rastro.documento.domain.TipoDetectado(
                         br.gov.mt.sema.rastro.documento.domain.TipoReal.PLANILHA, "xlsx")), any(Path.class),
-                eq("Planilha")); // o título da lista vai para o cabeçalho da planilha (S3.1)
+                eq("calculo")); // o nome do arquivo sem extensão vai para o cabeçalho da planilha (D76)
         verify(conversor, times(2)).converter(any(), any(), any(), any());
     }
 

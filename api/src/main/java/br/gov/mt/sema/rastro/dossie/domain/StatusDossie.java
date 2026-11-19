@@ -1,6 +1,10 @@
 package br.gov.mt.sema.rastro.dossie.domain;
 
-/** Situações do pedido (S2.2, docs/06). Não há "falha" terminal: falhas deixam o pedido em PENDENTE_DECISAO. */
+/**
+ * Situações do pedido (S2.2, docs/06). Falhas de documento deixam o pedido em PENDENTE_DECISAO (RN09). FALHA (S6,
+ * bloco 3) é só para o que nenhuma decisão resolve: sem espaço em disco ou o arquivo final perdido. O diretório do
+ * pedido já foi apagado e o único caminho é gerar de novo.
+ */
 public enum StatusDossie {
 
     AGUARDANDO,
@@ -9,7 +13,8 @@ public enum StatusDossie {
     MONTANDO,
     CONCLUIDO,
     CANCELADO,
-    EXPIRADO;
+    EXPIRADO,
+    FALHA;
 
     /** A geração está rodando ou na fila: o executor é dono do pedido. */
     public boolean emAndamento() {
@@ -18,6 +23,6 @@ public enum StatusDossie {
 
     /** Não muda mais: só resta esquecer o registro. */
     public boolean terminal() {
-        return this == CANCELADO || this == EXPIRADO;
+        return this == CANCELADO || this == EXPIRADO || this == FALHA;
     }
 }

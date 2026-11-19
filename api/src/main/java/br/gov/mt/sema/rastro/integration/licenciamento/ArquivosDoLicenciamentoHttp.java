@@ -17,6 +17,7 @@ import br.gov.mt.sema.rastro.documento.domain.SituacaoDocumento;
 import br.gov.mt.sema.rastro.dossie.application.port.ArquivosDoRepositorio;
 import br.gov.mt.sema.rastro.dossie.application.port.FalhaNoDocumentoException;
 import br.gov.mt.sema.rastro.dossie.application.port.ParametrosDoDossie;
+import br.gov.mt.sema.rastro.shared.application.exception.ArmazenamentoInsuficienteException;
 import br.gov.mt.sema.rastro.shared.application.exception.CredencialArquivosRecusadaException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -188,22 +189,41 @@ class ArquivosDoLicenciamentoHttp implements ArquivosDoRepositorio {
         try {
             saida = Files.newOutputStream(destino);
         } catch (IOException e) {
-            throw new FalhaNoDocumentoException("não foi possível gravar o arquivo temporário");
+            throw naoGravou(e);
         }
-        try (saida) {
-            byte[] bloco = new byte[64 * 1024];
-            int lidos;
-            while ((lidos = corpo.read(bloco)) >= 0) {
-                try {
-                    saida.write(bloco, 0, lidos);
-                } catch (IOException e) {
-                    throw new FalhaNoDocumentoException("não foi possível gravar o arquivo temporário");
-                }
-                if (System.nanoTime() - prazo > 0) {
-                    throw new FalhaNoDocumentoException(TETO_TOTAL);
+        try {
+            try (saida) {
+                byte[] bloco = new byte[64 * 1024];
+                int lidos;
+                while ((lidos = corpo.read(bloco)) >= 0) {
+                    try {
+                        saida.write(bloco, 0, lidos);
+                    } catch (IOException e) {
+                        throw naoGravou(e);
+                    }
+                    if (System.nanoTime() - prazo > 0) {
+                        throw new FalhaNoDocumentoException(TETO_TOTAL);
+                    }
                 }
             }
+        } catch (IOException e) {
+            // O fechamento também grava (o resto do buffer): sem espaço ele falha aqui.
+            if (ArmazenamentoInsuficienteException.causadaPorFaltaDeEspaco(e)) {
+                throw new ArmazenamentoInsuficienteException();
+            }
+            throw e;
         }
+    }
+
+    /**
+     * Falha ao gravar o temporário. Sem espaço em disco (S6, bloco 3) não é defeito do documento: sai como
+     * {@link ArmazenamentoInsuficienteException}, sem o caminho nem a mensagem crua do sistema.
+     */
+    private static RuntimeException naoGravou(IOException e) {
+        if (ArmazenamentoInsuficienteException.causadaPorFaltaDeEspaco(e)) {
+            return new ArmazenamentoInsuficienteException();
+        }
+        return new FalhaNoDocumentoException("não foi possível gravar o arquivo temporário");
     }
 
     private void aguardar(Duration pausa, int tentativa) {

@@ -65,7 +65,7 @@ rastro:
     threads: ${DOSSIE_THREADS:2}
     download-timeout-segundos: ${DOWNLOAD_TIMEOUT_SEGUNDOS:120}
     download-total-maximo-segundos: ${DOWNLOAD_TOTAL_MAXIMO_SEGUNDOS:900}
-    espaco-minimo-mb: ${DOSSIE_ESPACO_MINIMO_MB:2048}
+    espaco-minimo-mb: ${DOSSIE_ESPACO_MINIMO_MB:500}
     # Acima disto (MB) o download vai por ticket, em streaming, sem pré-visualização (S2.2).
     blob-max-mb: ${DOSSIE_BLOB_MAX_MB:150}
     # Horas que um pedido encerrado continua em "Dossiês gerados" depois do vencimento (S4; histórico em memória).

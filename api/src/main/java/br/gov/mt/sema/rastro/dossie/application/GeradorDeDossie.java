@@ -1,8 +1,10 @@
 package br.gov.mt.sema.rastro.dossie.application;
 
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -22,6 +24,7 @@ import br.gov.mt.sema.rastro.dossie.domain.ErroDoDossie;
 import br.gov.mt.sema.rastro.dossie.domain.ItemDoPedido;
 import br.gov.mt.sema.rastro.dossie.domain.PedidoDeDossie;
 import br.gov.mt.sema.rastro.dossie.domain.SituacaoItem;
+import br.gov.mt.sema.rastro.shared.application.exception.ArmazenamentoInsuficienteException;
 import br.gov.mt.sema.rastro.shared.application.exception.CredencialArquivosRecusadaException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +38,12 @@ import org.springframework.stereotype.Service;
  * os arquivos já obtidos ficam no diretório do pedido, e a continuação ({@link ContinuarDossie}) só obtém o que falta.
  * Credencial recusada (401/403) interrompe a obtenção na hora, também em PENDENTE_DECISAO. Esta classe não usa o
  * SIGA (o instantâneo já está no pedido).
+ *
+ * <p>Sem espaço em disco (S6, bloco 3, D77) não há decisão que resolva: na obtenção, na conversão ou na montagem, o
+ * pedido vai para FALHA com o código {@code ARMAZENAMENTO_INSUFICIENTE}, o diretório do pedido é apagado (inclusive os
+ * parciais) e um único evento de falha é registrado, sem caminho de arquivo. CONCLUIDO só depois de o PDF final ser
+ * forçado ao disco ({@code fsync}, que revela a falta de espaço que a gravação em cache esconde) e ter tamanho maior que
+ * zero.
  */
 @Service
 public class GeradorDeDossie {
@@ -43,6 +52,12 @@ public class GeradorDeDossie {
     private static final String ARQUIVO_FINAL = "dossie.pdf";
     static final String ESPACO_INSUFICIENTE = "espaço em disco insuficiente";
     static final String FALHA_INESPERADA = "falha inesperada ao obter o documento";
+    static final String FINAL_NAO_GRAVADO = "o PDF final não foi gravado";
+    /**
+     * Abaixo disto, uma falha opaca (o LibreOffice não diz por que não gravou) é tratada como disco cheio. Pequeno de
+     * propósito: um documento corrompido não pode virar "sem espaço" só porque o volume está perto do mínimo.
+     */
+    static final long LIMIAR_DE_DISCO_CHEIO = 16L * 1024 * 1024;
 
     private final ArquivosDoRepositorio arquivos;
     private final PreparadorDePdf preparador;
@@ -65,6 +80,17 @@ public class GeradorDeDossie {
         this.relogio = relogio;
     }
 
+    /**
+     * Verificação prévia do {@code POST /dossies} (S6, bloco 3): sem o espaço mínimo ({@code DOSSIE_ESPACO_MINIMO_MB})
+     * no diretório temporário, o pedido nem é criado (507). Se o espaço não puder ser medido, não bloqueia: a gravação
+     * continua protegida pela detecção de falta de espaço.
+     */
+    public void exigirEspacoParaNovoPedido() {
+        if (abaixoDoMinimo(parametros.diretorio())) {
+            throw new ArmazenamentoInsuficienteException(ArmazenamentoInsuficienteException.MENSAGEM_DO_DOSSIE);
+        }
+    }
+
     public void processar(PedidoDeDossie pedido) {
         if (!pedido.iniciar()) {
             return;
@@ -73,6 +99,10 @@ public class GeradorDeDossie {
         try {
             Files.createDirectories(pasta);
         } catch (IOException e) {
+            if (faltouEspaco(e, parametros.diretorio())) {
+                semEspaco(pedido, pasta);
+                return;
+            }
             log.error("Não foi possível criar o diretório do dossiê {}", pedido.id(), e);
             String motivo = "não foi possível preparar o diretório temporário";
             if (pedido.aguardarDecisao(new ErroDoDossie(null, null, null, motivo, null), validade())) {
@@ -93,6 +123,8 @@ public class GeradorDeDossie {
                 return;
             }
             montar(pedido, pasta);
+        } catch (SemEspacoNoDisco e) {
+            semEspaco(pedido, pasta);
         } finally {
             if (pedido.cancelamentoSolicitado()) {
                 pedido.confirmarCancelamento();
@@ -106,6 +138,7 @@ public class GeradorDeDossie {
      * obtenção continua. O PDF convertido fica no diretório: a continuação nunca o converte de novo.
      *
      * @return o motivo geral se a credencial foi recusada (a obtenção para), ou nulo
+     * @throws SemEspacoNoDisco se faltou espaço (a obtenção para e o pedido vai para FALHA)
      */
     private ErroDoDossie obterPendentes(PedidoDeDossie pedido, Path pasta) {
         for (int i = 0; i < pedido.itens().size(); i++) {
@@ -138,6 +171,8 @@ public class GeradorDeDossie {
                 item.conversao(pdf.convertidoDe(), pdf.abasEmPaginaUnica());
                 ArquivosTemporarios.apagarArquivo(original);
                 item.situacao(SituacaoItem.OK);
+            } catch (ArmazenamentoInsuficienteException e) {
+                pararPorFaltaDeEspaco(item, arquivo, original);
             } catch (CredencialArquivosRecusadaException e) {
                 ArquivosTemporarios.apagarArquivo(arquivo);
                 falhar(pedido, item, e.getMessage());
@@ -145,10 +180,16 @@ public class GeradorDeDossie {
                 return new ErroDoDossie(item.origem(), item.id(), item.titulo(), e.getMessage(),
                         ErroDoDossie.CREDENCIAL_ARQUIVOS_RECUSADA);
             } catch (FalhaNoDocumentoException e) {
+                if (faltouEspaco(e, pasta)) {
+                    pararPorFaltaDeEspaco(item, arquivo, original);
+                }
                 ArquivosTemporarios.apagarArquivo(arquivo);
                 falhar(pedido, item, e.getMessage());
                 log.warn("Dossiê {}: falha no documento {}: {}", pedido.id(), item, e.getMessage());
             } catch (RuntimeException e) {
+                if (faltouEspaco(e, pasta)) {
+                    pararPorFaltaDeEspaco(item, arquivo, original);
+                }
                 ArquivosTemporarios.apagarArquivo(arquivo);
                 ArquivosTemporarios.apagarArquivo(original);
                 falhar(pedido, item, FALHA_INESPERADA);
@@ -157,6 +198,67 @@ public class GeradorDeDossie {
             pedido.registrarAtividade(validade());
         }
         return null;
+    }
+
+    /**
+     * Sem espaço: apaga o que o item deixou (PDF parcial e original), marca o item e para a obtenção inteira. O evento é
+     * um só, do pedido ({@link #semEspaco}), e não um por documento.
+     */
+    private static void pararPorFaltaDeEspaco(ItemDoPedido item, Path arquivo, Path original) {
+        ArquivosTemporarios.apagarArquivo(arquivo);
+        ArquivosTemporarios.apagarArquivo(original);
+        item.falhar(ESPACO_INSUFICIENTE);
+        throw new SemEspacoNoDisco();
+    }
+
+    /** O pedido vai para FALHA, o diretório inteiro é apagado (libera o espaço) e sai um único evento, sem caminho. */
+    private void semEspaco(PedidoDeDossie pedido, Path pasta) {
+        ErroDoDossie erro = ErroDoDossie.geral(ArmazenamentoInsuficienteException.MENSAGEM_DO_DOSSIE,
+                ErroDoDossie.ARMAZENAMENTO_INSUFICIENTE);
+        if (pedido.falhar(erro, validade())) {
+            ArquivosTemporarios.apagarPasta(pasta);
+            eventos.falhaGeral(pedido,
+                    ErroDoDossie.ARMAZENAMENTO_INSUFICIENTE + ": sem espaço em disco para gerar o dossiê");
+            log.warn("Dossiê {}: sem espaço em disco; geração encerrada em FALHA e temporários apagados", pedido.id());
+        }
+    }
+
+    /**
+     * A falha foi falta de espaço: a cadeia de exceções diz isso (Linux ou Windows), ou o volume está praticamente
+     * cheio agora (o conversor não informa por que não gravou).
+     */
+    private boolean faltouEspaco(Throwable erro, Path diretorio) {
+        if (ArmazenamentoInsuficienteException.causadaPorFaltaDeEspaco(erro)) {
+            return true;
+        }
+        Long livre = livre(diretorio);
+        return livre != null && livre < LIMIAR_DE_DISCO_CHEIO;
+    }
+
+    /** Espaço livre medido, ou nulo se não deu para medir (nunca derruba a geração por isso). */
+    private Long livre(Path diretorio) {
+        try {
+            return espaco.livreEmBytes(diretorio);
+        } catch (RuntimeException e) {
+            log.warn("Não foi possível medir o espaço livre do diretório dos dossiês ({})", e.getClass().getSimpleName());
+            return null;
+        }
+    }
+
+    private boolean abaixoDoMinimo(Path diretorio) {
+        long minimo = parametros.espacoMinimoMb() * 1024L * 1024L;
+        if (minimo <= 0) {
+            return false;
+        }
+        Long livre = livre(diretorio);
+        return livre != null && livre < minimo;
+    }
+
+    /** Sinal interno: a obtenção ou a montagem parou por falta de espaço. */
+    private static final class SemEspacoNoDisco extends RuntimeException {
+        SemEspacoNoDisco() {
+            super(null, null, false, false);
+        }
     }
 
     /** Interrupção causada pelo cancelamento não é falha do documento: não gera evento. */
@@ -208,7 +310,12 @@ public class GeradorDeDossie {
                     new MontadorDoDossie.Inventario(pedido.listados(), pedido.naoIncluidos()),
                     new OpcoesDeMontagem(parametros.sumario(), parametros.marcadores(), parametros.numeracao()),
                     finalizado);
-            if (!pedido.concluir(finalizado, paginas, Files.size(finalizado), validade())) {
+            long tamanho = gravadoNoDisco(finalizado);
+            if (tamanho <= 0) {
+                falhaNaMontagem(pedido, finalizado, FINAL_NAO_GRAVADO);
+                return;
+            }
+            if (!pedido.concluir(finalizado, paginas, tamanho, validade())) {
                 ArquivosTemporarios.apagarArquivo(finalizado);
                 return;
             }
@@ -221,11 +328,32 @@ public class GeradorDeDossie {
                 ArquivosTemporarios.apagarArquivo(originalDoItem(pasta, i));
             }
         } catch (FalhaNoDocumentoException e) {
+            if (faltouEspaco(e, pasta)) {
+                throw new SemEspacoNoDisco();
+            }
             falhaNaMontagem(pedido, finalizado, "falha ao montar o dossiê: " + e.getMessage());
         } catch (IOException | RuntimeException e) {
+            if (faltouEspaco(e, pasta)) {
+                throw new SemEspacoNoDisco();
+            }
             log.error("Falha inesperada ao montar o dossiê {}", pedido.id(), e);
             falhaNaMontagem(pedido, finalizado, "falha inesperada ao montar o dossiê");
         }
+    }
+
+    /**
+     * Força o PDF final ao disco e devolve o tamanho (0 se não existe). Sem o {@code fsync}, a gravação fica no cache do
+     * sistema e a falta de espaço (comum no Docker, cujo disco virtual cresce no disco do computador) só aparece
+     * depois, com o pedido já CONCLUIDO e um arquivo ilegível.
+     */
+    private static long gravadoNoDisco(Path finalizado) throws IOException {
+        if (!Files.isRegularFile(finalizado)) {
+            return 0;
+        }
+        try (FileChannel canal = FileChannel.open(finalizado, StandardOpenOption.WRITE)) {
+            canal.force(true);
+        }
+        return Files.size(finalizado);
     }
 
     /** Os documentos obtidos continuam no disco: "Tentar novamente" refaz só a montagem. */
@@ -254,11 +382,13 @@ public class GeradorDeDossie {
         return LocalDateTime.now(relogio).plusMinutes(parametros.ttlMinutos());
     }
 
-    /** Antes de cada download: sem o mínimo de espaço livre no volume do pedido, o documento falha (docs/05). */
+    /**
+     * Antes de cada download: sem o mínimo de espaço livre no volume do pedido, a geração para em FALHA (S6, bloco 3;
+     * antes, cada documento falhava e o pedido esperava uma decisão que nada resolvia).
+     */
     private void exigirEspacoLivre(Path pasta) {
-        long minimo = parametros.espacoMinimoMb() * 1024L * 1024L;
-        if (minimo > 0 && espaco.livreEmBytes(pasta) < minimo) {
-            throw new FalhaNoDocumentoException(ESPACO_INSUFICIENTE, 0);
+        if (abaixoDoMinimo(pasta)) {
+            throw new ArmazenamentoInsuficienteException(ArmazenamentoInsuficienteException.MENSAGEM_DO_DOSSIE);
         }
     }
 }

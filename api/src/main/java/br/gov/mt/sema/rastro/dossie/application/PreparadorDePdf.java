@@ -15,6 +15,7 @@ import br.gov.mt.sema.rastro.documento.domain.DetectorDeTipoReal;
 import br.gov.mt.sema.rastro.documento.domain.TipoDetectado;
 import br.gov.mt.sema.rastro.dossie.application.port.FalhaNoDocumentoException;
 import br.gov.mt.sema.rastro.dossie.application.port.ValidadorDePdf;
+import br.gov.mt.sema.rastro.shared.application.exception.ArmazenamentoInsuficienteException;
 import org.springframework.stereotype.Service;
 
 /**
@@ -93,6 +94,10 @@ public class PreparadorDePdf {
             return new PdfPreparado(resultado.paginas(), tipo.extensaoSugerida().toUpperCase(Locale.ROOT),
                     resultado.abasEmPaginaUnica());
         } catch (FalhaDeConversaoException e) {
+            if (ArmazenamentoInsuficienteException.causadaPorFaltaDeEspaco(e)) {
+                // Sem espaço não é defeito do documento (S6, bloco 3): o gerador encerra o pedido em FALHA.
+                throw new ArmazenamentoInsuficienteException();
+            }
             throw new FalhaNoDocumentoException(e.getMessage(), 0);
         }
     }
@@ -102,6 +107,9 @@ public class PreparadorDePdf {
         try {
             Files.move(original, pdf, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
+            if (ArmazenamentoInsuficienteException.causadaPorFaltaDeEspaco(e)) {
+                throw new ArmazenamentoInsuficienteException();
+            }
             throw new FalhaNoDocumentoException("não foi possível ler o arquivo obtido", 0);
         }
         return validador.validar(pdf);

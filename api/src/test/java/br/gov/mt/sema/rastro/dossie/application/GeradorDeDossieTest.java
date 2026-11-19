@@ -101,19 +101,20 @@ class GeradorDeDossieTest {
     }
 
     @Test
-    void espacoInsuficienteFalhaCadaDocumentoSemBaixarENaoDeixaTemporarios() throws IOException {
+    void espacoInsuficienteEncerraEmFalhaSemBaixarENaoDeixaTemporarios() throws IOException {
+        // S6, bloco 3: antes cada documento falhava e o pedido esperava uma decisão que nada resolvia.
         PedidoDeDossie pedido = pedidoDeTres();
         parametros.espacoMinimoMb = 2048;
         espaco.livre = 2048L * 1024 * 1024 - 1;
 
         gerador.processar(pedido);
 
-        assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
-        assertThat(pedido.erro()).isNull();
-        assertThat(pedido.itens()).extracting(i -> i.motivo()).containsOnly("espaço em disco insuficiente");
+        assertThat(pedido.status()).isEqualTo(StatusDossie.FALHA);
+        assertThat(pedido.erro().codigo()).isEqualTo(ErroDoDossie.ARMAZENAMENTO_INSUFICIENTE);
+        assertThat(pedido.itens().get(0).motivo()).isEqualTo("espaço em disco insuficiente");
         assertThat(pedido.itens().get(0).tentativas()).isZero();
         assertThat(arquivos.baixadas).isEmpty();
-        assertThat(espaco.consultas).hasSize(3).containsOnly(pasta.resolve(pedido.id()));
+        assertThat(espaco.consultas).as("para no primeiro documento").containsOnly(pasta.resolve(pedido.id()));
         assertThat(arquivosNaPasta()).isZero();
     }
 

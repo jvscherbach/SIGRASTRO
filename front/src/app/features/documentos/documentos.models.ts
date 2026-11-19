@@ -82,7 +82,10 @@ export interface ReferenciaDocumento {
   id: string;
 }
 
-/** Situações do pedido (S2.2): falhas deixam o pedido em PENDENTE_DECISAO, sem reiniciar nada. */
+/**
+ * Situações do pedido (S2.2): falhas de documento deixam o pedido em PENDENTE_DECISAO, sem reiniciar nada. FALHA (S6):
+ * sem espaço em disco ou arquivo final perdido; não há arquivo e o caminho é gerar de novo.
+ */
 export type StatusDossie =
   | 'AGUARDANDO'
   | 'OBTENDO'
@@ -90,7 +93,8 @@ export type StatusDossie =
   | 'MONTANDO'
   | 'CONCLUIDO'
   | 'CANCELADO'
-  | 'EXPIRADO';
+  | 'EXPIRADO'
+  | 'FALHA';
 export type SituacaoItemDossie = 'AGUARDANDO' | 'OBTENDO' | 'OK' | 'FALHA' | 'REMOVIDO';
 
 export type AcaoDeContinuacao = 'TENTAR_NOVAMENTE' | 'REMOVER_E_CONTINUAR';
@@ -108,7 +112,7 @@ export interface ErroDossie {
   id: string | null;
   titulo: string | null;
   motivo: string;
-  /** Só CREDENCIAL_ARQUIVOS_RECUSADA: vale para todos os documentos. */
+  /** CREDENCIAL_ARQUIVOS_RECUSADA (vale para todos os documentos) ou o motivo da FALHA (S6: ARMAZENAMENTO_INSUFICIENTE, DOSSIE_ARQUIVO_AUSENTE, DOSSIE_ARQUIVO_INVALIDO). */
   codigo?: string;
 }
 
@@ -160,6 +164,10 @@ export interface DossieGerado {
   temArquivo: boolean;
   arquivoGerado: boolean;
   geradoPor?: string;
+  /** S6 (D77): o download já foi completo e o arquivo está na janela de nova tentativa. */
+  baixado?: boolean;
+  /** S6: só em FALHA, com o código e o texto para o usuário. */
+  falha?: { codigo: string | null; mensagem: string | null };
 }
 
 /** Formato pedido ao endpoint de conteúdo (S3, docs/07). */
@@ -177,4 +185,4 @@ export type ConteudoRecebido =
   | { tipo: 'grande'; megabytes: number };
 
 /** Estados em que o polling para: o servidor não muda o pedido sem uma ação do usuário. */
-export const STATUS_FINAIS: readonly StatusDossie[] = ['CONCLUIDO', 'PENDENTE_DECISAO', 'CANCELADO', 'EXPIRADO'];
+export const STATUS_FINAIS: readonly StatusDossie[] = ['CONCLUIDO', 'PENDENTE_DECISAO', 'CANCELADO', 'EXPIRADO', 'FALHA'];

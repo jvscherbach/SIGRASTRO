@@ -124,6 +124,12 @@ class DossiesGeradosHttpTest extends BaseHttpDeDocumentos {
         guardar(mvc.perform(get("/api/dossies/" + id + "/arquivo?disposicao=attachment")
                 .header("Authorization", bearer("gestor.demo")))).andExpect(status().isOk());
 
+        // Na janela de nova tentativa (D77): ainda pronto, marcado como baixado.
+        listar("gestor.demo", "").andExpect(jsonPath("$.conteudo[0].situacao").value("CONCLUIDO"))
+                .andExpect(jsonPath("$.conteudo[0].baixado").value(true))
+                .andExpect(jsonPath("$.conteudo[0].temArquivo").value(true));
+        repositorio.buscar(id).orElseThrow().registrarAtividade(java.time.LocalDateTime.now(java.time.ZoneId.of("America/Cuiaba")).minusMinutes(1));
+
         listar("gestor.demo", "").andExpect(jsonPath("$.conteudo[0].situacao").value("BAIXADO"))
                 .andExpect(jsonPath("$.conteudo[0].temArquivo").value(false))
                 .andExpect(jsonPath("$.conteudo[0].tamanhoBytes").isEmpty());

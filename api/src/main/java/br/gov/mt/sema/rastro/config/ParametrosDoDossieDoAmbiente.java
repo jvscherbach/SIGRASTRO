@@ -30,7 +30,7 @@ class ParametrosDoDossieDoAmbiente implements ParametrosDoDossie {
             @Value("${rastro.dossie.threads:2}") int threads,
             @Value("${rastro.dossie.download-timeout-segundos:120}") int downloadTimeoutSegundos,
             @Value("${rastro.dossie.download-total-maximo-segundos:900}") int downloadTotalMaximoSegundos,
-            @Value("${rastro.dossie.espaco-minimo-mb:2048}") long espacoMinimoMb,
+            @Value("${rastro.dossie.espaco-minimo-mb:500}") long espacoMinimoMb,
             @Value("${rastro.dossie.blob-max-mb:150}") long blobMaxMb,
             @Value("${rastro.dossie.historico-horas:24}") int historicoHoras,
             @Value("${rastro.dossie.sumario:true}") boolean sumario,

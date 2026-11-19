@@ -1,5 +1,7 @@
 package br.gov.mt.sema.rastro.dossie.application;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -8,23 +10,41 @@ import br.gov.mt.sema.rastro.acesso.application.UsuarioAtual;
 import br.gov.mt.sema.rastro.auditoria.domain.UsuarioDoEvento;
 import br.gov.mt.sema.rastro.dossie.application.port.ParametrosDoDossie;
 import br.gov.mt.sema.rastro.dossie.application.port.TicketsDeDownload;
+import br.gov.mt.sema.rastro.dossie.domain.ErroDoDossie;
 import br.gov.mt.sema.rastro.dossie.domain.PedidoDeDossie;
 import br.gov.mt.sema.rastro.dossie.domain.StatusDossie;
 import br.gov.mt.sema.rastro.dossie.domain.TicketDeDownload;
+import br.gov.mt.sema.rastro.shared.application.exception.ArquivoDoDossieIndisponivelException;
 import br.gov.mt.sema.rastro.shared.application.exception.DossieExpiradoException;
 import br.gov.mt.sema.rastro.shared.application.exception.DossieSemArquivoException;
 import br.gov.mt.sema.rastro.shared.application.exception.TicketInvalidoException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Entrega o PDF final. 409 se não há arquivo (em andamento, à espera de decisão ou cancelado), 410 se expirou ou já
- * foi baixado. O arquivo é apagado quando o download (attachment) termina por inteiro (RNF05).
+ * Entrega o PDF final. 409 se não há arquivo (em andamento, à espera de decisão, cancelado ou em FALHA), 410 se
+ * expirou ou já foi baixado.
+ *
+ * <p>Arquivo conferido antes de cada entrega (S6, bloco 3): concluído mas sem o arquivo no disco dá 410
+ * {@code DOSSIE_ARQUIVO_AUSENTE}; vazio ou com tamanho diferente do gravado dá 500 {@code DOSSIE_ARQUIVO_INVALIDO}. Nos
+ * dois casos o pedido vai para FALHA, o diretório é apagado e sai um evento de falha com o código, sem caminho. Nunca
+ * 200 com corpo vazio ou truncado.
+ *
+ * <p>Download completo (o último byte saiu do servidor): o arquivo fica mais {@value #JANELA_DE_NOVA_TENTATIVA_MINUTOS}
+ * minutos (ou até a validade, o que vier antes) para "Tentar novamente", porque o servidor não sabe se o navegador
+ * conseguiu gravar (D77). Depois o pedido expira como baixado e o arquivo é apagado (RNF05).
  *
  * <p>Dossiê grande (S2.2, D49): o navegador baixa direto, sem cabeçalho de sessão, com um ticket de uso único emitido
  * por {@link EmitirTicketDeDownload}. O ticket é consumido na primeira tentativa, válida ou não.
  */
 @Service
 public class ObterArquivoDoDossie {
+
+    /** Minutos que o arquivo continua depois de um download completo, para uma nova tentativa (D77). */
+    public static final int JANELA_DE_NOVA_TENTATIVA_MINUTOS = 5;
+
+    private static final Logger log = LoggerFactory.getLogger(ObterArquivoDoDossie.class);
 
     private final LocalizarPedido localizar;
     private final ParametrosDoDossie parametros;
@@ -68,23 +88,21 @@ public class ObterArquivoDoDossie {
     }
 
     /**
-     * Chamado quando o download terminou por inteiro: o arquivo (e o diretório do pedido) não precisa mais existir. Só
-     * aqui sai o evento {@code DOWNLOAD}: pré-visualização e download interrompido não passam por este método.
+     * Chamado quando o download terminou por inteiro (do lado do servidor). Só aqui sai o evento {@code DOWNLOAD}:
+     * pré-visualização e download interrompido não passam por este método. O arquivo fica a janela de nova tentativa e
+     * expira depois, pela validade (D77).
      */
     public void concluirDownload(ArquivoDoDossie arquivo) {
         PedidoDeDossie pedido = localizar.semUsuario(arquivo.id());
         eventos.download(pedido, arquivo.baixadoPor());
-        pedido.marcarBaixado();
-        if (pedido.expirar()) {
-            ArquivosTemporarios.apagarPasta(ArquivosTemporarios.pastaDo(parametros, pedido));
-        }
+        pedido.marcarBaixado(LocalDateTime.now(relogio).plusMinutes(JANELA_DE_NOVA_TENTATIVA_MINUTOS));
     }
 
     public void concluirDownload(String id) {
         concluirDownload(executar(id));
     }
 
-    private static ArquivoDoDossie arquivoDe(PedidoDeDossie pedido, UsuarioDoEvento baixadoPor) {
+    private ArquivoDoDossie arquivoDe(PedidoDeDossie pedido, UsuarioDoEvento baixadoPor) {
         StatusDossie status = pedido.status();
         if (status == StatusDossie.EXPIRADO) {
             throw new DossieExpiradoException();
@@ -93,13 +111,41 @@ public class ObterArquivoDoDossie {
         if (status != StatusDossie.CONCLUIDO || arquivo == null) {
             throw new DossieSemArquivoException(mensagem(status));
         }
+        conferirArquivo(pedido, arquivo);
         return new ArquivoDoDossie(pedido.id(), arquivo, pedido.capa().nomeDoArquivo(), pedido.tamanhoBytes(), baixadoPor);
+    }
+
+    /** O arquivo final ainda está inteiro no disco; senão o pedido vira FALHA e a resposta é o erro real. */
+    private void conferirArquivo(PedidoDeDossie pedido, Path arquivo) {
+        long tamanho;
+        try {
+            tamanho = Files.isRegularFile(arquivo) ? Files.size(arquivo) : -1;
+        } catch (IOException e) {
+            tamanho = -1;
+        }
+        if (tamanho < 0) {
+            perder(pedido, ErroDoDossie.ARQUIVO_AUSENTE, ArquivoDoDossieIndisponivelException.MENSAGEM_AUSENTE);
+            throw ArquivoDoDossieIndisponivelException.ausente();
+        }
+        if (tamanho == 0 || tamanho != pedido.tamanhoBytes()) {
+            perder(pedido, ErroDoDossie.ARQUIVO_INVALIDO, ArquivoDoDossieIndisponivelException.MENSAGEM_INVALIDO);
+            throw ArquivoDoDossieIndisponivelException.invalido();
+        }
+    }
+
+    private void perder(PedidoDeDossie pedido, String codigo, String mensagem) {
+        if (pedido.perderArquivo(ErroDoDossie.geral(mensagem, codigo))) {
+            ArquivosTemporarios.apagarPasta(ArquivosTemporarios.pastaDo(parametros, pedido));
+            eventos.falhaGeral(pedido, codigo + ": o arquivo final do dossiê não pôde ser entregue");
+            log.warn("Dossiê {}: arquivo final indisponível na entrega ({}); pedido em FALHA", pedido.id(), codigo);
+        }
     }
 
     private static String mensagem(StatusDossie status) {
         return switch (status) {
             case AGUARDANDO, OBTENDO, MONTANDO -> "O dossiê ainda está sendo gerado.";
             case PENDENTE_DECISAO -> "Há documentos com problema: decida se tenta de novo ou remove antes de montar.";
+            case FALHA -> "A geração do dossiê falhou e não há arquivo. Gere o dossiê novamente.";
             default -> "Não há arquivo para este dossiê.";
         };
     }

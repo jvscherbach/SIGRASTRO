@@ -5,7 +5,12 @@ import { Subject, of, throwError } from 'rxjs';
 
 import { DossiesApiService } from './documentos-api.service';
 import { AndamentoDossie, ReferenciaDocumento } from './documentos.models';
-import { AcompanhamentoDeDossieService, INTERVALO_INICIAL_MS, INTERVALO_MAXIMO_MS } from './acompanhamento-dossie.service';
+import {
+  AcompanhamentoDeDossieService,
+  INTERVALO_INICIAL_MS,
+  INTERVALO_MAXIMO_MS,
+  MENSAGEM_PDF_INCOMPLETO,
+} from './acompanhamento-dossie.service';
 import { GavetaDossieComponent } from './gaveta-dossie.component';
 
 const REFS: ReferenciaDocumento[] = [
@@ -141,6 +146,54 @@ describe('GavetaDossieComponent', () => {
 
       expect(api.criar).toHaveBeenCalledWith(101, REFS);
       expect(api.andamento).toHaveBeenCalledWith('pedido-1');
+    });
+
+    it('POST recusado por falta de espaço (507) mostra a mensagem real e Tentar novamente, sem sucesso', () => {
+      api.criar.mockReturnValue(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 507,
+              error: {
+                errorCode: 'ARMAZENAMENTO_INSUFICIENTE',
+                detail: 'Sem espaço em disco para gerar o dossiê. Libere espaço e tente novamente.',
+              },
+            }),
+        ),
+      );
+      abrir();
+
+      expect(texto()).toContain('Sem espaço em disco para gerar o dossiê. Libere espaço e tente novamente.');
+      expect(texto()).toContain('Não foi possível gerar');
+      expect(texto()).not.toContain('Dossiê pronto');
+      expect(api.andamento).not.toHaveBeenCalled();
+      expect(botao('Tentar novamente')).toBeTruthy();
+    });
+
+    it('FALHA por falta de espaço durante a geração: motivo real, Gerar novamente e Descartar, sem Baixar', () => {
+      api.andamento.mockReturnValue(
+        of(
+          andamento({
+            status: 'FALHA',
+            erro: {
+              origem: null,
+              id: null,
+              titulo: null,
+              motivo: 'Sem espaço em disco para gerar o dossiê. Libere espaço e tente novamente.',
+              codigo: 'ARMAZENAMENTO_INSUFICIENTE',
+            },
+          }),
+        ),
+      );
+      abrir();
+
+      expect(texto()).toContain('Não foi possível gerar o dossiê');
+      expect(texto()).toContain('Sem espaço em disco para gerar o dossiê. Libere espaço e tente novamente.');
+      expect(texto()).toContain('Nenhum arquivo foi gerado e os temporários foram apagados.');
+      expect(botao('Baixar PDF')).toBeUndefined();
+      expect(botao('Gerar novamente')).toBeTruthy();
+      expect(botao('Descartar')).toBeTruthy();
+      expect(servico.indicador()?.tipo).toBe('erro');
     });
 
     it('avisa que o dossiê segue sempre a ordem cronológica (a ordem da tabela não muda o PDF)', () => {
@@ -362,25 +415,34 @@ describe('GavetaDossieComponent', () => {
       expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:http://localhost/previa-1');
     });
 
-    it('baixar usa Blob e o nome do Content-Disposition; depois o arquivo é tratado como descartado', () => {
+    it('baixar usa Blob e o nome do Content-Disposition; depois diz "entregue", sem sucesso falso, e permite tentar de novo', async () => {
       api.arquivo.mockReturnValue(of(pdf("attachment; filename*=UTF-8''dossie-processo-2825-2025.pdf")));
       const baixados: { nome: string; href: string }[] = [];
       vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
         baixados.push({ nome: this.download, href: this.href });
       });
       abrir();
+      api.andamento.mockClear();
 
       botao('Baixar PDF')!.click();
+      await vi.waitFor(() => expect(baixados.length).toBe(1));
       fixture.detectChanges();
 
       expect(api.arquivo).toHaveBeenCalledWith('pedido-1', 'attachment');
       expect(baixados).toEqual([{ nome: 'dossie-processo-2825-2025.pdf', href: 'blob:http://localhost/previa-1' }]);
-      expect(texto()).toContain('Arquivo baixado. Ele foi descartado do servidor');
+      expect(texto()).toContain('Arquivo entregue ao navegador. Confira o arquivo na pasta de downloads');
+      expect(texto()).not.toContain('Arquivo baixado');
+      expect(raiz.querySelector('.gaveta-entregue.lime')).toBeNull();
+      expect(api.andamento).toHaveBeenCalledWith('pedido-1');
       expect(botao('Baixar PDF')).toBeUndefined();
-      expect(botao('Gerar novamente')).toBeTruthy();
+      expect(botao('Tentar novamente')).toBeTruthy();
+
+      botao('Tentar novamente')!.click();
+      await vi.waitFor(() => expect(baixados.length).toBe(2));
+      expect(api.arquivo).toHaveBeenCalledTimes(2);
     });
 
-    it('sem Content-Disposition o nome padrão é dossie.pdf', () => {
+    it('sem Content-Disposition o nome padrão é dossie.pdf', async () => {
       api.arquivo.mockReturnValue(of(pdf()));
       const nomes: string[] = [];
       vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
@@ -390,7 +452,112 @@ describe('GavetaDossieComponent', () => {
 
       botao('Baixar PDF')!.click();
 
-      expect(nomes).toEqual(['dossie.pdf']);
+      await vi.waitFor(() => expect(nomes).toEqual(['dossie.pdf']));
+    });
+
+    it('PDF truncado (menor que o Content-Length) nunca vai ao navegador e mostra erro com as três ações', async () => {
+      const truncado = new HttpResponse({
+        body: new Blob(['%PDF-1.7'], { type: 'application/pdf' }),
+        status: 200,
+        headers: new HttpHeaders({ 'Content-Length': '1048576' }),
+      });
+      api.arquivo.mockReturnValue(of(truncado));
+      const clique = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+      abrir();
+
+      botao('Baixar PDF')!.click();
+      await vi.waitFor(() => expect(servico.erroDeDownload()).toBe(true));
+      fixture.detectChanges();
+
+      expect(clique).not.toHaveBeenCalled();
+      expect(texto()).toContain(MENSAGEM_PDF_INCOMPLETO);
+      expect(texto()).not.toContain('entregue ao navegador');
+      expect(botao('Tentar novamente')).toBeTruthy();
+      expect(botao('Gerar novamente')).toBeTruthy();
+      expect(botao('Descartar')).toBeTruthy();
+      expect(texto()).toContain('Baixa o mesmo arquivo de novo, sem gerar outro.');
+      expect(texto()).toContain('Cria um dossiê novo com os mesmos documentos.');
+      expect(texto()).toContain('Apaga este pedido do servidor e fecha a janela.');
+    });
+
+    it('corpo que não é PDF também é recusado', async () => {
+      api.arquivo.mockReturnValue(
+        of(new HttpResponse({ body: new Blob(['<html>erro</html>']), status: 200, headers: new HttpHeaders() })),
+      );
+      const clique = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+      abrir();
+
+      botao('Baixar PDF')!.click();
+      await vi.waitFor(() => expect(servico.erroDeDownload()).toBe(true));
+
+      expect(clique).not.toHaveBeenCalled();
+    });
+
+    it('download com arquivo incompleto no servidor (500) mostra o erro real e o andamento passa a FALHA', async () => {
+      api.arquivo.mockReturnValue(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 500,
+              error: { errorCode: 'DOSSIE_ARQUIVO_INVALIDO', detail: 'O arquivo do dossiê está incompleto no servidor.' },
+            }),
+        ),
+      );
+      abrir();
+      api.andamento.mockReturnValue(
+        of({
+          ...CONCLUIDO,
+          status: 'FALHA' as const,
+          erro: { origem: null, id: null, titulo: null, motivo: 'O arquivo do dossiê está incompleto no servidor.', codigo: 'DOSSIE_ARQUIVO_INVALIDO' },
+        }),
+      );
+
+      botao('Baixar PDF')!.click();
+      fixture.detectChanges();
+
+      expect(texto()).toContain('O arquivo do dossiê está incompleto no servidor.');
+      expect(texto()).toContain('Não foi possível gerar o dossiê');
+      expect(texto()).not.toContain('entregue ao navegador');
+      expect(texto()).not.toContain('Dossiê pronto');
+      expect(botao('Baixar PDF')).toBeUndefined();
+      expect(botao('Tentar novamente')).toBeUndefined();
+      expect(botao('Gerar novamente')).toBeTruthy();
+      expect(botao('Descartar')).toBeTruthy();
+    });
+
+    it('Tentar novamente depois de um erro de rede repete o download', async () => {
+      api.arquivo.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 0 })));
+      abrir();
+
+      botao('Baixar PDF')!.click();
+      fixture.detectChanges();
+      expect(texto()).toContain('Não foi possível conectar ao servidor');
+      expect(texto()).not.toContain('entregue ao navegador');
+
+      api.arquivo.mockReturnValue(of(pdf()));
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+      botao('Tentar novamente')!.click();
+      await vi.waitFor(() => expect(servico.baixado()).toBe(true));
+      fixture.detectChanges();
+
+      expect(api.arquivo).toHaveBeenCalledTimes(2);
+      expect(texto()).not.toContain('Não foi possível conectar ao servidor');
+    });
+
+    it('Descartar apaga o pedido no servidor, fecha a gaveta e para o acompanhamento', async () => {
+      api.arquivo.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 0 })));
+      abrir();
+      botao('Baixar PDF')!.click();
+      fixture.detectChanges();
+
+      botao('Descartar')!.click();
+      api.andamento.mockClear();
+      await avancar(INTERVALO_MAXIMO_MS * 3);
+
+      expect(api.cancelar).toHaveBeenCalledWith('pedido-1');
+      expect(servico.ativo()).toBe(false);
+      expect(servico.gavetaAberta()).toBe(false);
+      expect(api.andamento).not.toHaveBeenCalled();
     });
 
     it('o token nunca aparece em URL: a busca do PDF só leva id e disposição', () => {
@@ -445,8 +612,8 @@ describe('GavetaDossieComponent', () => {
       expect(api.arquivo).not.toHaveBeenCalled();
       expect(URL.createObjectURL).not.toHaveBeenCalled();
       expect(urls).toEqual(['/api/dossies/pedido-1/arquivo?disposicao=attachment&ticket=TICKET-DE-TESTE']);
-      expect(texto()).toContain('Download entregue ao navegador');
-      expect(botao('Gerar novamente')).toBeTruthy();
+      expect(texto()).toContain('Download enviado ao navegador');
+      expect(botao('Tentar novamente')).toBeTruthy();
     });
 
     it('ticket recusado (410) mostra que expirou', () => {

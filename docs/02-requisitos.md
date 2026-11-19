@@ -70,7 +70,7 @@
 | RNF02 | Geração assíncrona: o pedido retorna imediatamente e o processamento ocorre em segundo plano. |
 | RNF03 | Arquivos processados em disco temporário, nunca acumulados integralmente em memória. |
 | RNF04 | Timeout por documento na obtenção e na conversão (inatividade e teto total, com novas tentativas automáticas; docs/05). Nenhum dossiê é entregue com documento faltando sem decisão explícita do usuário (RN09); os temporários são descartados ao concluir, cancelar ou expirar. |
-| RNF05 | O dossiê não é armazenado de forma permanente. Arquivos temporários são apagados após o download ou após expiração (padrão: 30 minutos). |
+| RNF05 | O dossiê não é armazenado de forma permanente. Arquivos temporários são apagados após o download ou após expiração (padrão: 30 minutos). Desde a S6 (D77), o PDF fica mais 5 minutos depois de um download completo, para uma nova tentativa caso o navegador não tenha conseguido gravar. |
 | RNF06 | Páginas mantêm tamanho e orientação originais. Não se força A4. |
 | RNF07 | Credenciais (token da API, conexão com o banco) ficam só em variáveis de ambiente (`.env` fora do controle de versão). |
 | RNF08 | Execução local via Docker Compose. |

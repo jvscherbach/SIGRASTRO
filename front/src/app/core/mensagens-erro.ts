@@ -12,6 +12,10 @@ const POR_CODIGO: Record<string, string> = {
   DOSSIE_SEM_ARQUIVO: 'Não há arquivo: o dossiê aguarda uma decisão, foi cancelado ou ainda está sendo gerado.',
   DOSSIE_SEM_DECISAO_PENDENTE: 'O dossiê não está mais aguardando decisão. Atualize para ver a situação.',
   DOSSIE_EXPIRADO: 'O dossiê expirou. Gere-o novamente.',
+  ARMAZENAMENTO_INSUFICIENTE: 'Sem espaço em disco para gerar o dossiê. Libere espaço e tente novamente.',
+  DOSSIE_ARQUIVO_AUSENTE: 'O arquivo do dossiê não está mais no servidor. Gere o dossiê novamente.',
+  DOSSIE_ARQUIVO_INVALIDO:
+    'O arquivo do dossiê está incompleto no servidor (por exemplo, por falta de espaço em disco). Libere espaço e gere o dossiê novamente.',
   CREDENCIAL_ARQUIVOS_RECUSADA:
     'A credencial de acesso aos arquivos foi recusada. Capture um novo token, atualize o arquivo do token e clique em Tentar novamente.',
   FORMATO_NAO_SUPORTADO: 'Este formato não tem conversão para PDF. Baixe o original para abri-lo.',
@@ -36,6 +40,29 @@ export function mensagemDoCodigo(codigo: 'PERFIL_SEM_PERMISSAO' | 'DOCUMENTO_SIG
 
 const SEM_CONEXAO = 'Não foi possível conectar ao servidor. Verifique a conexão e tente novamente.';
 const GENERICA = 'Não foi possível concluir a operação.';
+
+/**
+ * Códigos cujo `detail` é escrito pelo servidor para o usuário (sem dado técnico nem caminho): a tela mostra o erro real
+ * que o servidor deu (S6, bloco 3). Para os demais vale o texto fixo do código.
+ */
+const DETALHE_PARA_O_USUARIO = new Set([
+  'ARMAZENAMENTO_INSUFICIENTE',
+  'DOSSIE_ARQUIVO_AUSENTE',
+  'DOSSIE_ARQUIVO_INVALIDO',
+  'DOSSIE_SEM_ARQUIVO',
+  'DOSSIE_EXPIRADO',
+]);
+
+/** O erro real do servidor quando o `detail` é escrito para o usuário; senão, o texto fixo do código. */
+export function mensagemRealDoErro(erro: HttpErrorResponse): string {
+  const problema = erro.error as ProblemDetail | null;
+  const codigo = problema?.errorCode;
+  const detalhe = (problema as { detail?: unknown } | null)?.detail;
+  if (codigo && DETALHE_PARA_O_USUARIO.has(codigo) && typeof detalhe === 'string' && detalhe.trim()) {
+    return detalhe.trim();
+  }
+  return mensagemDoErro(erro);
+}
 
 /** Mensagem amigável a partir do errorCode do ProblemDetail; nunca exibe o detail técnico cru. */
 export function mensagemDoErro(erro: HttpErrorResponse): string {

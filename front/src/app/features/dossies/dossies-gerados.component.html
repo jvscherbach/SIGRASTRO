@@ -71,6 +71,9 @@
                   </td>
                   <td class="nowrap">
                     <span [class]="'tag situacao-dossie ' + tomDaSituacao[d.situacao]">{{ rotuloDaSituacao(d) }}</span>
+                    @if (d.situacao === 'FALHA' && d.falha?.mensagem) {
+                      <span class="cell-sub motivo-falha">{{ d.falha?.mensagem }}</span>
+                    }
                   </td>
                   <td class="nowrap">{{ formatarDataHora(d.criadoEm) }}</td>
                   <td class="nowrap expira">
@@ -111,10 +114,36 @@
                       }
                       <button type="button" class="btn sm quiet" (click)="abrirRequerimento(d)"><app-icone nome="arrow" />Abrir requerimento</button>
                     </div>
+                    @if (d.baixado && d.temArquivo) {
+                      <span class="cell-sub nota-baixado">
+                        Entregue ao navegador. Se não apareceu nos downloads, baixe de novo até {{ formatarDataHora(d.expiraEm) }}.
+                      </span>
+                    }
                     @if (mensagemDaAcao(); as m) {
                       @if (m.id === d.id) {
                         <span class="cell-sub erro-acao" role="alert">{{ m.texto }}</span>
                       }
+                    }
+                    @if (d.situacao === 'FALHA' || (mensagemDaAcao()?.id === d.id && mensagemDaAcao()?.deDownload)) {
+                      <!-- Erro real: cada ação diz o que faz (S6, bloco 3). -->
+                      <div class="acoes-erro-dossie">
+                        @if (d.temArquivo && d.situacao !== 'FALHA') {
+                          <div class="acao-de-erro">
+                            <button type="button" class="btn sm" [disabled]="ocupado() !== null" (click)="baixar(d)">
+                              <app-icone nome="refresh" />Tentar novamente
+                            </button>
+                            <small>Baixa o mesmo arquivo de novo, sem gerar outro.</small>
+                          </div>
+                        }
+                        <div class="acao-de-erro">
+                          <button type="button" class="btn sm" (click)="abrirRequerimento(d)"><app-icone nome="refresh" />Gerar novamente</button>
+                          <small>Abre o requerimento para gerar um dossiê novo.</small>
+                        </div>
+                        <div class="acao-de-erro">
+                          <button type="button" class="btn sm quiet" [disabled]="ocupado() !== null" (click)="descartar(d)">Descartar</button>
+                          <small>Apaga este pedido do servidor.</small>
+                        </div>
+                      </div>
                     }
                   </td>
                 </tr>

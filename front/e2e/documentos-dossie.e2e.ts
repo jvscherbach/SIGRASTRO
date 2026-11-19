@@ -145,7 +145,10 @@ test('lista, seleção padrão, geração com acompanhamento, pré-visualizaçã
   await page.getByRole('button', { name: 'Baixar PDF' }).click();
   const download = await baixando;
   expect(download.suggestedFilename()).toBe('dossie-processo-2825-2025.pdf');
-  await expect(page.locator('.d-body')).toContainText('Arquivo baixado');
+  // S6, bloco 3: nota neutra (a página não sabe se o navegador gravou) e "Tentar novamente" para baixar de novo
+  await expect(page.locator('.d-body')).toContainText('Arquivo entregue ao navegador');
+  await expect(page.locator('.gaveta-entregue.lime')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
 });
 
 test('Operador: documento sigiloso aparece mascarado e sem seleção', async ({ page }) => {
@@ -341,7 +344,8 @@ test('dossiê grande: sem pré-visualização; o navegador baixa pela URL do tic
 
   expect(download.suggestedFilename()).toBe('dossie-processo-2825-2025.pdf');
   expect(pedidosDoArquivo).toEqual([{ url: '?disposicao=attachment&ticket=TICKET-DE-TESTE', autorizacao: undefined }]);
-  await expect(page.locator('.d-body')).toContainText('Download entregue ao navegador');
+  await expect(page.locator('.d-body')).toContainText('Download enviado ao navegador');
+  await expect(page.getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
 });
 
 // --- visualização de documentos (S3): modal com PDF por Blob, faixa de convertido, erro, seleção e sigilo
@@ -459,4 +463,109 @@ test('a coluna do documento mostra o nome do arquivo e o tipo/título na linha d
   await expect(linha.locator('small')).toContainText('Requerimento assinado');
   // sem nome de arquivo (tipo não informado): o título aparece como nome
   await expect(page.locator('tbody tr', { hasText: 'Planta' }).locator('b')).toHaveText('Planta');
+});
+
+// --- disco cheio (S6, bloco 3): erro real, nunca sucesso, ações explicadas
+
+const SEM_ESPACO = 'Sem espaço em disco para gerar o dossiê. Libere espaço e tente novamente.';
+
+async function simularArmazenamento(
+  page: Page,
+  opcoes: { post?: 'ok' | '507'; status?: 'CONCLUIDO' | 'FALHA'; arquivo?: 'pdf' | 'naoPdf' },
+): Promise<{ downloads: number; cancelados: number }> {
+  const contagem = { downloads: 0, cancelados: 0 };
+  await page.addInitScript(() => sessionStorage.setItem('rastro.token', 'token-de-teste'));
+  await page.route('**/api/**', async (route: Route) => {
+    const url = new URL(route.request().url());
+    const caminho = url.pathname;
+    const metodo = route.request().method();
+    if (caminho === '/api/auth/me') return route.fulfill({ json: GESTOR });
+    if (caminho === '/api/requerimentos/101') return route.fulfill({ json: REQUERIMENTO });
+    if (caminho === '/api/requerimentos/101/documentos') return route.fulfill({ json: DOCUMENTOS });
+    if (caminho === '/api/dossies' && metodo === 'POST') {
+      if (opcoes.post === '507') {
+        return route.fulfill({
+          status: 507,
+          contentType: 'application/problem+json',
+          body: JSON.stringify({ status: 507, errorCode: 'ARMAZENAMENTO_INSUFICIENTE', detail: SEM_ESPACO }),
+        });
+      }
+      return route.fulfill({ status: 202, json: { id: 'pedido-1' } });
+    }
+    if (caminho === '/api/dossies/pedido-1' && metodo === 'DELETE') {
+      contagem.cancelados += 1;
+      return route.fulfill({ status: 204 });
+    }
+    if (caminho === '/api/dossies/pedido-1' && metodo === 'GET') {
+      const falha = opcoes.status === 'FALHA';
+      return route.fulfill({
+        json: {
+          id: 'pedido-1',
+          status: falha ? 'FALHA' : 'CONCLUIDO',
+          total: 2,
+          processados: falha ? 0 : 2,
+          erro: falha ? { motivo: SEM_ESPACO, codigo: 'ARMAZENAMENTO_INSUFICIENTE' } : null,
+          falhas: [],
+          paginas: falha ? null : 6,
+          expiraEm: '2099-01-01T00:00:00',
+          itens: ITENS.map((i) => ({ ...i, situacao: falha ? 'AGUARDANDO' : 'OK' })),
+        },
+      });
+    }
+    if (caminho === '/api/dossies/pedido-1/arquivo') {
+      contagem.downloads += 1;
+      return route.fulfill({
+        status: 200,
+        body: opcoes.arquivo === 'naoPdf' ? Buffer.from('<html>pagina de erro</html>') : PDF_MINIMO,
+        headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': "attachment; filename*=UTF-8''dossie.pdf" },
+      });
+    }
+    return route.fulfill({ status: 404, json: { status: 404, errorCode: 'NAO_ENCONTRADO' } });
+  });
+  return contagem;
+}
+
+test('disco cheio no POST (507): mensagem real e Tentar novamente, sem sucesso', async ({ page }) => {
+  await simularArmazenamento(page, { post: '507' });
+
+  await abrirGaveta(page);
+
+  await expect(page.locator('.d-head h2')).toHaveText('Não foi possível gerar');
+  await expect(page.locator('.d-body')).toContainText(SEM_ESPACO);
+  await expect(page.getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
+  await expect(page.locator('.d-body')).not.toContainText('Dossiê pronto');
+});
+
+test('disco cheio na geração (FALHA): motivo, Gerar novamente e Descartar com explicação; Descartar apaga o pedido', async ({ page }) => {
+  const contagem = await simularArmazenamento(page, { status: 'FALHA' });
+
+  await abrirGaveta(page);
+
+  await expect(page.locator('.d-head h2')).toHaveText('Não foi possível gerar o dossiê');
+  await expect(page.locator('.gaveta-falha')).toContainText(SEM_ESPACO);
+  await expect(page.getByRole('button', { name: 'Baixar PDF' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Gerar novamente' })).toBeVisible();
+  await expect(page.getByText('Apaga este pedido do servidor e fecha a janela.')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Descartar' }).click();
+  await expect(page.locator('.drawer')).toHaveCount(0);
+  expect(contagem.cancelados).toBe(1);
+});
+
+test('corpo que não é PDF nunca vira download nem "entregue"; Tentar novamente baixa de novo', async ({ page }) => {
+  const contagem = await simularArmazenamento(page, { arquivo: 'naoPdf' });
+  let baixou = false;
+  page.on('download', () => (baixou = true));
+
+  await abrirGaveta(page);
+  await expect(page.locator('.d-head h2')).toHaveText('Dossiê pronto');
+  await page.getByRole('button', { name: 'Baixar PDF' }).click();
+
+  await expect(page.locator('.gaveta-erro')).toContainText('incompleto ou não é um PDF');
+  await expect(page.locator('.d-body')).not.toContainText('entregue ao navegador');
+  await expect(page.getByRole('button', { name: 'Gerar novamente' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Descartar' })).toBeVisible();
+  await page.getByRole('button', { name: 'Tentar novamente' }).click();
+  await expect.poll(() => contagem.downloads).toBe(2);
+  expect(baixou).toBe(false);
 });

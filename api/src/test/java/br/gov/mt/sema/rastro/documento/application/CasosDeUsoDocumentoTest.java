@@ -235,7 +235,7 @@ class CasosDeUsoDocumentoTest {
         assertThat(selecao.escolhidos()).extracting(Documento::id).containsExactly("1");
         assertThat(selecao.listados()).isEqualTo(5);
         assertThat(selecao.naoSelecionados()).extracting(n -> n.documento().id() + ":" + n.motivo() + ":" + n.titulo())
-                .containsExactly("5:NAO_SELECIONADO:Antigo", "2:INDISPONIVEL:Perdido", "3:NAO_PDF:Planilha",
+                .containsExactly("5:NAO_SELECIONADO:antigo.pdf", "2:INDISPONIVEL:perdido.pdf", "3:NAO_PDF:calculo.xlsx",
                         "4:SIGILOSO:Documento sigiloso");
     }
 
@@ -247,7 +247,7 @@ class CasosDeUsoDocumentoTest {
 
         assertThat(selecao.naoSelecionados()).filteredOn(n -> n.documento().id().equals("4")).singleElement()
                 .satisfies(n -> {
-                    assertThat(n.titulo()).isEqualTo("Laudo reservado");
+                    assertThat(n.titulo()).isEqualTo("laudo-secreto.pdf"); // D76: nome do arquivo
                     assertThat(n.motivo()).isEqualTo(SelecaoParaDossie.Motivo.NAO_SELECIONADO);
                 });
         assertThat(selecao.escolhidos().size() + selecao.naoSelecionados().size()).isEqualTo(selecao.listados());

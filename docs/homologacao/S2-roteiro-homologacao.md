@@ -443,7 +443,7 @@ Desde a S2.2 as falhas são **coletadas**: a geração vai até o fim, o pedido 
 | Sem a API de arquivos | `LICENCIAMENTO_API_URL=` | a lista funciona; cada documento falha com "API de arquivos não configurada" | [ ] |
 | Tipo não informado que não é PDF | documento sem extensão (ou de nome em branco) cujo arquivo não é PDF | "Falhou: o arquivo não é um PDF (tipo detectado: X)…"; nada entregue sem decisão (RN09) | [ ] |
 | Tipo não informado que é PDF | documento sem extensão cujo arquivo é PDF | entra no dossiê normalmente | [ ] |
-| Pouco disco | `DOSSIE_ESPACO_MINIMO_MB` maior que o espaço livre do volume | cada documento falha com "espaço em disco insuficiente", sem chamar a API | [ ] |
+| Pouco disco | `DOSSIE_ESPACO_MINIMO_MB` maior que o espaço livre do volume | desde a S6 (D77): "Gerar dossiê" responde 507 com "Sem espaço em disco para gerar o dossiê. Libere espaço e tente novamente.", sem criar pedido e sem chamar a API | [ ] |
 
 - [ ] OK / [ ] Falhou — observação:
 

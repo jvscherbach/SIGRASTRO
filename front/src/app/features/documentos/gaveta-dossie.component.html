@@ -30,6 +30,16 @@
           </div>
         }
 
+        @if (status() === 'FALHA') {
+          <div class="alert gaveta-falha" role="alert" style="margin: 0 0 16px">
+            <app-icone nome="alert" />
+            <div>
+              <p class="falha-motivo"><b>{{ erroDoDossie()?.motivo ?? 'Não foi possível gerar o dossiê.' }}</b></p>
+              <p class="falha-nota">Nenhum arquivo foi gerado e os temporários foram apagados.</p>
+            </div>
+          </div>
+        }
+
         @if (status() === 'PENDENTE_DECISAO') {
           <div class="alert gaveta-interrompida" role="alert" style="margin: 0 0 16px">
             <app-icone nome="alert" />
@@ -66,20 +76,20 @@
           </span>
           <b>{{ percentual() }}%</b>
         </div>
-        <div class="bar" [class.done]="status() === 'CONCLUIDO'" [class.fail]="status() === 'PENDENTE_DECISAO'">
+        <div class="bar" [class.done]="status() === 'CONCLUIDO'" [class.fail]="status() === 'PENDENTE_DECISAO' || status() === 'FALHA'">
           <i [style.width.%]="percentual()"></i>
         </div>
 
-        @if (status() === 'CONCLUIDO' && !vencido()) {
-          @if (baixadoDireto()) {
-            <div class="note lime gaveta-nota" style="margin-top: 12px">
+        @if (status() === 'CONCLUIDO' && !vencido() && !erroDeDownload()) {
+          @if (baixado()) {
+            <!-- Não é "sucesso": a página não sabe se o navegador conseguiu gravar (S6, bloco 3, D77). -->
+            <div class="note gaveta-nota gaveta-entregue" role="status" style="margin-top: 12px">
               <app-icone nome="download" />
-              <span>Download entregue ao navegador. Quando ele terminar, o arquivo é descartado do servidor: para baixar outra vez, gere o dossiê de novo.</span>
-            </div>
-          } @else if (baixado()) {
-            <div class="note lime gaveta-nota" style="margin-top: 12px">
-              <app-icone nome="download" />
-              <span>Arquivo baixado. Ele foi descartado do servidor: gere o dossiê de novo para baixar outra vez.</span>
+              <span>
+                {{ baixadoDireto() ? 'Download enviado ao navegador.' : 'Arquivo entregue ao navegador.' }}
+                Confira o arquivo na pasta de downloads. Se o navegador não conseguiu salvar (por exemplo, por falta de
+                espaço em disco), use Tentar novamente até {{ expiraAs() }}; depois disso o arquivo é descartado do servidor.
+              </span>
             </div>
           } @else {
             @if (entregaPorTicket()) {
@@ -129,7 +139,31 @@
     </div>
 
     <footer class="d-foot">
-      @if (fase() === 'erro') {
+      @if (fase() !== 'erro' && (erroDeDownload() || status() === 'FALHA')) {
+        <!-- Erro real (download ou geração): nunca o estado de sucesso; cada ação diz o que faz. -->
+        <div class="acoes-de-erro">
+          @if (erroDeDownload() && podeBaixarDeNovo()) {
+            <div class="acao-de-erro">
+              <button type="button" class="btn primary" [disabled]="ocupado()" (click)="tentarDownloadDeNovo()" aria-describedby="explica-tentar">
+                <app-icone nome="refresh" />Tentar novamente
+              </button>
+              <small id="explica-tentar">Baixa o mesmo arquivo de novo, sem gerar outro.</small>
+            </div>
+          }
+          @if (!semGerarNovamente()) {
+            <div class="acao-de-erro">
+              <button type="button" class="btn" [disabled]="ocupado()" (click)="gerarNovamente()" aria-describedby="explica-gerar">
+                <app-icone nome="refresh" />Gerar novamente
+              </button>
+              <small id="explica-gerar">Cria um dossiê novo com os mesmos documentos.</small>
+            </div>
+          }
+          <div class="acao-de-erro">
+            <button type="button" class="btn quiet" [disabled]="ocupado()" (click)="descartar()" aria-describedby="explica-descartar">Descartar</button>
+            <small id="explica-descartar">Apaga este pedido do servidor e fecha a janela.</small>
+          </div>
+        </div>
+      } @else if (fase() === 'erro') {
         @if (pedidoCriado()) {
           <button type="button" class="btn" (click)="atualizar()">Atualizar</button>
         } @else {
@@ -145,6 +179,14 @@
           <button type="button" class="btn primary" [disabled]="ocupado()" (click)="tentarNovamente()">
             <app-icone nome="refresh" />{{ rotuloTentar() }}
           </button>
+        </div>
+      } @else if (status() === 'CONCLUIDO' && !vencido() && baixado()) {
+        <button type="button" class="btn quiet" (click)="minimizar()">Fechar</button>
+        <div class="acao-de-erro">
+          <button type="button" class="btn" [disabled]="ocupado()" (click)="tentarDownloadDeNovo()" aria-describedby="explica-baixar-de-novo">
+            <app-icone nome="refresh" />Tentar novamente
+          </button>
+          <small id="explica-baixar-de-novo">Se o arquivo não apareceu nos downloads, baixa de novo.</small>
         </div>
       } @else if (status() === 'CONCLUIDO' && !vencido() && !baixado()) {
         <button type="button" class="btn quiet" (click)="minimizar()">Fechar</button>

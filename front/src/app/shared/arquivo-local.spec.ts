@@ -1,4 +1,4 @@
-import { baixarBlob, baixarDireto, nomeDoContentDisposition } from './arquivo-local';
+import { baixarBlob, baixarDireto, nomeDoContentDisposition, pdfRecebidoInteiro } from './arquivo-local';
 
 describe('nomeDoContentDisposition', () => {
   it('lê o filename* codificado (RFC 5987)', () => {
@@ -57,5 +57,20 @@ describe('baixarDireto', () => {
     expect(cliques).toEqual([{ href: '/api/dossies/abc/arquivo?disposicao=attachment&ticket=t1', rel: 'noopener noreferrer' }]);
     expect(URL.createObjectURL).not.toHaveBeenCalled();
     expect(document.querySelector('a[download]')).toBeNull();
+  });
+});
+
+describe('pdfRecebidoInteiro (S6, bloco 3)', () => {
+  it('aceita PDF do tamanho anunciado e sem Content-Length', async () => {
+    const blob = new Blob(['%PDF-1.7 conteudo']);
+    expect(await pdfRecebidoInteiro(blob, String(blob.size))).toBe(true);
+    expect(await pdfRecebidoInteiro(blob, null)).toBe(true);
+  });
+
+  it('recusa vazio, ausente, truncado e o que não é PDF', async () => {
+    expect(await pdfRecebidoInteiro(new Blob([]), null)).toBe(false);
+    expect(await pdfRecebidoInteiro(null, null)).toBe(false);
+    expect(await pdfRecebidoInteiro(new Blob(['%PDF-1.7']), '1048576')).toBe(false);
+    expect(await pdfRecebidoInteiro(new Blob(['{"errorCode":"ERRO"}']), null)).toBe(false);
   });
 });

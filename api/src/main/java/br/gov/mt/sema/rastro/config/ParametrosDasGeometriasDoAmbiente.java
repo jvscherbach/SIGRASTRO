@@ -20,7 +20,7 @@ class ParametrosDasGeometriasDoAmbiente implements ParametrosDasGeometrias {
     ParametrosDasGeometriasDoAmbiente(
             @Value("${rastro.geometrias.max-mb:500}") long maximoMb,
             @Value("${rastro.geometrias.max-arquivos:200}") int maximoDeArquivos,
-            @Value("${rastro.dossie.espaco-minimo-mb:2048}") long espacoMinimoMb,
+            @Value("${rastro.dossie.espaco-minimo-mb:500}") long espacoMinimoMb,
             @Value("${rastro.dossie.diretorio:/var/tmp/vistas}") String diretorioDoDossie) {
         this.maximoMb = maximoMb;
         this.maximoDeArquivos = maximoDeArquivos;

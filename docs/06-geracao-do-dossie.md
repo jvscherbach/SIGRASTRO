@@ -162,13 +162,16 @@ O dossiê continua **sem ser entregue incompleto sem decisão explícita** (RN09
 6. falha na **montagem** também leva a `PENDENTE_DECISAO` (motivo geral em `erro`); `TENTAR_NOVAMENTE` refaz só a montagem;
 7. a tentativa com falhas será registrada na auditoria de documentos (evento `FALHA`, S5; a auditoria não existe na S2).
 
-Situações do **item**: `AGUARDANDO`, `OBTENDO`, `OK`, `FALHA`, `REMOVIDO`. Situações do **pedido**: `AGUARDANDO`, `OBTENDO`, `PENDENTE_DECISAO`, `MONTANDO`, `CONCLUIDO`, `CANCELADO`, `EXPIRADO`.
+Situações do **item**: `AGUARDANDO`, `OBTENDO`, `OK`, `FALHA`, `REMOVIDO`. Situações do **pedido**: `AGUARDANDO`, `OBTENDO`, `PENDENTE_DECISAO`, `MONTANDO`, `CONCLUIDO`, `CANCELADO`, `EXPIRADO` e, desde a S6, `FALHA`.
+
+**Disco cheio (S6, bloco 3, D77).** Falta de espaço não é falha de documento: nenhuma decisão a resolve. Na obtenção (verificação antes de cada download ou erro de gravação), na conversão (o erro do conversor traz a mensagem de "sem espaço", ou o volume está com menos de 16 MB livres depois de uma falha que o LibreOffice não explica) ou na montagem, o pedido vai para **`FALHA`** com `erro.codigo = ARMAZENAMENTO_INSUFICIENTE` e a mensagem "Sem espaço em disco para gerar o dossiê. Libere espaço e tente novamente.", a obtenção para, **o diretório do pedido inteiro é apagado** (parciais incluídos, o que também devolve o espaço) e sai **um** evento `FALHA` com o código, sem caminho de arquivo. **CONCLUIDO só com o PDF final gravado:** depois de montar, o arquivo é forçado ao disco (`fsync`, que faz aparecer a falta de espaço que a gravação em cache esconde, comum no Docker cujo disco virtual cresce no disco do computador) e precisa existir com tamanho maior que zero; senão o pedido vai a `PENDENTE_DECISAO` com "o PDF final não foi gravado". Antes de criar o pedido, o `POST` confere o espaço mínimo (507, docs/07). Um PDF final que some ou fica inválido depois de concluído vira `FALHA` na entrega (`DOSSIE_ARQUIVO_AUSENTE`/`DOSSIE_ARQUIVO_INVALIDO`).
 
 ```
 AGUARDANDO → OBTENDO ─┬─ sem falhas ─→ MONTANDO → CONCLUIDO
      ↑                └─ com falhas ─→ PENDENTE_DECISAO
      └──────── TENTAR_NOVAMENTE / REMOVER_E_CONTINUAR ─┘
-(download completo: CONCLUIDO → EXPIRADO com a marca "baixado", que "Dossiês gerados" mostra como BAIXADO, S4)
+(download completo: CONCLUIDO com a marca "baixado" por mais 5 min, a janela de nova tentativa da S6/D77; depois → EXPIRADO, que "Dossiês gerados" mostra como BAIXADO, S4)
+(sem espaço em disco: OBTENDO ou MONTANDO → FALHA; arquivo final perdido: CONCLUIDO → FALHA; S6)
 (cancelar: de qualquer situação não terminal → CANCELADO; sem atividade no TTL: CONCLUIDO ou PENDENTE_DECISAO → EXPIRADO)
 ```
 

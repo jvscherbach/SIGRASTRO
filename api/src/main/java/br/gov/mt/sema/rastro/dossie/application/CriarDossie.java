@@ -30,7 +30,7 @@ import br.gov.mt.sema.rastro.dossie.domain.PedidoDeDossie;
 import org.springframework.stereotype.Service;
 
 /**
- * Cria o pedido (RF11): confere requerimento e acesso (404, RN07), valida a seleção contra a lista relida no
+ * Cria o pedido (RF11): confere o espaço livre (507, S6), o requerimento e o acesso (404, RN07), valida a seleção contra a lista relida no
  * servidor, resolve as chaves uma única vez e guarda o instantâneo no pedido. Quando este método termina, a leitura
  * do SIGA acabou: a geração roda sem nenhuma conexão com o banco.
  */
@@ -66,6 +66,9 @@ public class CriarDossie {
     /** @return o id do pedido (UUID aleatório) */
     public String executar(long idRequerimento, List<ReferenciaDeDocumento> documentos) {
         Usuario usuario = usuarioAtual.obter();
+        // Sem espaço no diretório temporário, nem lê o SIGA: 507, sem criar pedido (S6, bloco 3). Não revela nada do
+        // requerimento, então pode vir antes do 404 e da RN07.
+        gerador.exigirEspacoParaNovoPedido();
         // 404 e RN07 primeiro: quem não pode acessar o requerimento não descobre nada sobre os documentos.
         DetalheDoRequerimento detalhe = requerimentos.executar(idRequerimento);
         SelecaoParaDossie selecionados = selecao.executarComInventario(idRequerimento, documentos);

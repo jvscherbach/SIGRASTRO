@@ -176,6 +176,83 @@ describe('DossiesGeradosComponent', () => {
       });
     }
 
+    it('FALHA (sem espaço): mostra o motivo real e as ações explicadas, sem baixar', () => {
+      abrir([
+        pedido({
+          situacao: 'FALHA',
+          temArquivo: false,
+          tamanhoBytes: null,
+          arquivoGerado: false,
+          falha: {
+            codigo: 'ARMAZENAMENTO_INSUFICIENTE',
+            mensagem: 'Sem espaço em disco para gerar o dossiê. Libere espaço e tente novamente.',
+          },
+        }),
+      ]);
+      const linha = linhas()[0];
+
+      expect(linha.querySelector('.tag')!.textContent!.trim()).toBe('Falhou');
+      expect(linha.textContent).toContain('Sem espaço em disco para gerar o dossiê. Libere espaço e tente novamente.');
+      expect(botoes(linha)).toEqual(['Abrir requerimento', 'Gerar novamente', 'Descartar']);
+      expect(linha.textContent).toContain('Apaga este pedido do servidor.');
+
+      clicar(botao('Descartar', linha));
+      expect(api['cancelar']).toHaveBeenCalledWith('p1');
+    });
+
+    it('erro no download mostra o erro real do servidor e Tentar novamente, Gerar novamente e Descartar', () => {
+      api['arquivo'].mockReturnValue(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 410,
+              error: { errorCode: 'DOSSIE_ARQUIVO_AUSENTE', detail: 'O arquivo do dossiê não está mais no servidor. Gere o dossiê novamente.' },
+            }),
+        ),
+      );
+      abrir([pedido()]);
+
+      clicar(botao('Baixar PDF'));
+      const linha = linhas()[0];
+
+      expect(linha.querySelector('.erro-acao')!.textContent).toContain('O arquivo do dossiê não está mais no servidor.');
+      expect(botoes(linha)).toEqual(
+        expect.arrayContaining(['Tentar novamente', 'Gerar novamente', 'Descartar']),
+      );
+      expect(api['listar']).toHaveBeenCalledTimes(2);
+    });
+
+    it('PDF truncado não é entregue ao navegador e a linha mostra o erro', async () => {
+      api['arquivo'].mockReturnValue(
+        of(
+          new HttpResponse({
+            body: new Blob(['%PDF-'], { type: 'application/pdf' }),
+            headers: new HttpHeaders({ 'Content-Length': '999999' }),
+            status: 200,
+          }),
+        ),
+      );
+      const clique = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+      abrir([pedido()]);
+
+      clicar(botao('Baixar PDF'));
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(raiz.querySelector('.erro-acao')).not.toBeNull();
+      });
+
+      expect(clique).not.toHaveBeenCalled();
+      expect(raiz.querySelector('.erro-acao')!.textContent).toContain('incompleto');
+      expect(botao('Tentar novamente')).toBeTruthy();
+      clique.mockRestore();
+    });
+
+    it('já baixado na janela: diz que foi entregue e que dá para baixar de novo', () => {
+      abrir([pedido({ baixado: true })]);
+      expect(linhas()[0].querySelector('.tag')!.textContent!.trim()).toBe('Pronto · já baixado');
+      expect(linhas()[0].textContent).toContain('Se não apareceu nos downloads, baixe de novo');
+    });
+
     it('rótulo da situação', () => {
       expect(rotuloDaSituacao({ situacao: 'EXPIRADO', arquivoGerado: true })).toBe('Expirado');
       expect(rotuloDaSituacao({ situacao: 'EXPIRADO', arquivoGerado: false })).toBe('Expirado · nenhum arquivo gerado');
@@ -199,15 +276,15 @@ describe('DossiesGeradosComponent', () => {
       expect(linhas()[1].querySelector('.expira')!.textContent).not.toContain('restam');
     });
 
-    it('Baixar PDF por Blob com o nome do Content-Disposition e recarrega a lista', () => {
+    it('Baixar PDF por Blob com o nome do Content-Disposition e recarrega a lista', async () => {
       abrir([pedido()]);
       const clique = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
 
       clicar(botao('Baixar PDF'));
 
       expect(api['arquivo']).toHaveBeenCalledWith('p1', 'attachment');
+      await vi.waitFor(() => expect(api['listar']).toHaveBeenCalledTimes(2));
       expect((URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls[0][0]).toBeInstanceOf(Blob);
-      expect(api['listar']).toHaveBeenCalledTimes(2);
       clique.mockRestore();
     });
 
