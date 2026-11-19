@@ -143,3 +143,4 @@ Identificados durante a análise e independentes deste projeto:
 3. O `sema-web-core` desabilita a validação de certificados TLS em toda a JVM.
 4. Uma única chave simétrica assina tokens de usuário e de cliente e é distribuída a todos os serviços.
 5. Cookie de autorização com `secure` desligado por padrão e validade longa dos tokens.
+| R65 | **Regressão de conversão só aparece na `main` (S6, bloco 5)** | O CI de PR pula a instalação do LibreOffice e os testes de conversão real (para economizar minutos do plano gratuito): um defeito na conversão passa pelo PR verde e quebra o push na `main` | Rodar `./mvnw -B verify` localmente (com o LibreOffice) antes do PR que mexe em conversão ou montagem do PDF, ou o CI manual com `incluir_conversao`; os testes sem `soffice` (cabeçalho, limites, ZIP, ArchUnit) continuam em todo PR. Detalhes em `docs/13` |

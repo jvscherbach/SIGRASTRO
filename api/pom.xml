@@ -25,7 +25,10 @@
     <jodconverter.version>4.4.9</jodconverter.version>
     <jsoup.version>1.21.1</jsoup.version>
     <poi.version>5.4.1</poi.version>
-    <!-- -Dtestes.excluidos= -Dgroups=desempenho liga o teste de desempenho -->
+    <!-- Tags excluídas por padrão (separadas por vírgula).
+         -Dtestes.excluidos= -Dgroups=desempenho liga o teste de desempenho.
+         Os testes de conversão real (tag conversao-libreoffice, exigem o soffice) rodam por padrão; o CI de PR os exclui
+         com -Dtestes.excluidos=desempenho,conversao-libreoffice (docs/13). -->
     <testes.excluidos>desempenho</testes.excluidos>
   </properties>
 

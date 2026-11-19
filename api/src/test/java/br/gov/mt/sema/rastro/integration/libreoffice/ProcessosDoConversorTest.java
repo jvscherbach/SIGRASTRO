@@ -15,6 +15,7 @@ import br.gov.mt.sema.rastro.documento.application.port.FalhaDeConversaoExceptio
 import br.gov.mt.sema.rastro.documento.domain.TipoReal;
 import br.gov.mt.sema.rastro.integration.libreoffice.ConversorLibreOfficeTest.Parametros;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.io.TempDir;
  * Processos do LibreOffice com problema: tarefa que não termina, processo morto, reinício a cada N tarefas. Cada teste
  * tem o próprio pool, porque derruba processos, e termina sem nenhum {@code soffice} órfão. Exige o LibreOffice.
  */
+@Tag("conversao-libreoffice")
 class ProcessosDoConversorTest {
 
     @TempDir

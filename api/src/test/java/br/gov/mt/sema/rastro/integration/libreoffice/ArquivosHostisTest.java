@@ -28,6 +28,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.io.TempDir;
  * tempo limite. Nenhuma conexão chega à armadilha local (todo endereço remoto aponta para ela), nenhuma macro grava o
  * marcador e, ao final, nenhum {@code soffice} sobra. Exige o LibreOffice (no CI, falha sem ele).
  */
+@Tag("conversao-libreoffice")
 class ArquivosHostisTest {
 
     /** Tempo limite do pool desta classe; as planilhas enormes podem esbarrar nele, e isso é uma falha clara. */

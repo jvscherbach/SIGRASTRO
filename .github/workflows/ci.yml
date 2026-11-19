@@ -6,6 +6,13 @@ on:
     branches: [main]
   # Chamado pelo release.yml: o CI verde é pré-requisito da publicação, com uma só definição dos passos.
   workflow_call:
+  # Execução manual. "incluir_conversao" liga a instalação do LibreOffice e os testes de conversão (S6, bloco 5).
+  workflow_dispatch:
+    inputs:
+      incluir_conversao:
+        description: Instalar o LibreOffice e rodar os testes de conversão (mais lento)
+        type: boolean
+        default: false
 
 # Chamado por outro workflow, github.workflow é o nome do chamador ("Release"): o grupo fica distinto do dele.
 # Só cancela execuções antigas do mesmo PR; push na main e release vão até o fim.
@@ -80,10 +87,38 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      # S3 (bloco 8): o mínimo do LibreOffice para os testes de conversão, os mesmos pacotes da imagem da api, só
-      # quando o job roda (sem cache: o pacote vem do espelho do Ubuntu, gratuito). Sem o soffice, esses testes FALHAM
-      # aqui (a variável CI é definida pelo Actions) em vez de ficar pulados em silêncio.
+      # S6 (bloco 5): instalar o LibreOffice (apt) é o passo mais lento e gasta minutos do plano gratuito. Ele e os
+      # testes de conversão real (tag conversao-libreoffice) rodam só em push na main e na execução manual com
+      # "incluir_conversao". PR comum e PR do Dependabot pulam os dois, com aviso no resumo do job. Os valores do
+      # contexto entram por variável de ambiente, nunca direto no script.
+      - name: Decidir se roda os testes de conversão
+        id: conversao
+        working-directory: .
+        env:
+          EVENTO: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          ATOR: ${{ github.actor }}
+          INCLUIR: ${{ inputs.incluir_conversao }}
+        run: |
+          ligado=false
+          if [ "$EVENTO" = "push" ] && [ "$REF" = "refs/heads/main" ]; then
+            ligado=true
+          elif [ "$EVENTO" = "workflow_dispatch" ] && [ "$INCLUIR" = "true" ]; then
+            ligado=true
+          fi
+          echo "ligado=$ligado" >> "$GITHUB_OUTPUT"
+          if [ "$ligado" = "true" ]; then
+            echo "Testes de conversão com LibreOffice: **incluídos** neste job (${EVENTO})." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Testes de conversão com LibreOffice pulados neste PR" >> "$GITHUB_STEP_SUMMARY"
+            echo "A instalação do LibreOffice e os testes com a tag \`conversao-libreoffice\` rodam só em push na \`main\` e na execução manual (\`incluir_conversao\`). Autor da execução: ${ATOR}. Mexeu em \`integration.libreoffice\`? Rode \`./mvnw -B verify\` localmente com o LibreOffice instalado antes de pedir a revisão." >> "$GITHUB_STEP_SUMMARY"
+            echo "Testes de conversão com LibreOffice pulados neste PR."
+          fi
+      # Os mesmos pacotes da imagem da api, só quando o job roda os testes de conversão (sem cache: o pacote vem do
+      # espelho do Ubuntu, gratuito). Com a conversão ligada e sem o soffice, esses testes FALHAM (a variável CI é
+      # definida pelo Actions) em vez de ficar pulados em silêncio.
       - name: Instalar LibreOffice (testes de conversão)
+        if: steps.conversao.outputs.ligado == 'true'
         working-directory: .
         run: |
           inicio=$(date +%s)
@@ -94,9 +129,17 @@ jobs:
           echo "LibreOffice instalado em $(( $(date +%s) - inicio )) s"
           soffice --version
       # Os testes de fumaça (SIGA_SMOKE, ARQUIVOS_SMOKE) ficam pulados: nenhuma dessas variáveis é definida aqui.
-      # Os de Testcontainers (Oracle 23 Free) usam o Docker do próprio runner.
+      # Os de Testcontainers (Oracle 23 Free) usam o Docker do próprio runner. Sem a conversão, a tag fica excluída
+      # (a propriedade testes.excluidos do pom.xml, que já exclui o teste de desempenho).
       - name: Build e testes
-        run: ./mvnw -B clean verify
+        env:
+          CONVERSAO_LIGADA: ${{ steps.conversao.outputs.ligado }}
+        run: |
+          if [ "$CONVERSAO_LIGADA" = "true" ]; then
+            ./mvnw -B clean verify
+          else
+            ./mvnw -B clean verify -Dtestes.excluidos=desempenho,conversao-libreoffice
+          fi
       - name: Relatórios de teste (só em falha)
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

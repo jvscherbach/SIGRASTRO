@@ -28,6 +28,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.io.TempDir;
  * extraído do PDF (a última coluna e a última linha aparecem), pelo número de páginas e pela orientação. Exige o
  * LibreOffice; sem ele, cada teste é pulado com aviso. Planilhas geradas por código (Apache POI).
  */
+@Tag("conversao-libreoffice")
 class ConversaoDePlanilhasTest {
 
     static Path base;
