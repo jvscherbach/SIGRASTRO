@@ -160,6 +160,53 @@ Levantamentos 1 e 2, confirmadas em homologação e produção. Valem para todo 
 
 **Dados pessoais:** `ASSIGNEE_`, vínculos de identidade e variáveis do Camunda guardam **CPF e nome**. O CPF **nunca** sai em resposta, log, erro, evento de auditoria, CSV ou tela, **nem parcialmente mascarado**. Variáveis do Camunda só podem ser lidas de uma **lista fixa** (lista branca) sem dado pessoal.
 
+## Ambiente de verificação: Camunda e Licenciamento fictícios (bloco 2)
+
+**Mecanismo:** o mesmo dos testes de integração desde a S1, o recorte do SIGA no **Oracle 23 Free por Testcontainers** (`SigaOracleTeste`, scripts `api/src/test/resources/sql/siga/01` a `06`). Não há um segundo mecanismo. O `compose.verificacao.yaml` continua **sem** SIGA (as variáveis externas vazias, D34): os cenários existem só no Oracle de teste (R66, R69). O "perfil `verificacao`" do prompt é este: ao subir, o `SigaOracleTeste` roda `06-camunda-s7.sql` e grava todos os cenários (`CenariosFicticiosDaS7.carregar`); os testes dos blocos 3 a 7 consultam por id.
+
+- **DDL mínimo** (`06-camunda-s7.sql`): colunas novas em `ACT_RE_PROCDEF`, `ACT_RU_EXECUTION` e `ACT_RU_TASK` (já existiam na S1); tabelas novas `ACT_RU_IDENTITYLINK`, `ACT_RU_EVENT_SUBSCR`, `ACT_HI_PROCINST`, `ACT_HI_ACTINST`, `ACT_HI_TASKINST`, `ACT_HI_VARINST`, `ACT_HI_DETAIL` (só estrutura nas duas últimas), em `NVARCHAR2` como no Camunda 7 (obriga o `TO_CHAR` dos dois lados, regra 12); no Licenciamento, `TIPO_PROCESSO.INSTANCIA_REQUERIMENTO`, `SERVIDOR.MATRICULA`/`CARGO` e `COMPLEMENTACAO.DATA_INICIO`/`DATA_ENTREGA`/`SITUACAO`. Grants de `SELECT` ao usuário de leitura. Hipóteses em P34.
+- **`CamundaFicticioBuilder`** (`api/src/test/java/.../integration/siga/`): API fluente (`processo(HIDRICO, id).naEtapa(...).comAnalistas(3).concluidos(2).desde(data).gravar()`, `.esperandoPagamento()`, `.comFilhas(...)`, `.encerradoEm(...)`, `.comTarefaDeSuporte()`, `.comComplementacao(id)`, `.percorrendo(...)`, `.semInstancia()`, `.paraGrupo(...)`, `.doInteressado()`, `.atribuidoA(...)`). Lê o **catálogo real** pela porta `CatalogoDeEtapas` (`CatalogoDeEtapasDeTeste.padrao()`): id fora do catálogo, final que não é final, filha de outro modelo e cenário incoerente (isenção com passagem pelo gateway de pagamento, multi-instância em etapa simples) são recusados antes de gravar. Grava `REQUERIMENTO`, `ACT_HI_PROCINST` (sempre, ativa ou encerrada), a execução raiz com `BUSINESS_KEY_` (as execuções filhas não levam business key), tarefas, grupos candidatos, assinatura de evento, filhas com `SUPER_EXEC_`/`SUPER_PROCESS_INSTANCE_ID_` e o histórico mínimo (`ACT_HI_ACTINST`/`ACT_HI_TASKINST` do que está aberto, do percurso dado e das tarefas concluídas do ciclo). Instância `fict-<id>`; filhas `fict-<id>-filha-<n>` com business key `<id>*10+n` (id do título); complementação `fict-<id>-compl`.
+- **Dados fixos:** tipos de processo 71 (`RECURSO_HIDRICO`), 72 (`LICENCIAMENTO_ADESAO`) e 73 (`LICENCIAMENTO_TRIFASICO_FICTICIO`, fora do catálogo); interessado "Interessado Fictício S7" (pessoa 7000); "Servidor Exemplo 01" a "12" (o 04 é "Chefia Fictícia"). CPFs `000000000NN` (NN de 01 a 12, 91 do interessado e 99 sem servidor): **inválidos de propósito**, provado por `DadosFicticiosDaS7Test`.
+
+### Cenários (ids 7001 a 7199; número `<id>/2026`)
+
+| Cenário | Id | Fluxo | Situação do Licenciamento | O que está ativo (ou o final) | Detalhe |
+|---|---|---|---|---|---|
+| H01 | 7001 | Hídrico | `EM_CADASTRO` | `taskCadastrarRequerimento` | interessado (`ASSIGNEE_` = CPF do cadastrante) |
+| H02 | 7002 | Hídrico | `EM_CONFERENCIA` | `taskConferirDocumentosApresentados` | grupo `grpSurhConferirDocumentoSubterranea` |
+| H03 | 7003 | Hídrico | `AGUARDANDO_PAGAMENTO_DE_TAXAS` | execução em `gtwAguardarPagamento` + 1 assinatura | sem tarefa |
+| H04 | 7004 | Hídrico | `AGUARDANDO_ATRIBUICAO` | execução em `taskGerarNumeroProtocolo` | isento: **sem** `gtwAguardarPagamento` no histórico |
+| H05 | 7005 | Hídrico | `AGUARDANDO_ATRIBUICAO` | `taskAtribuirRequerimento` | grupo `grpSurhAtribuirRequerimentoSuperficial` |
+| H06 | 7006 | Hídrico | `AGUARDANDO_ACEITE_ATRIBUICAO` | `taskAceitarAtribuicao` (1 ativa) | multi-instância: 2 de 3 concluídos (servidores 01 a 03) |
+| H07 | 7007 | Hídrico | `EM_ANALISE` | `taskAnalisarRequerimento` × 3 | servidores 01 a 03; processo `7900/2022` |
+| H08 | 7008 | Hídrico | `EM_ANALISE` | `taskRevisarParecerTecnico` | chefia (servidor 04) |
+| H09 | 7009 | Hídrico | `EM_ANALISE` | `taskValidarParecerTecnico` × 3 | signatários: servidores 05 a 07 |
+| H10 | 7010 | Hídrico | `EM_ANALISE` | `callActivity` `taskEmitirAutorizacoes` e `taskEmitirPortarias` | **duas filhas** em paralelo (`procSurhEmitirAutorizacoes`, `procSurhEmissaoPortaria`), grupo `GrpProcSurhEmissorTitulos` |
+| H11 | 7011 | Hídrico | `AGUARDANDO_PUBLICACAO` | `taskRegistarComprovantePublicacao` | grupo `grpSurhRegistrarPublicacaoBarramento` |
+| H12 | 7012 | Hídrico | `CONCLUIDO` | `taskVerificarRevisaoProcesso` | arquivamento (regra 9); grupo `grpSurhRevisarDecisaoMultidisciplinar` |
+| H13 | 7013 | Hídrico | `EM_CORRECAO` | `taskCorrecaoRequerimento` | interessado |
+| H14 | 7014 | Hídrico | `AGUARDANDO_PAGAMENTO_DE_TAXAS` | execução em `gtwAguardarPagamentoRevisao` + 1 assinatura | ramo correção |
+| H15 | 7015 | Hídrico | `CONCLUIDO` | final `Event_1wiuc48` | processo `7900/2022` |
+| H16 | 7016 | Hídrico | `CANCELADO_POR_SOLICITACAO_DO_CADASTRANTE` | final `Event_1kq2k0z` | |
+| H17 | 7017 | Hídrico | `CANCELADO_POR_EXPIRACAO_DE_PRAZO_DE_CADASTRO` | final `Event_0abm55w` | |
+| H18 | 7018 | Hídrico | `AGUARDANDO_PAGAMENTO_DE_TAXAS` | final `Event_0h1oige` | taxa vencida, situação não atualizada (regra 8) |
+| H19 | 7019 | Hídrico | `EM_CONFERENCIA` | só `Activity_0miwhxt` (grupo `suporte`) | percurso: cadastro e conferência |
+| H20 | 7020 | Hídrico | `EM_ANALISE` | `taskAnalisarRequerimento` (servidor 08) | complementação **7001** em paralelo: mesma business key do H01, separada só pela chave `procGestaoComplementacao` |
+| H21 | 7021 | Hídrico | `CONCLUIDO` | — (sem instância) | legado, número `7021/2022`; processo `7900/2022` |
+| L01 | 7051 | LAC | `EM_CONFERENCIA` | `taskConferirDocumentosApresentados` | grupo `GrpProcResponsavelAtendimentoLac` |
+| L02 | 7052 | LAC | `AGUARDANDO_PAGAMENTO_DE_TAXAS` | execução em `gwtAguardarPagtoOuVencto` + 1 assinatura | |
+| L03 | 7053 | LAC | `EM_CORRECAO` | `taskCorrecaoRequerimento` | interessado |
+| L04 | 7054 | LAC | `AGUARDANDO_ASSINATURA_LAC` | `taskEnviarTermoAdesao` | interessado |
+| L05 | 7055 | LAC | `CONCLUIDO` | final `evtProcessoConcluido` | |
+| L06 | 7056 | LAC | `ARQUIVADO_DEFINITIVAMENTE` | final `Event_0x7hz1p` | termo não enviado |
+| L07 | 7057 | LAC | `CANCELADO_POR_EXPIRACAO_DE_PRAZO_DE_CADASTRO` | final `evtEncerrarProcessoPrazoCorrecaoExpirado` | mesma situação do expirado no cadastro (regra 8) |
+| Trifásico | 7091 | fora do catálogo | `EM_ANALISE` | — (sem instância) | `INSTANCIA_REQUERIMENTO` fora do catálogo: "não suportado" |
+| G01 | 7101 | Hídrico | `EM_CONFERENCIA` | conferência | grupo desconhecido `grpFicticioDesconhecido` |
+| G02 | 7102 | Hídrico | `EM_CONFERENCIA` | conferência | grupo `0` |
+| G03 | 7103 | Hídrico | `EM_ANALISE` | revisão do parecer | CPF sem servidor (`Responsável não identificado`) |
+
+As situações são **hipóteses fictícias** coerentes com a lista do Apêndice A de docs/04 (P34); a tabela de compatibilidade situação × etapa é do bloco 5. Como criar um cenário novo: docs/13, "Dados fictícios de teste".
+
 ## Dependências do módulo
 
 `tramitacao` não depende de `documento` nem de `dossie` (`ArchitectureTest`); o reuso do que `consulta` oferece é **só por porta**. O domínio não conhece YAML nem Spring (`ArchitectureTest`, regra `dominio_da_tramitacao_sem_yaml`). O SQL contra `SIGA2_CAMUNDA` e `SIGA2_LICENCIAMENTO` fica em `integration.siga` (bloco 3), como todo SQL do SIGA.
