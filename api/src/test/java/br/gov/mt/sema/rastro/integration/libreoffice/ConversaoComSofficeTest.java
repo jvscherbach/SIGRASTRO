@@ -24,6 +24,7 @@ import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.io.TempDir;
  * remotos. Exige o LibreOffice; sem ele, a classe é pulada com aviso. Um só pool para a classe (subir o soffice custa
  * alguns segundos); ao final, nenhum processo pode sobrar.
  */
+@Tag("conversao-libreoffice")
 class ConversaoComSofficeTest {
 
     static Path base;

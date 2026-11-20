@@ -6,14 +6,14 @@ import { Router } from '@angular/router';
 import { Observable, Subscription } from 'rxjs';
 
 import { AuthService } from '../../core/auth.service';
-import { mensagemDoErro } from '../../core/mensagens-erro';
+import { mensagemDoErro, mensagemRealDoErro } from '../../core/mensagens-erro';
 import { PageResponse } from '../../shared/api-tipos';
-import { baixarBlob, baixarDireto, nomeDoContentDisposition } from '../../shared/arquivo-local';
+import { baixarBlob, baixarDireto, nomeDoContentDisposition, pdfRecebidoInteiro } from '../../shared/arquivo-local';
 import { agoraEmCuiaba, formatarDataHora, formatarTamanho, minutosAte } from '../../shared/formato';
 import { FolhaSobrepostaComponent } from '../../shared/folha-sobreposta.component';
 import { IconeComponent } from '../../shared/icone.component';
 import { QuadroTopoComponent } from '../../shared/quadro-topo.component';
-import { AcompanhamentoDeDossieService } from '../documentos/acompanhamento-dossie.service';
+import { AcompanhamentoDeDossieService, MENSAGEM_PDF_INCOMPLETO } from '../documentos/acompanhamento-dossie.service';
 import { DossiesApiService } from '../documentos/documentos-api.service';
 import { DossieGerado, SituacaoDossieGerado } from '../documentos/documentos.models';
 
@@ -32,6 +32,7 @@ export const ROTULO_DA_SITUACAO: Record<SituacaoDossieGerado, string> = {
   CANCELADO: 'Cancelado',
   EXPIRADO: 'Expirado',
   BAIXADO: 'Arquivo baixado',
+  FALHA: 'Falhou',
 };
 
 const TOM_DA_SITUACAO: Record<SituacaoDossieGerado, string> = {
@@ -43,12 +44,23 @@ const TOM_DA_SITUACAO: Record<SituacaoDossieGerado, string> = {
   CANCELADO: 'red',
   EXPIRADO: 'gray',
   BAIXADO: 'dark',
+  FALHA: 'red',
 };
 
 /** "Expirado · nenhum arquivo gerado" quando expirou à espera de decisão (docs/08). */
 export function rotuloDaSituacao(d: Pick<DossieGerado, 'situacao' | 'arquivoGerado'>): string {
   return d.situacao === 'EXPIRADO' && !d.arquivoGerado ? 'Expirado · nenhum arquivo gerado' : ROTULO_DA_SITUACAO[d.situacao];
 }
+
+/** Erro de uma ação na linha: o texto real e se "Tentar novamente" (repetir o download) faz sentido. */
+export interface MensagemDaAcao {
+  id: string;
+  texto: string;
+  /** A falha foi ao baixar: a linha oferece "Tentar novamente", "Gerar novamente" e "Descartar" (S6, bloco 3). */
+  deDownload: boolean;
+}
+
+const ARQUIVO_PERDIDO = ['DOSSIE_ARQUIVO_AUSENTE', 'DOSSIE_ARQUIVO_INVALIDO', 'DOSSIE_EXPIRADO'];
 
 /**
  * Tela "Dossiês gerados" (S4, docs/08): pedidos do histórico em memória, com situação, expiração e ações. O que cada
@@ -78,7 +90,7 @@ export class DossiesGeradosComponent implements OnInit {
   protected readonly agora = signal(agoraEmCuiaba());
   /** Linha com ação em curso (botões desabilitados) e mensagem de erro da última ação. */
   protected readonly ocupado = signal<string | null>(null);
-  protected readonly mensagemDaAcao = signal<{ id: string; texto: string } | null>(null);
+  protected readonly mensagemDaAcao = signal<MensagemDaAcao | null>(null);
   protected readonly previa = signal<{ url: string; seguro: SafeResourceUrl } | null>(null);
 
   /** Gestor e Administrador veem os pedidos de todos e podem filtrar os seus (docs/07). */
@@ -229,19 +241,37 @@ export class DossiesGeradosComponent implements OnInit {
       this.executar(d, this.api.ticket(d.id), ({ ticket }) => {
         baixarDireto(this.api.urlDeDownloadDireto(d.id, ticket));
         this.carregar();
-      });
+      }, true);
       return;
     }
     this.executar(d, this.api.arquivo(d.id, 'attachment'), (resposta) => {
-      const nome = nomeDoContentDisposition(resposta.headers.get('Content-Disposition')) ?? 'dossie.pdf';
-      baixarBlob(resposta.body as Blob, nome);
-      // O servidor apaga o arquivo ao fim do download (RNF05): a linha passa a "Arquivo baixado".
-      this.descartarPrevia();
-      this.carregar();
-    });
+      this.ocupado.set(d.id);
+      void pdfRecebidoInteiro(resposta.body, resposta.headers.get('Content-Length')).then((inteiro) => {
+        if (this.destruido) {
+          return;
+        }
+        this.ocupado.set(null);
+        if (!inteiro) {
+          // Corpo truncado: nada vai para o navegador e a linha mostra o erro, nunca "baixado".
+          this.mensagemDaAcao.set({ id: d.id, texto: MENSAGEM_PDF_INCOMPLETO, deDownload: true });
+          return;
+        }
+        const nome = nomeDoContentDisposition(resposta.headers.get('Content-Disposition')) ?? 'dossie.pdf';
+        baixarBlob(resposta.body as Blob, nome);
+        // O servidor apaga o arquivo ao fim do download (RNF05, D77): a linha passa a "Arquivo baixado".
+        this.descartarPrevia();
+        this.carregar();
+      });
+    }, true);
   }
 
-  private executar<T>(d: DossieGerado, chamada: Observable<T>, aoTerminar: (valor: T) => void): void {
+  /** "Descartar" depois de um erro: apaga o pedido no servidor (DELETE) e atualiza a lista. */
+  protected descartar(d: DossieGerado): void {
+    this.mensagemDaAcao.set(null);
+    this.executar(d, this.api.cancelar(d.id), () => this.carregar());
+  }
+
+  private executar<T>(d: DossieGerado, chamada: Observable<T>, aoTerminar: (valor: T) => void, deDownload = false): void {
     if (this.ocupado()) {
       return;
     }
@@ -255,8 +285,14 @@ export class DossiesGeradosComponent implements OnInit {
       },
       error: (erro: unknown) => {
         this.ocupado.set(null);
-        const texto = erro instanceof HttpErrorResponse ? mensagemDoErro(erro) : 'Não foi possível concluir a operação.';
-        this.mensagemDaAcao.set({ id: d.id, texto });
+        const texto =
+          erro instanceof HttpErrorResponse ? mensagemRealDoErro(erro) : 'Não foi possível concluir a operação.';
+        this.mensagemDaAcao.set({ id: d.id, texto, deDownload });
+        const codigo = erro instanceof HttpErrorResponse ? (erro.error as { errorCode?: string } | null)?.errorCode : null;
+        if (codigo && ARQUIVO_PERDIDO.includes(codigo)) {
+          // O pedido mudou no servidor (FALHA ou expirado): a linha mostra a situação real.
+          this.carregar();
+        }
       },
     });
   }

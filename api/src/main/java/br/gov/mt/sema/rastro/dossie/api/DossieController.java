@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.dossie.api;
 
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,6 +23,7 @@ import br.gov.mt.sema.rastro.dossie.application.ListarDossiesGerados;
 import br.gov.mt.sema.rastro.dossie.application.ObterArquivoDoDossie;
 import br.gov.mt.sema.rastro.dossie.application.ObterArquivoDoDossie.ArquivoDoDossie;
 import br.gov.mt.sema.rastro.shared.api.PageResponse;
+import br.gov.mt.sema.rastro.shared.application.exception.ArquivoDoDossieIndisponivelException;
 import br.gov.mt.sema.rastro.shared.application.exception.ParametroInvalidoException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -99,6 +101,8 @@ public class DossieController {
     @ApiResponse(responseCode = "403", ref = "#/components/responses/Forbidden")
     @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound")
     @ApiResponse(responseCode = "503", description = "Banco do SIGA indisponível (SIGA_INDISPONIVEL).")
+    @ApiResponse(responseCode = "507", description = "Sem espaço em disco no diretório temporário "
+            + "(ARMAZENAMENTO_INSUFICIENTE, DOSSIE_ESPACO_MINIMO_MB); nenhum pedido é criado.")
     public DossieCriadoResponse criar(@Valid @RequestBody CriarDossieRequest pedido) {
         String id = criarDossie.executar(pedido.idRequerimento(), pedido.documentos().stream()
                 .map(d -> new ReferenciaDeDocumento(d.origem(), d.id())).toList());
@@ -119,13 +123,15 @@ public class DossieController {
             description = "inline para pré-visualização, attachment para download (o arquivo é apagado ao fim do download). "
                     + "Com ticket (dossiê grande, D49): attachment direto pelo navegador, sem cabeçalho de sessão; "
                     + "ticket inválido, usado, vencido ou de outro pedido dá 403 TICKET_INVALIDO. "
-                    + "409 se não há arquivo; 410 se expirou ou já foi baixado.")
+                    + "409 se não há arquivo; 410 se expirou, já foi baixado ou o arquivo sumiu do disco; 500 "
+                    + "DOSSIE_ARQUIVO_INVALIDO se o arquivo está vazio ou incompleto. Nunca 200 sem o arquivo inteiro.")
     @ApiResponse(responseCode = "200", description = "PDF.")
     @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized")
     @ApiResponse(responseCode = "403", description = "Ticket inválido (TICKET_INVALIDO).")
     @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound")
     @ApiResponse(responseCode = "409", description = "Sem arquivo (DOSSIE_SEM_ARQUIVO).")
-    @ApiResponse(responseCode = "410", description = "Expirado (DOSSIE_EXPIRADO).")
+    @ApiResponse(responseCode = "410", description = "Expirado (DOSSIE_EXPIRADO) ou arquivo ausente (DOSSIE_ARQUIVO_AUSENTE).")
+    @ApiResponse(responseCode = "500", description = "Arquivo vazio ou incompleto (DOSSIE_ARQUIVO_INVALIDO).")
     public ResponseEntity<InputStreamResource> arquivo(@PathVariable String id,
             @Parameter(description = "inline ou attachment") @RequestParam(defaultValue = "inline") String disposicao,
             @Parameter(description = "ticket de uso único (POST .../arquivo/ticket); só com attachment")
@@ -140,7 +146,13 @@ public class DossieController {
         }
         ArquivoDoDossie arquivo = ticket == null ? obterArquivo.executar(id) : obterArquivo.executarPorTicket(id, ticket);
         // Streaming direto do disco: o arquivo nunca é carregado inteiro na memória.
-        InputStream entrada = new FileInputStream(arquivo.caminho().toFile());
+        InputStream entrada;
+        try {
+            entrada = new FileInputStream(arquivo.caminho().toFile());
+        } catch (FileNotFoundException e) {
+            // Sumiu entre a conferência e a abertura: erro real, nunca 200 vazio (S6, bloco 3).
+            throw ArquivoDoDossieIndisponivelException.ausente();
+        }
         InputStream corpo = download
                 ? new AvisaAoTerminar(entrada, arquivo.tamanhoBytes(), () -> obterArquivo.concluirDownload(arquivo))
                 : entrada;
@@ -195,12 +207,18 @@ public class DossieController {
         cancelarDossie.executar(id);
     }
 
-    /** Só dispara o aviso se o cliente recebeu o arquivo inteiro: download interrompido não apaga o dossiê. */
+    /**
+     * Só dispara o aviso se o servidor enviou o arquivo inteiro: download interrompido não conta como baixado. Exige
+     * ter visto o fim do arquivo (leitura que devolve -1): quem copia para a resposta só pede mais depois de escrever o
+     * bloco anterior, então o último bloco já foi escrito. Antes (S6, bloco 3), bastava ter lido todos os bytes, e uma
+     * falha ao escrever o último bloco ainda contava como download completo.
+     */
     private static final class AvisaAoTerminar extends FilterInputStream {
 
         private final long esperado;
         private final Runnable aoTerminar;
         private long lidos;
+        private boolean fimVisto;
         private boolean avisado;
 
         AvisaAoTerminar(InputStream origem, long esperado, Runnable aoTerminar) {
@@ -214,6 +232,8 @@ public class DossieController {
             int b = super.read();
             if (b >= 0) {
                 lidos++;
+            } else {
+                fimVisto = true;
             }
             return b;
         }
@@ -223,6 +243,8 @@ public class DossieController {
             int n = super.read(buffer, inicio, tamanho);
             if (n > 0) {
                 lidos += n;
+            } else if (n < 0) {
+                fimVisto = true;
             }
             return n;
         }
@@ -230,7 +252,7 @@ public class DossieController {
         @Override
         public void close() throws IOException {
             super.close();
-            if (lidos >= esperado && !avisado) {
+            if (fimVisto && lidos >= esperado && !avisado) {
                 avisado = true;
                 aoTerminar.run();
             }

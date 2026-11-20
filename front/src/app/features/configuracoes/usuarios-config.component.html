@@ -32,28 +32,28 @@
       <tbody>
         @for (u of usuarios(); track u.id) {
           <tr [class.inativo]="!u.ativo" [attr.data-login]="u.login">
-            <td>
+            <td data-rotulo="Nome">
               <b>{{ u.nome }}</b>
               @if (u.login === eu()) {
                 <span class="cell-sub">você</span>
               }
             </td>
-            <td class="nowrap">{{ u.login }}</td>
-            <td class="nowrap">{{ u.cpfCnpj ?? '—' }}</td>
-            <td>
+            <td class="nowrap quebra-celular" data-rotulo="Login">{{ u.login }}</td>
+            <td class="nowrap" data-rotulo="CPF/CNPJ">{{ u.cpfCnpj ?? '—' }}</td>
+            <td data-rotulo="Perfil">
               <select class="cfg-perfil" [attr.aria-label]="'Perfil de ' + u.nome" [disabled]="gravando()" (change)="escolherPerfil(u, $event)">
                 @for (p of perfis; track p.codigo) {
                   <option [value]="p.codigo" [selected]="p.codigo === u.perfil">{{ p.rotulo }}</option>
                 }
               </select>
             </td>
-            <td>
+            <td data-rotulo="Situação">
               <select class="cfg-situacao" [attr.aria-label]="'Situação de ' + u.nome" [disabled]="gravando()" (change)="escolherSituacao(u, $event)">
                 <option value="ativo" [selected]="u.ativo">Ativo</option>
                 <option value="inativo" [selected]="!u.ativo">Inativo</option>
               </select>
             </td>
-            <td class="nowrap">{{ u.ultimoAcesso ? formatarDataHora(u.ultimoAcesso) : '—' }}</td>
+            <td class="nowrap" data-rotulo="Último acesso">{{ u.ultimoAcesso ? formatarDataHora(u.ultimoAcesso) : '—' }}</td>
           </tr>
           @if (pendente(); as p) {
             @if (p.id === u.id) {

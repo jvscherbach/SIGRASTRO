@@ -10,7 +10,9 @@
 .aud-usuario{border:1px solid #cfdac8;border-radius:8px;padding:0 10px;font-size:12px;height:40px;min-width:150px}
 .aud-tabela td{vertical-align:top}
 .aud-tabela tr.aud-sigiloso td:first-child{box-shadow:inset 4px 0 0 var(--red)}
-.aud-detalhe{display:flex;gap:6px 10px;flex-wrap:wrap;align-items:baseline;min-width:200px;overflow-wrap:anywhere}
+/* O <td> segue como célula de tabela (display:flex nele tirava a célula do layout da tabela e desalinhava o cabeçalho). */
+.aud-detalhe{min-width:200px;max-width:420px;overflow-wrap:anywhere}
+.aud-detalhe-texto{display:flex;gap:6px 10px;flex-wrap:wrap;align-items:baseline;min-width:0}
 .aud-arquivo{font-weight:600}
 .aud-campos{display:grid;gap:10px;margin:0 0 18px}
 .aud-campos div{display:grid;grid-template-columns:150px minmax(0,1fr);gap:10px;font-size:13px}
@@ -35,6 +37,20 @@
 .cfg-aba:focus-visible,.cfg-painel:focus-visible{outline:2px solid var(--olive);outline-offset:2px}
 .cfg-usuarios tr.inativo td{opacity:.55}
 .cfg-usuarios tr.inativo td select{opacity:1}
+.cfg-usuarios td b{overflow-wrap:anywhere}
+.cfg-usuarios td.quebra-celular{overflow-wrap:anywhere}
+/* Celular e tablet estreito: cada usuário vira um cartão (rótulo + valor), sem rolagem horizontal. */
+@media(max-width:768px){
+.cfg-usuarios thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.cfg-usuarios,.cfg-usuarios tbody,.cfg-usuarios tr,.cfg-usuarios td{display:block;width:100%}
+.cfg-usuarios tr{border-bottom:1px solid var(--line);padding:6px 0}
+.cfg-usuarios tr:last-child{border-bottom:0}
+.cfg-usuarios td{border:0;padding:6px 14px}
+.cfg-usuarios td[data-rotulo]{display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px;align-items:center;white-space:normal}
+.cfg-usuarios td[data-rotulo]::before{content:attr(data-rotulo);font-size:10px;text-transform:uppercase;letter-spacing:.65px;font-weight:650;color:var(--muted)}
+.cfg-usuarios td.nowrap{white-space:normal}
+.cfg-usuarios select{max-width:100%}
+}
 .cfg-usuarios select{border:1px solid #cfdac8;border-radius:8px;padding:0 8px;font-size:12px;background:#fff;height:34px;color:var(--ink)}
 .cfg-confirma{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;background:var(--amber-bg);border:1px solid #efe2c4;border-radius:10px;padding:10px 14px;font-size:13px}
 .cfg-campo-erro{color:var(--red);font-size:11px}
@@ -67,4 +83,8 @@
 .cfg-teste{display:inline-flex;gap:6px;align-items:center;font-size:12px;overflow-wrap:anywhere}
 .cfg-teste.ok{color:#2c5207}
 .cfg-teste.falha{color:var(--red)}
+.cfg-teste.ressalva{color:#7a5a00}
+.cfg-teste{align-items:flex-start}
+.cfg-teste .cfg-teste-mensagem{display:block;color:var(--muted);margin-top:2px}
+.cfg-limite-teste{font-size:12px;color:var(--muted);margin:4px 0 0}
 @media(max-width:640px){.cfg-numero{width:90px}.cfg-barra{bottom:8px}}

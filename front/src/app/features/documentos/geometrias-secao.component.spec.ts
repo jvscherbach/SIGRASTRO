@@ -197,6 +197,6 @@ describe('GeometriasSecaoComponent', () => {
     expect(formatarTamanho(2048)).toBe('2 KB');
     expect(formatarTamanho(1.5 * 1024 * 1024)).toBe('1,5 MB');
     abrir([geometria({ tamanho: 3 * 1024 * 1024 })]);
-    expect(texto()).toContain('area.kml · 3 MB');
+    expect(texto()).toContain('Polígono da área · 3 MB');
   });
 });

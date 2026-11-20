@@ -44,7 +44,7 @@ class EventoDeAuditoriaTest {
     void grupos_de_docs_11() {
         assertThat(Arrays.stream(TipoDeEvento.values()).filter(t -> t.grupo() == GrupoDeEvento.ACESSOS))
                 .containsExactlyInAnyOrder(TipoDeEvento.LOGIN, TipoDeEvento.PERFIL, TipoDeEvento.USUARIO,
-                        TipoDeEvento.CONFIG);
+                        TipoDeEvento.CONFIG, TipoDeEvento.CONEXAO);
     }
 
     @Test
@@ -135,7 +135,11 @@ class EventoDeAuditoriaTest {
     @Test
     void nenhum_campo_guarda_token_cookie_caminho_chave_ou_documento_pessoal() {
         String chave = "9f8e7d6c-5b4a-4321-8765-0123456789ab";
-        String jwt = "eyJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3MDAwMDAwMDB9.c2VncmVkby1kZS10ZXN0ZQ";
+        // JWT de exemplo montado na hora (nunca como literal no repositório: a guarda varrer-dados, S6).
+        java.util.Base64.Encoder base64 = java.util.Base64.getUrlEncoder().withoutPadding();
+        String jwt = base64.encodeToString("{\"alg\":\"HS256\"}".getBytes()) + "."
+                + base64.encodeToString("{\"exp\":1700000000}".getBytes()) + "."
+                + base64.encodeToString("segredo-de-teste".getBytes());
         String sujo = "motivo chave=" + chave + " " + chave + " Bearer abc123 " + jwt + " /var/tmp/vistas/pedido/a.pdf"
                 + " C:\\temp\\b.pdf https://host.invalido/api/arquivo/1?token=abc jdbc:oracle:thin:@//host:1521/x"
                 + " 123.456.789-09 12.345.678/0001-90 12345678909 Cookie: sessao=abc; outro=def";

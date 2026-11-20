@@ -50,9 +50,9 @@
               <li [class.sigiloso]="d.sigiloso">
                 <span class="aud-doc-ordem">{{ d.ordem ?? '·' }}</span>
                 <span class="aud-doc-texto">
-                  <b>{{ d.titulo }}</b>
-                  @if (d.nomeDoArquivo) {
-                    <small>{{ d.nomeDoArquivo }}</small>
+                  <b>{{ d.nomeDoArquivo || d.titulo }}</b>
+                  @if (d.nomeDoArquivo && d.titulo) {
+                    <small>{{ d.titulo }}</small>
                   }
                 </span>
                 @if (d.sigiloso) {

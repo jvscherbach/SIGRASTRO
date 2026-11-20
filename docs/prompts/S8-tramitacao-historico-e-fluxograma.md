@@ -1,6 +1,6 @@
 # S8: tramitação (2 de 2): histórico, com quem esteve e fluxograma simplificado
 
-> **Forma de trabalho:** a sprint é dividida em **12 blocos**, cada um terminando em um **ponto de commit**. Duas sessões do Claude Code (**OPUS** e **SONNET**) recebem **este mesmo prompt**; cada uma executa **somente os blocos atribuídos ao seu modelo**. O responsável alterna as sessões, revisa e commita cada bloco.
+> **Forma de trabalho:** a sprint é dividida em **12 blocos**, cada um terminando em um **ponto de commit**. Três sessões do Claude Code (**OPUS**, **SONNET** e **HAIKU**) recebem **este mesmo prompt**; cada uma executa **somente os blocos atribuídos ao seu modelo**. O responsável alterna as sessões, revisa e commita cada bloco.
 
 ## Contexto
 
@@ -53,9 +53,9 @@ Estas regras valem para todo SQL desta sprint. Quem as quebra gera dado errado e
 12. **Oracle:** `ORA-12704` (misturar `NVARCHAR2` e `VARCHAR2`: aplique `TO_CHAR` nos dois lados), `ORA-30482` (não existe `LISTAGG(DISTINCT)`), `ORA-32039` (CTE com nome de tabela real). Sem índice por `TASK_DEF_KEY_`/`ASSIGNEE_` em `ACT_HI_TASKINST`; `ACT_HI_ACTINST` tem ~1,5 milhão de linhas: consulte **sempre por `PROC_INST_ID_`** (barato). `LANCAMENTO_TAXA` e `HISTORICO_REQUERIMENTO` provavelmente sem índice em `ID_REQUERIMENTO`: sem varredura de tabela inteira.
 13. **Grupos reais observados** (nomes de grupos não são dado pessoal): `GrpProcSurhResponsavelAtendimento`, `grpSurhConferirDocumento{Subterranea|Superficial|Barramento}`, `grpProcSurhConferirDocumentoMultidisciplinar`, `grpProcSurhResponsavelDistribuicao`, `grpSurhAtribuirRequerimento{Subterranea|Superficial|Barramento}`, `grpProcSurhAtribuirRequerimentoMultidisciplinar`, `GrpProcPublicacaoOficial`, `grpSurhRegistrarPublicacao{Subterranea|Superficial|Barramento}`, `grpProcSurhRegistrarPublicacaoMultidisciplinar`, `grpSurhRevisarDecisao{Subterranea|Superficial|Barramento|Multidisciplinar}`, `GrpProcSurhEmissorTitulos`, `GrpProcResponsavelAtendimentoLac`, `suporte`. Valor `0` ou desconhecido = "equipe responsável", sem erro.
 
-## Protocolo das duas sessões
+## Protocolo das três sessões
 
-1. **Identifique a sessão:** a primeira mensagem do responsável traz `SESSÃO: OPUS` ou `SESSÃO: SONNET`. Sem essa linha, pergunte e espere; não deduza pelo seu nome de modelo.
+1. **Identifique a sessão:** a primeira mensagem do responsável traz `SESSÃO: OPUS`, `SESSÃO: SONNET` ou `SESSÃO: HAIKU`. Sem essa linha, pergunte e espere; não deduza pelo seu nome de modelo.
 2. **Descubra onde parou:** leia `docs/progresso/s8.md`. Se não existir, nenhum bloco foi feito (bloco atual = 1). O primeiro bloco **não concluído** é o atual.
 3. **O bloco é seu?** Se sim, execute só ele. Se não, **não faça nada nem altere arquivo** e responda: `PRÓXIMO BLOCO: N (<título>), atribuído à sessão <X>. Volte para essa sessão e envie o mesmo prompt com "SESSÃO: <X>".`
 4. **Ao concluir o bloco:**
@@ -65,17 +65,19 @@ Estas regras valem para todo SQL desta sprint. Quem as quebra gera dado errado e
    - rode `git diff --stat` e responda:
 
 ```
-BLOCO N CONCLUÍDO (sessão <OPUS|SONNET>): <título>
+BLOCO N CONCLUÍDO (sessão <OPUS|SONNET|HAIKU>): <título>
 Testes: <rodaram / falharam / pulados>
 Arquivos: <resumo do git diff --stat>
 Mensagem de commit sugerida (Conventional Commits, português):
   <tipo>(<escopo>): <resumo de até 72 caracteres>
 
   <corpo curto: o que muda e por quê>
-PRÓXIMO BLOCO: N+1 (<título>), sessão <OPUS|SONNET>.
+PRÓXIMO BLOCO: N+1 (<título>), sessão <OPUS|SONNET|HAIKU>.
 ```
 
 5. **Pare.** Mesma sessão no próximo bloco: espere "continuar". Outra sessão: a atual termina ali.
+
+**Blocos da sessão HAIKU (documentação mecânica, para economizar tokens).** O Haiku só recebe blocos de documentação cujo conteúdo já está decidido e escrito em outros arquivos (cenários, tabelas, planos). Nesses blocos: **não invente** cenário, número, regra nem nome; copie e organize só o que existe em `docs/`, nos testes e nas fixtures (leia-os antes); o que não achar, escreva como **NÃO CONFIRMADO** em vez de preencher; **nenhum dado real**; rode a varredura de dados pessoais ao final. Se o bloco exigir uma decisão de projeto ou de código, **pare** e responda `Este bloco precisa da sessão SONNET.` O responsável revisa o `git diff` do bloco com mais atenção do que nos demais.
 
 Tipos de commit permitidos: `feat`, `fix`, `refactor`, `test`, `docs`, `perf`, `chore`, `ci`. A mensagem **não** começa com espaço.
 
@@ -94,7 +96,7 @@ Tipos de commit permitidos: `feat`, `fix`, `refactor`, `test`, `docs`, `perf`, `
 | 9 | Front: fluxograma simplificado | **SONNET** | Interface (HTML, CSS e SVG) |
 | 10 | Front: plano B e estados de erro | **SONNET** | Interface |
 | 11 | Acesso, auditoria e varredura de vazamento | **OPUS** | Prova das regras de segurança |
-| 12 | Roteiro de homologação e fechamento | **SONNET** | Documentação |
+| 12 | Roteiro de homologação e fechamento | **HAIKU** | Documentação a partir de cenários já definidos |
 
 ---
 
@@ -182,6 +184,7 @@ Serviço de domínio puro `ReconstruirCaminho` (sem JDBC; fácil de testar), ent
 - Erros em `ProblemDetail`; `INDISPONIVEL` é 200. Auditoria: reuse o tipo `TRAMITACAO` da S7 com o detalhe "histórico".
 - Docs: `docs/07`, `docs/02` (próximos RF livres: histórico, com quem esteve, fluxograma, plano B).
 - Testes de contrato por perfil e por cenário.
+- **Pendência da S6 (CI do servidor MCP):** acrescente ao `ci.yml` um passo **barato**, sem recurso novo nem pago (por exemplo, no job `mudancas`, que sempre roda, ou num job condicionado a mudanças em `tools/`): `npm --prefix tools/mcp-rastro ci`, `npm --prefix tools/mcp-rastro test` e `npm --prefix tools/mcp-rastro audit --omit=dev --audit-level=high`. Confira se o `dependabot.yml` cobre `tools/mcp-rastro/` (npm) e, se não cobrir, inclua. Atualize `docs/13` (CI) e `docs/claude-code/mcp.md`.
 
 ## Bloco 7 (OPUS): desempenho, limites, cache e degradação
 
@@ -239,8 +242,9 @@ Componente `FluxogramaSimplificado` (HTML, CSS e SVG simples, **sem biblioteca**
 - Teste de negação: parâmetro de nome desligado remove nomes de **passagens, participantes e fluxograma**.
 - Teste de que o **plano B nunca** consulta `SERVIDOR` e nunca devolve responsável.
 - Docs: `docs/10` (riscos fechados e novos), `docs/12`.
+- **Pendência da S6 (MCP com dados fictícios, R66):** hoje o servidor MCP só opera se o Rastro se declara em demonstração, o que exige SIGA, API de arquivos e SCORP **vazios**, então no ambiente de verificação ele só mostra o caminho seguro (503). Com o ambiente fictício de Camunda e Licenciamento da S7, **estude e proponha** como o modo de demonstração pode reconhecer um **SIGA fictício local** (por exemplo, o Oracle do ambiente de verificação) **sem enfraquecer a guarda** (continua recusando qualquer destino que não seja o fictício conhecido). Se for seguro, implemente com testes; se não for, deixe a recomendação e a recusa em `docs/09` e feche o R66 como "aceito" em `docs/10`. O MCP continua somente leitura e mascarado.
 
-## Bloco 12 (SONNET): roteiro de homologação e fechamento
+## Bloco 12 (HAIKU): roteiro de homologação e fechamento
 
 **Commit sugerido:** `docs(tramitacao): roteiro de homologação e fechamento da S8`
 

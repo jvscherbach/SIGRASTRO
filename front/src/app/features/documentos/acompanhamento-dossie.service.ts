@@ -4,8 +4,8 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Subject, Subscription } from 'rxjs';
 
 import { AuthService } from '../../core/auth.service';
-import { mensagemDoErro } from '../../core/mensagens-erro';
-import { baixarBlob, baixarDireto, nomeDoContentDisposition } from '../../shared/arquivo-local';
+import { mensagemRealDoErro } from '../../core/mensagens-erro';
+import { baixarBlob, baixarDireto, nomeDoContentDisposition, pdfRecebidoInteiro } from '../../shared/arquivo-local';
 import { agoraEmCuiaba, formatarDataHora, minutosAte } from '../../shared/formato';
 import { ToastService } from '../../shared/toast.service';
 import { DossiesApiService } from './documentos-api.service';
@@ -25,6 +25,11 @@ const FATOR_DO_INTERVALO = 1.5;
 const CONTAGEM_REGRESSIVA_MS = 30_000;
 
 const CREDENCIAL_RECUSADA = 'CREDENCIAL_ARQUIVOS_RECUSADA';
+const ARQUIVO_PERDIDO = ['DOSSIE_ARQUIVO_AUSENTE', 'DOSSIE_ARQUIVO_INVALIDO'];
+
+/** O PDF chegou incompleto (S6, bloco 3): nada é entregue ao navegador e a ação é repetir o download. */
+export const MENSAGEM_PDF_INCOMPLETO =
+  'O arquivo recebido está incompleto ou não é um PDF, e nada foi salvo. Clique em Tentar novamente para baixar de novo.';
 
 export type Fase = 'enviando' | 'acompanhando' | 'erro';
 
@@ -61,6 +66,11 @@ export class AcompanhamentoDeDossieService {
   readonly baixado = signal(false);
   /** O download foi entregue ao navegador (dossiê grande): o término não é visto daqui. */
   readonly baixadoDireto = signal(false);
+  /**
+   * O último download ou pré-visualização falhou (S6, bloco 3): a gaveta mostra o erro real e as ações "Tentar
+   * novamente", "Gerar novamente" e "Descartar", nunca o estado de sucesso.
+   */
+  readonly erroDeDownload = signal(false);
   readonly vencido = signal(false);
   readonly previa = signal<{ url: string; seguro: SafeResourceUrl } | null>(null);
   readonly agora = signal(agoraEmCuiaba());
@@ -129,6 +139,9 @@ export class AcompanhamentoDeDossieService {
     const percentual = this.percentual();
     if (this.fase() === 'erro') {
       return { tipo: 'erro', texto: 'Erro ao gerar o dossiê', percentual: null };
+    }
+    if (status === 'FALHA') {
+      return { tipo: 'erro', texto: 'Falha ao gerar o dossiê', percentual: null };
     }
     if (this.fase() === 'enviando') {
       return { tipo: 'andamento', texto: 'Gerando dossiê…', percentual: 0 };
@@ -237,6 +250,7 @@ export class AcompanhamentoDeDossieService {
     const terminado =
       status === 'CANCELADO' ||
       status === 'EXPIRADO' ||
+      status === 'FALHA' ||
       this.vencido() ||
       (status === 'CONCLUIDO' && this.baixado()) ||
       (this.fase() === 'erro' && !this.pedidoCriado());
@@ -258,6 +272,7 @@ export class AcompanhamentoDeDossieService {
     this.mensagemDeErro.set('');
     this.baixado.set(false);
     this.baixadoDireto.set(false);
+    this.erroDeDownload.set(false);
     this.vencido.set(false);
     this.avisadoComoFinal = false;
     this.descartarPrevia();
@@ -316,6 +331,8 @@ export class AcompanhamentoDeDossieService {
     let texto: string | null = null;
     if (this.fase() === 'erro') {
       texto = 'Não foi possível acompanhar a geração do dossiê.';
+    } else if (status === 'FALHA') {
+      texto = this.erroDoDossie()?.motivo ?? 'Não foi possível gerar o dossiê.';
     } else if (status === 'CONCLUIDO') {
       texto = 'Dossiê pronto para baixar.';
     } else if (status === 'PENDENTE_DECISAO') {
@@ -380,6 +397,7 @@ export class AcompanhamentoDeDossieService {
     this.ocupado.set(false);
     this.baixado.set(false);
     this.baixadoDireto.set(false);
+    this.erroDeDownload.set(false);
     this.vencido.set(false);
     this.idRequerimento.set(null);
     this.total.set(0);
@@ -462,6 +480,7 @@ export class AcompanhamentoDeDossieService {
     if (!this.pedido) {
       return;
     }
+    this.limparErroDeArquivo();
     this.ocupado.set(true);
     this.acao = this.api.arquivo(this.pedido, 'inline').subscribe({
       next: (resposta) => {
@@ -474,26 +493,72 @@ export class AcompanhamentoDeDossieService {
     });
   }
 
+  /**
+   * Baixa o PDF por Blob. Só depois de conferir que o corpo chegou inteiro (tamanho e assinatura %PDF-) o arquivo é
+   * entregue ao navegador e a gaveta diz "entregue" (nota neutra: a página não sabe se o navegador conseguiu gravar).
+   * O servidor apaga o arquivo ao fim do download (RNF05, D77): baixar outra vez exige gerar de novo.
+   */
   baixar(): void {
-    if (!this.pedido) {
+    const pedido = this.pedido;
+    if (!pedido) {
       return;
     }
+    this.limparErroDeArquivo();
     if (this.entregaPorTicket()) {
-      this.baixarDireto(this.pedido);
+      this.baixarDireto(pedido);
       return;
     }
     this.ocupado.set(true);
-    this.acao = this.api.arquivo(this.pedido, 'attachment').subscribe({
+    this.acao?.unsubscribe();
+    this.acao = this.api.arquivo(pedido, 'attachment').subscribe({
       next: (resposta) => {
-        this.ocupado.set(false);
-        const nome = nomeDoContentDisposition(resposta.headers.get('Content-Disposition')) ?? 'dossie.pdf';
-        baixarBlob(resposta.body as Blob, nome);
-        // O servidor apaga o arquivo ao fim do download (RNF05): nova pré-visualização ou novo download exigem gerar de novo.
-        this.baixado.set(true);
-        this.descartarPrevia();
+        void pdfRecebidoInteiro(resposta.body, resposta.headers.get('Content-Length')).then((inteiro) => {
+          if (this.pedido !== pedido) {
+            return;
+          }
+          this.ocupado.set(false);
+          if (!inteiro) {
+            this.erroDeDownload.set(true);
+            this.mensagemDeErro.set(MENSAGEM_PDF_INCOMPLETO);
+            return;
+          }
+          const nome = nomeDoContentDisposition(resposta.headers.get('Content-Disposition')) ?? 'dossie.pdf';
+          baixarBlob(resposta.body as Blob, nome);
+          this.baixado.set(true);
+          this.descartarPrevia();
+        });
       },
       error: (erro: unknown) => this.falhaDeArquivo(erro),
     });
+  }
+
+  /** "Tentar novamente" depois de um download que falhou antes de chegar inteiro: repete o download. */
+  tentarDownloadDeNovo(): void {
+    this.baixado.set(false);
+    this.baixadoDireto.set(false);
+    this.baixar();
+  }
+
+  /** "Descartar": apaga o pedido no servidor (e o arquivo, se houver) e tira a gaveta e o indicador. */
+  descartar(): void {
+    const pedido = this.pedido;
+    if (!pedido) {
+      this.dispensar();
+      return;
+    }
+    this.parar();
+    this.ocupado.set(true);
+    this.acao?.unsubscribe();
+    this.acao = this.api.cancelar(pedido).subscribe({
+      next: () => this.dispensar(),
+      // Sem conexão ou já esquecido no servidor: some daqui do mesmo jeito; a limpeza do servidor cuida do resto.
+      error: () => this.dispensar(),
+    });
+  }
+
+  private limparErroDeArquivo(): void {
+    this.erroDeDownload.set(false);
+    this.mensagemDeErro.set('');
   }
 
   /**
@@ -514,10 +579,15 @@ export class AcompanhamentoDeDossieService {
     });
   }
 
+  /** Erro real do servidor na tela, nunca sucesso (S6, bloco 3). Arquivo perdido: o andamento passa a FALHA. */
   private falhaDeArquivo(erro: unknown): void {
     this.ocupado.set(false);
+    this.erroDeDownload.set(true);
     this.mensagemDeErro.set(mensagemDaGaveta(erro));
-    if (erro instanceof HttpErrorResponse && erro.status === 410) {
+    const codigo = erro instanceof HttpErrorResponse ? (erro.error as { errorCode?: string } | null)?.errorCode : null;
+    if (codigo && ARQUIVO_PERDIDO.includes(codigo)) {
+      this.consultar();
+    } else if (erro instanceof HttpErrorResponse && erro.status === 410) {
       this.vencido.set(true);
     }
   }
@@ -542,6 +612,7 @@ export const TITULO_DO_STATUS: Record<StatusDossie, string> = {
   CONCLUIDO: 'Dossiê pronto',
   CANCELADO: 'Geração cancelada',
   EXPIRADO: 'Dossiê expirado',
+  FALHA: 'Não foi possível gerar o dossiê',
 };
 
 /** Rótulo da barra de progresso por situação do pedido. */
@@ -553,6 +624,7 @@ export const ROTULO_DO_STATUS: Record<StatusDossie, string> = {
   CONCLUIDO: 'Concluído',
   CANCELADO: 'Cancelado',
   EXPIRADO: 'Expirado',
+  FALHA: 'Falhou',
 };
 
 /** Orientação quando a API de arquivos recusa o token (sem citar valor algum). */
@@ -574,5 +646,5 @@ export function mensagemDaGaveta(erro: unknown): string {
     // O detalhe de seleção inválida é escrito para o usuário ("O documento X está indisponível..."), sem dado técnico.
     return problema.detail;
   }
-  return mensagemDoErro(erro);
+  return mensagemRealDoErro(erro);
 }

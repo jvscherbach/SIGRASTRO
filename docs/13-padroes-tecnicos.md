@@ -88,6 +88,8 @@ O dono é o módulo que define o **significado de negócio**. Ex.: "quais docume
 
 ## Exceções registradas a "sem dependências novas"
 
+- **S6, bloco 7, servidor MCP** (`tools/mcp-rastro/package.json`, versões fixas, `package-lock.json` versionado, fora das imagens; só para o Claude Code local): `@modelcontextprotocol/sdk` **1.32.2** (MIT, publicado em 23/10/2026) e `zod` **4.6.7** (MIT; a 3.25.x tinha alerta alto de consumo de memória, GHSA-mrhx-c7xc-m3w5, corrigido na 4.6.6). Transitivas: 85 MIT, 7 ISC, 2 BSD-3-Clause e 1 BSD-2-Clause; `npm audit --omit=dev` em 0. Testes (`npm --prefix tools/mcp-rastro test`) só locais, fora do CI, porque exigiriam `npm ci` da pasta a cada PR.
+
 - **`@playwright/test`** (devDependency do `front`, versão fixa, D35): testes e2e com API simulada; fora das imagens de produção, `npm audit` em 0.
 - **`org.apache.pdfbox:pdfbox`** (produção, `api`), prevista desde a S0 como stack do PDF.
 - **S3, conversão** (todas gratuitas e de código aberto, sem copyleft forte; versões fixas no `pom.xml`):
@@ -108,7 +110,7 @@ A pipeline roda no GitHub Actions (`.github/`). **Ela só valida e publica image
 
 | Arquivo | Quando roda | O que faz |
 |---|---|---|
-| `workflows/ci.yml` | Pull request, push na `main` e chamado pelo `release.yml` | `mudancas` decide se a mudança é só de documentação (`docs/`, `*.md`, `.claude/`); nesse caso `api`, `front`, `e2e` e `docker` ficam pulados (D53). Cinco jobs de verificação: `api` (instala o mínimo do LibreOffice, os mesmos pacotes da imagem, e roda `./mvnw -B clean verify`, com Testcontainers no Docker do runner; os testes de conversão **falham** sem o `soffice` quando a variável `CI` está definida, e só são pulados, com aviso, na máquina do desenvolvedor; S3, bloco 8), `front` (build, testes e `npm audit`), `e2e` (Playwright com API simulada, depois do `front`), `docker` (constrói as duas imagens, sem push e sem login) e `compose` (`config --services`, sem subir nada). Os relatórios de teste só são guardados em caso de falha, por 7 dias |
+| `workflows/ci.yml` | Pull request, push na `main`, execução manual (`workflow_dispatch`, com a opção `incluir_conversao`) e chamado pelo `release.yml` | `mudancas` decide se a mudança é só de documentação (`docs/`, `*.md`, `.claude/`); nesse caso `api`, `front`, `e2e` e `docker` ficam pulados (D53). **S6, bloco 6:** o próprio `mudancas` roda os testes das guardas do Claude Code (`node --test` dos três `.claude/hooks/*.test.mjs`, com o Node que já vem no runner, sem instalar nada, em segundos), porque é o único job que sempre executa e o filtro trata `.claude/` como documentação. Cinco jobs de verificação: `api` (roda `./mvnw -B clean verify`, com Testcontainers no Docker do runner; **S6, bloco 5:** a instalação do LibreOffice e os testes com a tag `conversao-libreoffice` só rodam em push na `main` e na execução manual com `incluir_conversao`; em PR comum e em PR do Dependabot o passo é pulado, o build passa `-Dtestes.excluidos=desempenho,conversao-libreoffice` e o resumo do job diz "Testes de conversão com LibreOffice pulados neste PR"; quando rodam, esses testes **falham** sem o `soffice` se a variável `CI` está definida, e só são pulados, com aviso, na máquina do desenvolvedor; S3, bloco 8), `front` (build, testes e `npm audit`), `e2e` (Playwright com API simulada, depois do `front`), `docker` (constrói as duas imagens, sem push e sem login) e `compose` (`config --services`, sem subir nada). Os relatórios de teste só são guardados em caso de falha, por 7 dias |
 | `workflows/release.yml` | Tag `vX.Y.Z` ou execução manual sobre uma tag | Confere a ref, roda o `ci.yml` e publica `api` e `front` no GHCR (`ghcr.io/<dono>/<repositório>/api` e `/front`) com as tags `vX.Y.Z`, `X.Y` e `sha-<curto>`. **Nunca `latest`.** Build sem cache, com `provenance` e `sbom`. Não publica a cada merge |
 | `dependabot.yml` | Mensal (D53) | Atualizações de `maven`, `npm`, `github-actions` e `docker`, agrupando minor e patch (máx. 5 PRs por ecossistema) |
 
@@ -203,3 +205,11 @@ Toda subida de verificação usa `compose.yaml` + `compose.local.yaml` + **`comp
 - Nenhuma escrita no banco do SIGA.
 - Nenhum valor real de credencial, URL institucional ou token no repositório.
 - Prompts e automações não fazem commit nem push; só `git diff` para revisão.
+
+### Testes de conversão com LibreOffice: onde rodam (S6, bloco 5)
+
+- **Tag:** `conversao-libreoffice` (JUnit 5) nas cinco classes que exigem o `soffice`: `ArquivosHostisTest`, `ConversaoComSofficeTest`, `ConversaoDePlanilhasTest`, `NumeracaoComPlanilhaConvertidaTest` e `ProcessosDoConversorTest`. A propriedade `testes.excluidos` do `pom.xml` lista as tags excluídas (padrão `desempenho`, que já existia).
+- **Localmente (tudo):** `./mvnw -B verify` roda os testes de conversão; sem o LibreOffice instalado, eles ficam pulados com aviso. Para um PR de código, o jeito de reproduzir o CI é `./mvnw -B verify -Dtestes.excluidos=desempenho,conversao-libreoffice`.
+- **Só a conversão:** `./mvnw -B test -Dgroups=conversao-libreoffice` (com o LibreOffice instalado).
+- **No Actions:** automático em push na `main`; manual em Actions → CI → *Run workflow* → marcar `incluir_conversao`. Um push em tag de release chama o CI com a ref da tag e **não** roda a conversão (a `main` já a rodou).
+- **Risco:** uma regressão na conversão só aparece depois do merge, quando o push na `main` falha. **Mitigação:** quem mexe em `integration.libreoffice`, `documento.application` (conversão) ou na montagem do PDF roda `./mvnw -B verify` localmente, com o LibreOffice, **antes** do PR, ou dispara o CI manual na branch com `incluir_conversao`. Registrado em `docs/10` (R67).

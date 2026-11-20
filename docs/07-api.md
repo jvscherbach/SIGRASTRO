@@ -275,12 +275,16 @@ Resposta do `GET /dossies/{id}`:
 - `itens[].situacao` (RF16): `AGUARDANDO`, `OBTENDO`, `OK`, `FALHA` ou `REMOVIDO`. A ordem é a cronológica (RN03). `itens[].motivo` aparece em `FALHA` e continua no item `REMOVIDO` (é o motivo que o PDF registra em "Documentos não incluídos", docs/06).
 - `processados`: itens resolvidos (`OK` ou `REMOVIDO`). **Não volta a zero** numa continuação: os já obtidos continuam contando.
 - `falhas` (S2.2): a lista completa dos itens em `FALHA` (`origem`, `id`, `titulo`, `motivo`), que a decisão vai refazer ou remover.
-- `erro`: motivo **geral**, só quando não é de um documento: credencial recusada (com `codigo`) ou falha na montagem. Falha de documento fica em `falhas`.
+- `erro`: motivo **geral**, só quando não é de um documento: credencial recusada (com `codigo`), falha na montagem ou o motivo da `FALHA` (S6, com `codigo`: `ARMAZENAMENTO_INSUFICIENTE`, `DOSSIE_ARQUIVO_AUSENTE` ou `DOSSIE_ARQUIVO_INVALIDO`; `motivo` é o texto para o usuário, sem caminho de arquivo). Falha de documento fica em `falhas`.
+- `status` `FALHA` (S6, bloco 3, D77): sem espaço em disco na obtenção, na conversão ou na montagem, ou o PDF final perdido depois de concluído. Não há arquivo nem decisão possível: o diretório do pedido já foi apagado e o caminho é gerar de novo.
 - `expiraEm` (S2.2): conta desde a **última atividade** (criação, cada documento processado, decisão, conclusão), inclusive enquanto o pedido espera a decisão.
 - `itens[].tentativas` (S2.2): pedidos feitos à API de arquivos para o item (0 = nenhum ainda; mais de 1 = houve nova tentativa automática, docs/05). Não traz chave nem URL.
 - `paginas`: total de páginas do PDF final (só em `CONCLUIDO`). `expiraEm`: horário de Cuiabá, sem fuso.
 - `tamanhoBytes` e `entregaPorTicket` (S2.2, só em `CONCLUIDO`): o tamanho do PDF final e se ele passa de `DOSSIE_BLOB_MAX_MB` (padrão 150). Abaixo do limite, o front baixa e pré-visualiza por `Blob`; acima, a pré-visualização some (com aviso) e o download usa o ticket (D49).
-- `GET /dossies/{id}/arquivo`: 409 `DOSSIE_SEM_ARQUIVO` se não há arquivo (em andamento, aguardando decisão, cancelado); 410 `DOSSIE_EXPIRADO` se expirou ou já foi baixado; 400 se `disposicao` for outra.
+- `GET /dossies/{id}/arquivo`: 409 `DOSSIE_SEM_ARQUIVO` se não há arquivo (em andamento, aguardando decisão, cancelado, `FALHA`); 410 `DOSSIE_EXPIRADO` se expirou ou já foi baixado; 400 se `disposicao` for outra. **S6, bloco 3:** o arquivo é conferido antes de cada entrega (e da emissão do ticket): sumiu do disco, 410 `DOSSIE_ARQUIVO_AUSENTE`; vazio ou com tamanho diferente do gravado, 500 `DOSSIE_ARQUIVO_INVALIDO`. Nos dois casos o pedido vira `FALHA`. **Nunca 200 com corpo vazio ou truncado.**
+- **Download completo (S6, D77):** o arquivo continua sendo apagado assim que o download termina por inteiro (RNF05), sem janela de nova tentativa (decisão do responsável). O aviso de "download completo" só vale depois de o servidor ver o fim do arquivo (antes bastava ter lido todos os bytes, mesmo que o último bloco não tivesse sido escrito): download interrompido não apaga nada.
+- `POST /dossies` (S6, bloco 3): sem o espaço livre mínimo (`DOSSIE_ESPACO_MINIMO_MB`, padrão 500) no diretório temporário, **507** `ARMAZENAMENTO_INSUFICIENTE` ("Sem espaço em disco para gerar o dossiê. Libere espaço e tente novamente."), **sem criar pedido** e sem ler o SIGA. Se o espaço não puder ser medido, o pedido segue (a gravação continua protegida).
+- `GET /dossies` (S6): só em `FALHA`, cada item traz `falha` com `codigo` e `mensagem`. A situação `FALHA` entra na lista.
 
 Em `PENDENTE_DECISAO` por falha de documento, `falhas` traz cada documento e o motivo, e `GET /dossies/{id}/arquivo` retorna 409 (não há arquivo):
 
@@ -346,6 +350,7 @@ Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **
 |---|---|:---:|:---:|:---:|---|---|---|---|
 | `POST /auth/login` | pública | ✓ | ✓ | ✓ | — | — | — | — |
 | `GET /auth/me` | sessão | ✓ | ✓ | ✓ | — | — | — | só o próprio usuário |
+| `GET /estado` (S6) | sessão | ✓ | ✓ | ✓ | — | — | — | só status e modo; sem URL, host ou credencial |
 | `POST /auth/logout` | sessão | ✓ | ✓ | ✓ | — | — | — | só a própria sessão |
 | `GET /busca` (por número de requerimento) | sessão | ✓ | ✓ | ✓ | 403/404 | — | — | `exigirAcessoAoRequerimento` |
 | `GET /busca` (por número de processo, 1:N) | sessão | ✓ | ✓ | ✓ | filtro na consulta; nenhum dele e o número existe: 403; não existe: 404 | — | — | `restricaoDoUsuarioAtual` |
@@ -426,11 +431,13 @@ Restrito ao perfil `ADMIN`. Toda escrita gera evento na auditoria de acessos.
 | `POST` | `/configuracoes/usuarios` | Inclui usuário: `{nome, login, cpfCnpj, perfil}`. 201 com o usuário. |
 | `PATCH` | `/configuracoes/usuarios/{id}` | Altera `perfil` e/ou `ativo`; o campo ausente fica como está. |
 | `GET` | `/configuracoes/conexoes` | Estado das conexões. |
-| `POST` | `/configuracoes/conexoes/{nome}/teste` | Testa uma conexão e devolve o tempo de resposta. |
+| `POST` | `/configuracoes/conexoes/{nome}/teste` | Testa uma conexão e devolve a classificação, o código HTTP e o tempo de resposta. |
+
+**Estado do serviço (S6, bloco 7).** `GET /api/estado`, para qualquer usuário autenticado: `{status: "UP", modo, sistemasExternos}`. `modo` é `demonstracao` só com `RASTRO_MODO=demonstracao` **e** nenhum sistema externo configurado (SIGA, API de arquivos, SCORP); senão `padrao`. `sistemasExternos` diz só se algum está configurado (sim/não), sem URL, host ou credencial. Usado pelo servidor MCP do Rastro, que só opera em demonstração (docs/claude-code/mcp.md).
 
 **Parâmetros (S5, bloco 8).** `GET` responde `{parametros: [...]}`. Cada item traz `nome`, `rotulo`, `grupo` (`DOSSIE`, `CONVERSAO`, `VISUALIZACAO`, `CONEXOES`, `AUDITORIA`), `tipo` (`INTEIRO`, `BOOLEANO`, `OPCAO`), `valor`, `padrao`, `minimo`, `maximo`, `opcoes`, `classeDeAplicacao` (`IMEDIATO`, `PROXIMA_GERACAO`, `EXIGE_REINICIO`), `sobreposto` e `pendenteDeReinicio`. `PUT` recebe `{alteracoes: {nome: valor}}` e devolve a lista como ficou. Valor fora da faixa ou nome desconhecido é 400 `PARAMETRO_INVALIDO` com o nome em `campos`, e nada é aplicado. Salvar o próprio padrão tira a sobreposição. Sem mudança real, 200 sem evento. `DELETE` de nome desconhecido é 404.
 
-**Conexões (S5, bloco 8).** `GET` responde `{conexoes: [...]}`, sem chamar nenhum sistema externo: `nome` (`siga`, `arquivos`, `scorp`, `taxas`), `rotulo`, `estado` (`CONFIGURADA`, `NAO_CONFIGURADA`, `DESATIVADA`), `horasAteExpirar` (só a API de arquivos com token JWT; nulo se não dá para saber) e `tokenVencido`. O teste responde 200 mesmo com a conexão fora do ar: `{nome, sucesso, tempoMs, mensagem, horasAteExpirar, tokenVencido}`. Um teste por conexão de cada vez (409 `TESTE_DE_CONEXAO_EM_ANDAMENTO`), limite de 10 s. O destino vem só da configuração do servidor; nome fora da lista é 404. Nenhuma resposta traz URL, host ou credencial.
+**Conexões (S5, bloco 8; S6, bloco 4).** `GET` responde `{conexoes: [...], tempoLimiteDoTesteSegundos}`, sem chamar nenhum sistema externo: `nome` (`siga`, `arquivos`, `scorp`, `taxas`), `rotulo`, `estado` (`CONFIGURADA`, `NAO_CONFIGURADA`, `DESATIVADA`), `horasAteExpirar` (só a API de arquivos com token JWT; nulo se não dá para saber) e `tokenVencido`; `tempoLimiteDoTesteSegundos` é `CONEXAO_TESTE_TIMEOUT_SEGUNDOS` (15). O teste responde 200 mesmo com a conexão fora do ar: `{nome, sucesso, classificacao, codigoHttp, tempoMs, tempoLimiteSegundos, mensagem, horasAteExpirar, tokenVencido}`. `classificacao` (S6): `OK`, `ALCANCAVEL_COM_RESSALVA`, `FALHA_DE_AUTENTICACAO` ou `FALHA`; `sucesso` é verdadeiro nas duas primeiras (o serviço respondeu); `codigoHttp` só aparece quando houve resposta HTTP. Um teste por conexão de cada vez (409 `TESTE_DE_CONEXAO_EM_ANDAMENTO`); teto do teste inteiro de 2 × o tempo limite + 5 s (503 isolado ganha uma nova tentativa). Cada teste gera um evento `CONEXAO` na auditoria. O destino vem só da configuração do servidor; nome fora da lista é 404. Nenhuma resposta traz URL, host ou credencial.
 
 **Usuários (S5, bloco 7).** Cada item traz `id` (o login, que não muda), `nome`, `login`, `perfil` (código), `perfilRotulo`, `ativo`, `ultimoAcesso` (nulo até a primeira entrada depois de subir o serviço) e `cpfCnpj`, sempre mascarado (`***.456.789-**` ou `**.345.678/****-**`) ou nulo. O login é normalizado (sem espaços nas pontas, em minúsculas). Os erros próprios são 409 `LOGIN_JA_EXISTE`, `ULTIMO_ADMINISTRADOR` e `PROPRIO_USUARIO`. A mudança vale para as sessões abertas já na próxima requisição; a sessão de usuário desativado responde 401. Usuário inativo que tenta entrar recebe a mesma mensagem de credencial inválida.
 
@@ -465,6 +472,9 @@ Todo erro segue `ProblemDetail` com `errorCode` estável e `correlationId` (head
 | 409 | `DOSSIE_SEM_ARQUIVO` | Arquivo inexistente: o pedido aguarda decisão, foi cancelado ou ainda está em andamento |
 | 409 | `DOSSIE_SEM_DECISAO_PENDENTE` | Continuação pedida para um dossiê que não está em `PENDENTE_DECISAO` (S2.2) |
 | 410 | `DOSSIE_EXPIRADO` | Dossiê expirado ou já baixado (o arquivo foi apagado) |
+| 410 | `DOSSIE_ARQUIVO_AUSENTE` | Dossiê concluído cujo PDF final sumiu do disco; o pedido vira `FALHA` (S6) |
+| 500 | `DOSSIE_ARQUIVO_INVALIDO` | Dossiê concluído cujo PDF final está vazio ou incompleto; o pedido vira `FALHA` (S6) |
+| 507 | `ARMAZENAMENTO_INSUFICIENTE` | Sem espaço em disco: `POST /dossies` abaixo de `DOSSIE_ESPACO_MINIMO_MB`, ou falta de espaço ao gravar um temporário (ex.: geometrias) (S6) |
 | 415 | `FORMATO_NAO_SUPORTADO` | Conteúdo do modal: tipo sem conversão para PDF ou conversão desligada (S3) |
 | 422 | `DOCUMENTO_PROTEGIDO_POR_SENHA` | Conteúdo do modal: documento protegido por senha (S3) |
 | 422 | `DOCUMENTO_CORROMPIDO` | Conteúdo do modal: arquivo corrompido ou ilegível pelo conversor (S3) |

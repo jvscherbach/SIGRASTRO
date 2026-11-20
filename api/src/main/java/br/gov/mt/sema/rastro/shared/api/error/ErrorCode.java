@@ -18,6 +18,10 @@ public enum ErrorCode {
     DOSSIE_SEM_ARQUIVO(HttpStatus.CONFLICT, "Dossiê sem arquivo"),
     DOSSIE_SEM_DECISAO_PENDENTE(HttpStatus.CONFLICT, "Dossiê sem decisão pendente"),
     DOSSIE_EXPIRADO(HttpStatus.GONE, "Dossiê expirado"),
+    // Disco cheio e arquivo final perdido (S6, bloco 3): nunca sucesso sem arquivo válido.
+    ARMAZENAMENTO_INSUFICIENTE(HttpStatus.INSUFFICIENT_STORAGE, "Armazenamento insuficiente"),
+    DOSSIE_ARQUIVO_AUSENTE(HttpStatus.GONE, "Arquivo do dossiê ausente"),
+    DOSSIE_ARQUIVO_INVALIDO(HttpStatus.INTERNAL_SERVER_ERROR, "Arquivo do dossiê inválido"),
     // Conteúdo do documento para o modal (S3).
     FORMATO_NAO_SUPORTADO(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Formato sem conversão para PDF"),
     DOCUMENTO_PROTEGIDO_POR_SENHA(HttpStatus.UNPROCESSABLE_ENTITY, "Documento protegido por senha"),

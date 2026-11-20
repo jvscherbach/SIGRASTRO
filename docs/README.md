@@ -26,11 +26,13 @@ Serviço externo ao SIGA Licenciamento que gera o **dossiê em PDF** de um reque
 | [12 — Configurações](12-configuracoes.md) | Perfis, usuários e parâmetros administráveis do serviço |
 | [13 — Padrões técnicos](13-padroes-tecnicos.md) | Arquitetura de código, módulos, persistência, banco, erros HTTP e verificação (detalhes em [`padroes/`](padroes/)) |
 | [14 — Plano de sprints](14-plano-de-sprints.md) | Sprints do protótipo, entregas, aceite e validações |
+| [Ferramentas do Claude Code](claude-code/README.md) | Guardas (hooks), servidor MCP e subagentes versionados no repositório (S6) |
 | [Homologação da S1](homologacao/S1-roteiro-homologacao.md) | Roteiro manual de conexão e leitura reais do SIGA |
 | [Homologação da S1.1](homologacao/S1.1-roteiro-homologacao.md) | Roteiro manual de objeto, prioridade, responsável, processo 1:N e quadro do topo |
 | [Homologação da S2](homologacao/S2-roteiro-homologacao.md) | Roteiro manual de documentos, token, dossiê real, falhas, acesso e quadro do topo |
 | [Homologação da S3](homologacao/S3-roteiro-homologacao.md) | Roteiro manual da conversão (planilhas, textos, imagens), do modal Visualizar, da falha de conversão e da escolha do modo de planilha |
 | [Homologação da S4](homologacao/S4-roteiro-homologacao.md) | Roteiro manual das regras de acesso por perfil, geometrias, documentos pessoais (SCORP) e "Dossiês gerados" |
+| [Homologação da S6](roteiros/s6-homologacao.md) | Roteiro manual dos defeitos corrigidos (nome × tipo, layout, disco cheio, teste de conexão), do CI e da demonstração das ferramentas do Claude Code |
 | [Homologação da S5](homologacao/S5-roteiro-homologacao.md) | Roteiro manual da geração em segundo plano, auditoria, usuários, parâmetros, conexões e reinício do serviço |
 | [Casos de teste](casos-de-teste.md) | Processos de teste (que falham hoje e com planilhas) e o resultado de cada dossiê |
 | [Prompts das sprints](prompts/) | Prompt de cada sprint para o Claude Code |

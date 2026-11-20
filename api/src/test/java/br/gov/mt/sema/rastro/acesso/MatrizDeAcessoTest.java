@@ -80,7 +80,7 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
 
     /** Endpoints cobertos por esta matriz; têm de ser exatamente os mapeamentos de /api e as linhas do docs/07. */
     static final Set<String> ENDPOINTS = Set.of(
-            "POST /api/auth/login", "GET /api/auth/me", "POST /api/auth/logout",
+            "POST /api/auth/login", "GET /api/auth/me", "POST /api/auth/logout", "GET /api/estado",
             "GET /api/busca", "GET /api/requerimentos/{id}", "GET /api/requerimentos/{id}/documentos",
             "GET /api/requerimentos/{id}/geometrias/arquivo", "GET /api/documentos/{origem}/{id}/conteudo",
             "GET /api/dossies", "POST /api/dossies", "GET /api/dossies/{id}", "GET /api/dossies/{id}/arquivo",
@@ -289,6 +289,10 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
                     () -> mvc.perform(get("/api/auth/me").header("Authorization", descartavel)));
         }
         verificar("GET /api/auth/me", "sem token", null, 401, "NAO_AUTENTICADO", () -> mvc.perform(get("/api/auth/me")));
+        for (Perfil p : Perfil.values()) {
+            verificar("GET /api/estado", "estado do serviço (S6)", p, 200, null, () -> comToken(get("/api/estado"), p));
+        }
+        verificar("GET /api/estado", "sem token", null, 401, "NAO_AUTENTICADO", () -> mvc.perform(get("/api/estado")));
     }
 
     private void busca() throws Exception {

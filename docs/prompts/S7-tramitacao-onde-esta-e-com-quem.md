@@ -1,6 +1,6 @@
 # S7: tramitação (1 de 2): onde o processo está e com quem
 
-> **Forma de trabalho:** a sprint é dividida em **11 blocos**, cada um terminando em um **ponto de commit**. Duas sessões do Claude Code (**OPUS** e **SONNET**) recebem **este mesmo prompt**; cada uma executa **somente os blocos atribuídos ao seu modelo**. O responsável alterna as sessões, revisa e commita cada bloco.
+> **Forma de trabalho:** a sprint é dividida em **11 blocos**, cada um terminando em um **ponto de commit**. Três sessões do Claude Code (**OPUS**, **SONNET** e **HAIKU**) recebem **este mesmo prompt**; cada uma executa **somente os blocos atribuídos ao seu modelo**. O responsável alterna as sessões, revisa e commita cada bloco.
 
 ## Contexto
 
@@ -52,9 +52,9 @@ Estas regras valem para todo SQL desta sprint. Quem as quebra gera dado errado e
 12. **Oracle:** `ORA-12704` (misturar `NVARCHAR2` e `VARCHAR2`: aplique `TO_CHAR` nos dois lados), `ORA-30482` (não existe `LISTAGG(DISTINCT)`), `ORA-32039` (CTE com nome de tabela real). Sem índice por `TASK_DEF_KEY_`/`ASSIGNEE_` em `ACT_HI_TASKINST`; `ACT_HI_ACTINST` tem ~1,5 milhão de linhas: consulte **sempre por `PROC_INST_ID_`** (barato). `LANCAMENTO_TAXA` e `HISTORICO_REQUERIMENTO` provavelmente sem índice em `ID_REQUERIMENTO`: sem varredura de tabela inteira.
 13. **Grupos reais observados** (nomes de grupos não são dado pessoal): `GrpProcSurhResponsavelAtendimento`, `grpSurhConferirDocumento{Subterranea|Superficial|Barramento}`, `grpProcSurhConferirDocumentoMultidisciplinar`, `grpProcSurhResponsavelDistribuicao`, `grpSurhAtribuirRequerimento{Subterranea|Superficial|Barramento}`, `grpProcSurhAtribuirRequerimentoMultidisciplinar`, `GrpProcPublicacaoOficial`, `grpSurhRegistrarPublicacao{Subterranea|Superficial|Barramento}`, `grpProcSurhRegistrarPublicacaoMultidisciplinar`, `grpSurhRevisarDecisao{Subterranea|Superficial|Barramento|Multidisciplinar}`, `GrpProcSurhEmissorTitulos`, `GrpProcResponsavelAtendimentoLac`, `suporte`. Valor `0` ou desconhecido = "equipe responsável", sem erro.
 
-## Protocolo das duas sessões
+## Protocolo das três sessões
 
-1. **Identifique a sessão:** a primeira mensagem do responsável traz `SESSÃO: OPUS` ou `SESSÃO: SONNET`. Sem essa linha, pergunte e espere; não deduza pelo seu nome de modelo.
+1. **Identifique a sessão:** a primeira mensagem do responsável traz `SESSÃO: OPUS`, `SESSÃO: SONNET` ou `SESSÃO: HAIKU`. Sem essa linha, pergunte e espere; não deduza pelo seu nome de modelo.
 2. **Descubra onde parou:** leia `docs/progresso/s7.md`. Se não existir, nenhum bloco foi feito (bloco atual = 1). O primeiro bloco **não concluído** é o atual.
 3. **O bloco é seu?** Se sim, execute só ele. Se não, **não faça nada nem altere arquivo** e responda: `PRÓXIMO BLOCO: N (<título>), atribuído à sessão <X>. Volte para essa sessão e envie o mesmo prompt com "SESSÃO: <X>".`
 4. **Ao concluir o bloco:**
@@ -64,17 +64,19 @@ Estas regras valem para todo SQL desta sprint. Quem as quebra gera dado errado e
    - rode `git diff --stat` e responda:
 
 ```
-BLOCO N CONCLUÍDO (sessão <OPUS|SONNET>): <título>
+BLOCO N CONCLUÍDO (sessão <OPUS|SONNET|HAIKU>): <título>
 Testes: <rodaram / falharam / pulados>
 Arquivos: <resumo do git diff --stat>
 Mensagem de commit sugerida (Conventional Commits, português):
   <tipo>(<escopo>): <resumo de até 72 caracteres>
 
   <corpo curto: o que muda e por quê>
-PRÓXIMO BLOCO: N+1 (<título>), sessão <OPUS|SONNET>.
+PRÓXIMO BLOCO: N+1 (<título>), sessão <OPUS|SONNET|HAIKU>.
 ```
 
 5. **Pare.** Mesma sessão no próximo bloco: espere "continuar". Outra sessão: a atual termina ali.
+
+**Blocos da sessão HAIKU (documentação mecânica, para economizar tokens).** O Haiku só recebe blocos de documentação cujo conteúdo já está decidido e escrito em outros arquivos (cenários, tabelas, planos). Nesses blocos: **não invente** cenário, número, regra nem nome; copie e organize só o que existe em `docs/`, nos testes e nas fixtures (leia-os antes); o que não achar, escreva como **NÃO CONFIRMADO** em vez de preencher; **nenhum dado real**; rode a varredura de dados pessoais ao final. Se o bloco exigir uma decisão de projeto ou de código, **pare** e responda `Este bloco precisa da sessão SONNET.` O responsável revisa o `git diff` do bloco com mais atenção do que nos demais.
 
 Tipos de commit permitidos: `feat`, `fix`, `refactor`, `test`, `docs`, `perf`, `chore`, `ci`. A mensagem **não** começa com espaço.
 
@@ -92,7 +94,7 @@ Tipos de commit permitidos: `feat`, `fix`, `refactor`, `test`, `docs`, `perf`, `
 | 8 | Front: bloco "Onde está agora" | **SONNET** | Interface a partir de contrato pronto |
 | 9 | Front: processo com vários requerimentos e estados de erro | **SONNET** | Interface |
 | 10 | Configurações: parâmetros do Rastro | **SONNET** | Reuso da tela de Configurações |
-| 11 | Roteiro de homologação e fechamento | **SONNET** | Documentação |
+| 11 | Roteiro de homologação e fechamento | **HAIKU** | Documentação a partir de cenários já definidos |
 
 ---
 
@@ -224,6 +226,7 @@ Descubra em `compose.verificacao.yaml`, `docs/13` e nos testes existentes (Testc
 - **Varredura de vazamento:** para **todos** os cenários e perfis, serialize a resposta e o log e procure: CPF (com e sem máscara, 11 dígitos soltos), ids técnicos (`task`, `gtw`, `Event_`, `Activity_`, `proc`) para quem não é Administrador, chave de arquivo, token, nomes de grupo técnicos. Zero ocorrências. Teste de **negação**: desligar o parâmetro de nome tira os nomes de todas as respostas.
 - Teste de **resiliência**: Camunda fora do ar ou com tempo limite estourado → `INDISPONIVEL`, sem 5xx e sem travar o detalhe do requerimento; consulta lenta não segura a thread além do limite.
 - Docs: `docs/10` (riscos fechados e novos), `docs/12` (variáveis).
+- **Pendência da S6 (guardas do Claude Code):** corrigir no `guarda-bash` (`.claude/hooks/`) as lacunas apontadas por `docs/progresso/verificacao-s6.md`: (a) **busca recursiva a partir da raiz** (`grep -r`, `rg --hidden`, `Select-String`/`findstr` com recursão) que alcança o arquivo de segredo sem citar o nome; (b) **despejo de variável sensível** por `$env:VAR` sozinho, `node -e` com `process.env` e `python -c` com `os.environ`; (c) o **falso positivo** em `heredoc` cujo texto apenas **cita** um arquivo de segredo ou o GitHub CLI (a guarda deve olhar o comando, não o texto gravado). Para cada correção, casos de teste (permitidos e bloqueados) em `guarda-bash.test.mjs`, sem enfraquecer nenhuma regra atual e sem tornar a guarda tão larga que trave o trabalho comum. Confirme também se a ferramenta Grep do Claude Code alcança arquivos ocultos ou ignorados quando recebe um diretório, e, se alcançar, cubra o caso em `guarda-arquivos.mjs`. Atualize `docs/claude-code/hooks.md`.
 
 ## Bloco 8 (SONNET): front, "Onde está agora"
 
@@ -256,13 +259,14 @@ Descubra em `compose.verificacao.yaml`, `docs/13` e nos testes existentes (Testc
 - Testes: alteração gera um evento com antes e depois; o Operador não vê a seção (RN08, 403 `PERFIL_SEM_PERMISSAO`).
 - Docs: `docs/12`.
 
-## Bloco 11 (SONNET): roteiro de homologação e fechamento
+## Bloco 11 (HAIKU): roteiro de homologação e fechamento
 
 **Commit sugerido:** `docs(tramitacao): roteiro de homologação e fechamento da S7`
 
 - `docs/roteiros/s7-homologacao.md` (modelo dos roteiros anteriores), com **uma linha por cenário** H01 a H21, L01 a L07 e Trifásico: o que abrir, o que a tela deve mostrar (etapa, com quem, selos) e campo "Resultado". Inclua a **conferência com dados reais (feita pelo responsável, fora do repositório)**: 5 requerimentos em etapas diferentes, comparando o Rastro com a tela do SIGA e com o Camunda; **nenhum número real entra no repositório**.
 - Atualize `docs/14` com o plano das sprints seguintes: **S8** tramitação (histórico, com quem esteve e fluxograma), **S9** financeiro (taxas, DAR, pagamentos, taxa vencida, isento), **S10** painel do Gestor, **S11** pago que virou isento; e o bloco de **renomeação para Rastro (R1)**. `docs/progresso/s7.md` completo, `docs/10` revisado.
 - Varredura final: nenhum CPF, CNPJ, nome real ou número real no repositório; `git diff --stat` e resumo da sprint.
+- **Pendências da S6 que entram aqui:** (a) o roteiro inclui um passo para o responsável **rodar `/verificar-sprint 7` numa sessão nova** (os agentes só carregam ao iniciar) e guardar `docs/progresso/verificacao-s7.md` como evidência; (b) na conferência com dados reais, uma linha para **fechar o que ficou NÃO CONFIRMADO da P06** (formato das datas do SCORP e resposta 404 para pessoa sem documentos; `docs/05` e `docs/10`).
 
 ---
 

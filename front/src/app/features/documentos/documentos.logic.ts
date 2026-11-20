@@ -22,6 +22,14 @@ export function normalizar(texto: string | null | undefined): string {
     .trim();
 }
 
+/**
+ * Nome mostrado na coluna do documento, como a Vista do SIGA: o nome do arquivo; sem ele, o título (a descrição ou o
+ * tipo, que fica em linha própria). Sigiloso sem permissão chega sem nome de arquivo: aparece o título mascarado.
+ */
+export function nomeExibido(d: { nomeArquivo: string | null; titulo: string | null }, rotuloVazio: string): string {
+  return d.nomeArquivo || d.titulo || rotuloVazio;
+}
+
 /** Busca por título, id e nome do arquivo, mais o filtro de origem. Documento sigiloso mascarado só casa pelo id. */
 export function filtrar(itens: DocumentoItem[], busca: string, origem: string): DocumentoItem[] {
   const termo = normalizar(busca);
@@ -74,7 +82,7 @@ export function ordenar(itens: DocumentoItem[], ordem: Ordem): DocumentoItem[] {
     } else if (ordem.campo === 'origem') {
       c = texto(a.origemDescricao, b.origemDescricao);
     } else {
-      c = texto(a.titulo, b.titulo);
+      c = texto(a.nomeArquivo || a.titulo, b.nomeArquivo || b.titulo);
     }
     return c * ordem.direcao || origem(a, b) || id(a, b);
   });

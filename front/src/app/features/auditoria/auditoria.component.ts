@@ -210,6 +210,12 @@ export class AuditoriaComponent implements OnInit {
     return e.numeroRequerimento ? `Requerimento ${e.numeroRequerimento}` : '—';
   }
 
+  /** Texto completo do detalhe (dica ao passar o mouse); o conteúdo quebra linha e nunca é cortado. */
+  protected textoDoDetalhe(e: EventoDeAuditoria): string | null {
+    const texto = [e.arquivo, e.detalhe, e.sigiloso ? 'Sigiloso' : null].filter(Boolean).join(' · ');
+    return texto || null;
+  }
+
   protected tomDoTipo(tipo: string): string {
     return { FALHA: 'red', DOSSIE: 'lime', DOWNLOAD: 'dark', CONFIG: 'amber', USUARIO: 'amber' }[tipo] ?? 'gray';
   }

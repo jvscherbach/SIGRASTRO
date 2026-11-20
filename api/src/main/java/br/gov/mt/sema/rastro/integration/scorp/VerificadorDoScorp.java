@@ -1,37 +1,49 @@
 package br.gov.mt.sema.rastro.integration.scorp;
 
-import java.net.SocketTimeoutException;
-import java.net.URI;
 import java.time.Duration;
 
 import br.gov.mt.sema.rastro.configuracao.application.port.VerificadorDeConexao;
 import br.gov.mt.sema.rastro.documento.application.port.OrigensLigadas;
 import br.gov.mt.sema.rastro.documento.domain.OrigemDocumento;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestClient;
 
 /**
- * Teste do SCORP: um {@code GET} para uma pessoa que não existe, sem ler corpo. Uma resposta 2xx ou 404 prova que o serviço
- * responde e aceitou a credencial; 401 e 403, que recusou. Não há rota de saúde conhecida (R55).
+ * Teste do SCORP (S6, bloco 4): um {@code GET} dos documentos de uma pessoa fictícia, sem ler corpo, com a <b>mesma</b>
+ * base de URL ({@code SCORP_API_URL}, terminando em {@code /api}), o mesmo caminho, a mesma credencial e o mesmo tipo de
+ * cliente da consulta real ({@link AcessoAoScorp}), mudando só o identificador. Não há rota de saúde conhecida (R55).
+ *
+ * <p>O identificador fictício não é um id corporativo válido: o SCORP responde 400 (ou 404), o que prova que está no ar
+ * e aceitou a credencial; antes isso aparecia como falha (falso alarme). 2xx é OK, 4xx (menos 401/403) alcançável com
+ * ressalva, 401/403 falha de autenticação, 503 isolado ganha uma nova tentativa, e DNS, recusa, TLS e tempo esgotado são
+ * falha. Tempo limite do teste em {@code CONEXAO_TESTE_TIMEOUT_SEGUNDOS} (padrão 15; antes 5 s fixos, menos que os 15 s
+ * da consulta real).
  */
 @Component
 @Order(3)
 class VerificadorDoScorp implements VerificadorDeConexao {
 
-    static final String IDENTIFICADOR = "verificacao-de-conexao";
-    private static final Duration TEMPO_LIMITE = Duration.ofSeconds(5);
+    private static final Logger log = LoggerFactory.getLogger(VerificadorDoScorp.class);
 
-    private final String urlBase;
+    static final String IDENTIFICADOR = "verificacao-de-conexao";
+    /** Mesma espera da consulta real antes da nova tentativa. */
+    static final Duration ESPERA_DA_NOVA_TENTATIVA = DocumentosDoScorpHttp.ESPERA_DA_NOVA_TENTATIVA;
+
+    /** Pausa antes da nova tentativa; nos testes, não espera de verdade. */
+    interface Espera {
+        void aguardar(Duration duracao) throws InterruptedException;
+    }
+
+    private final AcessoAoScorp acesso;
     private final OrigensLigadas origens;
     private final CredencialDoScorp credencial;
-    private final boolean modoCookie;
-    private final String nomeDoCookie;
+    private final Duration tempoLimite;
+    private final Espera espera;
 
     @Autowired
     VerificadorDoScorp(@Value("${rastro.scorp.url:}") String url, OrigensLigadas origens,
@@ -41,18 +53,22 @@ class VerificadorDoScorp implements VerificadorDeConexao {
             @Value("${rastro.scorp.auth-mode:}") String modo,
             @Value("${rastro.arquivos.auth-mode:bearer}") String modoDoLicenciamento,
             @Value("${rastro.scorp.cookie-name:}") String nomeDoCookie,
-            @Value("${rastro.arquivos.cookie-name:}") String nomeDoCookieDoLicenciamento) {
+            @Value("${rastro.arquivos.cookie-name:}") String nomeDoCookieDoLicenciamento,
+            @Value("${rastro.conexoes.teste-timeout-segundos:15}") int tempoLimiteSegundos) {
+        // Mesma escolha de modo e de cookie da consulta real (DocumentosDoScorpHttp).
         this(url, origens, CredencialDoScorp.de(token, arquivoDoToken, arquivoDoTokenDoLicenciamento),
                 modo == null || modo.isBlank() ? modoDoLicenciamento : modo,
-                nomeDoCookie == null || nomeDoCookie.isBlank() ? nomeDoCookieDoLicenciamento : nomeDoCookie);
+                nomeDoCookie == null || nomeDoCookie.isBlank() ? nomeDoCookieDoLicenciamento : nomeDoCookie,
+                Duration.ofSeconds(Math.max(1, tempoLimiteSegundos)), duracao -> Thread.sleep(duracao.toMillis()));
     }
 
-    VerificadorDoScorp(String url, OrigensLigadas origens, CredencialDoScorp credencial, String modo, String nomeDoCookie) {
-        this.urlBase = url == null ? "" : url.trim().replaceAll("/+$", "");
+    VerificadorDoScorp(String url, OrigensLigadas origens, CredencialDoScorp credencial, String modo, String nomeDoCookie,
+            Duration tempoLimite, Espera espera) {
+        this.acesso = new AcessoAoScorp(url, modo, nomeDoCookie);
         this.origens = origens;
         this.credencial = credencial;
-        this.modoCookie = "cookie".equalsIgnoreCase(modo == null ? "" : modo.trim());
-        this.nomeDoCookie = nomeDoCookie == null ? "" : nomeDoCookie.trim();
+        this.tempoLimite = tempoLimite;
+        this.espera = espera;
     }
 
     @Override
@@ -67,7 +83,7 @@ class VerificadorDoScorp implements VerificadorDeConexao {
 
     @Override
     public Estado estado() {
-        if (urlBase.isEmpty()) {
+        if (!acesso.configurado()) {
             return Estado.NAO_CONFIGURADA;
         }
         return origens.ligada(OrigemDocumento.SCORP) ? Estado.CONFIGURADA : Estado.DESATIVADA;
@@ -79,53 +95,33 @@ class VerificadorDoScorp implements VerificadorDeConexao {
         try {
             valor = credencial.obter();
         } catch (FalhaDoScorp e) {
-            return new Resultado(false, "Credencial não configurada.");
+            return Resultado.falha("Credencial não configurada.");
         }
         try {
-            return cliente().get().uri(URI.create(urlBase + DocumentosDoScorpHttp.CAMINHO + IDENTIFICADOR))
-                    .headers(h -> autenticar(h, valor))
-                    .exchange((requisicao, resposta) -> interpretar(resposta.getStatusCode().value()), true);
-        } catch (ResourceAccessException e) {
-            return new Resultado(false, porTempoLimite(e) ? "Tempo limite excedido." : "Serviço inacessível.");
-        } catch (RuntimeException e) {
-            return new Resultado(false, "Não foi possível testar a conexão.");
-        }
-    }
-
-    private static Resultado interpretar(int status) {
-        if (status == 401 || status == 403) {
-            return new Resultado(false, "Credencial recusada.");
-        }
-        if (status == 404 || (status >= 200 && status < 300)) {
-            return new Resultado(true, "Conexão estabelecida.");
-        }
-        return new Resultado(false, "Serviço respondeu HTTP " + status + ".");
-    }
-
-    private RestClient cliente() {
-        SimpleClientHttpRequestFactory fabrica = new SimpleClientHttpRequestFactory();
-        fabrica.setConnectTimeout((int) TEMPO_LIMITE.toMillis());
-        fabrica.setReadTimeout((int) TEMPO_LIMITE.toMillis());
-        return RestClient.builder().requestFactory(fabrica).build();
-    }
-
-    private void autenticar(HttpHeaders cabecalhos, String valor) {
-        if (valor.isEmpty()) {
-            return;
-        }
-        if (modoCookie) {
-            cabecalhos.set(HttpHeaders.COOKIE, nomeDoCookie + "=" + valor);
-        } else {
-            cabecalhos.setBearerAuth(valor);
-        }
-    }
-
-    private static boolean porTempoLimite(Throwable erro) {
-        for (Throwable causa = erro; causa != null; causa = causa.getCause()) {
-            if (causa instanceof SocketTimeoutException) {
-                return true;
+            int status = chamar(valor);
+            if (status == 503) {
+                log.info("Teste do SCORP: HTTP 503; nova tentativa");
+                espera.aguardar(ESPERA_DA_NOVA_TENTATIVA);
+                status = chamar(valor);
+                if (status == 503) {
+                    return Resultado.indisponivelPersistente(status);
+                }
             }
+            return Resultado.deHttp(status, "um identificador de pessoa fictício", "token");
+        } catch (ResourceAccessException e) {
+            return Resultado.deRede(e, (int) tempoLimite.toSeconds());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return Resultado.falha("Teste interrompido.");
+        } catch (RuntimeException e) {
+            log.warn("Teste do SCORP falhou: {}", e.getClass().getSimpleName());
+            return Resultado.falha("Não foi possível testar a conexão.");
         }
-        return false;
+    }
+
+    private int chamar(String valor) {
+        return AcessoAoScorp.cliente(tempoLimite).get().uri(acesso.documentosDaPessoa(IDENTIFICADOR))
+                .headers(h -> acesso.autenticar(h, valor))
+                .exchange((requisicao, resposta) -> resposta.getStatusCode().value(), true);
     }
 }

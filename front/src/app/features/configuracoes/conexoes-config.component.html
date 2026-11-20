@@ -7,7 +7,15 @@
 </div>
 
 <div class="dash-sec-head" style="margin-top: 16px">
-  <div><h2><app-icone nome="link" />Conexões</h2></div>
+  <div>
+    <h2><app-icone nome="link" />Conexões</h2>
+    @if (tempoLimite(); as limite) {
+      <p class="cfg-limite-teste">
+        O teste usa o mesmo endereço, cliente e credencial do consumo real, com uma chamada inofensiva. Tempo limite de cada
+        chamada: {{ limite }} s; um 503 isolado ganha uma nova tentativa.
+      </p>
+    }
+  </div>
   <button type="button" class="btn sm" [disabled]="carregando()" (click)="carregar()"><app-icone nome="refresh" />Atualizar</button>
 </div>
 
@@ -40,11 +48,22 @@
             <app-icone nome="refresh" [class.spin]="linha(c).testando" />{{ rotuloDoBotao(c) }}
           </button>
           @if (linha(c).teste; as t) {
-            @if (t.sucesso) {
-              <span class="cfg-teste ok" role="status"><app-icone nome="check" />Conexão funcionando · {{ t.tempoMs }} ms</span>
-            } @else {
-              <span class="cfg-teste falha" role="alert"><app-icone nome="alert" />{{ t.mensagem }} · {{ t.tempoMs }} ms</span>
-            }
+            <!-- Classificação em texto (não só cor), com o código HTTP, o tempo medido e o limite (S6, bloco 4). -->
+            <div
+              [class]="'cfg-teste ' + tomDaClassificacao[t.classificacao]"
+              [attr.data-classificacao]="t.classificacao"
+              [attr.role]="t.sucesso ? 'status' : 'alert'"
+            >
+              <app-icone [nome]="t.classificacao === 'OK' ? 'check' : t.classificacao === 'ALCANCAVEL_COM_RESSALVA' ? 'info' : 'alert'" />
+              <span>
+                <b class="cfg-classificacao">{{ rotuloDaClassificacao[t.classificacao] }}</b>
+                @if (t.codigoHttp) {
+                  · HTTP {{ t.codigoHttp }}
+                }
+                · {{ t.tempoMs }} ms (limite {{ t.tempoLimiteSegundos }} s)
+                <span class="cfg-teste-mensagem">{{ t.mensagem }}</span>
+              </span>
+            </div>
           }
           @if (linha(c).erro) {
             <span class="cfg-teste falha" role="alert"><app-icone nome="alert" />{{ linha(c).erro }}</span>

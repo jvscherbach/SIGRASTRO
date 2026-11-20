@@ -39,6 +39,8 @@ class ConexoesHttpTest extends BaseHttpDeDocumentos {
         assertThat(conexoes.get(0).get("estado").asText()).isEqualTo("NAO_CONFIGURADA");
         assertThat(conexoes.get(3).get("estado").asText()).isEqualTo("DESATIVADA");
         assertThat(resposta.getContentAsString()).doesNotContain(TOKEN_DE_ARQUIVOS);
+        assertThat(json.readTree(resposta.getContentAsString(StandardCharsets.UTF_8)).get("tempoLimiteDoTesteSegundos")
+                .asInt()).as("CONEXAO_TESTE_TIMEOUT_SEGUNDOS, padrão 15").isEqualTo(15);
     }
 
     @Test
@@ -54,6 +56,9 @@ class ConexoesHttpTest extends BaseHttpDeDocumentos {
         JsonNode siga = json.readTree(testar("admin.demo", "siga").getContentAsString(StandardCharsets.UTF_8));
 
         assertThat(siga.get("sucesso").asBoolean()).isFalse();
+        assertThat(siga.get("classificacao").asText()).isEqualTo("FALHA");
+        assertThat(siga.get("tempoLimiteSegundos").asInt()).isEqualTo(15);
+        assertThat(siga.has("codigoHttp")).as("sem resposta HTTP, o campo nem aparece").isFalse();
         assertThat(siga.get("mensagem").asText()).isEqualTo("Conexão não configurada.");
         assertThat(testar("admin.demo", "desconhecida").getStatus()).isEqualTo(404);
     }

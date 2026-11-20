@@ -17,6 +17,38 @@ export function nomeDoContentDisposition(cabecalho: string | null | undefined): 
   return simples ? simples[1].trim() : null;
 }
 
+/**
+ * Confere o PDF recebido antes de entregá-lo ao navegador (S6, bloco 3): não vazio, do tamanho anunciado pelo
+ * servidor (Content-Length, quando veio) e começando por `%PDF-`. Um corpo truncado nunca vira "download concluído".
+ */
+export async function pdfRecebidoInteiro(blob: Blob | null | undefined, tamanhoAnunciado: string | null): Promise<boolean> {
+  if (!blob || blob.size === 0) {
+    return false;
+  }
+  const esperado = tamanhoAnunciado === null ? NaN : Number(tamanhoAnunciado);
+  if (Number.isFinite(esperado) && esperado !== blob.size) {
+    return false;
+  }
+  try {
+    const inicio = new Uint8Array(await lerBytes(blob.slice(0, 5)));
+    return String.fromCharCode(...inicio) === '%PDF-';
+  } catch {
+    return false;
+  }
+}
+
+function lerBytes(blob: Blob): Promise<ArrayBuffer> {
+  if (typeof blob.arrayBuffer === 'function') {
+    return blob.arrayBuffer();
+  }
+  return new Promise((resolver, rejeitar) => {
+    const leitor = new FileReader();
+    leitor.onload = () => resolver(leitor.result as ArrayBuffer);
+    leitor.onerror = () => rejeitar(leitor.error);
+    leitor.readAsArrayBuffer(blob);
+  });
+}
+
 /** Baixa o Blob com o nome dado e revoga a URL de objeto logo depois. */
 export function baixarBlob(blob: Blob, nome: string): void {
   const url = URL.createObjectURL(blob);

@@ -14,6 +14,7 @@ import {
   Ordem,
   chaveDe,
   classeDaExtensao,
+  nomeExibido,
   filtrar,
   ordenar,
   referenciaDe,
@@ -95,6 +96,9 @@ export class DocumentosSecaoComponent implements OnInit {
   protected readonly formatarData = formatarData;
   protected readonly chaveDe = chaveDe;
   protected readonly classeDaExtensao = classeDaExtensao;
+  protected nome(d: DocumentoItem): string {
+    return nomeExibido(d, `Documento ${d.id}`);
+  }
   protected readonly rotuloDoBloqueio = rotuloDoBloqueio;
   protected readonly selecionavel = selecionavel;
   protected readonly visualizavel = visualizavel;

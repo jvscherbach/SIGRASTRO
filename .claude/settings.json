@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh:*)",
+      "PowerShell(git commit:*)",
+      "PowerShell(git push:*)",
+      "PowerShell(gh:*)",
+      "Read(.env)",
+      "Read(.env.local)",
+      "Read(.env.*)",
+      "Read(!.env.example)",
+      "Read(!.env.*.example)",
+      "Read(mapa-local.csv)",
+      "Read(.secrets/**)",
+      "Read(.rastro/**)",
+      "Read(~/.rastro/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.gnupg/**)",
+      "Read(~/.kube/**)",
+      "Read(~/.docker/config.json)",
+      "Read(~/.git-credentials)",
+      "Read(~/.netrc)",
+      "Read(~/.npmrc)",
+      "Read(~/.claude/.credentials.json)",
+      "Edit(.env)",
+      "Edit(.env.local)",
+      "Edit(.env.*)",
+      "Edit(!.env.example)",
+      "Edit(!.env.*.example)",
+      "Edit(mapa-local.csv)",
+      "Edit(.secrets/**)",
+      "Edit(.rastro/**)",
+      "Edit(~/.rastro/**)",
+      "Edit(~/.ssh/**)",
+      "Edit(~/.aws/**)",
+      "Edit(~/.gnupg/**)",
+      "Edit(~/.kube/**)",
+      "Edit(~/.docker/config.json)",
+      "Edit(~/.git-credentials)",
+      "Edit(~/.netrc)",
+      "Edit(~/.npmrc)",
+      "Edit(~/.claude/.credentials.json)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guarda-bash.mjs\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Edit|Write|MultiEdit|NotebookEdit|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guarda-arquivos.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/varrer-dados.mjs\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

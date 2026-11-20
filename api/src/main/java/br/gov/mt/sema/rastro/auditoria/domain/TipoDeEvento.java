@@ -12,7 +12,9 @@ public enum TipoDeEvento {
     LOGIN(GrupoDeEvento.ACESSOS, "Acesso"),
     PERFIL(GrupoDeEvento.ACESSOS, "Troca de perfil"),
     USUARIO(GrupoDeEvento.ACESSOS, "Usuário alterado"),
-    CONFIG(GrupoDeEvento.ACESSOS, "Configuração alterada");
+    CONFIG(GrupoDeEvento.ACESSOS, "Configuração alterada"),
+    /** Teste de conexão (S6, bloco 4): só a conexão e o resultado no detalhe. */
+    CONEXAO(GrupoDeEvento.ACESSOS, "Teste de conexão");
 
     private final GrupoDeEvento grupo;
     private final String rotulo;

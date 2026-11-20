@@ -180,7 +180,7 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
                 .andExpect(jsonPath("$.itens", hasSize(2)))
                 .andExpect(jsonPath("$.itens[0].origem").value("DOCUMENTO_PROCESSO"))
                 .andExpect(jsonPath("$.itens[0].id").value("804328"))
-                .andExpect(jsonPath("$.itens[0].titulo").value("Requerimento assinado"))
+                .andExpect(jsonPath("$.itens[0].titulo").value("requerimento.pdf"))
                 .andExpect(jsonPath("$.itens[0].situacao").value("OK"))
                 .andExpect(jsonPath("$.itens[1].situacao").value("OK"));
     }
@@ -420,7 +420,7 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
             assertThat(texto).contains("1 documento incluído de 6 listados", "Documentos não incluídos",
                     "não selecionado pelo usuário", "indisponível (chave do arquivo inválida)",
                     "não é PDF: aguardando conversão", "sigiloso: o perfil de quem gerou não tem acesso",
-                    "Documento sigiloso", "Antigo", "oficio.pdf", "Planilha", "Perdido");
+                    "Documento sigiloso", "antigo.pdf", "oficio.pdf", "calculo.xlsx", "perdido.pdf");
             assertThat(texto).doesNotContain("Laudo reservado", "laudo-reservado");
             for (String segredo : SEGREDOS) {
                 assertThat(texto).doesNotContain(segredo);

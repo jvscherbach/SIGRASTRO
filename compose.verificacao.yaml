@@ -20,3 +20,5 @@ services:
       VISTAS_DB_URL: ""
       VISTAS_DB_USER: ""
       VISTAS_DB_PASSWORD: ""
+      # Modo de demonstração (S6, bloco 7): o servidor MCP do Rastro só opera assim. Só vale com os externos vazios.
+      RASTRO_MODO: demonstracao

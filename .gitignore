@@ -2,6 +2,11 @@
 .env.local
 .env.*
 !.env.*.example
+# Configuração pessoal do Claude Code (a do projeto, .claude/settings.json, é versionada)
+.claude/settings.local.json
+# Segredos fora do projeto (S6.1, bloco 2; docs/claude-code/segredos.md): nunca versionar, mesmo se copiados para cá
+**/.rastro/**
+.rastro/
 # Token da API de arquivos montado no container (LICENCIAMENTO_API_TOKEN_FILE)
 .secrets/
 
@@ -15,6 +20,7 @@ hs_err_pid*
 
 # Node / Angular
 front/node_modules/
+tools/mcp-rastro/node_modules/
 front/dist/
 front/.angular/
 front/coverage/

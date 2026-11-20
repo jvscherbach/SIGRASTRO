@@ -44,7 +44,17 @@ const CONEXOES: Conexao[] = [
 ];
 
 function teste(sobre: Partial<TesteDeConexao>): TesteDeConexao {
-  return { nome: 'siga', sucesso: true, tempoMs: 42, mensagem: 'Conexão funcionando.', horasAteExpirar: null, tokenVencido: false, ...sobre };
+  return {
+    nome: 'siga',
+    sucesso: true,
+    classificacao: 'OK',
+    tempoMs: 42,
+    tempoLimiteSegundos: 15,
+    mensagem: 'Conexão funcionando.',
+    horasAteExpirar: null,
+    tokenVencido: false,
+    ...sobre,
+  };
 }
 
 function problema(status: number, errorCode: string, campos?: { campo: string; mensagem: string }[]) {
@@ -98,7 +108,7 @@ describe('ConfiguracoesComponent: parâmetros, conexões e retenção', () => {
       parametros: vi.fn(() => of({ parametros: TODOS })),
       salvarParametros: vi.fn(),
       restaurarParametro: vi.fn(),
-      conexoes: vi.fn(() => of({ conexoes: CONEXOES })),
+      conexoes: vi.fn(() => of({ conexoes: CONEXOES, tempoLimiteDoTesteSegundos: 15 })),
       testarConexao: vi.fn(),
     };
   });
@@ -391,11 +401,76 @@ describe('ConfiguracoesComponent: parâmetros, conexões e retenção', () => {
       fixture.detectChanges();
 
       expect(api.testarConexao).toHaveBeenCalledWith('siga');
-      expect(raiz.querySelector('[data-conexao="siga"] .cfg-teste.ok')!.textContent).toContain('87 ms');
+      const resultado = raiz.querySelector('[data-conexao="siga"] .cfg-teste.ok')!.textContent!;
+      expect(resultado).toContain('OK');
+      expect(resultado).toContain('87 ms (limite 15 s)');
+    });
+
+    it('mostra o tempo limite do teste antes de testar', () => {
+      abrir();
+      aba('Conexões');
+
+      expect(raiz.querySelector('.cfg-limite-teste')!.textContent).toContain('Tempo limite de cada chamada: 15 s');
+      expect(raiz.querySelector('.cfg-limite-teste')!.textContent).toContain('mesmo endereço, cliente e credencial');
+    });
+
+    it('alcançável com ressalva (ex.: 400 do SCORP para identificador fictício) não é falha: texto, código e explicação', () => {
+      api.testarConexao.mockReturnValue(
+        of(
+          teste({
+            nome: 'arquivos',
+            classificacao: 'ALCANCAVEL_COM_RESSALVA',
+            codigoHttp: 404,
+            tempoMs: 120,
+            mensagem: 'Serviço alcançável: respondeu HTTP 404 à chamada de teste, que usa uma chave fictícia.',
+          }),
+        ),
+      );
+      abrir();
+      aba('Conexões');
+      const linha = raiz.querySelector('[data-conexao="arquivos"]')!;
+
+      botao('Testar conexão', linha)!.click();
+      fixture.detectChanges();
+
+      const resultado = linha.querySelector('[data-classificacao="ALCANCAVEL_COM_RESSALVA"]')!;
+      expect(resultado.classList).toContain('ressalva');
+      expect(resultado.classList).not.toContain('falha');
+      expect(resultado.getAttribute('role')).toBe('status');
+      expect(resultado.textContent).toContain('Alcançável com ressalva');
+      expect(resultado.textContent).toContain('HTTP 404');
+      expect(resultado.textContent).toContain('chave fictícia');
+    });
+
+    it('falha de autenticação aparece com texto e orienta renovar o token', () => {
+      api.testarConexao.mockReturnValue(
+        of(
+          teste({
+            nome: 'arquivos',
+            sucesso: false,
+            classificacao: 'FALHA_DE_AUTENTICACAO',
+            codigoHttp: 401,
+            mensagem: 'O serviço recusou o token (HTTP 401). Renove o token: capture um novo, atualize o arquivo e teste de novo.',
+          }),
+        ),
+      );
+      abrir();
+      aba('Conexões');
+      const linha = raiz.querySelector('[data-conexao="arquivos"]')!;
+
+      botao('Testar conexão', linha)!.click();
+      fixture.detectChanges();
+
+      const resultado = linha.querySelector('.cfg-teste.falha')!;
+      expect(resultado.textContent).toContain('Falha de autenticação');
+      expect(resultado.textContent).toContain('Renove o token');
+      expect(resultado.getAttribute('role')).toBe('alert');
     });
 
     it('teste com falha mostra a mensagem do servidor e o botão vira "Tentar novamente"', () => {
-      api.testarConexao.mockReturnValue(of(teste({ nome: 'siga', sucesso: false, mensagem: 'Sem resposta no tempo limite.' })));
+      api.testarConexao.mockReturnValue(
+        of(teste({ nome: 'siga', sucesso: false, classificacao: 'FALHA', mensagem: 'Sem resposta no tempo limite.' })),
+      );
       abrir();
       aba('Conexões');
       const linha = raiz.querySelector('[data-conexao="siga"]')!;
@@ -404,12 +479,22 @@ describe('ConfiguracoesComponent: parâmetros, conexões e retenção', () => {
       fixture.detectChanges();
 
       expect(linha.querySelector('.cfg-teste.falha')!.textContent).toContain('Sem resposta no tempo limite.');
+      expect(linha.querySelector('.cfg-teste.falha')!.textContent).toContain('Falha');
       expect(botao('Tentar novamente', linha)).toBeDefined();
     });
 
     it('token vencido: etiqueta e orientação para capturar um novo token', () => {
       api.testarConexao.mockReturnValue(
-        of(teste({ nome: 'arquivos', sucesso: false, mensagem: 'A credencial foi recusada.', horasAteExpirar: 0, tokenVencido: true })),
+        of(
+          teste({
+            nome: 'arquivos',
+            sucesso: false,
+            classificacao: 'FALHA_DE_AUTENTICACAO',
+            mensagem: 'A credencial foi recusada.',
+            horasAteExpirar: 0,
+            tokenVencido: true,
+          }),
+        ),
       );
       abrir();
       aba('Conexões');

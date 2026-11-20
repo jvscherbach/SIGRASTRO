@@ -93,7 +93,7 @@ public class EventosDoDossie {
     }
 
     private static DocumentoDoEvento documento(ItemDoPedido item, Integer ordem) {
-        return new DocumentoDoEvento(item.origemDescricao(), item.id(), item.titulo(), item.nomeArquivo(),
+        return new DocumentoDoEvento(item.origemDescricao(), item.id(), item.descricao(), item.nomeArquivo(),
                 item.sigiloso(), ordem);
     }
 }

@@ -6,7 +6,6 @@ import java.io.OutputStream;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.http.HttpTimeoutException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -17,19 +16,16 @@ import br.gov.mt.sema.rastro.documento.domain.SituacaoDocumento;
 import br.gov.mt.sema.rastro.dossie.application.port.ArquivosDoRepositorio;
 import br.gov.mt.sema.rastro.dossie.application.port.FalhaNoDocumentoException;
 import br.gov.mt.sema.rastro.dossie.application.port.ParametrosDoDossie;
+import br.gov.mt.sema.rastro.shared.application.exception.ArmazenamentoInsuficienteException;
 import br.gov.mt.sema.rastro.shared.application.exception.CredencialArquivosRecusadaException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.util.UriUtils;
 
 /**
  * Cliente da API de arquivos do Licenciamento: {@code GET {url}/api/arquivo/{chave}} (docs/05). O corpo vai direto
@@ -66,10 +62,8 @@ class ArquivosDoLicenciamentoHttp implements ArquivosDoRepositorio {
         void aguardar(Duration duracao) throws InterruptedException;
     }
 
-    private final String urlBase;
+    private final AcessoAApiDeArquivos acesso;
     private final FonteDoToken token;
-    private final boolean modoCookie;
-    private final String nomeDoCookie;
     private final Supplier<LimitesDeDownload> limites;
     private final Espera espera;
 
@@ -93,14 +87,8 @@ class ArquivosDoLicenciamentoHttp implements ArquivosDoRepositorio {
 
     ArquivosDoLicenciamentoHttp(String url, FonteDoToken token, String modo, String nomeDoCookie,
             Supplier<LimitesDeDownload> limites, Espera espera) {
-        String semBarraFinal = url.trim();
-        while (semBarraFinal.endsWith("/")) {
-            semBarraFinal = semBarraFinal.substring(0, semBarraFinal.length() - 1);
-        }
-        this.urlBase = semBarraFinal;
+        this.acesso = new AcessoAApiDeArquivos(url, modo, nomeDoCookie);
         this.token = token;
-        this.modoCookie = "cookie".equalsIgnoreCase(modo == null ? "" : modo.trim());
-        this.nomeDoCookie = nomeDoCookie == null ? "" : nomeDoCookie.trim();
         this.limites = limites;
         this.espera = espera;
     }
@@ -112,7 +100,7 @@ class ArquivosDoLicenciamentoHttp implements ArquivosDoRepositorio {
             throw new FalhaNoDocumentoException("arquivo indisponível no repositório", 0);
         }
         // O segmento é codificado inteiro (inclusive "/"), para uma chave nunca alterar o caminho da requisição.
-        URI uri = URI.create(urlBase + "/api/arquivo/" + UriUtils.encodePathSegment(chave.trim(), StandardCharsets.UTF_8));
+        URI uri = acesso.arquivo(chave);
         LimitesDeDownload limite = limites.get();
         long prazo = System.nanoTime() + limite.totalMaximo().toNanos();
         int tentativa = 0;
@@ -150,7 +138,8 @@ class ArquivosDoLicenciamentoHttp implements ArquivosDoRepositorio {
 
     private void tentar(URI uri, Path destino, LimitesDeDownload limite, long prazo, String valorDoToken) {
         try {
-            cliente(limite).get().uri(uri).headers(h -> autenticar(h, valorDoToken)).exchange((requisicao, resposta) -> {
+            AcessoAApiDeArquivos.cliente(limite.conexao(), limite.inatividade()).get().uri(uri)
+                    .headers(h -> acesso.autenticar(h, valorDoToken)).exchange((requisicao, resposta) -> {
                 int status = resposta.getStatusCode().value();
                 if (status == 401 || status == 403) {
                     throw new CredencialArquivosRecusadaException();
@@ -188,22 +177,41 @@ class ArquivosDoLicenciamentoHttp implements ArquivosDoRepositorio {
         try {
             saida = Files.newOutputStream(destino);
         } catch (IOException e) {
-            throw new FalhaNoDocumentoException("não foi possível gravar o arquivo temporário");
+            throw naoGravou(e);
         }
-        try (saida) {
-            byte[] bloco = new byte[64 * 1024];
-            int lidos;
-            while ((lidos = corpo.read(bloco)) >= 0) {
-                try {
-                    saida.write(bloco, 0, lidos);
-                } catch (IOException e) {
-                    throw new FalhaNoDocumentoException("não foi possível gravar o arquivo temporário");
-                }
-                if (System.nanoTime() - prazo > 0) {
-                    throw new FalhaNoDocumentoException(TETO_TOTAL);
+        try {
+            try (saida) {
+                byte[] bloco = new byte[64 * 1024];
+                int lidos;
+                while ((lidos = corpo.read(bloco)) >= 0) {
+                    try {
+                        saida.write(bloco, 0, lidos);
+                    } catch (IOException e) {
+                        throw naoGravou(e);
+                    }
+                    if (System.nanoTime() - prazo > 0) {
+                        throw new FalhaNoDocumentoException(TETO_TOTAL);
+                    }
                 }
             }
+        } catch (IOException e) {
+            // O fechamento também grava (o resto do buffer): sem espaço ele falha aqui.
+            if (ArmazenamentoInsuficienteException.causadaPorFaltaDeEspaco(e)) {
+                throw new ArmazenamentoInsuficienteException();
+            }
+            throw e;
         }
+    }
+
+    /**
+     * Falha ao gravar o temporário. Sem espaço em disco (S6, bloco 3) não é defeito do documento: sai como
+     * {@link ArmazenamentoInsuficienteException}, sem o caminho nem a mensagem crua do sistema.
+     */
+    private static RuntimeException naoGravou(IOException e) {
+        if (ArmazenamentoInsuficienteException.causadaPorFaltaDeEspaco(e)) {
+            return new ArmazenamentoInsuficienteException();
+        }
+        return new FalhaNoDocumentoException("não foi possível gravar o arquivo temporário");
     }
 
     private void aguardar(Duration pausa, int tentativa) {
@@ -212,29 +220,6 @@ class ArquivosDoLicenciamentoHttp implements ArquivosDoRepositorio {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new FalhaNoDocumentoException("obtenção do arquivo interrompida", tentativa);
-        }
-    }
-
-    private RestClient cliente(LimitesDeDownload limite) {
-        SimpleClientHttpRequestFactory fabrica = new SimpleClientHttpRequestFactory();
-        fabrica.setConnectTimeout(milissegundos(limite.conexao()));
-        // Tempo máximo sem receber bytes, vale também para o corpo (não só até o cabeçalho).
-        fabrica.setReadTimeout(milissegundos(limite.inatividade()));
-        return RestClient.builder().requestFactory(fabrica).build();
-    }
-
-    private static int milissegundos(Duration duracao) {
-        return (int) Math.max(1, Math.min(Integer.MAX_VALUE, duracao.toMillis()));
-    }
-
-    private void autenticar(HttpHeaders cabecalhos, String valorDoToken) {
-        if (valorDoToken.isEmpty()) {
-            return;
-        }
-        if (modoCookie) {
-            cabecalhos.set(HttpHeaders.COOKIE, nomeDoCookie + "=" + valorDoToken);
-        } else {
-            cabecalhos.setBearerAuth(valorDoToken);
         }
     }
 

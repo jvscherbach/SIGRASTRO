@@ -43,6 +43,8 @@ logging:
     level: "%5p [%X{correlationId:-}]"
 
 rastro:
+  # demonstracao (compose.verificacao.yaml) só vale sem nenhum sistema externo configurado (S6, bloco 7).
+  modo: ${RASTRO_MODO:padrao}
   datasource:
     siga:
       # Vazia = SIGA não configurado: a api sobe e as consultas respondem 503 SIGA_INDISPONIVEL.
@@ -59,13 +61,16 @@ rastro:
     senha: ${VISTAS_DEMO_SENHA:}
   sessao:
     duracao: PT8H
+  conexoes:
+    # Tempo limite de cada chamada do teste de conexão (S6, bloco 4).
+    teste-timeout-segundos: ${CONEXAO_TESTE_TIMEOUT_SEGUNDOS:15}
   dossie:
     diretorio: ${VISTAS_DOSSIE_DIRETORIO:/var/tmp/vistas}
     ttl-minutos: ${DOSSIE_TTL_MINUTOS:30}
     threads: ${DOSSIE_THREADS:2}
     download-timeout-segundos: ${DOWNLOAD_TIMEOUT_SEGUNDOS:120}
     download-total-maximo-segundos: ${DOWNLOAD_TOTAL_MAXIMO_SEGUNDOS:900}
-    espaco-minimo-mb: ${DOSSIE_ESPACO_MINIMO_MB:2048}
+    espaco-minimo-mb: ${DOSSIE_ESPACO_MINIMO_MB:500}
     # Acima disto (MB) o download vai por ticket, em streaming, sem pré-visualização (S2.2).
     blob-max-mb: ${DOSSIE_BLOB_MAX_MB:150}
     # Horas que um pedido encerrado continua em "Dossiês gerados" depois do vencimento (S4; histórico em memória).

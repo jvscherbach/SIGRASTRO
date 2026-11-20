@@ -23,6 +23,7 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.text.TextPosition;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  * <b>uma única</b> numeração, a do dossiê, "Página X de Y" no canto inferior direito; nenhum "Página N" solto do
  * Calc. Exige o LibreOffice; sem ele, o teste é pulado com aviso (e falha no CI, como os demais de conversão).
  */
+@Tag("conversao-libreoffice")
 @SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url=", "rastro.arquivos.url="})
 class NumeracaoComPlanilhaConvertidaTest {
 

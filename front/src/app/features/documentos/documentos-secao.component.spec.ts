@@ -140,14 +140,22 @@ describe('DocumentosSecaoComponent', () => {
   describe('lista e bloqueios', () => {
     beforeEach(() => abrir());
 
+    it('a coluna do nome mostra o nome do arquivo e o tipo/título vai na linha de baixo (S6)', () => {
+      const linha = linhaDe('Requerimento assinado');
+
+      expect(linha.querySelector('b')!.textContent).toBe('requerimento.pdf');
+      expect(linha.querySelector('small')!.textContent).toContain('Requerimento assinado');
+      expect(linha.querySelector('button.visualizar')!.getAttribute('aria-label')).toBe('Visualizar requerimento.pdf');
+    });
+
     it('padrão: ordem cronológica crescente', () => {
       expect(linhas().map((l) => l.querySelector('b')!.textContent)).toEqual([
-        'Antigo',
-        'Requerimento assinado',
-        'Ofício',
+        'antigo.pdf',
+        'requerimento.pdf',
+        'oficio.pdf',
         'Documento sigiloso',
-        'Cálculo',
-        'Perdido',
+        'calculo.xlsx',
+        'perdido.pdf',
       ]);
     });
 
@@ -187,7 +195,7 @@ describe('DocumentosSecaoComponent', () => {
       const imagem = documento({ id: '9', titulo: 'Foto', nomeArquivo: 'foto.png', extensao: 'png', tipoArquivo: 'IMAGEM', data: '2025-04-09T10:00:00' });
       abrir([BASE[0], convertivel, imagem]);
 
-      expect(marcados()).toEqual(['Requerimento assinado', 'Cálculo', 'Foto']);
+      expect(marcados()).toEqual(['requerimento.pdf', 'calculo.xlsx', 'foto.png']);
       expect(linhaDe('Cálculo').textContent).toContain('será convertido para PDF');
       expect(linhaDe('Requerimento').textContent).not.toContain('será convertido');
       expect(raiz.querySelector('.convertiveis')!.textContent).toContain('2 documento(s) serão convertidos para PDF');
@@ -253,7 +261,7 @@ describe('DocumentosSecaoComponent', () => {
     beforeEach(() => abrir());
 
     it('começa com todos os selecionáveis marcados (vigentes e sem efeito)', () => {
-      expect(marcados()).toEqual(['Antigo', 'Requerimento assinado', 'Ofício']);
+      expect(marcados()).toEqual(['antigo.pdf', 'requerimento.pdf', 'oficio.pdf']);
       expect(selecionadosNaBarra()).toBe('3');
     });
 
@@ -283,7 +291,7 @@ describe('DocumentosSecaoComponent', () => {
       fixture.detectChanges();
       botao('Seleção padrão').click();
       fixture.detectChanges();
-      expect(marcados()).toEqual(['Antigo', 'Requerimento assinado', 'Ofício']);
+      expect(marcados()).toEqual(['antigo.pdf', 'requerimento.pdf', 'oficio.pdf']);
     });
 
     it('selecionar todos marca só o que pode ser selecionado (não os bloqueados) e desmarcar tira todos', () => {
@@ -292,7 +300,7 @@ describe('DocumentosSecaoComponent', () => {
       const todos =raiz.querySelector<HTMLInputElement>('thead input[type=checkbox]')!;
       todos.click();
       fixture.detectChanges();
-      expect(marcados()).toEqual(['Antigo', 'Requerimento assinado', 'Ofício']);
+      expect(marcados()).toEqual(['antigo.pdf', 'requerimento.pdf', 'oficio.pdf']);
       expect(todos.checked).toBe(true);
 
       todos.click();
@@ -307,7 +315,7 @@ describe('DocumentosSecaoComponent', () => {
       fixture.detectChanges();
 
       digitar('');
-      expect(marcados()).toEqual(['Ofício']);
+      expect(marcados()).toEqual(['oficio.pdf']);
     });
 
     it('o seletor geral fica desabilitado quando nada listado é selecionável', () => {
@@ -320,7 +328,7 @@ describe('DocumentosSecaoComponent', () => {
       digitar('ofício');
       digitar('');
 
-      expect(marcados()).toEqual(['Antigo', 'Requerimento assinado', 'Ofício']);
+      expect(marcados()).toEqual(['antigo.pdf', 'requerimento.pdf', 'oficio.pdf']);
     });
   });
 
@@ -330,7 +338,7 @@ describe('DocumentosSecaoComponent', () => {
     it('busca por texto sem considerar acento', () => {
       digitar('OFICIO');
 
-      expect(linhas().map((l) => l.querySelector('b')!.textContent)).toEqual(['Ofício']);
+      expect(linhas().map((l) => l.querySelector('b')!.textContent)).toEqual(['oficio.pdf']);
       expect(texto()).toContain('Exibindo 1 de 6');
     });
 
@@ -352,7 +360,7 @@ describe('DocumentosSecaoComponent', () => {
       select.value = 'JUNTADA';
       select.dispatchEvent(new Event('change'));
       fixture.detectChanges();
-      expect(linhas().map((l) => l.querySelector('b')!.textContent)).toEqual(['Ofício']);
+      expect(linhas().map((l) => l.querySelector('b')!.textContent)).toEqual(['oficio.pdf']);
     });
 
     it('ordenar por documento alterna crescente e decrescente e marca o cabeçalho (aria-sort)', () => {
@@ -362,12 +370,12 @@ describe('DocumentosSecaoComponent', () => {
       cabecalho().querySelector('button')!.click();
       fixture.detectChanges();
       expect(cabecalho().getAttribute('aria-sort')).toBe('ascending');
-      expect(linhas()[0].querySelector('b')!.textContent).toBe('Antigo');
+      expect(linhas()[0].querySelector('b')!.textContent).toBe('antigo.pdf');
 
       cabecalho().querySelector('button')!.click();
       fixture.detectChanges();
       expect(cabecalho().getAttribute('aria-sort')).toBe('descending');
-      expect(linhas()[0].querySelector('b')!.textContent).toBe('Requerimento assinado');
+      expect(linhas()[0].querySelector('b')!.textContent).toBe('requerimento.pdf');
     });
 
     it('ordenar por origem e por data', () => {
@@ -382,7 +390,7 @@ describe('DocumentosSecaoComponent', () => {
       ordenarPor('Data');
       ordenarPor('Data');
       fixture.detectChanges();
-      expect(linhas()[0].querySelector('b')!.textContent).toBe('Perdido');
+      expect(linhas()[0].querySelector('b')!.textContent).toBe('perdido.pdf');
     });
   });
 
@@ -468,19 +476,19 @@ describe('DocumentosSecaoComponent', () => {
       filtro.dispatchEvent(new Event('change'));
       fixture.detectChanges();
 
-      expect(linhas().map((l) => l.querySelector('b')!.textContent)).toEqual(['Procuração', 'Contrato social']);
+      expect(linhas().map((l) => l.querySelector('b')!.textContent)).toEqual(['procuracao.pdf', 'contrato.pdf']);
     });
 
     it('no empate de data, o pessoal vem depois das origens da Vista', () => {
       const mesmaData = documento({ ...PESSOAL, data: '2025-04-01T10:00:00' });
       abrir([documento({ id: '1', data: '2025-04-01T10:00:00' }), mesmaData]);
 
-      expect(linhas().map((l) => l.querySelector('b')!.textContent)).toEqual(['Requerimento assinado', 'Procuração']);
+      expect(linhas().map((l) => l.querySelector('b')!.textContent)).toEqual(['requerimento.pdf', 'procuracao.pdf']);
     });
 
     it('seleção total vale para os pessoais, e o POST /dossies leva a origem SCORP', () => {
       abrir(COM_PESSOAIS);
-      expect(marcados()).toContain('Procuração');
+      expect(marcados()).toContain('procuracao.pdf');
 
       botao('Gerar dossiê').click();
       fixture.detectChanges();
@@ -541,8 +549,8 @@ describe('DocumentosSecaoComponent', () => {
 
       expect(api.listar).toHaveBeenCalledTimes(2);
       expect(raiz.querySelector('.aviso-scorp')).toBeNull();
-      expect(marcados()).not.toContain('Ofício');
-      expect(marcados()).toEqual(expect.arrayContaining(['Requerimento assinado', 'Procuração', 'Contrato social']));
+      expect(marcados()).not.toContain('oficio.pdf');
+      expect(marcados()).toEqual(expect.arrayContaining(['requerimento.pdf', 'procuracao.pdf', 'contrato.pdf']));
     });
 
     it('"Consultar novamente" com erro mantém a lista e o aviso', () => {

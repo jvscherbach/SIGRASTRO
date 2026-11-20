@@ -112,7 +112,7 @@ public class ObterConteudoDoDocumento {
             }
             Path pdf = cache.vigente(pasta, CacheDeVisualizacao.PDF);
             if (pdf == null) {
-                pdf = converter(original, tipo, pasta, documento.titulo());
+                pdf = converter(original, tipo, pasta, documento.nomeParaCabecalho());
             }
             return abrir(pdf, "application/pdf", nomePdf(documento), false, rotulo(tipo));
         });

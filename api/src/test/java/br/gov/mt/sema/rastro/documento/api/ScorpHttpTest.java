@@ -183,7 +183,7 @@ class ScorpHttpTest extends BaseHttpDeDocumentos {
                 .andReturn().getResponse().getContentAsByteArray();
         try (org.apache.pdfbox.pdmodel.PDDocument documento = org.apache.pdfbox.Loader.loadPDF(pdf)) {
             String texto = new org.apache.pdfbox.text.PDFTextStripper().getText(documento);
-            assertThat(texto).contains("Pessoal", "RG do interessado", "2 documentos incluídos de 8 listados");
+            assertThat(texto).contains("Pessoal", "rg.pdf", "2 documentos incluídos de 8 listados");
             assertThat(texto).doesNotContain(CHAVE_RG, PESSOA_INTERESSADO);
         }
     }

@@ -42,6 +42,7 @@ export class GavetaDossieComponent implements OnInit {
   protected readonly ocupado = this.servico.ocupado;
   protected readonly baixado = this.servico.baixado;
   protected readonly baixadoDireto = this.servico.baixadoDireto;
+  protected readonly erroDeDownload = this.servico.erroDeDownload;
   protected readonly vencido = this.servico.vencido;
   protected readonly previa = this.servico.previa;
   protected readonly pedidoCriado = this.servico.pedidoCriado;
@@ -128,6 +129,26 @@ export class GavetaDossieComponent implements OnInit {
 
   protected baixar(): void {
     this.servico.baixar();
+  }
+
+  /** Repete um download que falhou antes de chegar inteiro (o servidor ainda tem o arquivo). */
+  protected tentarDownloadDeNovo(): void {
+    this.servico.tentarDownloadDeNovo();
+  }
+
+  /** Cria um pedido novo com a mesma seleção. */
+  protected gerarNovamente(): void {
+    this.servico.tentarNovamente();
+  }
+
+  /** Apaga o pedido no servidor e fecha. */
+  protected descartar(): void {
+    this.servico.descartar();
+  }
+
+  /** O arquivo ainda pode ser baixado de novo (pronto e dentro da validade). */
+  protected podeBaixarDeNovo(): boolean {
+    return this.status() === 'CONCLUIDO' && !this.vencido();
   }
 
   // --- apresentação

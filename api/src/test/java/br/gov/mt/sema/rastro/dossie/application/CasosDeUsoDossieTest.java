@@ -47,8 +47,12 @@ import br.gov.mt.sema.rastro.dossie.application.Fakes.Repositorio;
 import br.gov.mt.sema.rastro.dossie.application.Fakes.Tickets;
 import br.gov.mt.sema.rastro.dossie.application.Fakes.Validador;
 import br.gov.mt.sema.rastro.dossie.domain.DocumentoNaoIncluido;
+import br.gov.mt.sema.rastro.dossie.domain.ErroDoDossie;
 import br.gov.mt.sema.rastro.dossie.domain.PedidoDeDossie;
 import br.gov.mt.sema.rastro.dossie.domain.StatusDossie;
+import br.gov.mt.sema.rastro.shared.api.error.ErrorCode;
+import br.gov.mt.sema.rastro.shared.application.exception.ArmazenamentoInsuficienteException;
+import br.gov.mt.sema.rastro.shared.application.exception.ArquivoDoDossieIndisponivelException;
 import br.gov.mt.sema.rastro.shared.application.exception.DocumentoSigilosoException;
 import br.gov.mt.sema.rastro.shared.application.exception.DossieExpiradoException;
 import br.gov.mt.sema.rastro.shared.application.exception.CredencialArquivosRecusadaException;
@@ -88,6 +92,7 @@ class CasosDeUsoDossieTest {
     private EmitirTicketDeDownload emitirTicket;
     private Montador montador;
     private ListarDossiesGerados listarDossies;
+    private Fakes.Espaco espaco;
 
     @BeforeEach
     void preparar() {
@@ -112,7 +117,8 @@ class CasosDeUsoDossieTest {
         parametros = new Parametros(pasta);
         relogio = new RelogioControlado();
         montador = new Montador();
-        GeradorDeDossie gerador = new GeradorDeDossie(arquivos, Fakes.preparador(new Validador()), montador, parametros, d -> Long.MAX_VALUE, relogio, Fakes.eventos(atual));
+        espaco = new Fakes.Espaco();
+        GeradorDeDossie gerador = new GeradorDeDossie(arquivos, Fakes.preparador(new Validador()), montador, parametros, espaco, relogio, Fakes.eventos(atual));
         Usuario titular = usuario;
         localizar = new LocalizarPedido(repositorio, new PoliticaDeAcesso(atual), parametros, relogio,
                 login -> java.util.Optional.of(titular));
@@ -165,7 +171,7 @@ class CasosDeUsoDossieTest {
         assertThat(pedido.status()).isEqualTo(StatusDossie.AGUARDANDO);
         assertThat(pedido.login()).isEqualTo("gestor.demo");
         assertThat(pedido.itens()).extracting(i -> i.origem() + "/" + i.id() + ":" + i.titulo())
-                .containsExactly("DOCUMENTO_PROCESSO/1:Requerimento", "COMPLEMENTACAO/2:oficio.pdf");
+                .containsExactly("DOCUMENTO_PROCESSO/1:r.pdf", "COMPLEMENTACAO/2:oficio.pdf");
         assertThat(pedido.itens().get(0).chaveDoArquivo()).isEqualTo("K1");
         assertThat(pedido.expiraEm()).isEqualTo(LocalDateTime.now(relogio).plusMinutes(30));
         assertThat(fila.pendentes).hasSize(1);
@@ -315,6 +321,64 @@ class CasosDeUsoDossieTest {
         assertThat(pasta.resolve(pedido.id())).as("o diretório do pedido some com o download").doesNotExist();
         assertThat(pedido.status()).isEqualTo(StatusDossie.EXPIRADO);
         assertThatThrownBy(() -> obterArquivo.executar(pedido.id())).isInstanceOf(DossieExpiradoException.class);
+    }
+
+    @Test
+    void arquivoQueSumiuDoDiscoEh410ComCodigoEOPedidoViraFalha() throws IOException {
+        PedidoDeDossie pedido = criarPedido();
+        Files.delete(pedido.arquivo());
+
+        assertThatThrownBy(() -> obterArquivo.executar(pedido.id()))
+                .isInstanceOf(ArquivoDoDossieIndisponivelException.class)
+                .satisfies(e -> assertThat(((ArquivoDoDossieIndisponivelException) e).errorCode())
+                        .isEqualTo(ErrorCode.DOSSIE_ARQUIVO_AUSENTE));
+        assertThat(pedido.status()).isEqualTo(StatusDossie.FALHA);
+        assertThat(pedido.erro().codigo()).isEqualTo(ErroDoDossie.ARQUIVO_AUSENTE);
+        assertThat(pedido.arquivo()).isNull();
+        assertThat(pasta.resolve(pedido.id())).doesNotExist();
+        assertThatThrownBy(() -> obterArquivo.executar(pedido.id())).isInstanceOf(DossieSemArquivoException.class);
+    }
+
+    @Test
+    void arquivoVazioOuTruncadoEh500ComCodigoENuncaEntregue() throws IOException {
+        PedidoDeDossie truncado = criarPedido();
+        Files.write(truncado.arquivo(), new byte[] {'%', 'P'});
+        PedidoDeDossie vazio = criarPedido();
+        Files.write(vazio.arquivo(), new byte[0]);
+
+        for (PedidoDeDossie pedido : List.of(truncado, vazio)) {
+            assertThatThrownBy(() -> obterArquivo.executar(pedido.id()))
+                    .isInstanceOf(ArquivoDoDossieIndisponivelException.class)
+                    .satisfies(e -> assertThat(((ArquivoDoDossieIndisponivelException) e).errorCode())
+                            .isEqualTo(ErrorCode.DOSSIE_ARQUIVO_INVALIDO));
+            assertThat(pedido.status()).isEqualTo(StatusDossie.FALHA);
+            assertThat(pedido.erro().codigo()).isEqualTo(ErroDoDossie.ARQUIVO_INVALIDO);
+            assertThat(pasta.resolve(pedido.id())).doesNotExist();
+        }
+    }
+
+    @Test
+    void semEspacoMinimoOPostEh507SemCriarPedidoNemLerOSiga() {
+        parametros.espacoMinimoMb = 500;
+        espaco.livre = 500L * 1024 * 1024 - 1;
+
+        assertThatThrownBy(() -> criar.executar(101, refs()))
+                .isInstanceOf(ArmazenamentoInsuficienteException.class)
+                .hasMessage(ArmazenamentoInsuficienteException.MENSAGEM_DO_DOSSIE)
+                .satisfies(e -> assertThat(((ArmazenamentoInsuficienteException) e).errorCode())
+                        .isEqualTo(ErrorCode.ARMAZENAMENTO_INSUFICIENTE));
+        assertThat(repositorio.pedidos).isEmpty();
+        assertThat(fila.pendentes).isEmpty();
+    }
+
+    @Test
+    void espacoMinimoZeroDesligaAVerificacaoPrevia() {
+        parametros.espacoMinimoMb = 0;
+        espaco.livre = 0;
+
+        String id = criar.executar(101, refs());
+
+        assertThat(repositorio.pedidos).containsKey(id);
     }
 
     @Test
@@ -610,8 +674,8 @@ class CasosDeUsoDossieTest {
         assertThat(arquivos.baixadas).containsExactly("K3", "K7");
         assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
         assertThat(montador.titulosMontados).singleElement().asList().hasSize(10);
-        assertThat(montador.titulosMontados.get(0)).containsExactly("Doc 1", "Doc 2", "Doc 3", "Doc 4", "Doc 5",
-                "Doc 6", "Doc 7", "Doc 8", "Doc 9", "Doc 10");
+        assertThat(montador.titulosMontados.get(0)).containsExactly("d1.pdf", "d2.pdf", "d3.pdf", "d4.pdf",
+                "d5.pdf", "d6.pdf", "d7.pdf", "d8.pdf", "d9.pdf", "d10.pdf");
     }
 
     @Test
@@ -637,8 +701,8 @@ class CasosDeUsoDossieTest {
 
         assertThat(arquivos.baixadas).as("nenhum download novo").isEmpty();
         assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
-        assertThat(montador.titulosMontados).singleElement().isEqualTo(List.of("Doc 1", "Doc 2", "Doc 4", "Doc 5",
-                "Doc 6", "Doc 8", "Doc 9", "Doc 10"));
+        assertThat(montador.titulosMontados).singleElement().isEqualTo(List.of("d1.pdf", "d2.pdf", "d4.pdf",
+                "d5.pdf", "d6.pdf", "d8.pdf", "d9.pdf", "d10.pdf"));
         assertThat(pedido.itens()).extracting(i -> i.id() + ":" + i.situacao()).contains("3:REMOVIDO", "7:REMOVIDO");
         assertThat(pedido.processados()).as("removidos contam como resolvidos").isEqualTo(10);
     }

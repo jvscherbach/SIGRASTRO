@@ -123,6 +123,23 @@ public final class Documento {
         return nomeArquivo;
     }
 
+    /**
+     * Nome do documento como o SIGA o mostra na coluna do nome: o nome do arquivo; sem ele, o título (a descrição ou
+     * tipo); se ambos faltam, "<descrição da origem> <id>". O título fica em coluna própria (tipo/descrição).
+     */
+    public String nome() {
+        return nomeArquivo != null ? nomeArquivo : titulo;
+    }
+
+    /**
+     * Texto do cabeçalho da planilha convertida: o nome do arquivo sem a extensão; se sobrar vazio, o título. Evita
+     * repetir o nome do tipo do documento no lugar do arquivo.
+     */
+    public String nomeParaCabecalho() {
+        String semExtensao = TipoArquivo.semExtensao(nomeArquivo);
+        return semExtensao.isEmpty() ? titulo : semExtensao;
+    }
+
     public String extensao() {
         return extensao;
     }

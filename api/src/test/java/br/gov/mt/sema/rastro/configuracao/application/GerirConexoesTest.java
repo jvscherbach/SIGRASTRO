@@ -16,6 +16,10 @@ import br.gov.mt.sema.rastro.acesso.application.PoliticaDeAcesso;
 import br.gov.mt.sema.rastro.acesso.application.UsuarioAtual;
 import br.gov.mt.sema.rastro.acesso.domain.Perfil;
 import br.gov.mt.sema.rastro.acesso.domain.Usuario;
+import br.gov.mt.sema.rastro.auditoria.application.ContextoDoEvento;
+import br.gov.mt.sema.rastro.auditoria.application.port.RequisicaoDoEvento;
+import br.gov.mt.sema.rastro.auditoria.domain.NovoEvento;
+import br.gov.mt.sema.rastro.auditoria.domain.TipoDeEvento;
 import br.gov.mt.sema.rastro.configuracao.application.GerirConexoes.TesteDaConexao;
 import br.gov.mt.sema.rastro.configuracao.application.port.VerificadorDeConexao;
 import br.gov.mt.sema.rastro.shared.api.error.ErrorCode;
@@ -25,7 +29,7 @@ import org.junit.jupiter.api.Test;
 
 class GerirConexoesTest {
 
-    private static final PoliticaDeAcesso ADMIN = new PoliticaDeAcesso(new UsuarioAtual() {
+    private static final UsuarioAtual USUARIO = new UsuarioAtual() {
         @Override
         public Usuario obter() {
             return new Usuario("admin.demo", "Admin Demo", Perfil.ADMIN, null, true);
@@ -35,7 +39,8 @@ class GerirConexoesTest {
         public String token() {
             return "token";
         }
-    });
+    };
+    private static final PoliticaDeAcesso ADMIN = new PoliticaDeAcesso(USUARIO);
 
     private record Falsa(Estado estado, Supplier<Resultado> acao) implements VerificadorDeConexao {
 
@@ -60,8 +65,63 @@ class GerirConexoesTest {
         }
     }
 
-    private static GerirConexoes conexoes(VerificadorDeConexao verificador, Duration limite) {
-        return new GerirConexoes(List.of(verificador), ADMIN, limite);
+    private final List<NovoEvento> eventos = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    private GerirConexoes conexoes(VerificadorDeConexao verificador, Duration limite) {
+        ContextoDoEvento contexto = new ContextoDoEvento(USUARIO, new RequisicaoDoEvento() {
+            @Override
+            public String origem() {
+                return null;
+            }
+
+            @Override
+            public String correlationId() {
+                return null;
+            }
+        });
+        return new GerirConexoes(List.of(verificador), ADMIN, 15, limite, eventos::add, contexto);
+    }
+
+    @Test
+    void classificacao_codigo_e_tempo_limite_chegam_ao_resultado_e_a_auditoria_registra_so_conexao_e_resultado() {
+        TesteDaConexao teste = conexoes(new Falsa(VerificadorDeConexao.Estado.CONFIGURADA,
+                () -> VerificadorDeConexao.Resultado.deHttp(404, "uma chave fictícia", "token")), Duration.ofSeconds(5))
+                .testar("falsa");
+
+        assertThat(teste.classificacao()).isEqualTo(VerificadorDeConexao.Classificacao.ALCANCAVEL_COM_RESSALVA);
+        assertThat(teste.sucesso()).isTrue();
+        assertThat(teste.codigoHttp()).isEqualTo(404);
+        assertThat(teste.tempoLimiteSegundos()).isEqualTo(15);
+        assertThat(eventos).singleElement().satisfies(evento -> {
+            assertThat(evento.tipo()).isEqualTo(TipoDeEvento.CONEXAO);
+            assertThat(evento.detalhe()).startsWith("Falsa: ALCANCAVEL_COM_RESSALVA (HTTP 404), ").endsWith(" ms");
+        });
+    }
+
+    @Test
+    void falha_de_autenticacao_nao_e_sucesso() {
+        TesteDaConexao teste = conexoes(new Falsa(VerificadorDeConexao.Estado.CONFIGURADA,
+                () -> VerificadorDeConexao.Resultado.deHttp(401, "uma chave fictícia", "token")), Duration.ofSeconds(5))
+                .testar("falsa");
+
+        assertThat(teste.classificacao()).isEqualTo(VerificadorDeConexao.Classificacao.FALHA_DE_AUTENTICACAO);
+        assertThat(teste.sucesso()).isFalse();
+    }
+
+    @Test
+    void auditoria_que_falha_nao_derruba_o_teste() {
+        ContextoDoEvento quebrado = new ContextoDoEvento(USUARIO, null);
+        GerirConexoes conexoes = new GerirConexoes(List.of(new Falsa(VerificadorDeConexao.Estado.CONFIGURADA,
+                () -> new VerificadorDeConexao.Resultado(true, "ok"))), ADMIN, 15, Duration.ofSeconds(5), evento -> {
+                    throw new IllegalStateException("auditoria fora");
+                }, quebrado);
+
+        assertThat(conexoes.testar("falsa").sucesso()).isTrue();
+    }
+
+    @Test
+    void teto_do_teste_cobre_duas_chamadas_e_a_espera() {
+        assertThat(GerirConexoes.teto(15)).isEqualTo(Duration.ofSeconds(35));
     }
 
     @Test
@@ -96,7 +156,7 @@ class GerirConexoesTest {
         }), Duration.ofMillis(100)).testar("falsa");
 
         assertThat(teste.sucesso()).isFalse();
-        assertThat(teste.mensagem()).isEqualTo("Tempo limite excedido.");
+        assertThat(teste.mensagem()).isEqualTo("Tempo limite do teste (15 s) excedido.");
     }
 
     @Test

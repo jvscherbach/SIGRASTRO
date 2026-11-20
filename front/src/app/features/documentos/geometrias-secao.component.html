@@ -56,9 +56,9 @@
                 <div class="doc-cell">
                   <span class="ext geo">{{ g.extensao ? g.extensao.toUpperCase() : '—' }}</span>
                   <span>
-                    <b>{{ g.titulo || 'Geometria ' + g.id }}</b>
+                    <b>{{ g.nomeArquivo || g.titulo || 'Geometria ' + g.id }}</b>
                     <small>
-                      @if (g.nomeArquivo) { {{ g.nomeArquivo }} }
+                      @if (g.nomeArquivo && g.titulo) { {{ g.titulo }} }
                       @if (formatarTamanho(g.tamanho); as tamanho) { · {{ tamanho }} }
                       @if (g.sigiloso) { · <span class="lock"><app-icone nome="lock" />Sigilosa</span> }
                       @if (g.situacao === 'SUBSTITUIDO') { · <span class="doc-aviso-linha">versão substituída, fora do ZIP</span> }

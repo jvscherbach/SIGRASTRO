@@ -14,9 +14,10 @@ import br.gov.mt.sema.rastro.auditoria.domain.UsuarioDoEvento;
  * não precisa do SIGA. As transições são sincronizadas: o executor, o cancelamento, a decisão do usuário, a leitura do
  * andamento e a limpeza agendada o acessam de threads diferentes.
  *
- * <p>S2.2 (docs/06): AGUARDANDO → OBTENDO → (PENDENTE_DECISAO ⇄ AGUARDANDO) → MONTANDO → CONCLUIDO. Falhas não
- * encerram o pedido: ele espera a decisão do usuário, e a continuação não refaz o que já foi obtido. A validade
- * ({@code expiraEm}) conta desde a última atividade.
+ * <p>S2.2 (docs/06): AGUARDANDO → OBTENDO → (PENDENTE_DECISAO ⇄ AGUARDANDO) → MONTANDO → CONCLUIDO. Falhas de
+ * documento não encerram o pedido: ele espera a decisão do usuário, e a continuação não refaz o que já foi obtido. A
+ * validade ({@code expiraEm}) conta desde a última atividade. Sem espaço em disco, ou com o PDF final perdido depois de
+ * concluído, o pedido vai para FALHA (S6, bloco 3), sem arquivo.
  */
 public final class PedidoDeDossie {
 
@@ -158,7 +159,7 @@ public final class PedidoDeDossie {
         return itens.stream().filter(i -> i.situacao() == SituacaoItem.FALHA).toList();
     }
 
-    /** Motivo geral (credencial recusada ou falha na montagem); as falhas por documento ficam nos itens. */
+    /** Motivo geral (credencial recusada, falha na montagem ou motivo da FALHA); as falhas por documento ficam nos itens. */
     public synchronized ErroDoDossie erro() {
         return erro;
     }
@@ -222,6 +223,37 @@ public final class PedidoDeDossie {
         this.status = StatusDossie.PENDENTE_DECISAO;
         this.erro = erroGeral;
         this.expiraEm = novaValidade;
+        return true;
+    }
+
+    /**
+     * Falha que nenhuma decisão resolve (S6, bloco 3): sem espaço em disco durante a obtenção, a conversão ou a
+     * montagem. O chamador apaga o diretório do pedido. Falso se o pedido foi cancelado ou já não está em andamento.
+     */
+    public synchronized boolean falhar(ErroDoDossie erroGeral, LocalDateTime novaValidade) {
+        if (cancelamentoSolicitado || !status.emAndamento()) {
+            return false;
+        }
+        this.status = StatusDossie.FALHA;
+        this.erro = erroGeral;
+        this.arquivo = null;
+        this.expiraEm = novaValidade;
+        return true;
+    }
+
+    /**
+     * Concluído, mas o PDF final sumiu do disco ou ficou inválido (S6, bloco 3): vira FALHA, sem arquivo. Falso se não
+     * estava concluído (outra requisição já tratou).
+     */
+    public synchronized boolean perderArquivo(ErroDoDossie erroGeral) {
+        if (status != StatusDossie.CONCLUIDO) {
+            return false;
+        }
+        this.status = StatusDossie.FALHA;
+        this.erro = erroGeral;
+        this.arquivo = null;
+        this.paginas = null;
+        this.tamanhoBytes = 0;
         return true;
     }
 

@@ -62,7 +62,7 @@ Códigos: `OPERADOR`, `OPERADOR_SIGILO`, `ADMIN`. Na versão definitiva, a ident
 
 Origem desligada some da lista de documentos e não entra no dossiê. A regra de ordem cronológica é fixa (RN03) e só é exibida.
 
-**No protótipo (S2)** os parâmetros vêm de variáveis de ambiente, atrás da porta `ParametrosDoDossie` (a S5 passou a ler a sobreposição da tela atrás da mesma porta; o ambiente continua sendo o padrão, D69): `DOSSIE_TTL_MINUTOS` (30), `DOSSIE_THREADS` (2), `DOSSIE_SUMARIO`, `DOSSIE_MARCADORES` e `DOSSIE_NUMERACAO` (ligados), `DOWNLOAD_TIMEOUT_SEGUNDOS` (inatividade da leitura; 120 desde a S2.2, antes 60), `DOWNLOAD_TOTAL_MAXIMO_SEGUNDOS` (teto total por documento, com as novas tentativas; 900), `DOSSIE_ESPACO_MINIMO_MB` (espaço livre mínimo antes de cada download; 2048), `DOSSIE_BLOB_MAX_MB` (acima disto o PDF final é baixado direto pelo navegador, com ticket de uso único e sem pré-visualização; 150; D49), `DOSSIE_HISTORICO_HORAS` (S4: horas que um pedido expirado, baixado ou cancelado continua em "Dossiês gerados" depois do vencimento, sem arquivo; 24; em memória, some num reinício) e `VISTAS_DOSSIE_DIRETORIO`. Detalhes de tempo e novas tentativas em docs/05.
+**No protótipo (S2)** os parâmetros vêm de variáveis de ambiente, atrás da porta `ParametrosDoDossie` (a S5 passou a ler a sobreposição da tela atrás da mesma porta; o ambiente continua sendo o padrão, D69): `DOSSIE_TTL_MINUTOS` (30), `DOSSIE_THREADS` (2), `DOSSIE_SUMARIO`, `DOSSIE_MARCADORES` e `DOSSIE_NUMERACAO` (ligados), `DOWNLOAD_TIMEOUT_SEGUNDOS` (inatividade da leitura; 120 desde a S2.2, antes 60), `DOWNLOAD_TOTAL_MAXIMO_SEGUNDOS` (teto total por documento, com as novas tentativas; 900), `DOSSIE_ESPACO_MINIMO_MB` (espaço livre mínimo no diretório dos dossiês, conferido no `POST /dossies`, que responde 507 sem criar pedido, e antes de cada download, que encerra o pedido em `FALHA`; **500** desde a S6, antes 2048; `0` desliga; S6, bloco 3), `DOSSIE_BLOB_MAX_MB` (acima disto o PDF final é baixado direto pelo navegador, com ticket de uso único e sem pré-visualização; 150; D49), `DOSSIE_HISTORICO_HORAS` (S4: horas que um pedido expirado, baixado ou cancelado continua em "Dossiês gerados" depois do vencimento, sem arquivo; 24; em memória, some num reinício) e `VISTAS_DOSSIE_DIRETORIO`. Detalhes de tempo e novas tentativas em docs/05.
 
 **Dimensionamento do volume `dossies-tmp` (S2.2).** Cada pedido guarda no volume os documentos obtidos e, ao final, o PDF montado (os documentos são apagados depois da montagem). Regra prática por pedido: **soma dos documentos + o PDF final** (o final é quase a soma, então ≈ 2 × a soma). Some os pedidos que podem estar em andamento ao mesmo tempo (`DOSSIE_THREADS`) e os concluídos que ainda não expiraram (`DOSSIE_TTL_MINUTOS`), e acrescente `DOSSIE_ESPACO_MINIMO_MB` de folga. Exemplo: arquivos de ~50 MB, dossiê de 40 documentos ≈ 2 GB de documentos + 2 GB de PDF final ≈ 4 GB por pedido; com 2 threads, ≈ 8 GB + 2 GB de folga = **10 GB**. No Compose local o volume usa o disco do Docker, sem cota; em homologação/produção o tamanho do volume é **NÃO CONFIRMADO** (depende da infraestrutura, docs/13). A medição real é a da homologação (docs/casos-de-teste.md).
 
@@ -111,7 +111,20 @@ Estado e teste de conexão de: banco do SIGA (somente leitura), arquivos do Lice
 
 Credenciais ficam no arquivo de ambiente do servidor; a tela não as exibe nem edita.
 
-**Testes (S5, bloco 8):** banco do SIGA, `SELECT 1 FROM DUAL` pelo datasource somente leitura (`sql/siga/verificacao.sql`); API de arquivos, `GET` numa chave que não existe, sem ler o corpo; SCORP, `GET` para uma pessoa que não existe. Nas duas APIs, 2xx ou 404 significa que o serviço respondeu e aceitou a credencial, e 401 ou 403 que a recusou (R55). Só a data de expiração do token é lida, sem validar a assinatura; token vencido nem é enviado.
+**Testes (S5, bloco 8; S6, bloco 4):** banco do SIGA, `SELECT 1 FROM DUAL` pelo datasource somente leitura (`sql/siga/verificacao.sql`); API de arquivos, `GET` numa chave fictícia, sem ler o corpo; SCORP, `GET` para uma pessoa fictícia. Desde a S6 as duas APIs usam **o mesmo cliente, a mesma base de URL e a mesma autenticação do consumo real**, e o resultado é **classificado**: **OK** (2xx), **Alcançável com ressalva** (4xx esperado para a chamada de teste, ex.: 400/404, com o código e a explicação), **Falha de autenticação** (401/403 ou token vencido: renovar o token) e **Falha** (DNS, recusa, TLS, tempo esgotado, 5xx persistente; um 503 isolado ganha uma nova tentativa). Como ler cada um: docs/05, "Teste de conexão". Só a data de expiração do token é lida, sem validar a assinatura; token vencido nem é enviado.
+
+**`CONEXAO_TESTE_TIMEOUT_SEGUNDOS`** (S6, padrão **15**; antes 5 s fixos): tempo limite de conexão e de leitura de cada chamada do teste, mostrado na aba antes de testar e no resultado ("120 ms (limite 15 s)"). O teste inteiro tem teto de 2 × o valor + 5 s (duas chamadas e a espera). Variável de ambiente, fora da tela.
+
+### Modo de demonstração e servidor MCP (S6, bloco 7)
+
+Variáveis de ambiente, fora da tela:
+
+| Variável | Onde | Padrão | O que faz |
+|---|---|---|---|
+| `RASTRO_MODO` | serviço (`api`) | `padrao` | `demonstracao` declara o modo em `GET /api/estado`, **só** se SIGA, API de arquivos e SCORP estiverem vazios. O `compose.verificacao.yaml` liga |
+| `RASTRO_MCP_URL` | servidor MCP (ambiente do processo do Claude Code) | `http://localhost:8080` (porta do front no `compose.local.yaml`) | base do Rastro local; host diferente de `localhost`, `127.0.0.1` e `host.docker.internal` é recusado |
+| `RASTRO_MCP_USUARIO` / `RASTRO_MCP_SENHA` | servidor MCP | sem padrão | usuário de demonstração; nunca lidos do `.env.local` |
+| `RASTRO_MCP_TIMEOUT_MS` | servidor MCP | 10000 | tempo limite de cada pedido ao Rastro |
 
 ### Auditoria
 

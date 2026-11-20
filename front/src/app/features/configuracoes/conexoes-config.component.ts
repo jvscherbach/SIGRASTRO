@@ -5,7 +5,7 @@ import { Subscription } from 'rxjs';
 import { mensagemDoErro } from '../../core/mensagens-erro';
 import { IconeComponent } from '../../shared/icone.component';
 import { ConfiguracoesApiService } from './configuracoes-api.service';
-import { Conexao, TesteDeConexao } from './configuracoes.models';
+import { Conexao, ROTULO_DA_CLASSIFICACAO, TOM_DA_CLASSIFICACAO, TesteDeConexao } from './configuracoes.models';
 import { ParametrosAbaComponent } from './parametros-aba.component';
 
 /** Orientação quando o token da API de arquivos está vencido (sem citar valor algum). */
@@ -39,6 +39,10 @@ export class ConexoesConfigComponent implements OnInit {
   protected readonly conexoes = signal<Conexao[]>([]);
   protected readonly linhas = signal<Readonly<Record<string, ResultadoDaLinha>>>({});
   protected readonly mensagemDeToken = MENSAGEM_DE_TOKEN_VENCIDO;
+  /** Tempo limite de cada chamada do teste (CONEXAO_TESTE_TIMEOUT_SEGUNDOS), mostrado antes de testar. */
+  protected readonly tempoLimite = signal<number | null>(null);
+  protected readonly rotuloDaClassificacao = ROTULO_DA_CLASSIFICACAO;
+  protected readonly tomDaClassificacao = TOM_DA_CLASSIFICACAO;
 
   private carga: Subscription | null = null;
   private readonly testes = new Map<string, Subscription>();
@@ -62,6 +66,7 @@ export class ConexoesConfigComponent implements OnInit {
     this.carga = this.api.conexoes().subscribe({
       next: (resposta) => {
         this.conexoes.set(resposta.conexoes);
+        this.tempoLimite.set(resposta.tempoLimiteDoTesteSegundos ?? null);
         this.carregando.set(false);
       },
       error: (erro: unknown) => {
@@ -92,7 +97,7 @@ export class ConexoesConfigComponent implements OnInit {
     if (l.testando) {
       return 'Testando…';
     }
-    return l.erro || (l.teste && !l.teste.sucesso) || this.vencido(c) ? 'Tentar novamente' : 'Testar conexão';
+    return l.erro || (l.teste && l.teste.classificacao !== 'OK') || this.vencido(c) ? 'Tentar novamente' : 'Testar conexão';
   }
 
   protected testar(c: Conexao): void {

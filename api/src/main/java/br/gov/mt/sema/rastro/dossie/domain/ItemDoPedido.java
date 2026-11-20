@@ -24,6 +24,8 @@ public final class ItemDoPedido {
     private final int posicao;
     private final String nomeArquivo;
     private final boolean sigiloso;
+    private final String descricao;
+    private final String cabecalho;
 
     public ItemDoPedido(String origem, String origemDescricao, String id, String titulo, LocalDateTime data,
             String chave) {
@@ -48,6 +50,17 @@ public final class ItemDoPedido {
      */
     public ItemDoPedido(String origem, String origemDescricao, String id, String titulo, LocalDateTime data,
             String chave, int posicao, String extensao, String nomeArquivo, boolean sigiloso) {
+        this(origem, origemDescricao, id, titulo, data, chave, posicao, extensao, nomeArquivo, sigiloso, null, null);
+    }
+
+    /**
+     * @param titulo    nome mostrado no sumário, nas páginas substitutas e na gaveta (o nome do arquivo, como o SIGA)
+     * @param descricao título/tipo do SIGA (retrato da auditoria); nulo: o próprio {@code titulo}
+     * @param cabecalho texto do cabeçalho da planilha convertida (nome do arquivo sem extensão); nulo: o {@code titulo}
+     */
+    public ItemDoPedido(String origem, String origemDescricao, String id, String titulo, LocalDateTime data,
+            String chave, int posicao, String extensao, String nomeArquivo, boolean sigiloso, String descricao,
+            String cabecalho) {
         this.nomeArquivo = nomeArquivo;
         this.sigiloso = sigiloso;
         this.posicao = posicao;
@@ -58,6 +71,8 @@ public final class ItemDoPedido {
         this.data = data;
         this.chave = chave;
         this.extensao = extensao;
+        this.descricao = descricao == null || descricao.isBlank() ? this.titulo : descricao;
+        this.cabecalho = cabecalho == null || cabecalho.isBlank() ? this.titulo : cabecalho;
     }
 
     public String origem() {
@@ -74,6 +89,16 @@ public final class ItemDoPedido {
 
     public String titulo() {
         return titulo;
+    }
+
+    /** Título/tipo do SIGA, distinto do nome mostrado ({@link #titulo()}); usado no retrato da auditoria. */
+    public String descricao() {
+        return descricao;
+    }
+
+    /** Texto do cabeçalho da planilha convertida: nome do arquivo sem extensão. */
+    public String tituloDeCabecalho() {
+        return cabecalho;
     }
 
     public LocalDateTime data() {

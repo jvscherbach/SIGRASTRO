@@ -103,13 +103,24 @@ async function abrir(page: Page, rota = '/configuracoes'): Promise<Controle> {
             { nome: 'scorp', rotulo: 'SCORP', estado: 'NAO_CONFIGURADA', horasAteExpirar: null, tokenVencido: false },
             { nome: 'taxas', rotulo: 'Taxas', estado: 'DESATIVADA', horasAteExpirar: null, tokenVencido: false },
           ],
+          tempoLimiteDoTesteSegundos: 15,
         },
       });
     }
     const teste = /^\/api\/configuracoes\/conexoes\/([^/]+)\/teste$/.exec(caminho);
     if (teste && metodo === 'POST') {
       c.testes.push(teste[1]);
-      const corpo = c.testePor[teste[1]] ?? { nome: teste[1], sucesso: true, tempoMs: 42, mensagem: 'Conexão funcionando.', horasAteExpirar: null, tokenVencido: false };
+      const corpo = c.testePor[teste[1]] ?? {
+        nome: teste[1],
+        sucesso: true,
+        classificacao: 'OK',
+        codigoHttp: 200,
+        tempoMs: 42,
+        tempoLimiteSegundos: 15,
+        mensagem: 'Serviço funcional: respondeu HTTP 200.',
+        horasAteExpirar: null,
+        tokenVencido: false,
+      };
       c.corpos.push(JSON.stringify(corpo));
       return route.fulfill({ json: corpo });
     }
@@ -232,8 +243,26 @@ test('sem pendência, sair não pergunta nada', async ({ page }) => {
 
 test('conexões: teste com sucesso, falha e token vencido; nenhuma credencial na tela', async ({ page }) => {
   const c = await abrir(page);
-  c.testePor['arquivos'] = { nome: 'arquivos', sucesso: false, tempoMs: 310, mensagem: 'A credencial foi recusada.', horasAteExpirar: 0, tokenVencido: true };
-  c.testePor['scorp'] = { nome: 'scorp', sucesso: false, tempoMs: 5, mensagem: 'O SCORP não está configurado.', horasAteExpirar: null, tokenVencido: false };
+  c.testePor['arquivos'] = {
+    nome: 'arquivos',
+    sucesso: false,
+    classificacao: 'FALHA_DE_AUTENTICACAO',
+    tempoMs: 310,
+    tempoLimiteSegundos: 15,
+    mensagem: 'Token vencido: capture um novo token, atualize o arquivo e teste de novo.',
+    horasAteExpirar: 0,
+    tokenVencido: true,
+  };
+  c.testePor['scorp'] = {
+    nome: 'scorp',
+    sucesso: false,
+    classificacao: 'FALHA',
+    tempoMs: 5,
+    tempoLimiteSegundos: 15,
+    mensagem: 'O SCORP não está configurado.',
+    horasAteExpirar: null,
+    tokenVencido: false,
+  };
   await aba(page, 'Conexões');
   const conexao = (nome: string) => page.locator(`[data-conexao="${nome}"]`);
 
@@ -241,14 +270,18 @@ test('conexões: teste com sucesso, falha e token vencido; nenhuma credencial na
   await expect(conexao('taxas').getByRole('button', { name: 'Testar conexão' })).toBeDisabled();
 
   await conexao('siga').getByRole('button', { name: 'Testar conexão' }).click();
-  await expect(conexao('siga').locator('.cfg-teste.ok')).toContainText('42 ms');
+  await expect(conexao('siga').locator('.cfg-teste.ok')).toContainText('42 ms (limite 15 s)');
+  await expect(conexao('siga').locator('.cfg-teste.ok')).toContainText('OK');
+  await expect(page.locator('.cfg-limite-teste')).toContainText('Tempo limite de cada chamada: 15 s');
 
   await conexao('scorp').getByRole('button', { name: 'Testar conexão' }).click();
   await expect(conexao('scorp').locator('.cfg-teste.falha')).toContainText('O SCORP não está configurado.');
+  await expect(conexao('scorp').locator('.cfg-teste.falha')).toContainText('Falha');
   await expect(conexao('scorp').getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
 
   await conexao('arquivos').getByRole('button', { name: 'Testar conexão' }).click();
   await expect(conexao('arquivos').locator('.cfg-vencido')).toContainText('Token vencido');
+  await expect(conexao('arquivos').locator('.cfg-teste.falha')).toContainText('Falha de autenticação');
   await expect(conexao('arquivos').locator('.cfg-token-vencido')).toContainText(
     'Capture um novo token, atualize o arquivo do token e clique em Tentar novamente.',
   );
@@ -291,4 +324,30 @@ test.describe('celular', () => {
     await expect(page.locator('.cfg-barra')).toBeVisible();
     expect(await rolagem()).toBeLessThanOrEqual(0);
   });
+});
+
+test('conexões: resposta 4xx esperada para a chamada de teste é "Alcançável com ressalva", não falha (S6, bloco 4)', async ({ page }) => {
+  const c = await abrir(page);
+  c.testePor['scorp'] = {
+    nome: 'scorp',
+    sucesso: true,
+    classificacao: 'ALCANCAVEL_COM_RESSALVA',
+    codigoHttp: 400,
+    tempoMs: 180,
+    tempoLimiteSegundos: 15,
+    mensagem: 'Serviço alcançável: respondeu HTTP 400 à chamada de teste, que usa um identificador de pessoa fictício.',
+    horasAteExpirar: null,
+    tokenVencido: false,
+  };
+  await aba(page, 'Conexões');
+  const scorp = page.locator('[data-conexao="scorp"]');
+
+  await scorp.getByRole('button', { name: 'Testar conexão' }).click();
+
+  const resultado = scorp.locator('[data-classificacao="ALCANCAVEL_COM_RESSALVA"]');
+  await expect(resultado).toContainText('Alcançável com ressalva');
+  await expect(resultado).toContainText('HTTP 400');
+  await expect(resultado).toContainText('identificador de pessoa fictício');
+  await expect(resultado).toHaveAttribute('role', 'status');
+  await expect(scorp.locator('.cfg-teste.falha')).toHaveCount(0);
 });
