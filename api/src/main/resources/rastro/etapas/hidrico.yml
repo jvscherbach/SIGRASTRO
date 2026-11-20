@@ -1,0 +1,160 @@
+# Catálogo de etapas simplificadas do Hídrico (outorga de recursos hídricos). Formato e regras em docs/15-tramitacao.md.
+# Fonte: levantamento 2 (ids técnicos do BPMN). Validado na subida: id técnico em no máximo um lugar, ordem única por ramo,
+# todo final com rótulo, modelo sem etapa é erro. Id técnico fora daqui não é erro: vira "Etapa não mapeada".
+# A cada nova versão publicada do BPMN, conferir os ids (docs/10, R68).
+chave: procOutorgaAguaSupSub
+rotulo: Outorga de recursos hídricos
+instancias: [RECURSO_HIDRICO]
+
+etapas:
+  - id: cadastro_do_requerimento
+    rotulo: Cadastro do requerimento
+    ordem: 1
+    tipo: TAREFA_HUMANA
+    responsavel: INTERESSADO
+    idsTecnicos: [taskCadastrarRequerimento]
+
+  - id: conferencia_dos_documentos
+    rotulo: Conferência dos documentos
+    ordem: 2
+    tipo: TAREFA_HUMANA
+    responsavel: GRUPO
+    idsTecnicos: [taskConferirDocumentosApresentados]
+
+  - id: emissao_da_taxa
+    rotulo: Emissão da taxa
+    ordem: 3
+    tipo: AUTOMATICA
+    responsavel: SISTEMA
+    idsTecnicos: [taskAtualizarStatusRequerimentoArrecadacao, taskAtualizarStatusRequerimentoEmissaoTaxa1, taskEmitirTaxaSefaz]
+
+  - id: aguardando_pagamento
+    rotulo: Aguardando pagamento
+    ordem: 4
+    tipo: ESPERA
+    responsavel: INTERESSADO
+    idsTecnicos: [gtwAguardarPagamento]
+
+  # Só quando a instância NÃO passou pelo gateway de pagamento; com passagem, o Rastro diz "Etapa não mapeada".
+  - id: isencao_confirmada
+    rotulo: Isenção confirmada
+    ordem: 5
+    tipo: AUTOMATICA
+    responsavel: SISTEMA
+    idsTecnicos: [taskGerarNumeroProtocolo]
+    semPassagemPor: [gtwAguardarPagamento]
+
+  - id: atribuicao_ao_analista
+    rotulo: Atribuição ao analista
+    ordem: 6
+    tipo: TAREFA_HUMANA
+    responsavel: GRUPO
+    idsTecnicos: [taskAtribuirRequerimento, taskMontarListaAnalistas]
+
+  - id: aceite_pelo_analista
+    rotulo: Aceite pelo analista
+    ordem: 7
+    tipo: TAREFA_HUMANA
+    responsavel: ANALISTA
+    multiInstancia: true
+    idsTecnicos: [taskAceitarAtribuicao]
+
+  - id: analise_do_processo
+    rotulo: Análise do processo
+    ordem: 8
+    tipo: TAREFA_HUMANA
+    responsavel: ANALISTA
+    multiInstancia: true
+    idsTecnicos: [taskAnalisarRequerimento]
+
+  - id: revisao_do_parecer_tecnico
+    rotulo: Revisão do parecer técnico
+    ordem: 9
+    tipo: TAREFA_HUMANA
+    responsavel: CHEFIA
+    idsTecnicos: [taskRevisarParecerTecnico]
+
+  - id: validacao_do_parecer_tecnico
+    rotulo: Validação do parecer técnico
+    ordem: 10
+    tipo: TAREFA_HUMANA
+    responsavel: ANALISTA
+    multiInstancia: true
+    idsTecnicos: [taskValidarParecerTecnico, taskAtualizarStatusParecerAssinado]
+
+  # As emissões são instâncias filhas (callActivity), ligadas pela instância-mãe; podem ocorrer várias em paralelo.
+  - id: emissao_do_ato
+    rotulo: Emissão do ato
+    ordem: 11
+    tipo: EMISSAO
+    responsavel: GRUPO
+    idsTecnicos: [taskEmitirAutorizacoes, taskEmitirOutrosAtos, taskEmitirCertificadoCadastros, taskEmitirPortarias]
+    processosFilhos: [procSurhEmitirAutorizacoes, procSurhEmitirOutrosAtos, procSurhCertificadoCadastro, procSurhEmissaoPortaria]
+
+  # "taskRegistarComprovantePublicacao" segue a grafia do levantamento 2 (sem o "r" de Registrar): conferir no BPMN.
+  - id: registro_do_comprovante_de_publicacao
+    rotulo: Registro do comprovante de publicação
+    ordem: 12
+    tipo: TAREFA_HUMANA
+    responsavel: GRUPO
+    idsTecnicos: [taskRegistarComprovantePublicacao, taskUpdateStatusConcluido, taskInformarTitulacoesDisponiveis]
+
+  # Funciona como arquivamento: o processo está concluído (regra técnica 9); o selo vem no bloco 5.
+  - id: verificacao_da_revisao_do_processo
+    rotulo: Verificação da revisão do processo
+    ordem: 13
+    tipo: TAREFA_HUMANA
+    responsavel: GRUPO
+    idsTecnicos: [taskVerificarRevisaoProcesso]
+
+  - id: correcao_do_requerimento
+    rotulo: Correção do requerimento
+    ramo: CORRECAO
+    ordem: 1
+    tipo: TAREFA_HUMANA
+    responsavel: INTERESSADO
+    idsTecnicos: [taskAtualizarStatusAguardandoRevisao, taskCorrecaoRequerimento]
+
+  - id: emissao_da_taxa_correcao
+    rotulo: Emissão da taxa (correção)
+    ramo: CORRECAO
+    ordem: 2
+    tipo: AUTOMATICA
+    responsavel: SISTEMA
+    idsTecnicos: [taskEmitirTaxaSefazCorrecao]
+
+  - id: aguardando_pagamento_correcao
+    rotulo: Aguardando pagamento (correção)
+    ramo: CORRECAO
+    ordem: 3
+    tipo: ESPERA
+    responsavel: INTERESSADO
+    idsTecnicos: [gtwAguardarPagamentoRevisao]
+
+finais:
+  - id: concluido
+    rotulo: Concluído
+    idTecnico: Event_1wiuc48
+  - id: cancelado_pelo_cadastrante
+    rotulo: Cancelado pelo cadastrante
+    idTecnico: Event_1kq2k0z
+  - id: expirado_no_cadastro
+    rotulo: Expirado no cadastro
+    idTecnico: Event_0abm55w
+  # Bug de origem: encerra a instância sem atualizar a situação (fica AGUARDANDO_PAGAMENTO_DE_TAXAS); aviso no bloco 5.
+  - id: encerrado_por_taxa_nao_paga
+    rotulo: Encerrado por taxa não paga no prazo
+    idTecnico: Event_0h1oige
+
+# Nunca viram etapa. "Report Kafka" e os eventos de repetição por erro de API ainda não têm id técnico levantado
+# (NÃO CONFIRMADO, docs/15): até entrarem aqui, aparecem como "Etapa não mapeada".
+ignorados:
+  - idTecnico: Gateway_aguardando_emtx
+    descricao: Aguardando emissão de taxa (gateway intermediário)
+    motivo: RUIDO
+  - idTecnico: Activity_0miwhxt
+    descricao: Suporte (grupo suporte)
+    motivo: SUPORTE
+  - idTecnico: taskAnalisarReducaoTaxa
+    descricao: Análise de redução de taxa (ramo provavelmente inativo)
+    motivo: INATIVO

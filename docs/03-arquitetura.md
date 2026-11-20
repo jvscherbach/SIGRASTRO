@@ -48,6 +48,7 @@ Monólito modular por domínio. Regras completas em [13 — Padrões técnicos](
 | `dossie` | Fila de geração, conversão, montagem do PDF, capa, sumário, expiração, regra "nada incompleto sem decisão" (RN09) e continuação |
 | `auditoria` | Registro (somente inclusão, porta `RegistrarEvento`) e consulta de eventos; em memória no protótipo (S5) |
 | `configuracao` | Parâmetros administráveis |
+| `tramitacao` | Posição do requerimento no fluxo (etapa atual, desde quando, com quem), pelo catálogo de etapas simplificadas em arquivo versionado (S7; [15](15-tramitacao.md)) |
 | `integration.siga` | Única camada com SQL e conhecimento do modelo do banco do SIGA |
 | `integration.licenciamento` | Cliente da API de arquivos |
 | `integration.scorp` | Cliente do SCORP (documentos pessoais) |

@@ -1,0 +1,98 @@
+# Catálogo de etapas simplificadas do LAC (Licença por Adesão e Compromisso). Formato e regras em docs/15-tramitacao.md.
+# Fonte: levantamento 2 (ids técnicos do BPMN). No LAC, reprovar na conferência leva à correção e volta direto à
+# conferência, sem nova taxa. A cada nova versão publicada do BPMN, conferir os ids (docs/10, R68).
+chave: procLicenciamentoLac
+rotulo: Licença por Adesão e Compromisso (LAC)
+instancias: [LICENCIAMENTO_ADESAO]
+
+etapas:
+  - id: cadastro_do_requerimento
+    rotulo: Cadastro do requerimento
+    ordem: 1
+    tipo: TAREFA_HUMANA
+    responsavel: INTERESSADO
+    idsTecnicos: [taskCadastrarRequerimento]
+
+  # Tarefa de grupo, que pode já estar com um conferidor (responsável resolvido no bloco 4).
+  - id: conferencia_dos_documentos
+    rotulo: Conferência dos documentos
+    ordem: 2
+    tipo: TAREFA_HUMANA
+    responsavel: GRUPO
+    idsTecnicos: [taskConferirDocumentosApresentados]
+
+  - id: emissao_da_taxa
+    rotulo: Emissão da taxa
+    ordem: 3
+    tipo: AUTOMATICA
+    responsavel: SISTEMA
+    idsTecnicos: [taskAtualizarStatusEncParaArrecadacao, taskAtualizarStatusAguardEmissaoTaxa, taskEmitirTaxaSefaz]
+
+  - id: aguardando_pagamento
+    rotulo: Aguardando pagamento
+    ordem: 4
+    tipo: ESPERA
+    responsavel: INTERESSADO
+    idsTecnicos: [gwtAguardarPagtoOuVencto]
+
+  # Só quando a instância NÃO passou pelo gateway de pagamento; com passagem, o Rastro diz "Etapa não mapeada".
+  - id: isencao_confirmada
+    rotulo: Isenção confirmada
+    ordem: 5
+    tipo: AUTOMATICA
+    responsavel: SISTEMA
+    idsTecnicos: [taskGerarNumeroProtocolo]
+    semPassagemPor: [gwtAguardarPagtoOuVencto]
+
+  - id: termo_de_adesao_gerado
+    rotulo: Termo de adesão gerado
+    ordem: 6
+    tipo: AUTOMATICA
+    responsavel: SISTEMA
+    idsTecnicos: [taskGerarTermoAdesaoLAC]
+
+  - id: envio_do_termo_assinado
+    rotulo: Envio do termo assinado
+    ordem: 7
+    tipo: TAREFA_HUMANA
+    responsavel: INTERESSADO
+    idsTecnicos: [taskEnviarTermoAdesao]
+
+  - id: conclusao
+    rotulo: Conclusão
+    ordem: 8
+    tipo: AUTOMATICA
+    responsavel: SISTEMA
+    idsTecnicos: [taskUpdateStatusConcluido, taskEnviarEmailTitulacoes]
+
+  - id: correcao_do_requerimento
+    rotulo: Correção do requerimento
+    ramo: CORRECAO
+    ordem: 1
+    tipo: TAREFA_HUMANA
+    responsavel: INTERESSADO
+    idsTecnicos: [taskCorrecaoRequerimento]
+
+finais:
+  - id: concluido
+    rotulo: Concluído
+    idTecnico: evtProcessoConcluido
+  - id: cancelado_pelo_cadastrante
+    rotulo: Cancelado pelo cadastrante
+    idTecnico: evtFimRequerimentoAPedidoCadastrante
+  - id: expirado_no_cadastro
+    rotulo: Expirado no cadastro
+    idTecnico: evtEncerrarRequerimentoPrazoCadExpirado
+  # Usa a mesma situação do expirado no cadastro: o rótulo vem deste final, não da situação (bloco 5).
+  - id: expirado_na_correcao
+    rotulo: Expirado na correção
+    idTecnico: evtEncerrarProcessoPrazoCorrecaoExpirado
+  - id: cancelado_por_falta_de_pagamento
+    rotulo: Cancelado por falta de pagamento
+    idTecnico: evtEncerrarProcessoFaltaPagto
+  - id: arquivado_termo_nao_enviado
+    rotulo: Arquivado (termo não enviado no prazo)
+    idTecnico: Event_0x7hz1p
+
+# O levantamento 2 não lista ids ignorados no LAC (a tarefa "Suporte" foi observada no Hídrico): NÃO CONFIRMADO, docs/15.
+ignorados: []
