@@ -53,6 +53,8 @@ Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTes
 | `consulta`, `documento`, `dossie` | `PoliticaDeAcesso` (S4, substitui `ObterPermissoesDoUsuario` e `ObterRestricaoDeInteressado`), `UsuarioAtual` | `acesso.application` |
 | `dossie` | `SelecionarDocumentosParaDossie` (seleção validada, em ordem, com a chave resolvida) | `documento.application` |
 | `integration.siga` | porta `DocumentosDoRequerimento` | `documento.application.port` |
+| `tramitacao` (S7) | `VerificarAcessoAoRequerimento` (existe + RN07, antes da posição) | `consulta.application` |
+| `integration.siga` (S7) | porta `PosicaoNoFluxo` (`CamundaPosicaoJdbc`) | `tramitacao.application.port` |
 | `integration.licenciamento` | porta `ArquivosDoRepositorio` | `dossie.application.port` |
 | `dossie.infrastructure` | portas `ValidadorDePdf`, `MontadorDoDossie`, `RepositorioDePedidos`, `FilaDeGeracao` | `dossie.application.port` |
 | `config` | `ParametrosDoDossie` (variáveis de ambiente; a S5 troca) | `dossie.application.port` |

@@ -115,6 +115,8 @@ Credenciais ficam no arquivo de ambiente do servidor; a tela não as exibe nem e
 
 **`CONEXAO_TESTE_TIMEOUT_SEGUNDOS`** (S6, padrão **15**; antes 5 s fixos): tempo limite de conexão e de leitura de cada chamada do teste, mostrado na aba antes de testar e no resultado ("120 ms (limite 15 s)"). O teste inteiro tem teto de 2 × o valor + 5 s (duas chamadas e a espera). Variável de ambiente, fora da tela.
 
+**`RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS`** (S7, bloco 3, padrão **10**; propriedade `rastro.tramitacao.camunda-timeout-segundos`): tempo limite de **cada** consulta da posição atual ao Camunda (até 7 por requerimento, docs/15). Estourado, a posição responde `INDISPONIVEL` e o resto do detalhe segue. Vale só para a tramitação; as demais consultas do SIGA continuam só com `SIGA_DB_READ_TIMEOUT_MS`. Variável de ambiente por enquanto; o bloco 10 da S7 a leva para a tela de Configurações.
+
 ### Modo de demonstração e servidor MCP (S6, bloco 7)
 
 Variáveis de ambiente, fora da tela:

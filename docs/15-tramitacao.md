@@ -207,6 +207,57 @@ Levantamentos 1 e 2, confirmadas em homologação e produção. Valem para todo 
 
 As situações são **hipóteses fictícias** coerentes com a lista do Apêndice A de docs/04 (P34); a tabela de compatibilidade situação × etapa é do bloco 5. Como criar um cenário novo: docs/13, "Dados fictícios de teste".
 
+## Posição atual (bloco 3)
+
+### Peças
+
+| Peça | Onde | Papel |
+|---|---|---|
+| `ConsultarPosicaoAtual` | `tramitacao.application` | caso de uso: acesso pelo contrato de `consulta` (`VerificarAcessoAoRequerimento`: 404 e RN07, 403) **antes** de tudo; tipo do requerimento → modelo do catálogo (`modeloDaInstancia`); fora do catálogo = `NAO_SUPORTADO` sem ir ao Camunda; qualquer falha depois do acesso (conexão, tempo limite) = `INDISPONIVEL`, nunca 5xx. O log da falha leva só o id do requerimento e a classe da exceção (o texto do driver pode trazer parâmetros) |
+| `PosicaoNoFluxo` | `tramitacao.application.port` | porta: `requerimento(id)` (instância e situação) e `ler(id, chaveDoModelo)` (fatos crus) |
+| `CamundaPosicaoJdbc` | `integration.siga` | **único** componente com o SQL da posição (`resources/sql/siga/tramitacao/*.sql`); não interpreta nada |
+| `LeituraDoFluxo` | `tramitacao.domain` | fatos crus: instâncias raiz, execuções, tarefas (com grupos), filhas, complementações, atividades percorridas |
+| `MontadorDaPosicao` | `tramitacao.domain` | função pura que transforma a leitura em `PosicaoAtual` pelo catálogo; testada sem banco (`MontadorDaPosicaoTest`) |
+| `PosicaoAtual`, `ElementoDaPosicao` | `tramitacao.domain` | estado, principal, em paralelo, complementação, final, "desde", multi-instância, marcas e ids não mapeados |
+| `IdentificadorDoResponsavel` | `tramitacao.domain` | `ASSIGNEE_` (CPF) protegido: `toString()` não mostra o valor; só o bloco 4 o lê, para consultar `SERVIDOR` |
+
+A situação do Licenciamento é lida (`RequerimentoNoFluxo.situacao`) e **não é usada** aqui: o confronto é do bloco 5.
+
+### Consultas (no máximo 7 por requerimento)
+
+| # | Arquivo | Quando | O que lê |
+|---|---|---|---|
+| 1 | `requerimento.sql` | sempre | `TIPO_PROCESSO.INSTANCIA_REQUERIMENTO` e `REQUERIMENTO.SITUACAO_PROCESSO`, por chave primária |
+| 2 | `instancias.sql` | tipo suportado | `ACT_HI_PROCINST` com `BUSINESS_KEY_ = TO_CHAR(:id)`, `PROC_DEF_KEY_ = :chave` e sem instância-mãe, da mais recente para a mais antiga (até 10) |
+| 3 | `execucoes.sql` | instância ativa | `ACT_RU_EXECUTION` com `ACT_ID_`, o início da atividade aberta (`ACT_HI_ACTINST`) e a assinatura de evento (`ACT_RU_EVENT_SUBSCR`) |
+| 4 | `filhas.sql` | instância ativa | filhas ativas pela instância-mãe (`SUPER_EXEC_` aponta para uma execução da mãe), chave por `ACT_RE_PROCDEF.KEY_` |
+| 5 | `tarefas.sql` | instância ativa | `ACT_RU_TASK` da raiz e das filhas (lista curta em `IN`), com os grupos `candidate` de `ACT_RU_IDENTITYLINK` |
+| 6 | `complementacoes.sql` | instância ativa | `COMPLEMENTACAO` do requerimento → instância `procGestaoComplementacao` ativa com `BUSINESS_KEY_ = TO_CHAR(COMPLEMENTACAO.ID)` |
+| 7 | `percorridas.sql` | instância ativa | `ACT_HI_ACTINST` encerradas (tarefa só se `DELETE_REASON_ = 'completed'` em `ACT_HI_TASKINST`), até 500, da mais recente |
+
+Sem instância ou encerrada: 2 consultas; tipo não suportado: 1. Não há consulta por linha (provado por `CamundaPosicaoJdbcTest`, que conta os comandos preparados: 7 no H10 e no H07, 2 no H15, 1 no Trifásico). Todas por `PROC_INST_ID_` ou chave primária, exceto a 2 e a 6 (pela `BUSINESS_KEY_`, como na S1).
+
+- **Tempo limite:** `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS` (padrão 10) em cada consulta, num `JdbcTemplate` próprio (não muda as demais consultas do SIGA); estourado, a posição fica `INDISPONIVEL`. O `SIGA_DB_READ_TIMEOUT_MS` do driver continua valendo por baixo. O bloco 10 leva o parâmetro para a tela.
+- **`TO_CHAR` e índices:** nas comparações entre coluna `NVARCHAR2` do Camunda e valor `VARCHAR2`/número, o `TO_CHAR` fica do lado do **valor** (parâmetro ou `COMPLEMENTACAO.ID`), e a coluna fica sem função, para não perder o índice de `BUSINESS_KEY_` (a igualdade entre `NVARCHAR2` e `VARCHAR2` não gera `ORA-12704`; o erro aparece ao misturar os dois em `CASE`, `COALESCE` ou `UNION`, que estas consultas não fazem). Em `percorridas.sql`, sem índice envolvido, o `TO_CHAR` está nos dois lados.
+- **Filhas por `SUPER_EXEC_`** (regra 5 aceita `SUPER_PROCESS_INSTANCE_ID_` ou `SUPER_EXEC_`): pelo runtime só vêm as ativas, e a coluna é chave estrangeira no Camunda 7 (índice **NÃO CONFIRMADO** no SIGA).
+
+### Regras do montador
+
+1. **Instância:** nenhuma = `SEM_INSTANCIA` (plano B na S8); mais de uma = vale a mais recente por início, com a marca `VARIAS_INSTANCIAS`.
+2. **Encerrada:** o final pelo `END_ACT_ID_`; final fora do catálogo = `ENCERRADO` sem final, com `ETAPA_NAO_MAPEADA`. `STATE_` e a existência de `DELETE_REASON_` (não o texto) ficam num diagnóstico interno, que não vai para a resposta.
+3. **Ativa:** cada ponto ativo vira um `ElementoDaPosicao`:
+   - **tarefas da raiz**, agrupadas por id técnico; etapa multi-instância vira **um** ponto com "x de y"; "desde" = criação da tarefa, marcado como **"desde a última entrada nesta etapa"** (a tarefa é recriada a cada volta);
+   - **cada filha** de emissão é um ponto próprio (duas filhas = principal + "+1 em paralelo"), com as tarefas da filha (signatários) e "desde" = início da filha;
+   - **execuções** paradas fora de tarefa: espera só se **confirmada** por assinatura de evento ("desde" = criação da assinatura); sem assinatura, o Rastro não supõe e mostra "Etapa não mapeada". Automática parada: "desde" = início da atividade aberta. A chamada (`callActivity`) já mostrada pela filha e a execução de uma tarefa já listada não duplicam;
+   - id **ignorado** de ruído some; id **desconhecido** vira ponto "Etapa não mapeada" (`idsNaoMapeados`, só para o Administrador).
+4. **Principal:** a de menor ordem do ramo principal; sem ela, a de menor ordem da correção; sem nenhuma mapeada, a não mapeada mais antiga. Empate de ordem: o mais antigo, e depois a ordem da leitura (que o SQL fixa). O resto vai para "em paralelo". A complementação fica **à parte** (quantidade e desde quando).
+5. **Suporte** (`Activity_0miwhxt`): nunca é posição. Sem outro ponto mapeado, a principal é a **última etapa real percorrida** (a encerrada mais recente que está no catálogo e não é ignorada), **sem "desde"** (não se sabe desde quando ela está parada); `emSuporteDesde` guarda o início da tarefa de suporte. Sempre com a marca `EM_SUPORTE`.
+6. **Multi-instância:** o ciclo atual começa no corpo aberto `<tarefa>#multiInstanceBody`; concluídas = tarefas do mesmo id técnico com `DELETE_REASON_ = 'completed'` iniciadas a partir do ciclo; total = concluídas + ativas. Sem o corpo (ciclo desconhecido), só as ativas: o "y" **não** é inventado.
+7. **Condição de percurso** do catálogo (isenção) usa as atividades percorridas.
+8. Instância ativa sem nenhum ponto: principal vazia, com `ETAPA_NAO_MAPEADA`.
+
+**NÃO CONFIRMADO** (conferir na homologação com o Camunda real, P35): (a) que a execução parada no gateway por evento tem `ACT_ID_` do gateway e a assinatura ligada a ela (o montador não usa `IS_ACTIVE_`, justamente para não depender disso); (b) que o corpo da multi-instância aparece como execução `<tarefa>#multiInstanceBody` e como atividade aberta no histórico; (c) que 500 atividades percorridas bastam para a condição de percurso e a última etapa real em processos longos (R70).
+
 ## Dependências do módulo
 
 `tramitacao` não depende de `documento` nem de `dossie` (`ArchitectureTest`); o reuso do que `consulta` oferece é **só por porta**. O domínio não conhece YAML nem Spring (`ArchitectureTest`, regra `dominio_da_tramitacao_sem_yaml`). O SQL contra `SIGA2_CAMUNDA` e `SIGA2_LICENCIAMENTO` fica em `integration.siga` (bloco 3), como todo SQL do SIGA.

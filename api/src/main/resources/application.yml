@@ -141,6 +141,9 @@ rastro:
       responsavel_tecnico: true
       # SCORP: desligado também quando SCORP_API_URL está vazia.
       scorp: true
+  # Tramitação (S7): tempo limite (s) de cada consulta da posição ao Camunda; estourado, a posição fica INDISPONIVEL.
+  tramitacao:
+    camunda-timeout-segundos: ${RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS:10}
   agendamento:
     enabled: ${AGENDAMENTO_ENABLED:true}
     limpeza-dossie: PT5M
