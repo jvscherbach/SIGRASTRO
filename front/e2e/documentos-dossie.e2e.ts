@@ -532,7 +532,7 @@ test('disco cheio no POST (507): mensagem real e Tentar novamente, sem sucesso',
 
   await expect(page.locator('.d-head h2')).toHaveText('Não foi possível gerar');
   await expect(page.locator('.d-body')).toContainText(SEM_ESPACO);
-  await expect(page.getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
+  await expect(page.locator('.drawer').getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
   await expect(page.locator('.d-body')).not.toContainText('Dossiê pronto');
 });
 
@@ -565,7 +565,7 @@ test('corpo que não é PDF nunca vira download nem "entregue"; Tentar novamente
   await expect(page.locator('.d-body')).not.toContainText('entregue ao navegador');
   await expect(page.getByRole('button', { name: 'Gerar novamente' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Descartar' })).toBeVisible();
-  await page.getByRole('button', { name: 'Tentar novamente' }).click();
+  await page.locator('.drawer').getByRole('button', { name: 'Tentar novamente' }).click();
   await expect.poll(() => contagem.downloads).toBe(2);
   expect(baixou).toBe(false);
 });

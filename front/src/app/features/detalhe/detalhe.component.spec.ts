@@ -34,7 +34,7 @@ function requerimento(sobre: Partial<Requerimento> = {}): Requerimento {
 }
 
 describe('DetalheComponent', () => {
-  let api: { obter: ReturnType<typeof vi.fn> };
+  let api: { obter: ReturnType<typeof vi.fn>; posicao: ReturnType<typeof vi.fn> };
   let documentosApi: { listar: ReturnType<typeof vi.fn> };
 
   function criar(id = '101'): { fixture: ComponentFixture<DetalheComponent>; raiz: HTMLElement } {
@@ -57,11 +57,36 @@ describe('DetalheComponent', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    api = { obter: vi.fn() };
+    // A posição (S7) carrega sozinha; aqui fica pendente, e os estados dela são provados em onde-esta-agora.component.spec.
+    api = { obter: vi.fn(), posicao: vi.fn(() => NEVER) };
     documentosApi = { listar: vi.fn(() => NEVER) };
   });
 
   afterEach(() => localStorage.clear());
+
+  describe('"Onde está agora" (S7)', () => {
+    it('fica acima do objeto e dos documentos e pede a posição do mesmo requerimento', () => {
+      api.obter.mockReturnValue(of(requerimento()));
+      const { raiz } = criar();
+      const onde = raiz.querySelector('app-folha-sobreposta app-onde-esta-agora')!;
+      const objeto = raiz.querySelector('app-folha-sobreposta [aria-label="Objeto do requerimento"]')!;
+      const documentos = raiz.querySelector('app-folha-sobreposta app-documentos-secao')!;
+
+      expect(onde.compareDocumentPosition(objeto) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(onde.compareDocumentPosition(documentos) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(api.posicao).toHaveBeenCalledWith(101);
+    });
+
+    it('falha da posição não derruba o detalhe', () => {
+      api.obter.mockReturnValue(of(requerimento()));
+      api.posicao.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
+      const { raiz } = criar();
+
+      expect(raiz.querySelector('h1')!.textContent).toBe('2825/2025');
+      expect(texto(raiz)).toContain('Objeto do requerimento');
+      expect(texto(raiz)).toContain('Tentar novamente');
+    });
+  });
 
   describe('identificação (RN04)', () => {
     it('com processo, o número do processo é o título e o do requerimento aparece à parte', () => {

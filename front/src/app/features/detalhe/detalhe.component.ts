@@ -15,6 +15,7 @@ import { DocumentosSecaoComponent } from '../documentos/documentos-secao.compone
 import { DetalheApiService } from './detalhe-api.service';
 import { Requerimento, Responsavel } from './detalhe.models';
 import { ObjetoDoRequerimentoComponent } from './objeto-do-requerimento.component';
+import { OndeEstaAgoraComponent } from './onde-esta-agora.component';
 
 @Component({
   selector: 'app-detalhe',
@@ -27,6 +28,7 @@ import { ObjetoDoRequerimentoComponent } from './objeto-do-requerimento.componen
     SituacaoTagComponent,
     ObjetoDoRequerimentoComponent,
     DocumentosSecaoComponent,
+    OndeEstaAgoraComponent,
   ],
   templateUrl: './detalhe.component.html',
 })

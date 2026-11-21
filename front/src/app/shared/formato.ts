@@ -121,6 +121,32 @@ export function minutosAte(iso: string | null | undefined): number | null {
   return Math.max(0, Math.ceil(restanteMs / 60000));
 }
 
+/**
+ * Tempo decorrido desde a data da API, em texto curto ("há 3 dias", "há 5 h", "há 12 min", "agora há pouco"), pelo
+ * mesmo relógio de Cuiabá de {@link minutosAte}. Data no futuro conta como "agora há pouco"; data inválida, vazio.
+ */
+export function tempoDesde(iso: string | null | undefined): string {
+  const m = iso ? DATA_HORA_SEM_FUSO.exec(iso) : null;
+  let decorridoMs: number;
+  if (m) {
+    const inicio = Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] ?? 0), +(m[5] ?? 0), +(m[6] ?? 0));
+    decorridoMs = paredeEmMs(agoraEmCuiaba()) - inicio;
+  } else {
+    const inicio = iso ? new Date(iso) : null;
+    if (!inicio || Number.isNaN(inicio.getTime())) {
+      return '';
+    }
+    decorridoMs = Date.now() - inicio.getTime();
+  }
+  const minutos = Math.floor(Math.max(0, decorridoMs) / 60000);
+  if (minutos < 1) return 'agora há pouco';
+  if (minutos < 60) return `há ${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `há ${horas} h`;
+  const dias = Math.floor(horas / 24);
+  return dias === 1 ? 'há 1 dia' : `há ${dias} dias`;
+}
+
 /** "340 KB", "1,2 MB"; vazio quando o tamanho é desconhecido. */
 export function formatarTamanho(bytes: number | null | undefined): string {
   if (bytes === null || bytes === undefined || bytes < 0) {
