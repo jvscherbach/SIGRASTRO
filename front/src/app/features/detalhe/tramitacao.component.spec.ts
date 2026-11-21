@@ -366,6 +366,169 @@ describe('TramitacaoComponent', () => {
     });
   });
 
+  describe('plano B: histórico aproximado (S8, bloco 10)', () => {
+    const SELO = 'Histórico aproximado: este requerimento é anterior ao registro detalhado do fluxo';
+    const planoB = (sobre: Partial<NonNullable<TramitacaoDoRequerimento['planoB']>> = {}): NonNullable<TramitacaoDoRequerimento['planoB']> => ({
+      selo: SELO,
+      semDetalhamento: false,
+      etapas: [],
+      marcos: [],
+      situacao: 'CONCLUIDO',
+      eventosIgnorados: 0,
+      eventosTruncados: false,
+      ...sobre,
+    });
+    const doPlanoB = (b: NonNullable<TramitacaoDoRequerimento['planoB']>) =>
+      tramitacao([], {
+        estado: 'SEM_INSTANCIA',
+        aproximado: true,
+        situacaoLicenciamento: { codigo: 'CONCLUIDO', descricao: 'Concluído' },
+        planoB: b,
+        avisos: [{ codigo: 'HISTORICO_APROXIMADO', texto: SELO, gravidade: 'INFO' }],
+      });
+
+    /** PB01: histórico completo de 2021 (11 eventos mapeados em etapas). */
+    const PB01 = doPlanoB(
+      planoB({
+        etapas: [
+          { etapa: CADASTRO, entrada: '2021-05-10T09:00:00', saida: '2021-05-11T09:00:00', eventos: 1 },
+          { etapa: CONFERENCIA, entrada: '2021-05-11T09:00:00', saida: '2021-05-14T09:00:00', eventos: 2 },
+          { etapa: ANALISE, entrada: '2021-05-24T09:00:00', saida: '2021-09-08T09:00:00', eventos: 2 },
+        ],
+        marcos: [
+          { tipo: 'ABERTURA', rotulo: 'Abertura do requerimento', data: '2021-05-10T09:00:00' },
+          { tipo: 'PROTOCOLO', rotulo: 'Protocolo', data: '2021-05-22T09:00:00' },
+          { tipo: 'CONCLUSAO', rotulo: 'Conclusão', data: '2021-09-08T09:00:00' },
+        ],
+      }),
+    );
+
+    it('PB01: selo fixo, situação, etapas aproximadas com datas e marcos, sem fluxograma nem responsável', () => {
+      api.tramitacao.mockReturnValue(of(PB01));
+      const { raiz } = criar();
+      const t = texto(raiz);
+
+      expect(raiz.querySelector('.tram-selo')!.textContent).toBe(SELO);
+      expect(raiz.querySelector('.tram-selo')!.getAttribute('role')).toBe('note');
+      expect(t).toContain('Situação no Licenciamento: Concluído');
+      expect(rotulos(raiz)).toEqual(['Cadastro do requerimento', 'Conferência dos documentos', 'Análise do processo']);
+      expect(itens(raiz)[1].textContent).toContain('Entrada 11/05/2021');
+      expect(itens(raiz)[1].textContent).toContain('Saída 14/05/2021');
+      expect(itens(raiz)[1].textContent).toContain('2 eventos registrados');
+      expect(itens(raiz)[0].textContent).toContain('1 evento registrado');
+      expect(itens(raiz)[0].querySelector('.tag')!.textContent).toBe('Aproximado');
+      expect(t).toContain('Abertura do requerimento 10/05/2021');
+      expect(t).toContain('Conclusão 08/09/2021');
+      // nada de dado exato: sem fluxograma, sem ciclos, sem com quem, sem filtro, sem duração
+      expect(raiz.querySelector('app-fluxograma-simplificado')).toBeNull();
+      expect(raiz.querySelector('.tram-filtro')).toBeNull();
+      expect(t).not.toContain('passagem');
+      expect(t).not.toContain('Com quem');
+      expect(t).not.toContain('Duração');
+    });
+
+    it('o texto do aviso HISTORICO_APROXIMADO não repete o selo', () => {
+      api.tramitacao.mockReturnValue(of(PB01));
+      const { raiz } = criar();
+
+      expect(raiz.textContent!.split(SELO).length - 1).toBe(1);
+      expect(raiz.querySelector('.tram-avisos')).toBeNull();
+    });
+
+    it('PB02: evento desconhecido só conta (nenhum nome de evento cru), e outros avisos continuam', () => {
+      api.tramitacao.mockReturnValue(
+        of({
+          ...doPlanoB(
+            planoB({
+              etapas: [{ etapa: CONFERENCIA, entrada: '2021-05-11T09:00:00', saida: null, eventos: 2 }],
+              marcos: [{ tipo: 'EXPIRACAO_DO_REQUERIMENTO', rotulo: 'Expiração do requerimento', data: '2021-06-19T09:00:00' }],
+              eventosIgnorados: 1,
+            }),
+          ),
+          situacaoLicenciamento: { codigo: 'CANCELADO_POR_EXPIRACAO_DE_PRAZO_DE_CADASTRO', descricao: 'Cancelado por expiração do prazo de cadastro' },
+        }),
+      );
+      const { raiz } = criar();
+      const t = texto(raiz);
+
+      expect(t).toContain('1 evento do Licenciamento não reconhecido não aparece aqui.');
+      expect(t).toContain('Expiração do requerimento 19/06/2021');
+      expect(t).toContain('Situação no Licenciamento: Cancelado por expiração do prazo de cadastro');
+      expect(t).not.toContain('EVENTO_FICTICIO');
+      expect(itens(raiz)[0].textContent).not.toContain('Saída');
+    });
+
+    it('PB03: sem nenhum evento mostra só a situação e as datas ("Sem detalhamento disponível")', () => {
+      api.tramitacao.mockReturnValue(
+        of(doPlanoB(planoB({ semDetalhamento: true, situacao: 'EM_ANALISE', marcos: [{ tipo: 'ABERTURA', rotulo: 'Abertura do requerimento', data: '2021-05-10T09:00:00' }] }))),
+      );
+      const { raiz } = criar();
+      const t = texto(raiz);
+
+      expect(t).toContain('Sem detalhamento disponível.');
+      expect(t).toContain('Situação no Licenciamento: Concluído');
+      expect(t).toContain('Abertura do requerimento 10/05/2021');
+      expect(raiz.querySelector('ol.tram-lista')).toBeNull();
+      expect(raiz.querySelector('.tram-selo')!.textContent).toBe(SELO);
+    });
+
+    it('mais eventos que o limite lido avisa que a linha do tempo pode estar incompleta', () => {
+      api.tramitacao.mockReturnValue(of(doPlanoB(planoB({ eventosTruncados: true, semDetalhamento: true }))));
+
+      expect(texto(criar().raiz)).toContain('pode estar incompleta');
+    });
+
+    it('imprimir fica disponível, e o DOM não tem id técnico nem CPF', () => {
+      api.tramitacao.mockReturnValue(of(PB01));
+      const { raiz } = criar();
+
+      expect(texto(raiz.querySelector('.tram-acoes')!)).toContain('Imprimir tramitação');
+      semIdTecnicoNemCpf(raiz);
+    });
+  });
+
+  describe('estados de erro e final (S8, bloco 10)', () => {
+    it('ENCERRADO: fluxograma com a bola, lista e o final com a data', () => {
+      api.tramitacao.mockReturnValue(
+        of(tramitacao([passagem(CADASTRO, 2, 3)], { estado: 'ENCERRADO', final: { rotulo: 'Expirado no cadastro', tipo: 'FINAL', encerradoEm: dia(12) } })),
+      );
+      const { raiz } = criar();
+
+      expect(raiz.querySelector('svg.bola')).not.toBeNull();
+      expect(texto(raiz.querySelector('.tram-final')!)).toContain('Expirado no cadastro em 12/03/2026');
+    });
+
+    it('INDISPONIVEL não vira plano B: nenhum selo de histórico aproximado', () => {
+      api.tramitacao.mockReturnValue(of(tramitacao([], { estado: 'INDISPONIVEL' })));
+      const { raiz } = criar();
+
+      expect(raiz.querySelector('.tram-selo')).toBeNull();
+      expect(texto(raiz)).not.toContain('aproximado');
+    });
+
+    it('"Tentar novamente" do INDISPONIVEL lê de novo e mostra o caminho', () => {
+      api.tramitacao.mockReturnValueOnce(of(tramitacao([], { estado: 'INDISPONIVEL' })));
+      const { fixture, raiz } = criar();
+      api.tramitacao.mockReturnValue(of(HC01));
+
+      raiz.querySelector<HTMLButtonElement>('.tram-aviso-geral button')!.click();
+      fixture.detectChanges();
+
+      expect(api.tramitacao).toHaveBeenCalledTimes(2);
+      expect(rotulos(raiz)).toHaveLength(5);
+    });
+
+    it('HISTORICO_TRUNCADO: o caminho que coube vem com o aviso de atenção', () => {
+      api.tramitacao.mockReturnValue(
+        of(tramitacao([passagem(CADASTRO, 2, null)], { truncado: true, avisos: [{ codigo: 'HISTORICO_TRUNCADO', texto: 'Histórico incompleto.', gravidade: 'ATENCAO' }] })),
+      );
+      const { raiz } = criar();
+
+      expect(raiz.querySelector('.tram-avisos li.atencao')!.textContent).toContain('Atenção: Histórico incompleto.');
+      expect(rotulos(raiz)).toEqual(['Cadastro do requerimento']);
+    });
+  });
+
   describe('fluxograma e impressão (S8, bloco 9)', () => {
     it('o fluxograma vem acima da lista e a lista é o equivalente textual', () => {
       api.tramitacao.mockReturnValue(of(HC01));

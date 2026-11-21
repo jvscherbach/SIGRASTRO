@@ -74,20 +74,27 @@ let instancias = 0;
               }
               @case ('SEM_INSTANCIA') {
                 @if (t.planoB; as b) {
-                  <p class="tram-selo">{{ b.selo }}</p>
+                  <p class="tram-selo" role="note">{{ b.selo }}</p>
+                  @if (t.situacaoLicenciamento; as s) {
+                    <p class="tram-situacao"><span class="muted">Situação no Licenciamento: </span><b>{{ s.descricao }}</b></p>
+                  }
                   @if (b.semDetalhamento) {
                     <p class="tram-texto">Sem detalhamento disponível.</p>
                   }
                   @if (b.etapas.length) {
-                    <ol class="tram-lista" aria-label="Linha do tempo aproximada">
+                    <ol class="tram-lista" aria-label="Linha do tempo aproximada: etapas e datas deduzidas dos eventos do Licenciamento">
                       @for (e of b.etapas; track $index) {
                         <li class="tram-item">
-                          <div class="tram-titulo"><b>{{ e.etapa.rotulo }}</b></div>
+                          <div class="tram-titulo">
+                            <b>{{ e.etapa.rotulo }}</b>
+                            <span class="tag gray">Aproximado</span>
+                          </div>
                           <p class="tram-datas">
                             <span>Entrada <time [attr.datetime]="e.entrada">{{ formatarData(e.entrada) }}</time></span>
                             @if (e.saida) {
                               <span>Saída <time [attr.datetime]="e.saida">{{ formatarData(e.saida) }}</time></span>
                             }
+                            <span>{{ e.eventos }} {{ e.eventos === 1 ? 'evento registrado' : 'eventos registrados' }}</span>
                           </p>
                         </li>
                       }
@@ -96,9 +103,15 @@ let instancias = 0;
                   @if (b.marcos.length) {
                     <ul class="tram-marcos" aria-label="Datas do requerimento">
                       @for (m of b.marcos; track $index) {
-                        <li><span class="muted">{{ m.rotulo }}</span> <time [attr.datetime]="m.data">{{ formatarData(m.data) }}</time></li>
+                        <li><span class="muted">{{ m.rotulo }}</span>{{ ' ' }}<time [attr.datetime]="m.data">{{ formatarData(m.data) }}</time></li>
                       }
                     </ul>
+                  }
+                  @if (b.eventosIgnorados > 0) {
+                    <p class="tram-nota muted">{{ b.eventosIgnorados }} {{ b.eventosIgnorados === 1 ? 'evento do Licenciamento não reconhecido não aparece' : 'eventos do Licenciamento não reconhecidos não aparecem' }} aqui.</p>
+                  }
+                  @if (b.eventosTruncados) {
+                    <p class="tram-nota muted">Há mais eventos do que o limite consultado; a linha do tempo pode estar incompleta.</p>
                   }
                 }
               }
@@ -196,9 +209,9 @@ let instancias = 0;
               }
             }
 
-            @if (t.avisos.length) {
+            @if (avisosDe(t).length) {
               <ul class="tram-avisos" aria-label="Avisos sobre a tramitação">
-                @for (a of t.avisos; track a.codigo) {
+                @for (a of avisosDe(t); track a.codigo) {
                   <li [class]="a.gravidade === 'ATENCAO' ? 'atencao' : 'info'">
                     <app-icone [nome]="a.gravidade === 'ATENCAO' ? 'alert' : 'info'" />
                     <span><span class="sr-only">{{ a.gravidade === 'ATENCAO' ? 'Atenção: ' : 'Informação: ' }}</span>{{ a.texto }}</span>
@@ -238,6 +251,8 @@ let instancias = 0;
     .tram-final .icon { width: 18px; height: 18px; color: var(--forest); }
     .tram-selo { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; background: var(--amber-bg); color: var(--amber); font-size: 13px; font-weight: 600; }
     .tram-texto { margin: 0; font-size: 14px; }
+    .tram-situacao { margin: 0 0 10px; font-size: 14px; }
+    .tram-nota { margin: 10px 0 0; font-size: 12px; }
     .tram-avisos { margin-top: 14px; }
     .tram-avisos li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; padding: 8px 10px; border-radius: 8px; }
     .tram-avisos li.info { background: var(--blue-bg); color: var(--blue); }
@@ -304,6 +319,11 @@ export class TramitacaoComponent {
     corpo.classList.add('imprimindo-tramitacao');
     window.addEventListener('afterprint', limpar, { once: true });
     window.print();
+  }
+
+  /** No plano B o selo fixo já mostra o texto do aviso `HISTORICO_APROXIMADO`: não repete. */
+  protected avisosDe(t: TramitacaoDoRequerimento): TramitacaoDoRequerimento['avisos'] {
+    return t.planoB ? t.avisos.filter((a) => a.codigo !== 'HISTORICO_APROXIMADO') : t.avisos;
   }
 
   protected duracao(segundos: number | null): string {

@@ -535,6 +535,146 @@ test.describe('fluxograma simplificado (celular 360 px)', () => {
   });
 });
 
+/** S8, bloco 10: plano B (histórico aproximado) e estados de erro, no formato de `planoB` da API (docs/07). */
+const SELO = 'Histórico aproximado: este requerimento é anterior ao registro detalhado do fluxo';
+const aproximada = (e: ReturnType<typeof etapa>, entrada: string, saida: string | null, eventos: number) => ({ etapa: { ...e }, entrada, saida, eventos });
+const planoB = (sobre: object = {}, doRequerimento: object = {}) =>
+  tramitacao([], {
+    estado: 'SEM_INSTANCIA',
+    aproximado: true,
+    taxa: null,
+    idsNaoMapeados: undefined,
+    diagnosticos: undefined,
+    situacaoLicenciamento: { codigo: 'CONCLUIDO', descricao: 'Concluído' },
+    avisos: [{ codigo: 'HISTORICO_APROXIMADO', texto: SELO, gravidade: 'INFO' }],
+    planoB: { selo: SELO, semDetalhamento: false, etapas: [], marcos: [], situacao: 'CONCLUIDO', eventosIgnorados: 0, eventosTruncados: false, ...sobre },
+    ...doRequerimento,
+  });
+/** PB01: histórico completo de 2021. */
+const PB01 = planoB({
+  etapas: [
+    aproximada(CADASTRO, '2021-05-10T09:00:00', '2021-05-11T09:00:00', 1),
+    aproximada(CONFERENCIA, '2021-05-11T09:00:00', '2021-05-14T09:00:00', 2),
+    aproximada(ANALISE, '2021-05-24T09:00:00', '2021-09-08T09:00:00', 2),
+  ],
+  marcos: [
+    { tipo: 'ABERTURA', rotulo: 'Abertura do requerimento', data: '2021-05-10T09:00:00' },
+    { tipo: 'PROTOCOLO', rotulo: 'Protocolo', data: '2021-05-22T09:00:00' },
+    { tipo: 'CONCLUSAO', rotulo: 'Conclusão', data: '2021-09-08T09:00:00' },
+  ],
+});
+/** PB02: evento desconhecido ignorado, expirado no cadastro. */
+const PB02 = planoB(
+  {
+    etapas: [aproximada(CONFERENCIA, '2021-05-11T09:00:00', null, 2)],
+    marcos: [{ tipo: 'EXPIRACAO_DO_REQUERIMENTO', rotulo: 'Expiração do requerimento', data: '2021-06-19T09:00:00' }],
+    eventosIgnorados: 1,
+  },
+  { situacaoLicenciamento: { codigo: 'CANCELADO_POR_EXPIRACAO_DE_PRAZO_DE_CADASTRO', descricao: 'Cancelado por expiração do prazo de cadastro' } },
+);
+/** PB03: nenhum evento. */
+const PB03 = planoB({ semDetalhamento: true, situacao: 'EM_ANALISE', marcos: [{ tipo: 'ABERTURA', rotulo: 'Abertura do requerimento', data: '2021-05-10T09:00:00' }] }, {
+  situacaoLicenciamento: { codigo: 'EM_ANALISE', descricao: 'Em análise' },
+});
+
+test.describe('plano B e estados de erro (desktop)', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test('PB01: selo fixo, situação, linha do tempo aproximada e marcos, sem fluxograma, sem com quem e sem id técnico', async ({ page }) => {
+    await simular(page, { tramitacoes: [PB01] });
+    await page.goto('/consulta/requerimentos/101');
+
+    await expect(secao(page).getByRole('note')).toHaveText(SELO);
+    await expect(secao(page)).toContainText('Situação no Licenciamento: Concluído');
+    await expect(rotulos(page)).toHaveText(['Cadastro do requerimento', 'Conferência dos documentos', 'Análise do processo']);
+    await expect(secao(page).locator('.tram-item').nth(1)).toContainText('Entrada 11/05/2021');
+    await expect(secao(page).locator('.tram-item').nth(1)).toContainText('Saída 14/05/2021');
+    await expect(secao(page).locator('.tram-item').nth(1)).toContainText('2 eventos registrados');
+    await expect(secao(page).locator('.tram-item .tag').first()).toHaveText('Aproximado');
+    await expect(secao(page).getByRole('list', { name: 'Datas do requerimento' })).toContainText('Conclusão 08/09/2021');
+    await expect(fluxo(page).locator('.fluxo')).toHaveCount(0);
+    await expect(secao(page).locator('.tram-filtro')).toHaveCount(0);
+    await expect(secao(page)).not.toContainText(/Com quem|Duração|passagem/);
+    // o selo aparece uma vez só (o aviso do mesmo texto não repete)
+    expect((await secao(page).innerText()).split(SELO).length - 1).toBe(1);
+    await semIdTecnicoNemCpf(page);
+  });
+
+  test('PB02: evento desconhecido só é contado, sem o nome cru', async ({ page }) => {
+    await simular(page, { tramitacoes: [PB02] });
+    await page.goto('/consulta/requerimentos/101');
+
+    await expect(secao(page)).toContainText('1 evento do Licenciamento não reconhecido não aparece aqui.');
+    await expect(secao(page)).toContainText('Cancelado por expiração do prazo de cadastro');
+    await expect(secao(page)).toContainText('Expiração do requerimento 19/06/2021');
+    await expect(secao(page)).not.toContainText('EVENTO_');
+  });
+
+  test('PB03: sem nenhum evento mostra só a situação e as datas', async ({ page }) => {
+    await simular(page, { tramitacoes: [PB03] });
+    await page.goto('/consulta/requerimentos/101');
+
+    await expect(secao(page)).toContainText('Sem detalhamento disponível.');
+    await expect(secao(page)).toContainText('Situação no Licenciamento: Em análise');
+    await expect(secao(page)).toContainText('Abertura do requerimento 10/05/2021');
+    await expect(secao(page).locator('ol.tram-lista')).toHaveCount(0);
+    await expect(secao(page).getByRole('note')).toHaveText(SELO);
+  });
+
+  test('INDISPONIVEL: aviso neutro, nunca o plano B no lugar, e "Tentar novamente" lê de novo; o resto da tela segue', async ({ page }) => {
+    const sim = await simular(page, { tramitacoes: [tramitacao([], { estado: 'INDISPONIVEL' }), HC03] });
+    await page.goto('/consulta/requerimentos/101');
+
+    await expect(secao(page)).toContainText('Não foi possível consultar a tramitação agora. O restante da página não foi afetado.');
+    await expect(secao(page).getByRole('note')).toHaveCount(0);
+    await expect(page.locator('app-onde-esta-agora .onde-etapa')).toHaveText('Revisão do parecer técnico');
+    await secao(page).getByRole('button', { name: 'Tentar novamente' }).click();
+    await expect(rotulos(page)).toHaveCount(4);
+    expect(sim.chamadas.tramitacao).toBe(2);
+  });
+
+  test('NAO_SUPORTADO e ENCERRADO com final', async ({ page }) => {
+    await simular(page, { tramitacoes: [tramitacao([], { estado: 'NAO_SUPORTADO', modelo: null }), encerrado('Expirado no cadastro')] });
+    await page.goto('/consulta/requerimentos/101');
+    await expect(secao(page)).toContainText('Fluxo ainda não suportado pelo Rastro.');
+
+    await page.reload();
+    await expect(fluxo(page).locator('svg.bola')).toBeVisible();
+    await expect(secao(page).locator('.tram-final')).toContainText('Expirado no cadastro em 12/03/2026');
+  });
+
+  test('HISTORICO_TRUNCADO: o que coube e o aviso de atenção', async ({ page }) => {
+    await simular(page, { tramitacoes: [HC15] });
+    await page.goto('/consulta/requerimentos/101');
+
+    await expect(secao(page).locator('.tram-avisos li.atencao')).toContainText('Histórico incompleto');
+    await expect(rotulos(page)).toHaveCount(3);
+  });
+
+  test('falha da tramitação e da posição são independentes, nos dois sentidos', async ({ page }) => {
+    await simular(page, { tramitacoes: [503], posicao: 503 });
+    await page.goto('/consulta/requerimentos/101');
+
+    await expect(secao(page).getByRole('alert')).toBeVisible();
+    await expect(page.locator('app-onde-esta-agora').getByRole('alert')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Objeto do requerimento' })).toBeVisible();
+    await expect(secao(page)).not.toContainText('detalhe técnico');
+  });
+});
+
+test.describe('plano B (celular 360 px)', () => {
+  test.use({ viewport: { width: 360, height: 740 } });
+
+  test('sem rolagem horizontal da página', async ({ page }) => {
+    await simular(page, { tramitacoes: [PB01] });
+    await page.goto('/consulta/requerimentos/101');
+
+    await expect(rotulos(page)).toHaveCount(3);
+    const medidas = await page.evaluate(() => ({ rolagem: document.documentElement.scrollWidth, janela: window.innerWidth }));
+    expect(medidas.rolagem).toBeLessThanOrEqual(medidas.janela);
+  });
+});
+
 /** P39 (D83): o termo do motor de fluxo não aparece em nenhuma tela de consulta, para nenhum perfil. */
 test.describe('P39: o termo "Camunda" fora das telas de consulta', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
