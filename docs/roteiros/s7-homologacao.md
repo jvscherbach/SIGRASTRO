@@ -70,7 +70,7 @@ Anote antes de começar (só os marcadores):
 | H09 | 7009 | Validação do parecer técnico (Tarefa, multi-instância) | 3 signatários (Servidores 05 a 07), cada um com o estado | nenhum | `multi_instancia_x_de_y` (3 tarefas com responsável) | [ ] | [ ] OK / [ ] Falhou |
 | H10 | 7010 | Emissão do ato (Emissão) | Emissão de títulos (área das duas filhas) | selo "+1 em paralelo" (autorizações e portaria) | `h10_duas_filhas_em_paralelo`, `h10_signatarios_pela_area_do_grupo_em_cada_filha` | [ ] | [ ] OK / [ ] Falhou |
 | H11 | 7011 | Registro do comprovante de publicação (Tarefa) | Registro de publicação (barramento) | nenhum | `cenario_ativo_mostra_a_etapa_certa`, `com_quem_esta` | [ ] | [ ] OK / [ ] Falhou |
-| H12 | 7012 | Verificação da revisão do processo (Tarefa) | Revisão da decisão (multidisciplinar) | aviso Informação: "Processo concluído; a verificação da revisão é só arquivamento." Selo "Processo concluído": **não existe na tela** (pendência P38) | `cada_aviso_no_seu_cenario` (CONCLUIDO_ANTES_DA_VERIFICACAO) | [ ] | [ ] OK / [ ] Falhou |
+| H12 | 7012 | Verificação da revisão do processo (Tarefa) | Revisão da decisão (multidisciplinar) | aviso Informação: "Processo concluído; a verificação da revisão é só arquivamento." **Status "Concluído" ainda não aparece** (decidido em D83; correção na S8, P38). Este passo é conferido como está hoje e marcado `Falhou` se o status não aparecer | `cada_aviso_no_seu_cenario` (CONCLUIDO_ANTES_DA_VERIFICACAO) | [ ] | [ ] OK / [ ] Falhou |
 | H13 | 7013 | Correção do requerimento (Tarefa, ramo correção) | Interessado (cadastrante) | nenhum | `cenario_ativo_mostra_a_etapa_certa` | [ ] | [ ] OK / [ ] Falhou |
 | H14 | 7014 | Aguardando pagamento (correção) (Espera) | Interessado (cadastrante) | nenhum | `cenario_ativo_mostra_a_etapa_certa`, `com_quem_esta` | [ ] | [ ] OK / [ ] Falhou |
 | H15 | 7015 | **Encerrado**: Concluído | — | final "Concluído", "Encerrado em" | `cenario_encerrado_mostra_o_final` | [ ] | [ ] OK / [ ] Falhou |
@@ -163,7 +163,7 @@ Na mesma aba, os testes das outras conexões (banco do SIGA, API de arquivos, SC
 
 - [ ] OK / [ ] Falhou — observação:
 
-**Divergência a decidir (P39):** a tela de Conexões mostra "Fluxo (Camunda)", e o `docs/08` diz que a interface não menciona o motor de fluxo. Anote se o nome deve mudar, e nada mais: a decisão é sua.
+**Divergência conhecida (P39, D83):** a aba Conexões mostra "Fluxo (Camunda)". Pela decisão D83, o termo só pode aparecer para o Administrador nessa aba, e não em telas de consulta; a correção está programada para a S8. Anote se o termo aparecer em qualquer outra tela e para qualquer outro perfil.
 
 ### 4.3 Limite de posições simultâneas
 
@@ -230,8 +230,8 @@ Estes itens estão na documentação como pendência. Não os resolva no roteiro
 
 | Item | Onde está | O que conferir |
 |---|---|---|
-| Selo **"Processo concluído"** (regra 9) | P38, `docs/15` | H12: a tela mostra só o aviso Informação, sem selo. Registre se isso basta. |
-| Nome "Fluxo (Camunda)" na tela de Conexões | P39, `docs/08` | Decida se o nome muda (a decisão é sua). |
+| Status "Concluído" na verificação da revisão (regra 9) | P38, D83 | H12: hoje só o aviso Informação; a correção está na S8. Registre o que a tela mostrar. |
+| Termo "Camunda" fora das telas de consulta | P39, D83 | Só a aba Conexões (Administrador) pode mostrá-lo; a correção está na S8. |
 | Tabela de compatibilidade situação × etapa | P37 | Casos reais da seção 3 com aviso `SITUACAO_NAO_CONFERE` que não deveriam aparecer, ou o contrário |
 | Ids técnicos do catálogo (BPMN) | P33 | Qualquer "Etapa não mapeada" num requerimento real: anote o id **só para o Administrador** (nunca na tela de outro perfil) |
 | Rótulos das áreas dos grupos | P36 | Se algum rótulo de área não é entendido pela equipe |
