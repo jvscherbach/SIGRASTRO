@@ -104,6 +104,7 @@ class ProcessosDoConversorTest {
             List<ProcessHandle> processos = ProcessosDoConversor.comMarca(alvo.marca());
             assertThat(processos).isNotEmpty();
             processos.forEach(ProcessHandle::destroyForcibly);
+            esperarSubstituto(alvo, processos);
 
             assertThat(texto(converter(alvo, DocumentosDeTeste.docx(DocumentosDeTeste.TEXTO))))
                     .contains(DocumentosDeTeste.TEXTO);
@@ -155,6 +156,30 @@ class ProcessosDoConversorTest {
     private Path converter(ConversorLibreOffice alvo, byte[] docx) throws Exception {
         boolean rtf = docx.length > 0 && docx[0] == '{';
         return ConversorLibreOfficeTest.converter(pasta, alvo, rtf ? "rtf" : "docx", docx, TipoReal.TEXTO);
+    }
+
+    /**
+     * Espera o processo morto sair e o pool subir outro antes da próxima tarefa. Sem isso, num runner lento (CI), a tarefa
+     * e a nova tentativa do conversor caíam no processo que o JODConverter ainda estava reiniciando ({@code DisposedException}
+     * duas vezes, falha {@code CORROMPIDO}). O que se prova é que o pool se recupera, não a corrida com o reinício. Se o pool
+     * só reinicia sob demanda, o prazo acaba e a tarefa segue mesmo assim.
+     */
+    private static void esperarSubstituto(ConversorLibreOffice alvo, List<ProcessHandle> mortos) throws Exception {
+        for (ProcessHandle morto : mortos) {
+            morto.onExit().get(10, java.util.concurrent.TimeUnit.SECONDS);
+        }
+        java.util.Set<Long> pidsMortos = new java.util.HashSet<>();
+        mortos.forEach(p -> pidsMortos.add(p.pid()));
+        long limite = System.nanoTime() + Duration.ofSeconds(30).toNanos();
+        while (System.nanoTime() < limite) {
+            boolean substituto = ProcessosDoConversor.comMarca(alvo.marca()).stream()
+                    .anyMatch(p -> p.isAlive() && !pidsMortos.contains(p.pid()));
+            if (substituto) {
+                Thread.sleep(2000); // o soffice novo ainda abre a porta da ponte UNO
+                return;
+            }
+            Thread.sleep(200);
+        }
     }
 
     private static void encerrarSemOrfaos(ConversorLibreOffice alvo) {
