@@ -147,6 +147,29 @@ export function tempoDesde(iso: string | null | undefined): string {
   return dias === 1 ? 'há 1 dia' : `há ${dias} dias`;
 }
 
+/**
+ * Duração legível a partir de segundos ("2 dias e 3 h", "1 dia", "5 h e 10 min", "12 min", "menos de 1 min"). Mostra no
+ * máximo duas unidades; negativa ou inválida, vazio.
+ */
+export function duracaoLegivel(segundos: number | null | undefined): string {
+  if (segundos === null || segundos === undefined || !Number.isFinite(segundos) || segundos < 0) {
+    return '';
+  }
+  const minutosTotais = Math.floor(segundos / 60);
+  if (minutosTotais < 1) return 'menos de 1 min';
+  const dias = Math.floor(minutosTotais / 1440);
+  const horas = Math.floor((minutosTotais % 1440) / 60);
+  const minutos = minutosTotais % 60;
+  const unidade = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+  if (dias > 0) {
+    return horas > 0 ? `${unidade(dias, 'dia', 'dias')} e ${horas} h` : unidade(dias, 'dia', 'dias');
+  }
+  if (horas > 0) {
+    return minutos > 0 ? `${horas} h e ${minutos} min` : `${horas} h`;
+  }
+  return `${minutos} min`;
+}
+
 /** "340 KB", "1,2 MB"; vazio quando o tamanho é desconhecido. */
 export function formatarTamanho(bytes: number | null | undefined): string {
   if (bytes === null || bytes === undefined || bytes < 0) {

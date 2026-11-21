@@ -70,7 +70,7 @@ Anote antes de começar (só os marcadores):
 | H09 | 7009 | Validação do parecer técnico (Tarefa, multi-instância) | 3 signatários (Servidores 05 a 07), cada um com o estado | nenhum | `multi_instancia_x_de_y` (3 tarefas com responsável) | [ ] | [ ] OK / [ ] Falhou |
 | H10 | 7010 | Emissão do ato (Emissão) | Emissão de títulos (área das duas filhas) | selo "+1 em paralelo" (autorizações e portaria) | `h10_duas_filhas_em_paralelo`, `h10_signatarios_pela_area_do_grupo_em_cada_filha` | [ ] | [ ] OK / [ ] Falhou |
 | H11 | 7011 | Registro do comprovante de publicação (Tarefa) | Registro de publicação (barramento) | nenhum | `cenario_ativo_mostra_a_etapa_certa`, `com_quem_esta` | [ ] | [ ] OK / [ ] Falhou |
-| H12 | 7012 | Verificação da revisão do processo (Tarefa) | Revisão da decisão (multidisciplinar) | aviso Informação: "Processo concluído; a verificação da revisão é só arquivamento." **Status "Concluído" ainda não aparece** (decidido em D83; correção na S8, P38). Este passo é conferido como está hoje e marcado `Falhou` se o status não aparecer | `cada_aviso_no_seu_cenario` (CONCLUIDO_ANTES_DA_VERIFICACAO) | [ ] | [ ] OK / [ ] Falhou |
+| H12 | 7012 | Verificação da revisão do processo (Tarefa) | Revisão da decisão (multidisciplinar) | aviso Informação: "Processo concluído; a verificação da revisão é só arquivamento." **e o status "Concluído"** (P38, D83; corrigido na S8, bloco 8): em "Onde está agora" aparece "Concluído" com o selo "Processo concluído" e "Concluído desde <data>", **sem** o selo "Final" e **sem** a etapa "Verificação da revisão do processo" como etapa em andamento. Marque `Falhou` se aparecer a etapa em andamento ou faltar o "Concluído" | `cada_aviso_no_seu_cenario` (CONCLUIDO_ANTES_DA_VERIFICACAO) | [ ] | [ ] OK / [ ] Falhou |
 | H13 | 7013 | Correção do requerimento (Tarefa, ramo correção) | Interessado (cadastrante) | nenhum | `cenario_ativo_mostra_a_etapa_certa` | [ ] | [ ] OK / [ ] Falhou |
 | H14 | 7014 | Aguardando pagamento (correção) (Espera) | Interessado (cadastrante) | nenhum | `cenario_ativo_mostra_a_etapa_certa`, `com_quem_esta` | [ ] | [ ] OK / [ ] Falhou |
 | H15 | 7015 | **Encerrado**: Concluído | — | final "Concluído", "Encerrado em" | `cenario_encerrado_mostra_o_final` | [ ] | [ ] OK / [ ] Falhou |
@@ -230,7 +230,7 @@ Estes itens estão na documentação como pendência. Não os resolva no roteiro
 
 | Item | Onde está | O que conferir |
 |---|---|---|
-| Status "Concluído" na verificação da revisão (regra 9) | P38, D83 | H12: hoje só o aviso Informação; a correção está na S8. Registre o que a tela mostrar. |
+| Status "Concluído" na verificação da revisão (regra 9) | P38, D83 | H12: "Concluído" com o selo "Processo concluído" e o aviso Informação (corrigido na S8, bloco 8). Registre o que a tela mostrar. |
 | Termo "Camunda" fora das telas de consulta | P39, D83 | Só a aba Conexões (Administrador) pode mostrá-lo; a correção está na S8. |
 | Tabela de compatibilidade situação × etapa | P37 | Casos reais da seção 3 com aviso `SITUACAO_NAO_CONFERE` que não deveriam aparecer, ou o contrário |
 | Ids técnicos do catálogo (BPMN) | P33 | Qualquer "Etapa não mapeada" num requerimento real: anote o id **só para o Administrador** (nunca na tela de outro perfil) |

@@ -35,7 +35,12 @@ function requerimento(sobre: Partial<Requerimento> = {}): Requerimento {
 }
 
 describe('DetalheComponent', () => {
-  let api: { obter: ReturnType<typeof vi.fn>; posicao: ReturnType<typeof vi.fn>; parametrosDeExibicao: ReturnType<typeof vi.fn> };
+  let api: {
+    obter: ReturnType<typeof vi.fn>;
+    posicao: ReturnType<typeof vi.fn>;
+    tramitacao: ReturnType<typeof vi.fn>;
+    parametrosDeExibicao: ReturnType<typeof vi.fn>;
+  };
   let documentosApi: { listar: ReturnType<typeof vi.fn> };
   let consultaApi: { buscar: ReturnType<typeof vi.fn> };
 
@@ -61,13 +66,41 @@ describe('DetalheComponent', () => {
   beforeEach(() => {
     localStorage.clear();
     // A posição (S7) carrega sozinha; aqui fica pendente, e os estados dela são provados em onde-esta-agora.component.spec.
-    api = { obter: vi.fn(), posicao: vi.fn(() => NEVER), parametrosDeExibicao: vi.fn(() => NEVER) };
+    // A tramitação completa (S8) também carrega sozinha: os estados dela são provados em tramitacao.component.spec.
+    api = { obter: vi.fn(), posicao: vi.fn(() => NEVER), tramitacao: vi.fn(() => NEVER), parametrosDeExibicao: vi.fn(() => NEVER) };
     documentosApi = { listar: vi.fn(() => NEVER) };
     // Outros requerimentos do processo (S7, bloco 9): provados em requerimentos-do-processo.component.spec.
     consultaApi = { buscar: vi.fn(() => NEVER) };
   });
 
   afterEach(() => localStorage.clear());
+
+  describe('"Tramitação" (S8)', () => {
+    it('fica abaixo de "Onde está agora" e acima do objeto e dos documentos e pede a tramitação do mesmo requerimento', () => {
+      api.obter.mockReturnValue(of(requerimento()));
+      const { raiz } = criar();
+      const onde = raiz.querySelector('app-folha-sobreposta app-onde-esta-agora')!;
+      const tramitacao = raiz.querySelector('app-folha-sobreposta app-tramitacao')!;
+      const objeto = raiz.querySelector('app-folha-sobreposta [aria-label="Objeto do requerimento"]')!;
+      const documentos = raiz.querySelector('app-folha-sobreposta app-documentos-secao')!;
+
+      expect(onde.compareDocumentPosition(tramitacao) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(tramitacao.compareDocumentPosition(objeto) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(tramitacao.compareDocumentPosition(documentos) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(api.tramitacao).toHaveBeenCalledWith(101);
+    });
+
+    it('falha da tramitação não afeta "Onde está agora" nem o restante (e o inverso)', () => {
+      api.obter.mockReturnValue(of(requerimento()));
+      api.tramitacao.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 503, error: { errorCode: 'SIGA_INDISPONIVEL' } })));
+      api.posicao.mockReturnValue(NEVER);
+      const t = texto(criar().raiz);
+
+      expect(t).toContain('Tentar novamente');
+      expect(t).toContain('Associação Vale Verde');
+      expect(t).toContain('Carregando a posição do requerimento');
+    });
+  });
 
   describe('"Onde está agora" (S7)', () => {
     it('fica acima do objeto e dos documentos e pede a posição do mesmo requerimento', () => {

@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { SEM_TOAST } from '../../core/interceptors';
 import { Requerimento } from './detalhe.models';
 import { PosicaoDoRequerimento } from './posicao.models';
+import { TramitacaoDoRequerimento } from './tramitacao.models';
 
 @Injectable({ providedIn: 'root' })
 export class DetalheApiService {
@@ -20,6 +21,13 @@ export class DetalheApiService {
   /** Parâmetros de exibição da tramitação (S7, bloco 10): quantas posições pedir ao mesmo tempo. Sem toast. */
   parametrosDeExibicao(): Observable<{ posicoesSimultaneas: number }> {
     return this.http.get<{ posicoesSimultaneas: number }>('/api/tramitacao/parametros', {
+      context: new HttpContext().set(SEM_TOAST, true),
+    });
+  }
+
+  /** Tramitação completa (S8): caminho percorrido, com quem esteve, voltas e final. Carrega e falha sozinha, sem toast. */
+  tramitacao(id: number): Observable<TramitacaoDoRequerimento> {
+    return this.http.get<TramitacaoDoRequerimento>(`/api/requerimentos/${id}/tramitacao`, {
       context: new HttpContext().set(SEM_TOAST, true),
     });
   }

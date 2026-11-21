@@ -99,11 +99,29 @@ Bloco no topo da folha do detalhe, **acima** do objeto e dos documentos (compone
 
 - **Ativo:** rótulo da etapa em destaque, selo de tipo ("Tarefa", "Espera", "Automática", "Emissão"), **"+N em paralelo"** (botão que expande a lista das demais etapas ativas, com `aria-expanded`), **"Complementação em andamento"** quando houver (fora do "+N"), "Desde" em tempo relativo ("há 3 dias") com a data completa no `title` e no texto acessível, "desde a última entrada nesta etapa" quando a tarefa foi recriada, "Com quem" (`responsavel.texto`: nome, senão área, senão papel) e, na multi-instância, "x de y concluídos" com os participantes (concluiu/pendente; "e mais N"). Ciclo desconhecido: só "N pendentes", sem inventar o "y". Data desconhecida: "Data não informada".
 - **Avisos:** um item por aviso, com ícone **e texto** (a gravidade também é dita ao leitor de tela: "Informação:" ou "Atenção:"); `INFO` em azul, `ATENCAO` em âmbar. Tom neutro, explica sem alarmar.
-- **Estados:** carregando (esqueleto com a altura reservada e `role="status"`), `ENCERRADO` (o final, selo "Final" e "Encerrado em"), `SEM_INSTANCIA` ("Histórico detalhado indisponível para este requerimento"; sem diagrama, o plano B é da S8), `NAO_SUPORTADO` ("Fluxo ainda não suportado pelo Rastro"), `INDISPONIVEL` e erro HTTP com **"Tentar novamente"** (o resto da tela segue normal).
+- **Verificação da revisão = "Concluído" (P38, D83):** a instância ativa na "Verificação da revisão do processo" é o **arquivamento do processo concluído**, não uma etapa em andamento. A API devolve `estado: CONCLUIDO` (sem `etapaAtual`, com `final.rotulo = "Concluído"` e `final.encerradoEm` = entrada na verificação, **sem** evento de fim e **sem** `idTecnico`), e a tela mostra "Concluído", o selo "Processo concluído" (não o "Final", que é só de evento de fim) e "Concluído desde <data>", mais o aviso `CONCLUIDO_ANTES_DA_VERIFICACAO`. O resumo (processo e coluna da busca) usa o ponto de estado "encerrado" com o texto "Concluído".
+- **Estados:** carregando (esqueleto com a altura reservada e `role="status"`), `ENCERRADO` (o final, selo "Final" e "Encerrado em"), `CONCLUIDO` (acima), `SEM_INSTANCIA` ("Histórico detalhado indisponível para este requerimento"; sem diagrama, o plano B é da S8), `NAO_SUPORTADO` ("Fluxo ainda não suportado pelo Rastro"), `INDISPONIVEL` e erro HTTP com **"Tentar novamente"** (o resto da tela segue normal).
 - **Nunca no texto:** id técnico (`task…`, `gtw…`, `Event_…`) nem CPF. Os campos só do Administrador são ignorados pela tela.
 - **Nome do servidor:** a tela mostra o que a API manda; o Operador recebe só área e papel (RN12, RN14).
 - **Datas** no relógio de Cuiabá pela utilidade única (`formatarDataHora`, `tempoDesde` em `shared/formato.ts`).
 - **Testes:** `onde-esta-agora.component.spec.ts` (um por estado e por selo, teclado, texto sem id técnico nem CPF), `detalhe.component.spec.ts` (posição acima do objeto e dos documentos; falha não derruba o detalhe), `relogio-de-cuiaba.spec.ts` (`tempoDesde`) e `front/e2e/onde-esta-agora.e2e.ts` (estados, teclado, altura do quadro igual, objeto e documentos sem saltar mais de 24 px ao carregar, celular sem rolagem horizontal).
+
+### Tramitação (S8, bloco 8)
+
+Seção **recolhível** no detalhe, **abaixo** de "Onde está agora" e **acima** do objeto e dos documentos (componente `TramitacaoComponent`, `GET /api/requerimentos/{id}/tramitacao`, docs/07 e docs/15). Aberta por padrão. Carrega e falha **sozinha**: a falha da tramitação não afeta "Onde está agora" nem os documentos, e o inverso. Também é o **equivalente textual do fluxograma** do bloco 9.
+
+- **Lista vertical** (`ol`, da mais antiga para a mais recente; só o que de fato aconteceu): rótulo da etapa, **entrada**, **saída** e **duração legível** ("2 dias e 3 h", `duracaoLegivel` em `shared/formato.ts`), `time` com `datetime`. A passagem atual mostra "Em andamento" e o selo "Etapa atual" (borda verde).
+- **Com quem esteve:** uma linha "Com quem: nome · papel" (sem nome, só o papel, para o Operador, RN12); na multi-instância, a lista de **participantes** com "Concluiu", "Pendente" ou "Encerrada sem ação" (texto, não só cor).
+- **Voltas:** "2ª passagem: devolvido na validação do parecer" (motivo do back-end; sem motivo determinável, só "2ª passagem", nunca um motivo inventado). As voltas aparecem na ordem real.
+- **Ramo da correção:** item recuado, borda âmbar e selo em texto "Ramo da correção".
+- **Emissão do ato:** lista dos atos com o estado ("Autorização: Emitido", "Outros atos: Não concluído").
+- **Selos:** "Em paralelo", "Processo concluído" (verificação da revisão), "Etapa atual".
+- **Complementação paralela:** linha à parte ("desde ... até ..." ou "em andamento").
+- **Final:** "Concluído em 12/03/2026" (e o selo "Final" só quando é evento de fim); avisos neutros como em "Onde está agora" (inclui `HISTORICO_TRUNCADO`).
+- **Filtro "Ocultar etapas automáticas"** (ligado por padrão): tira emissão da taxa, isenção, termo gerado etc., com a contagem "N etapas automáticas ocultas"; a lista completa fica a um clique. A **etapa atual nunca é escondida**.
+- **Estados:** carregando (esqueleto, `aria-busy`), erro HTTP e `INDISPONIVEL` com "Tentar novamente", `NAO_SUPORTADO`, `SEM_INSTANCIA` (selo fixo do histórico aproximado e linha do tempo simples; o acabamento e os testes do plano B são do bloco 10).
+- **Acessibilidade:** seção com `aria-labelledby`, lista semântica com nome, botão Recolher/Expandir com `aria-expanded` e `aria-controls`, foco visível, gravidade dita ao leitor de tela, celular sem rolagem horizontal. **Nunca no texto:** id técnico nem CPF.
+- **Testes:** `tramitacao.component.spec.ts` (22), `formato.spec.ts` (`duracaoLegivel`), `detalhe.component.spec.ts` (posição, independência), `front/e2e/tramitacao.e2e.ts` (HC01, HC03, HC04, HC07, HC10, HC12, LC03, filtro, recolher, celular, independência, Operador sem nome e a regressão da P39).
 
 ### Outros requerimentos deste processo (S7, bloco 9)
 
@@ -253,6 +271,6 @@ Somente Administrador. Detalhes em [12 — Configurações](12-configuracoes.md)
 
 ## Termos na interface
 
-A interface não menciona o motor de fluxo (Camunda). O bloco é chamado apenas de "Tarefa atual". A posição na tramitação (S7) se chama "Onde está agora" e usa o vocabulário do catálogo de etapas ("Análise do processo"), nunca o id técnico.
+A interface **de consulta** não menciona o motor de fluxo (Camunda), **para nenhum perfil** (P39, D83): nem a busca, nem o detalhe, nem "Onde está agora", "Tramitação", mensagens de erro ou avisos. O único lugar é o teste de conexão "Fluxo (Camunda)" na aba **Conexões** das Configurações, que só o **Administrador** acessa (RN08). Regressão: `front/e2e/tramitacao.e2e.ts` percorre a busca e o detalhe de Operador, Gestor e Administrador procurando o termo (texto e HTML), `detalhe.component.spec.ts` confere o DOM e `TramitacaoHttpTest` confere as respostas da API de consulta. O bloco é chamado apenas de "Tarefa atual". A posição na tramitação (S7) se chama "Onde está agora" e usa o vocabulário do catálogo de etapas ("Análise do processo"), nunca o id técnico.
 
 **Tabelas de Usuários e perfis e de Auditoria (S6, bloco 2).** O detalhe da auditoria (Acessos e Documentos) fica numa célula de tabela comum (a flexibilidade de linha é interna, num `div`), com largura entre 200 e 420 px, quebra de texto longo e o texto completo no `title`. Em Configurações › Usuários e perfis, até 768 px cada usuário aparece como um cartão (rótulo e valor) em vez de linha de tabela, sem rolagem horizontal; acima disso, a tabela de seis colunas. Teste: `front/e2e/layout-tabelas.e2e.ts` (geometria em 1280, 1024, 768 e 360 px).

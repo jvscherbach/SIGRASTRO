@@ -1,4 +1,5 @@
 import {
+  duracaoLegivel,
   formatarCpfCnpj,
   formatarData,
   formatarDataHora,
@@ -125,5 +126,24 @@ describe('tomDaSituacao', () => {
     expect(tomDaSituacao('AGUARDANDO_PAGAMENTO_DE_TAXAS')).toBe('amber');
     expect(tomDaSituacao('EM_CADASTRO')).toBe('gray');
     expect(tomDaSituacao('SITUACAO_NOVA')).toBe('gray');
+  });
+});
+
+describe('duracaoLegivel', () => {
+  it('mostra no máximo duas unidades', () => {
+    expect(duracaoLegivel(2 * 86400 + 3 * 3600)).toBe('2 dias e 3 h');
+    expect(duracaoLegivel(86400)).toBe('1 dia');
+    expect(duracaoLegivel(86400 + 5 * 60)).toBe('1 dia');
+    expect(duracaoLegivel(5 * 3600 + 10 * 60)).toBe('5 h e 10 min');
+    expect(duracaoLegivel(3 * 3600)).toBe('3 h');
+    expect(duracaoLegivel(12 * 60)).toBe('12 min');
+    expect(duracaoLegivel(20)).toBe('menos de 1 min');
+  });
+
+  it('negativa, inválida ou ausente fica vazia', () => {
+    expect(duracaoLegivel(-1)).toBe('');
+    expect(duracaoLegivel(NaN)).toBe('');
+    expect(duracaoLegivel(null)).toBe('');
+    expect(duracaoLegivel(undefined)).toBe('');
   });
 });

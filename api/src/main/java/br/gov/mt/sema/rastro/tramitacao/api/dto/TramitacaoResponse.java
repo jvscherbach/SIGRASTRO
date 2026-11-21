@@ -108,7 +108,8 @@ public record TramitacaoResponse(
         static PassagemResponse de(PassagemPelaEtapa p, boolean admin) {
             List<ResponsavelResponse> pessoas = p.responsaveis().stream().map(ResponsavelResponse::de).toList();
             return new PassagemResponse(
-                    new EtapaResponse(p.idDaEtapa().orElse(null), p.rotulo()),
+                    new EtapaResponse(p.idDaEtapa().orElse(null), p.rotulo(),
+                            p.etapa().map(e -> e.tipo().name()).orElse(null)),
                     p.ciclo(),
                     p.ramo().name(),
                     p.entrada(),
@@ -129,7 +130,8 @@ public record TramitacaoResponse(
     @Schema(description = "Etapa simplificada (vocabulário do usuário)")
     public record EtapaResponse(
             @Schema(description = "Id estável (ex.: analise_do_processo); vazio quando não mapeada") String id,
-            String rotulo) {}
+            String rotulo,
+            @Schema(description = "TAREFA_HUMANA, ESPERA, AUTOMATICA ou EMISSAO; vazio quando não mapeada") String tipo) {}
 
     public record MotivoResponse(String codigo, @Schema(description = "Ex.: \"devolvido na validação do parecer\"") String texto) {
 
@@ -211,7 +213,7 @@ public record TramitacaoResponse(
                     HistoricoAproximado.SELO,
                     h.semDetalhamento(),
                     h.etapas().stream().map(e -> new EtapaAproximadaResponse(new EtapaResponse(e.etapa().id(),
-                            e.etapa().rotulo()), e.entrada(), e.saida().orElse(null), e.eventos())).toList(),
+                            e.etapa().rotulo(), e.etapa().tipo().name()), e.entrada(), e.saida().orElse(null), e.eventos())).toList(),
                     h.marcos().stream().map(m -> new MarcoResponse(m.tipo().name(), m.tipo().rotulo(), m.data())).toList(),
                     h.situacao().orElse(null),
                     h.eventosIgnorados(),

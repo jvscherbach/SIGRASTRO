@@ -196,6 +196,15 @@ let instancias = 0;
               <p class="muted">Encerrado em {{ formatarDataHora(fim) }}</p>
             }
           }
+          @case ('CONCLUIDO') {
+            <div class="onde-principal">
+              <p class="onde-etapa">{{ p.final?.rotulo || 'Concluído' }}</p>
+              <span class="tag lime">Processo concluído</span>
+            </div>
+            @if (p.final?.encerradoEm; as desde) {
+              <p class="muted">Concluído desde {{ formatarDataHora(desde) }}</p>
+            }
+          }
           @case ('SEM_INSTANCIA') {
             <p class="onde-texto">Histórico detalhado indisponível para este requerimento.</p>
           }

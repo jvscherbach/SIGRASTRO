@@ -230,6 +230,41 @@ describe('OndeEstaAgoraComponent', () => {
     expect(raiz.querySelector('.onde-paralelo')).toBeNull();
   });
 
+  it('P38: verificação da revisão é "Concluído" (arquivamento), não etapa em andamento, e sem selo "Final"', () => {
+    api.posicao.mockReturnValue(
+      of(
+        posicao({
+          estado: 'CONCLUIDO',
+          etapaAtual: null,
+          emParalelo: [],
+          complementacao: null,
+          multiInstancia: null,
+          avisos: [{ codigo: 'CONCLUIDO_ANTES_DA_VERIFICACAO', texto: 'Processo concluído; a verificação da revisão é só arquivamento.', gravidade: 'INFO' }],
+          final: { rotulo: 'Concluído', encerradoEm: '2026-03-08T09:30:00' },
+        }),
+      ),
+    );
+    const { raiz } = criar();
+    const t = texto(raiz);
+
+    expect(raiz.querySelector('.onde-etapa')!.textContent).toBe('Concluído');
+    expect(t).toContain('Processo concluído');
+    expect(t).toContain('Concluído desde 08/03/2026 09:30');
+    expect(t).not.toContain('Final');
+    expect(t).not.toContain('Verificação da revisão');
+    expect(t).toContain('Informação: Processo concluído; a verificação da revisão é só arquivamento.');
+  });
+
+  it('P38: o resumo do processo e da busca também mostra "Concluído" como estado encerrado', () => {
+    api.posicao.mockReturnValue(of(posicao({ estado: 'CONCLUIDO', etapaAtual: null, emParalelo: [], multiInstancia: null, avisos: [], final: { rotulo: 'Concluído', encerradoEm: null } })));
+    const { raiz } = criar('celula');
+    const ponto = raiz.querySelector('.ponto')!;
+
+    expect(ponto.classList.contains('encerrado')).toBe(true);
+    expect(ponto.getAttribute('aria-label')).toBe('Estado: Concluído');
+    expect(texto(raiz)).toContain('Concluído');
+  });
+
   it('sem instância: histórico detalhado indisponível', () => {
     api.posicao.mockReturnValue(of(posicao({ estado: 'SEM_INSTANCIA', etapaAtual: null, emParalelo: [], multiInstancia: null, avisos: [] })));
     const { raiz } = criar();

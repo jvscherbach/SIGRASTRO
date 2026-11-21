@@ -76,6 +76,7 @@
 
     <app-folha-sobreposta>
       <app-onde-esta-agora [idRequerimento]="r.id" />
+      <app-tramitacao [idRequerimento]="r.id" />
       @if (r.numeroProcesso) {
         <app-requerimentos-do-processo [numeroProcesso]="r.numeroProcesso" [idAtual]="r.id" />
       }

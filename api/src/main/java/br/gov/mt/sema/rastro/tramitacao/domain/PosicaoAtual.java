@@ -77,6 +77,15 @@ public record PosicaoAtual(
                 idsNaoMapeados, diagnostico);
     }
 
+    /**
+     * A instância está ativa na "Verificação da revisão do processo" (regra técnica 9): o processo está <b>concluído</b>, a
+     * etapa funciona como arquivamento (P38, D83). Não é final do fluxo (sem evento de fim, sem bola preta).
+     */
+    public boolean concluidaNaVerificacao() {
+        return estado == EstadoDaPosicao.ATIVO && principal.flatMap(ElementoDaPosicao::etapa).map(Etapa::id)
+                .filter(MotivosDaVolta.VERIFICACAO::equals).isPresent();
+    }
+
     /** Todos os pontos ativos: a principal e os paralelos. */
     public List<ElementoDaPosicao> pontos() {
         return java.util.stream.Stream.concat(principal.stream(), emParalelo.stream()).toList();
