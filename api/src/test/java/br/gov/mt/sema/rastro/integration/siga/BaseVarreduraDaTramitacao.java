@@ -16,6 +16,7 @@ import br.gov.mt.sema.rastro.tramitacao.infrastructure.catalogo.CatalogoDeEtapas
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariDataSource;
 import org.assertj.core.api.SoftAssertions;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +48,8 @@ abstract class BaseVarreduraDaTramitacao {
     /** Requerimento fictício cujo interessado é o do Operador de demonstração (pessoa 1), para a visão do Operador. */
     static final long DO_OPERADOR = 7205;
     static final String PROCESSO_DO_OPERADOR = "7905/2026";
+    /** Pessoa do recorte da S1 com o CNPJ de demonstração do Operador ({@code 02-dados.sql}). */
+    private static final long PESSOA_DO_OPERADOR = 1;
     static final String OPERADOR = "operador.demo";
     static final String GESTOR = "gestor.demo";
     static final String ADMIN = "admin.demo";
@@ -75,6 +78,11 @@ abstract class BaseVarreduraDaTramitacao {
 
     private final Map<String, String> tokens = new LinkedHashMap<>();
 
+    /**
+     * Cria (uma vez) o requerimento do Operador e o liga à pessoa 1 (CNPJ de demonstração do Operador) <b>só enquanto a
+     * classe roda</b>: a pessoa 1 é a do recorte da S1, e o {@code RequerimentosDoSigaJdbcTest} conta exatamente os
+     * requerimentos dela (26). Com a ligação permanente, a contagem dependia da ordem das classes (falhou no CI com 27).
+     */
     @BeforeAll
     static void criarCenarioDoOperador() {
         assertThat(SigaOracleTeste.CENARIOS_S7).isNotEmpty();
@@ -82,16 +90,28 @@ abstract class BaseVarreduraDaTramitacao {
             NamedParameterJdbcTemplate jdbc = new NamedParameterJdbcTemplate(admin);
             Integer existe = jdbc.queryForObject("SELECT COUNT(*) FROM SIGA2_LICENCIAMENTO.REQUERIMENTO WHERE ID = :id",
                     new MapSqlParameterSource("id", DO_OPERADOR), Integer.class);
-            if (existe != null && existe > 0) {
-                return;
+            if (existe == null || existe == 0) {
+                new CamundaFicticioBuilder(jdbc, CatalogoDeEtapasDeTeste.padrao())
+                        .processo(Fluxo.HIDRICO, DO_OPERADOR).situacao("EM_ANALISE")
+                        .numeroProcesso(PROCESSO_DO_OPERADOR)
+                        .naEtapa("taskAnalisarRequerimento").comAnalistas(3).concluidos(1)
+                        .desde(LocalDateTime.of(2026, 5, 8, 9, 0)).gravar();
             }
-            new CamundaFicticioBuilder(jdbc, CatalogoDeEtapasDeTeste.padrao())
-                    .processo(Fluxo.HIDRICO, DO_OPERADOR).situacao("EM_ANALISE").numeroProcesso(PROCESSO_DO_OPERADOR)
-                    .naEtapa("taskAnalisarRequerimento").comAnalistas(3).concluidos(1)
-                    .desde(LocalDateTime.of(2026, 5, 8, 9, 0)).gravar();
-            jdbc.update("UPDATE SIGA2_LICENCIAMENTO.REQUERIMENTO SET ID_PESSOA = 1 WHERE ID = :id",
-                    new MapSqlParameterSource("id", DO_OPERADOR));
+            ligarAoInteressado(jdbc, PESSOA_DO_OPERADOR);
         }
+    }
+
+    /** Devolve o requerimento ao interessado fictício da S7: a pessoa 1 volta a ter só os requerimentos do recorte. */
+    @AfterAll
+    static void desligarDoOperador() {
+        try (HikariDataSource admin = SigaOracleTeste.dataSourceAdministrador()) {
+            ligarAoInteressado(new NamedParameterJdbcTemplate(admin), CamundaFicticioBuilder.ID_INTERESSADO);
+        }
+    }
+
+    private static void ligarAoInteressado(NamedParameterJdbcTemplate jdbc, long idPessoa) {
+        jdbc.update("UPDATE SIGA2_LICENCIAMENTO.REQUERIMENTO SET ID_PESSOA = :pessoa WHERE ID = :id",
+                new MapSqlParameterSource().addValue("pessoa", idPessoa).addValue("id", DO_OPERADOR));
     }
 
     /** Todos os requerimentos fictícios da tramitação que existem no Oracle de teste (7000 a 7299). */
