@@ -8,7 +8,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import br.gov.mt.sema.rastro.tramitacao.application.port.CacheDaPosicao;
-import br.gov.mt.sema.rastro.tramitacao.domain.PosicaoAtual;
+import br.gov.mt.sema.rastro.tramitacao.domain.PosicaoConfrontada;
 import org.springframework.stereotype.Component;
 
 /**
@@ -23,7 +23,7 @@ class CacheDaPosicaoEmMemoria implements CacheDaPosicao {
 
     private record Chave(long idRequerimento, String versaoDoCatalogo) {}
 
-    private record Entrada(PosicaoAtual posicao, Instant vence) {}
+    private record Entrada(PosicaoConfrontada posicao, Instant vence) {}
 
     private final Map<Chave, Entrada> entradas = new ConcurrentHashMap<>();
     private final Clock relogio;
@@ -33,7 +33,7 @@ class CacheDaPosicaoEmMemoria implements CacheDaPosicao {
     }
 
     @Override
-    public Optional<PosicaoAtual> obter(long idRequerimento, String versaoDoCatalogo) {
+    public Optional<PosicaoConfrontada> obter(long idRequerimento, String versaoDoCatalogo) {
         Chave chave = new Chave(idRequerimento, versaoDoCatalogo);
         Entrada entrada = entradas.get(chave);
         if (entrada == null) {
@@ -47,7 +47,7 @@ class CacheDaPosicaoEmMemoria implements CacheDaPosicao {
     }
 
     @Override
-    public void guardar(long idRequerimento, String versaoDoCatalogo, PosicaoAtual posicao, Duration validade) {
+    public void guardar(long idRequerimento, String versaoDoCatalogo, PosicaoConfrontada posicao, Duration validade) {
         if (validade.isZero() || validade.isNegative()) {
             return;
         }

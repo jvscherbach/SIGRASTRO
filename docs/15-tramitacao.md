@@ -304,6 +304,39 @@ O cache guarda a posição **já resolvida e sem CPF**, com a chave **id do requ
 
 Os 22 grupos reais da regra 13 (com as variantes subterrânea, superficial, barramento e multidisciplinar expandidas), cada um com um rótulo de área em linguagem de negócio. Validado na subida: id repetido, rótulo vazio, id `0` (reservado) e campo desconhecido derrubam a subida. Os rótulos são uma **proposta** (P36): conferir com a área.
 
+## Avisos: situação do Licenciamento × fluxo (bloco 5)
+
+A **etapa do fluxo sempre prevalece** sobre a situação do Licenciamento (exceto sem instância, cujo plano B é da S8). O confronto (`tramitacao.domain.Reconciliar`, função pura) recebe a posição e a `SITUACAO_PROCESSO` e devolve `PosicaoConfrontada`: a **mesma** posição (o mesmo objeto; provado por teste em todos os cenários), a situação ao lado e uma lista de avisos com **código estável**. Nada é corrigido em silêncio: a situação mostrada nunca é trocada.
+
+### Catálogo de avisos (`resources/rastro/confronto.yaml`)
+
+| Código | Gravidade | Quando | Texto ao usuário |
+|---|---|---|---|
+| `FLUXO_ENCERRADO_SEM_STATUS` | ATENÇÃO | Hídrico encerrado em `Event_0h1oige` (taxa não paga) com a situação `AGUARDANDO_PAGAMENTO_DE_TAXAS` (bug de origem, regra 8) | O fluxo foi encerrado por taxa não paga no prazo, mas o SIGA ainda mostra "aguardando pagamento". |
+| `CONCLUIDO_ANTES_DA_VERIFICACAO` | INFO | situação `CONCLUIDO` com a instância ativa em "Verificação da revisão" (regra 9) | Processo concluído; a verificação da revisão é só arquivamento. |
+| `SITUACAO_NAO_CONFERE` | ATENÇÃO | situação fora das aceitas para a etapa principal (ativa) ou para o final (encerrada) | A situação do SIGA ('X') não corresponde exatamente à etapa do fluxo. Vale a etapa do fluxo. |
+| `EXPIRADO_NA_CORRECAO_LAC` | INFO | LAC encerrado em `evtEncerrarProcessoPrazoCorrecaoExpirado` com a situação do expirado no cadastro (regra 8) | O prazo da correção expirou. O SIGA mostra a mesma situação do prazo de cadastro expirado; vale o final do fluxo. |
+| `VARIAS_INSTANCIAS` | ATENÇÃO | mais de uma instância raiz (vale a mais recente) | Há mais de um fluxo para este requerimento; vale o mais recente. |
+| `EM_SUPORTE` | INFO | tarefa "Suporte" ativa | Em atendimento de suporte técnico. |
+| `ETAPA_NAO_MAPEADA` | ATENÇÃO | ponto ativo ou final fora do catálogo | O fluxo está num ponto que o Rastro ainda não sabe nomear. |
+| `SEM_INSTANCIA` | INFO | requerimento sem instância no Camunda | Histórico detalhado indisponível para este requerimento. |
+
+O selo mostra o **texto** (não só cor ou ícone). `{situacao}` no texto é trocado pelo valor da situação. O "Taxa vencida" por data é da S9, não daqui.
+
+### Regras do confronto
+
+1. Ativa: confronta a situação com a **etapa principal** mapeada; encerrada: com o **final**. Sem instância, não suportado, indisponível, principal não mapeada ou situação ausente: **sem confronto** (não se acusa divergência sem base).
+2. Se a situação está entre as **divergências conhecidas** daquela etapa ou final (`conhecidas`), sai o aviso próprio (ele vence o "não confere").
+3. Senão, se a etapa ou o final tem lista de situações **aceitas** e a situação não está nela: `SITUACAO_NAO_CONFERE`.
+4. As marcas da leitura (`VARIAS_INSTANCIAS`, `EM_SUPORTE`, `ETAPA_NAO_MAPEADA`, `SEM_INSTANCIA`) viram os avisos de mesmo nome, depois dos do confronto.
+5. `INDISPONIVEL` leva a situação, quando ela já foi lida antes da falha.
+
+### Tabela de compatibilidade
+
+Em `confronto.yaml`, por chave do modelo, cada etapa e cada final com `aceitas` (e `conhecidas`, quando há divergência documentada). `AGUARDANDO_EMISSAO_DE_TAXAS` é aceita em **duas** etapas do Hídrico (taxa inicial e taxa da correção). A lista das 29 situações (docs/04, Apêndice A) fica no próprio arquivo, e a subida falha com situação desconhecida, código de aviso desconhecido ou sem texto, modelo, etapa ou final inexistentes no catálogo de etapas, divergência apontando para aviso que não é de divergência, ou campo desconhecido. Todas as etapas e finais dos dois modelos têm entrada (teste). A tabela é uma **hipótese** montada a partir das regras técnicas e dos nomes das situações: **NÃO CONFIRMADA** (P37), conferir na homologação.
+
+Quando o SIGA corrigir o bug de origem da taxa vencida, a situação passa a `CANCELADO_POR_FALTA_DE_PAGAMENTO` (aceita no final) e o aviso `FLUXO_ENCERRADO_SEM_STATUS` **desaparece sozinho**, sem mudança no Rastro.
+
 ## Dependências do módulo
 
 `tramitacao` não depende de `documento` nem de `dossie` (`ArchitectureTest`); o reuso do que `consulta` oferece é **só por porta**. O domínio não conhece YAML nem Spring (`ArchitectureTest`, regra `dominio_da_tramitacao_sem_yaml`). O SQL contra `SIGA2_CAMUNDA` e `SIGA2_LICENCIAMENTO` fica em `integration.siga` (bloco 3), como todo SQL do SIGA.

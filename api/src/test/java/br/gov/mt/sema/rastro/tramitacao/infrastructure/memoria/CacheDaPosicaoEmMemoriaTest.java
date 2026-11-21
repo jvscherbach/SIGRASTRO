@@ -7,8 +7,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Optional;
 
 import br.gov.mt.sema.rastro.tramitacao.domain.PosicaoAtual;
+import br.gov.mt.sema.rastro.tramitacao.domain.PosicaoConfrontada;
 import org.junit.jupiter.api.Test;
 
 /** Cache da posição (S7, bloco 4): validade, versão do catálogo na chave e teto de entradas. */
@@ -35,7 +38,8 @@ class CacheDaPosicaoEmMemoriaTest {
 
     private final Relogio relogio = new Relogio();
     private final CacheDaPosicaoEmMemoria cache = new CacheDaPosicaoEmMemoria(relogio);
-    private final PosicaoAtual posicao = PosicaoAtual.naoSuportado();
+    private final PosicaoConfrontada posicao = new PosicaoConfrontada(PosicaoAtual.naoSuportado(), Optional.empty(),
+            List.of());
 
     @Test
     void vale_ate_a_validade_e_depois_some() {

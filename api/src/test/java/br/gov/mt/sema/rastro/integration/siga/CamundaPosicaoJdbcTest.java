@@ -25,8 +25,13 @@ import javax.sql.DataSource;
 import br.gov.mt.sema.rastro.integration.siga.CamundaFicticioBuilder.Fluxo;
 import br.gov.mt.sema.rastro.tramitacao.application.ResolverResponsavel;
 import br.gov.mt.sema.rastro.tramitacao.application.port.PosicaoNoFluxo;
+import br.gov.mt.sema.rastro.tramitacao.domain.Aviso;
+import br.gov.mt.sema.rastro.tramitacao.domain.CodigoDoAviso;
+import br.gov.mt.sema.rastro.tramitacao.domain.PosicaoConfrontada;
+import br.gov.mt.sema.rastro.tramitacao.domain.Reconciliar;
 import br.gov.mt.sema.rastro.tramitacao.domain.ResponsavelDaEtapa;
 import br.gov.mt.sema.rastro.tramitacao.infrastructure.catalogo.CatalogoDeGruposDeTeste;
+import br.gov.mt.sema.rastro.tramitacao.infrastructure.catalogo.CatalogoDoConfrontoDeTeste;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import br.gov.mt.sema.rastro.tramitacao.domain.CatalogoDeEtapas;
 import br.gov.mt.sema.rastro.tramitacao.domain.ElementoDaPosicao;
@@ -61,6 +66,7 @@ class CamundaPosicaoJdbcTest {
     private static final long DUAS_INSTANCIAS = 7200;
     private static final long MODELO_ERRADO = 7202;
     private static final long DOZE_ANALISTAS = 7203;
+    private static final long SITUACAO_INCOMPATIVEL = 7204;
 
     private static final CatalogoDeEtapas CATALOGO = CatalogoDeEtapasDeTeste.padrao();
     private static final AtomicInteger CONSULTAS = new AtomicInteger();
@@ -112,6 +118,10 @@ class CamundaPosicaoJdbcTest {
             construtor.processo(Fluxo.HIDRICO, DOZE_ANALISTAS).situacao("EM_ANALISE")
                     .naEtapa("taskAnalisarRequerimento").comAnalistas(12)
                     .desde(LocalDateTime.of(2026, 5, 6, 9, 0)).gravar();
+            // Bloco 5: situação do Licenciamento incompatível com a etapa (conferência com EM_ANALISE).
+            construtor.processo(Fluxo.HIDRICO, SITUACAO_INCOMPATIVEL).situacao("EM_ANALISE")
+                    .naEtapa("taskConferirDocumentosApresentados").paraGrupo("grpSurhConferirDocumentoBarramento")
+                    .desde(LocalDateTime.of(2026, 5, 7, 9, 0)).gravar();
         }
     }
 
@@ -385,6 +395,59 @@ class CamundaPosicaoJdbcTest {
             String texto = json.writeValueAsString(comResponsavel(id));
             assertThat(texto).as("requerimento %d", id).doesNotContainPattern("\\d{11}").doesNotContain("000.000.000");
         }
+    }
+
+    // ---- Bloco 5: confronto com a situação do Licenciamento ----
+
+    private static final Reconciliar RECONCILIAR = new Reconciliar(CatalogoDoConfrontoDeTeste.padrao());
+
+    private static PosicaoConfrontada confrontar(long id) {
+        PosicaoAtual posicao = comResponsavel(id);
+        PosicaoConfrontada confrontada = RECONCILIAR.reconciliar(posicao,
+                camunda.requerimento(id).map(PosicaoNoFluxo.RequerimentoNoFluxo::situacao));
+        // O confronto só acrescenta avisos: a posição sai idêntica.
+        assertThat(confrontada.posicao()).isSameAs(posicao);
+        return confrontada;
+    }
+
+    @ParameterizedTest(name = "{0}: {2}")
+    @CsvSource({
+            "H12, 7012, CONCLUIDO_ANTES_DA_VERIFICACAO",
+            "H18, 7018, FLUXO_ENCERRADO_SEM_STATUS",
+            "H19, 7019, EM_SUPORTE",
+            "H21, 7021, SEM_INSTANCIA",
+            "L07, 7057, EXPIRADO_NA_CORRECAO_LAC",
+            "Duas instâncias, 7200, VARIAS_INSTANCIAS",
+            "Situação incompatível, 7204, SITUACAO_NAO_CONFERE"})
+    void cada_aviso_no_seu_cenario(String cenario, long id, CodigoDoAviso codigo) {
+        assertThat(confrontar(id).avisos()).as(cenario).extracting(Aviso::codigo).containsExactly(codigo);
+    }
+
+    @Test
+    void cenarios_coerentes_nao_tem_aviso() {
+        for (long id : new long[] {H01, CenariosFicticiosDaS7.H02, CenariosFicticiosDaS7.H03, CenariosFicticiosDaS7.H04,
+                CenariosFicticiosDaS7.H05, H06, H07, CenariosFicticiosDaS7.H08, H09, H10, CenariosFicticiosDaS7.H11,
+                CenariosFicticiosDaS7.H13, CenariosFicticiosDaS7.H14, H15, CenariosFicticiosDaS7.H16,
+                CenariosFicticiosDaS7.H17, H20, CenariosFicticiosDaS7.L01, CenariosFicticiosDaS7.L02,
+                CenariosFicticiosDaS7.L03, CenariosFicticiosDaS7.L04, CenariosFicticiosDaS7.L05, CenariosFicticiosDaS7.L06,
+                CenariosFicticiosDaS7.G01, CenariosFicticiosDaS7.G02, CenariosFicticiosDaS7.G03, TRIFASICO}) {
+            assertThat(confrontar(id).avisos()).as("requerimento %d", id).isEmpty();
+        }
+    }
+
+    @Test
+    void h18_mantem_o_final_e_a_situacao_do_siga() {
+        PosicaoConfrontada h18 = confrontar(CenariosFicticiosDaS7.H18);
+        assertThat(h18.posicao().fim()).map(FinalDoFluxo::rotulo).contains("Encerrado por taxa não paga no prazo");
+        assertThat(h18.situacaoDoLicenciamento()).contains("AGUARDANDO_PAGAMENTO_DE_TAXAS");
+    }
+
+    @Test
+    void incompativel_mantem_a_etapa_do_fluxo() {
+        PosicaoConfrontada p = confrontar(SITUACAO_INCOMPATIVEL);
+        assertThat(p.posicao().principal().flatMap(ElementoDaPosicao::etapa)).map(Etapa::id)
+                .contains("conferencia_dos_documentos");
+        assertThat(p.avisos().getFirst().texto()).contains("'EM_ANALISE'").contains("Vale a etapa do fluxo");
     }
 
     @Test
