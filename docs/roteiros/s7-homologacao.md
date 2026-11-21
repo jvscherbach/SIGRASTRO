@@ -127,7 +127,7 @@ Escolha **5 requerimentos reais em etapas diferentes** (por exemplo: cadastro, c
 | `<ID_DO_REQUERIMENTO_D>` | | | | | [ ] Sim / [ ] Não |
 | `<ID_DO_REQUERIMENTO_E>` | | | | | [ ] Sim / [ ] Não |
 
-Quando o Rastro e o Camunda divergirem, vale o Camunda (regra da S7). Quando a situação do SIGA não bater com a etapa, o aviso `SITUACAO_NAO_CONFERE` deve aparecer, **sem troca** da etapa. Se a tabela de compatibilidade (`confronto.yaml`, P37) estiver errada para um caso real, registre em `docs/10`.
+Quando o Rastro e o Camunda divergirem, vale o Camunda (regra da S7). Quando a situação do SIGA não bater com a etapa, o aviso `SITUACAO_NAO_CONFERE` deve aparecer (num processo encerrado, desde a S8, `FINAL_E_SITUACAO_DIVERGEM`), **sem troca** da etapa. Se a tabela de compatibilidade (`confronto.yaml`, P37) estiver errada para um caso real, registre em `docs/10`.
 
 - [ ] OK / [ ] Falhou — observação:
 

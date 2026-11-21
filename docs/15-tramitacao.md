@@ -349,6 +349,8 @@ A **etapa do fluxo sempre prevalece** sobre a situação do Licenciamento (excet
 | `FLUXO_ENCERRADO_SEM_STATUS` | ATENÇÃO | Hídrico encerrado em `Event_0h1oige` (taxa não paga) com a situação `AGUARDANDO_PAGAMENTO_DE_TAXAS` (bug de origem, regra 8) | O fluxo foi encerrado por taxa não paga no prazo, mas o SIGA ainda mostra "aguardando pagamento". |
 | `CONCLUIDO_ANTES_DA_VERIFICACAO` | INFO | situação `CONCLUIDO` com a instância ativa em "Verificação da revisão" (regra 9) | Processo concluído; a verificação da revisão é só arquivamento. |
 | `SITUACAO_NAO_CONFERE` | ATENÇÃO | situação fora das aceitas para a etapa principal (ativa) ou para o final (encerrada) | A situação do SIGA ('X') não corresponde exatamente à etapa do fluxo. Vale a etapa do fluxo. |
+| `FINAL_E_SITUACAO_DIVERGEM` | ATENÇÃO | **S8, bloco 4:** situação fora das aceitas para o **final** (encerrada); antes era `SITUACAO_NAO_CONFERE`, que agora vale só para a etapa ativa | A situação do SIGA ('X') não corresponde ao encerramento do fluxo. Vale o encerramento do fluxo. |
+| `SITUACAO_ARQUIVADO_TEMPORARIAMENTE` | INFO | **S8, bloco 4:** situação `ARQUIVADO_TEMPORARIAMENTE`, que nada no fluxo grava (regra 8); vence o "não confere" | O SIGA mostra "arquivado temporariamente", situação que o fluxo não registra. Vale a etapa do fluxo. |
 | `EXPIRADO_NA_CORRECAO_LAC` | INFO | LAC encerrado em `evtEncerrarProcessoPrazoCorrecaoExpirado` com a situação do expirado no cadastro (regra 8) | O prazo da correção expirou. O SIGA mostra a mesma situação do prazo de cadastro expirado; vale o final do fluxo. |
 | `VARIAS_INSTANCIAS` | ATENÇÃO | mais de uma instância raiz (vale a mais recente) | Há mais de um fluxo para este requerimento; vale o mais recente. |
 | `EM_SUPORTE` | INFO | tarefa "Suporte" ativa | Em atendimento de suporte técnico. |
@@ -361,9 +363,10 @@ O selo mostra o **texto** (não só cor ou ícone). `{situacao}` no texto é tro
 
 1. Ativa: confronta a situação com a **etapa principal** mapeada; encerrada: com o **final**. Sem instância, não suportado, indisponível, principal não mapeada ou situação ausente: **sem confronto** (não se acusa divergência sem base).
 2. Se a situação está entre as **divergências conhecidas** daquela etapa ou final (`conhecidas`), sai o aviso próprio (ele vence o "não confere").
-3. Senão, se a etapa ou o final tem lista de situações **aceitas** e a situação não está nela: `SITUACAO_NAO_CONFERE`.
-4. As marcas da leitura (`VARIAS_INSTANCIAS`, `EM_SUPORTE`, `ETAPA_NAO_MAPEADA`, `SEM_INSTANCIA`) viram os avisos de mesmo nome, depois dos do confronto.
-5. `INDISPONIVEL` leva a situação, quando ela já foi lida antes da falha.
+3. Senão, situação `ARQUIVADO_TEMPORARIAMENTE` (S8): `SITUACAO_ARQUIVADO_TEMPORARIAMENTE` (INFO), também fora de qualquer tabela.
+4. Senão, se a etapa ou o final tem lista de situações **aceitas** e a situação não está nela: `SITUACAO_NAO_CONFERE` (etapa) ou `FINAL_E_SITUACAO_DIVERGEM` (final; S8, bloco 4).
+5. As marcas da leitura (`VARIAS_INSTANCIAS`, `EM_SUPORTE`, `ETAPA_NAO_MAPEADA`, `SEM_INSTANCIA`) viram os avisos de mesmo nome, depois dos do confronto.
+6. `INDISPONIVEL` leva a situação, quando ela já foi lida antes da falha.
 
 ### Tabela de compatibilidade
 
@@ -474,6 +477,27 @@ O motivo só existe a partir do 2º ciclo. A regra olha a passagem **imediatamen
 **Conferência das hipóteses do P40 (bloco 3):** o BPMN e os levantamentos **não estão no repositório**, então nenhuma hipótese pôde ser confirmada aqui. Por isso: (a) os valores esperados das variáveis ficam num único lugar (`MotivosDaVolta`) e são **NÃO CONFIRMADOS**; (b) toda regra baseada em decisão exige rota **e** variável; (c) as duas regras só de rota (recusa no aceite, redistribuição) e a correção vêm do prompt (cenários HC06 e HC07 a HC09); (d) a correção expirada (P40 b) e a devolução da emissão como `INTERNALLY_TERMINATED` (P40 e) só mudam o estado mostrado, nunca criam passagem. Valor diferente na homologação = motivo vazio (não um motivo errado).
 
 Testes: `ReconstruirCaminhoComFixturesTest` (Docker: sequência exata de HC01 a HC15 e LC01 a LC03, motivos, emissão, correção, taxa, complementação, limite; propriedades em todos os HC, HF, LC e LF: nenhuma etapa futura, ordem por entrada, no máximo uma passagem atual, nenhum CPF) e `ReconstruirCaminhoTest` (sem Docker: ciclo sem corpo, repetições, tarefa excluída, etapa não mapeada, motivo vazio sem variável, decisões em conflito, variável fora da janela, booleano numérico, rota × status, isenção, parâmetro de nome).
+
+## Finais e divergências do final (S8, bloco 4)
+
+`AvaliarDesfecho` (`tramitacao.domain`, função pura) recebe o caminho cru e reconstruído, o modelo e a situação do Licenciamento e devolve `DesfechoDoCaminho`: estado (`SEM_INSTANCIA`, `EM_ANDAMENTO`, `CONCLUIDO`, `ENCERRADO`), final do catálogo, quando e avisos. O confronto reusa `Reconciliar` (mesmo arquivo `confronto.yaml`), agora com `confrontarEtapa` e `confrontarFinal` públicos.
+
+| Situação do caminho | Estado | Bola preta | Rótulo | Avisos |
+|---|---|---|---|---|
+| Instância encerrada com `END_ACT_ID_` no catálogo | `ENCERRADO` | sim | o do **evento de fim** (nunca da situação) | divergência conhecida do final, senão `FINAL_E_SITUACAO_DIVERGEM` fora das aceitas |
+| Encerrada com evento fora do catálogo | `ENCERRADO` | não | — | `ETAPA_NAO_MAPEADA` |
+| Ativa na verificação da revisão (regra 9) | `CONCLUIDO` (desde a entrada na verificação, que é o fim da publicação) | não | "Concluído" | `CONCLUIDO_ANTES_DA_VERIFICACAO` sempre; `SITUACAO_NAO_CONFERE` se a situação não é `CONCLUIDO` |
+| Ativa em outra etapa | `EM_ANDAMENTO` | não | — | (o confronto da etapa atual é o da posição) |
+| Sem instância | `SEM_INSTANCIA` | não | — | `SEM_INSTANCIA` (plano B, bloco 5) |
+
+- **Hídrico, taxa vencida (`Event_0h1oige`):** a situação fica como o Licenciamento diz (`AGUARDANDO_PAGAMENTO_DE_TAXAS`), o rótulo é "Encerrado por taxa não paga no prazo" e sai `FLUXO_ENCERRADO_SEM_STATUS`. "Taxa vencida" por data é da S9.
+- **LAC, expirado na correção:** mesma situação do expirado no cadastro; o rótulo vem do evento ("Expirado na correção") e sai `EXPIRADO_NA_CORRECAO_LAC`.
+- **`ARQUIVADO_TEMPORARIAMENTE`:** em qualquer estado, aviso `INFO` neutro, no lugar do "não confere".
+- **Sem situação lida:** nenhuma divergência é acusada.
+- **Rótulo do LAC `Event_0x7hz1p`:** o catálogo diz "Arquivado (termo não enviado no prazo)" (homologado na S7); o prompt da S8 lista "Arquivado". Mantido o do catálogo; o bloco 9 decide se a caixa usa a forma curta (decisão do responsável).
+- **Mudança de contrato da posição (S7):** um final com situação fora da tabela passa a dar `FINAL_E_SITUACAO_DIVERGEM` em vez de `SITUACAO_NAO_CONFERE` (o front não trata os códigos um a um: mostra o texto). A P38 (verificação = status "Concluído" na posição) **não** foi feita neste bloco.
+
+Testes: `AvaliarDesfechoTest` (sem Docker: todos os finais do Hídrico e do LAC, mesma situação com rótulos diferentes, combinação divergente, evento não mapeado, sem situação, arquivado temporariamente, verificação, em andamento, sem instância), `ReconciliarTest` (final divergente, arquivado temporariamente) e `DesfechoComFixturesTest` (Docker: HF01 a HF04, LC01, LF01 a LF05 com a situação gravada, HC01 concluído, em andamento, combinação divergente, PB01).
 
 ## Dependências do módulo
 

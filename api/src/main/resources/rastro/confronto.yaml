@@ -50,6 +50,12 @@ avisos:
   - codigo: SITUACAO_NAO_CONFERE
     gravidade: ATENCAO
     texto: A situação do SIGA ('{situacao}') não corresponde exatamente à etapa do fluxo. Vale a etapa do fluxo.
+  - codigo: FINAL_E_SITUACAO_DIVERGEM
+    gravidade: ATENCAO
+    texto: A situação do SIGA ('{situacao}') não corresponde ao encerramento do fluxo. Vale o encerramento do fluxo.
+  - codigo: SITUACAO_ARQUIVADO_TEMPORARIAMENTE
+    gravidade: INFO
+    texto: O SIGA mostra "arquivado temporariamente", situação que o fluxo não registra. Vale a etapa do fluxo.
   - codigo: EXPIRADO_NA_CORRECAO_LAC
     gravidade: INFO
     texto: O prazo da correção expirou. O SIGA mostra a mesma situação do prazo de cadastro expirado; vale o final do fluxo.
