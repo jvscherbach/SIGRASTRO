@@ -144,6 +144,8 @@ rastro:
   # Tramitação (S7): tempo limite (s) de cada consulta da posição ao Camunda; estourado, a posição fica INDISPONIVEL.
   tramitacao:
     camunda-timeout-segundos: ${RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS:10}
+    # Caminho percorrido (S8): atividades lidas por instância do Camunda; passando disso, a instância vem truncada.
+    limite-de-linhas: ${RASTRO_TRAMITACAO_LIMITE_LINHAS:3000}
     # Nome do servidor com quem está a tarefa (nunca o CPF). Ligado no protótipo; regra definitiva com a SEMA (P32).
     mostrar-nome-responsavel: ${RASTRO_MOSTRAR_NOME_RESPONSAVEL:true}
     # Participantes listados numa equipe (multi-instância); o resto aparece como "e mais N".

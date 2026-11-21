@@ -398,6 +398,38 @@ Zero ocorrências, nenhum 5xx; e a varredura não é vazia (o Gestor vê o nome,
 - **Consulta lenta não segura a thread além do limite:** toda consulta da posição e dos responsáveis recebe `setQueryTimeout(RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS)` (provado por proxy no `CamundaPosicaoJdbcTest`: 8 consultas, 8 tempos limite); o driver Oracle cancela a consulta (`ORA-01013`) e o caso de uso devolve `INDISPONIVEL`. Um servidor que **aceita a conexão e não responde** devolve a thread em menos de 5 s (tempo de conexão do pool; teste com um socket mudo local).
 - Sem SIGA configurado, cada porta tem o seu substituto (`PosicaoNaoConfigurada`, `ResponsaveisNaoConfigurados`): uma classe por porta, para que trocar uma por dublê nos testes não leve a outra.
 
+## Caminho percorrido: leitura do histórico (S8, bloco 2)
+
+Só leitura **crua**: a interpretação (etapas, ciclos, voltas, finais) é do bloco 3 em diante.
+
+| Peça | Onde | Papel |
+|---|---|---|
+| `CaminhoPercorrido` | `tramitacao.application.port` | porta: `lerCaminho(idRequerimento, chaveDoModelo)` devolve `CaminhoBruto`; falha de banco sai como exceção (quem chama transforma em `INDISPONIVEL`; o plano B **nunca** substitui uma falha) |
+| `CamundaPosicaoJdbc` | `integration.siga` | o **mesmo** componente de acesso da posição (R04); implementa a nova porta |
+| `CaminhoBruto` | `tramitacao.domain` | `instancias` (raiz, filhas, complementações), `instanciasRaiz`, `atividades` ordenadas, `variaveisDaEpoca`, `variaveisFinais`; `semInstancia()`, `raiz()`, `truncado()` |
+| `InstanciaDoHistorico` | `tramitacao.domain` | uma linha de `ACT_HI_PROCINST`: origem (`RAIZ`, `FILHA`, `COMPLEMENTACAO`), chave, início, fim, `END_ACT_ID_`, instância-mãe, `truncada` e quantas atividades vieram |
+| `AtividadeBruta` | `tramitacao.domain` | uma linha de `ACT_HI_ACTINST` com a tarefa de `ACT_HI_TASKINST` (`TarefaBruta`): ids, tipo, início, fim, `ASSIGNEE_` protegido, `CALL_PROC_INST_ID_` e o motivo da tarefa (`ABERTA`, `CONCLUIDA`, `EXCLUIDA`, `OUTRO`; o texto de `DELETE_REASON_` não sai) |
+| `VariavelBruta` | `tramitacao.domain` | variável da **lista branca** (`PERMITIDAS`: as seis do prompt); outro nome é recusado, e valor com cara de CPF ou com mais de 100 caracteres é descartado |
+
+### Consultas (no máximo 6 por requerimento; 1 sem instância)
+
+| # | Arquivo | O que lê |
+|---|---|---|
+| 1 | `instancias.sql` (a mesma da posição) | raiz mais recente (e quantas raízes há) |
+| 2 | `historico-filhas.sql` | `ACT_HI_PROCINST` com `SUPER_PROCESS_INSTANCE_ID_` = raiz, encerradas ou não (até 50) |
+| 3 | `historico-complementacoes.sql` | `COMPLEMENTACAO` do requerimento → `ACT_HI_PROCINST` `procGestaoComplementacao`, encerradas ou não (até 20) |
+| 4 | `historico-atividades.sql` | `ACT_HI_ACTINST` + `ACT_HI_TASKINST` (chave primária) de **todas** as instâncias, uma consulta, `IN` por `PROC_INST_ID_`, ordenada por início e id |
+| 5 | `historico-variaveis-epoca.sql` | `ACT_HI_DETAIL` (`VariableUpdate`), só os nomes da lista branca, até 2.000 |
+| 6 | `historico-variaveis-finais.sql` | `ACT_HI_VARINST`, só os nomes da lista branca, até 200 |
+
+Sem laço por linha (provado por `CaminhoPercorridoJdbcTest`, que conta os comandos preparados: 6 em HC01, HC12, HC14 e HC15; 1 nos PB). Parâmetros nomeados, `TO_CHAR` onde há `NVARCHAR2` em `CASE` (regra 12), nenhum `TO_NUMBER`. Tempo limite por consulta: o mesmo `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS`.
+
+- **Ordem:** `START_TIME_` e id da atividade (o id carrega um contador crescente por instância, então o empate de início sai na ordem de gravação). Ruído, repetições e tarefas encerradas sem ação **não são removidos aqui**.
+- **Limite por instância:** `RASTRO_TRAMITACAO_LIMITE_LINHAS` (propriedade `rastro.tramitacao.limite-de-linhas`, padrão **3.000**). A janela é `ROW_NUMBER() OVER (PARTITION BY PROC_INST_ID_ ...)`; a linha 3.001 só indica o excesso e é descartada. A instância fica `truncada` e vem **com as primeiras** atividades, na ordem de gravação (as últimas, e portanto a etapa atual, ficam de fora: a posição atual continua vindo do bloco 3 da S7). O bloco 7 acrescenta o colapso de repetições e o aviso `HISTORICO_TRUNCADO`. Teto teórico de linhas: 71 instâncias (1 raiz + 50 filhas + 20 complementações) × limite.
+- **Duas instâncias raiz:** vale a mais recente; `instanciasRaiz` guarda quantas há (aviso `VARIAS_INSTANCIAS` como na posição). Nada da anterior entra.
+- **Variáveis:** lidas da raiz **e das filhas** (a variável de decisão pode ficar numa filha: NÃO CONFIRMADO, P40). `TEXT_` e `LONG_` vêm separados: o Camunda guarda booleano em `LONG_` (0 ou 1), enquanto as fixtures da S8 gravam o texto `true`; o bloco 3 interpreta e confere (P40).
+- **NÃO CONFIRMADO (P40):** índice em `ACT_HI_PROCINST(SUPER_PROCESS_INSTANCE_ID_)` (se faltar, as consultas 2 são varreduras: recomendação de índice no bloco 7); que `PARENT_ACT_INST_ID_` aponte para o corpo da multi-instância (as fixtures não o preenchem; o bloco 3 agrupa pelo corpo e, se faltar, por proximidade); o valor de `LONG_` dos booleanos reais.
+
 ## Dependências do módulo
 
 `tramitacao` não depende de `documento` nem de `dossie` (`ArchitectureTest`); o reuso do que `consulta` oferece é **só por porta**. O domínio não conhece YAML nem Spring (`ArchitectureTest`, regra `dominio_da_tramitacao_sem_yaml`). O SQL contra `SIGA2_CAMUNDA` e `SIGA2_LICENCIAMENTO` fica em `integration.siga` (bloco 3), como todo SQL do SIGA.

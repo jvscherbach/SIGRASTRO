@@ -129,6 +129,8 @@ Credenciais ficam no arquivo de ambiente do servidor; a tela não as exibe nem e
 
 Valor fora da faixa cai no padrão, com aviso no log.
 
+**`RASTRO_TRAMITACAO_LIMITE_LINHAS`** (S8, bloco 2, padrão **3000**; propriedade `rastro.tramitacao.limite-de-linhas`): quantas atividades do histórico do Camunda são lidas **por instância** no caminho percorrido. Passando disso, a instância vem truncada (as primeiras atividades). Só do ambiente por enquanto; o bloco 7 decide se vai para a tela de Configurações junto com o tempo limite total da tramitação (docs/15, "Caminho percorrido").
+
 ### Rastro (S7, bloco 10)
 
 Aba **Rastro** das Configurações (só Administrador; RN08, `PERFIL_SEM_PERMISSAO` para os demais), com os parâmetros da tramitação. Como nas demais abas, editar não grava: as alterações saem no "Salvar alterações", num **único evento `CONFIG` com antes e depois**. O padrão vem da variável de ambiente; a tela sobrepõe (em memória, some ao reiniciar). **Credenciais não aparecem** na aba.
