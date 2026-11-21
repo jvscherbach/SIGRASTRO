@@ -341,6 +341,29 @@ Quando o SIGA corrigir o bug de origem da taxa vencida, a situação passa a `CA
 
 `GET /requerimentos/{id}/posicao` e `GET /processos/{numero}/posicao` (número com hífen: `7900-2022`); contrato, campos só do Administrador e erros em [docs/07, "Tramitação"](07-api.md#tramitação-s7). O caso de uso `AbrirPosicao` confere o acesso (requerimento pelo `VerificarAcessoAoRequerimento`; processo pela `BuscarRequerimentos` da consulta, uma vez), lê pelo `ConsultarPosicaoAtual`, aplica o **RN12** ao responsável (Operador sem nome) e registra o evento **`TRAMITACAO`** (grupo `DOCUMENTOS`; só usuário e números). Os ids técnicos só saem para o Administrador (`PoliticaDeAcesso.podeVerIdsTecnicosDoFluxo`). `INDISPONIVEL` é 200.
 
+## Acesso, vazamento e resiliência (bloco 7)
+
+### Matriz de acesso
+
+As duas rotas seguem a **regra vigente da consulta** (RN07): o Operador só vê a posição dos requerimentos em que é o interessado (403 `NAO_INTERESSADO` nos outros, 404 no inexistente, conferidos **antes** de ler o Camunda e sem registrar evento); Gestor (`OPERADOR_SIGILO`) e Administrador (`ADMIN`) veem todos; sem sessão, 401. No processo, o filtro do interessado é o da busca por número de processo. Exibição: nome do servidor só para Gestor e Administrador (RN12) e conforme o parâmetro; ids técnicos só para o Administrador. Provado por `MatrizDeAcessoTest` (rotas por perfil) e `TramitacaoHttpTest` (o que sai para cada perfil). O prompt cita `OPERADOR`, `OPERADOR_SIGILO` e `ADMINISTRADOR`: no projeto são `OPERADOR`, `OPERADOR_SIGILO` (rótulo "Gestor") e `ADMIN`.
+
+### Varredura de vazamento ponta a ponta
+
+`VarreduraDaTramitacaoHttpTest` sobe o **serviço inteiro** com o datasource do SIGA apontado para o Oracle de teste (usuário de leitura; Testcontainers, nenhum sistema real) e chama as duas rotas para **todos** os requerimentos fictícios (7001 a 7103 e 7200 a 7205, hoje 37) com os **três perfis**. Resposta e log são varridos:
+
+- **CPF**: 11 dígitos soltos, com máscara ou mascarado parcialmente (`***.123.456-**`); no log, os CPFs fictícios dos cenários, o CNPJ do Operador e os nomes dos servidores;
+- **ids técnicos** (`task*`, `gtw*`, `gwt*`, `evt*`, `proc*`, `Event_*`, `Activity_*`, `Gateway_*`, `#multiInstanceBody`) para quem não é Administrador;
+- **grupos técnicos** (`grp*`/`Grp*`), **chave de arquivo**, **token**, `ASSIGNEE_`, `STATE_`, para todos;
+- nome de servidor para o Operador.
+
+Zero ocorrências, nenhum 5xx; e a varredura não é vazia (o Gestor vê o nome, o Administrador vê os ids). `VarreduraSemNomeDoResponsavelHttpTest` (**teste de negação**) repete tudo com `RASTRO_MOSTRAR_NOME_RESPONSAVEL=false`: nenhum `"nome":"…"` nem "Servidor Exemplo" em nenhuma resposta; ficam o papel e a área. O requerimento 7205 (análise com 3 analistas, interessado = o do Operador de demonstração) é criado pelo próprio teste para cobrir a visão do Operador.
+
+### Resiliência
+
+- **Camunda fora do ar** ou **tempo limite estourado**: a posição responde **200 com `INDISPONIVEL`** (com o modelo e a situação, se já lidos), nunca 5xx, e o **detalhe do requerimento** (`GET /requerimentos/{id}`) segue normal (`ResilienciaDaTramitacaoHttpTest`, com o caso de uso real e só a leitura do Camunda trocada).
+- **Consulta lenta não segura a thread além do limite:** toda consulta da posição e dos responsáveis recebe `setQueryTimeout(RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS)` (provado por proxy no `CamundaPosicaoJdbcTest`: 8 consultas, 8 tempos limite); o driver Oracle cancela a consulta (`ORA-01013`) e o caso de uso devolve `INDISPONIVEL`. Um servidor que **aceita a conexão e não responde** devolve a thread em menos de 5 s (tempo de conexão do pool; teste com um socket mudo local).
+- Sem SIGA configurado, cada porta tem o seu substituto (`PosicaoNaoConfigurada`, `ResponsaveisNaoConfigurados`): uma classe por porta, para que trocar uma por dublê nos testes não leve a outra.
+
 ## Dependências do módulo
 
 `tramitacao` não depende de `documento` nem de `dossie` (`ArchitectureTest`); o reuso do que `consulta` oferece é **só por porta**. O domínio não conhece YAML nem Spring (`ArchitectureTest`, regra `dominio_da_tramitacao_sem_yaml`). O SQL contra `SIGA2_CAMUNDA` e `SIGA2_LICENCIAMENTO` fica em `integration.siga` (bloco 3), como todo SQL do SIGA.

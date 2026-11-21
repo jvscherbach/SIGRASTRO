@@ -13,11 +13,20 @@ import static br.gov.mt.sema.rastro.integration.siga.CenariosFicticiosDaS7.TRIFA
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.sql.DataSource;
@@ -43,6 +52,7 @@ import br.gov.mt.sema.rastro.tramitacao.domain.MontadorDaPosicao;
 import br.gov.mt.sema.rastro.tramitacao.domain.PosicaoAtual;
 import br.gov.mt.sema.rastro.tramitacao.domain.Ramo;
 import br.gov.mt.sema.rastro.tramitacao.infrastructure.catalogo.CatalogoDeEtapasDeTeste;
+import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -458,7 +468,7 @@ class CamundaPosicaoJdbcTest {
         }
     }
 
-    /** Conta cada comando preparado (uma consulta) que passa pelo datasource. */
+    /** Conta cada comando preparado (uma consulta) e cada tempo limite aplicado a ele. */
     private static DataSource contando(DataSource alvo) {
         return (DataSource) Proxy.newProxyInstance(CamundaPosicaoJdbcTest.class.getClassLoader(),
                 new Class<?>[] {DataSource.class}, (proxy, metodo, args) -> {
@@ -469,11 +479,73 @@ class CamundaPosicaoJdbcTest {
                                     if (m2.getName().startsWith("prepare") || m2.getName().equals("createStatement")) {
                                         CONSULTAS.incrementAndGet();
                                     }
-                                    return invocar(conexao, m2, a2);
+                                    Object criado = invocar(conexao, m2, a2);
+                                    if (criado instanceof PreparedStatement comando) {
+                                        return Proxy.newProxyInstance(CamundaPosicaoJdbcTest.class.getClassLoader(),
+                                                new Class<?>[] {PreparedStatement.class}, (p3, m3, a3) -> {
+                                                    if (m3.getName().equals("setQueryTimeout")) {
+                                                        TEMPOS_LIMITE.add((Integer) a3[0]);
+                                                    }
+                                                    return invocar(comando, m3, a3);
+                                                });
+                                    }
+                                    return criado;
                                 });
                     }
                     return resultado;
                 });
+    }
+
+    private static final List<Integer> TEMPOS_LIMITE = new CopyOnWriteArrayList<>();
+
+    // ---- Bloco 7: resiliência ----
+
+    @Test
+    void toda_consulta_da_posicao_e_dos_responsaveis_tem_tempo_limite() {
+        CONSULTAS.set(0);
+        TEMPOS_LIMITE.clear();
+        comResponsavel(H06); // as 8 consultas
+        assertThat(CONSULTAS.get()).isEqualTo(CamundaPosicaoJdbc.CONSULTAS_NO_MAXIMO);
+        assertThat(TEMPOS_LIMITE).hasSize(CONSULTAS.get()).containsOnly(10);
+    }
+
+    @Test
+    void servidor_mudo_nao_segura_a_thread_alem_do_limite() throws Exception {
+        try (ServerSocket mudo = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
+            Thread aceitador = Thread.ofVirtual().start(() -> {
+                List<Socket> abertos = new ArrayList<>();
+                try {
+                    while (!mudo.isClosed()) {
+                        abertos.add(mudo.accept()); // aceita e nunca responde
+                    }
+                } catch (IOException fim) {
+                    abertos.forEach(s -> {
+                        try {
+                            s.close();
+                        } catch (IOException ignorada) {
+                            // fechando
+                        }
+                    });
+                }
+            });
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl("jdbc:oracle:thin:@//127.0.0.1:" + mudo.getLocalPort() + "/MUDO");
+            config.setUsername("x");
+            config.setPassword("x");
+            config.setConnectionTimeout(1000);
+            config.setInitializationFailTimeout(-1);
+            config.setMinimumIdle(0);
+            config.setMaximumPoolSize(1);
+            try (HikariDataSource lento = new HikariDataSource(config)) {
+                CamundaPosicaoJdbc camundaMudo = new CamundaPosicaoJdbc(new NamedParameterJdbcTemplate(lento), 1);
+                long inicio = System.nanoTime();
+                assertThatThrownBy(() -> camundaMudo.ler(H01, "procOutorgaAguaSupSub"))
+                        .isInstanceOf(DataAccessException.class);
+                assertThat(Duration.ofNanos(System.nanoTime() - inicio)).isLessThan(Duration.ofSeconds(5));
+            }
+            mudo.close();
+            aceitador.join(Duration.ofSeconds(5));
+        }
     }
 
     private static Object invocar(Object alvo, java.lang.reflect.Method metodo, Object[] args) throws Throwable {

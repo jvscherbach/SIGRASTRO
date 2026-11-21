@@ -127,6 +127,8 @@ Credenciais ficam no arquivo de ambiente do servidor; a tela não as exibe nem e
 
 Valor fora da faixa cai no padrão, com aviso no log. O bloco 10 da S7 leva os três para a tela de Configurações.
 
+**Resiliência e variáveis (S7, bloco 7).** O tempo de resposta da posição no pior caso é limitado por três variáveis já existentes: `SIGA_DB_CONN_TIMEOUT_MS` (5000; espera por uma conexão do pool, inclusive com o banco mudo), `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS` (10; cada uma das até 8 consultas) e `SIGA_DB_READ_TIMEOUT_MS` (30000; leitura do socket, por baixo). Estourar qualquer uma delas devolve a posição `INDISPONIVEL` (200), nunca 5xx; o detalhe do requerimento não depende da posição. Com o desligamento do nome (`RASTRO_MOSTRAR_NOME_RESPONSAVEL=false`), nenhuma resposta da posição traz nome de servidor, provado por varredura em todos os cenários (docs/15).
+
 ### Modo de demonstração e servidor MCP (S6, bloco 7)
 
 Variáveis de ambiente, fora da tela:

@@ -87,6 +87,11 @@ final class SigaOracleTeste {
         return new HikariDataSource(config);
     }
 
+    /** URL do Oracle de teste, para um contexto Spring apontar o datasource do SIGA para ele (S7, bloco 7). */
+    static String urlJdbc() {
+        return ORACLE.getJdbcUrl();
+    }
+
     static HikariDataSource dataSourceLeitura() {
         return dataSource(LEITURA, SENHA_LEITURA);
     }
