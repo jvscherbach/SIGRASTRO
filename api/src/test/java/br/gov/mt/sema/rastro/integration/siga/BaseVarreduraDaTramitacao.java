@@ -123,6 +123,23 @@ abstract class BaseVarreduraDaTramitacao {
         }
     }
 
+    /**
+     * S8, bloco 11: os requerimentos fictícios das duas faixas, para a rota da tramitação completa: os da S7 (7000 a 7299)
+     * e os do caminho percorrido da S8 (HC, HF, LC, LF e PB, 8000 a 8299, incluindo os criados pelos testes da S8).
+     */
+    static List<Long> requerimentosDaTramitacaoCompleta() {
+        try (HikariDataSource leitura = SigaOracleTeste.dataSourceLeitura()) {
+            return new NamedParameterJdbcTemplate(leitura).queryForList(
+                    "SELECT ID FROM SIGA2_LICENCIAMENTO.REQUERIMENTO WHERE ID BETWEEN 7000 AND 7299 OR ID BETWEEN 8000 AND 8299"
+                            + " ORDER BY ID",
+                    new MapSqlParameterSource(), Long.class);
+        }
+    }
+
+    /** Processos da varredura da tramitação: o 1:N da S7, um da S8 e o do Operador. */
+    static final List<String> PROCESSOS_DA_TRAMITACAO = List.of("7900-2022", "8001-2026",
+            PROCESSO_DO_OPERADOR.replace('/', '-'));
+
     String token(String usuario) throws Exception {
         String guardado = tokens.get(usuario);
         if (guardado != null) {

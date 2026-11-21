@@ -123,7 +123,7 @@ Credenciais ficam no arquivo de ambiente do servidor; a tela não as exibe nem e
 
 | Variável | Padrão | Faixa | Efeito |
 |---|---|---|---|
-| `RASTRO_MOSTRAR_NOME_RESPONSAVEL` | `true` (protótipo) | `true`/`false` | desligado, só a área e o papel, sem nome do servidor (nunca o CPF, em nenhum caso). Regra definitiva depende da SEMA (P32) |
+| `RASTRO_MOSTRAR_NOME_RESPONSAVEL` | `true` (protótipo) | `true`/`false` | desligado, só a área e o papel, sem nome do servidor (nunca o CPF, em nenhum caso). Vale também na tramitação completa (S8): passagens, participantes da multi-instância, signatários da emissão e, portanto, a linha do tempo e o fluxograma, que se desenham a partir das passagens; aplicado depois do cache (próxima leitura). Provado pela varredura `VarreduraSemNomeDoResponsavelHttpTest` (S8, bloco 11, todos os cenários e perfis). Regra definitiva depende da SEMA (P32) |
 | `RASTRO_MAX_NOMES_POR_EQUIPE` | 10 | 1 a 100 | participantes listados numa equipe; o resto aparece como "e mais N" |
 | `RASTRO_POSICAO_CACHE_SEGUNDOS` | 30 | 0 a 3600 | validade do cache da posição em memória; 0 desliga |
 

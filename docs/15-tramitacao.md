@@ -397,6 +397,10 @@ As duas rotas seguem a **regra vigente da consulta** (RN07): o Operador só vê 
 
 ### Varredura de vazamento ponta a ponta
 
+**S8, bloco 11 (tramitação completa):** as mesmas varreduras passaram a cobrir `GET /api/requerimentos/{id}/tramitacao` e `GET /api/processos/{numero}/tramitacao`, com o serviço inteiro contra o Oracle de teste, em **todos** os requerimentos fictícios das duas faixas (S7, 7000 a 7299; S8, 8000 a 8299: HC01 a HC15, HF01 a HF04, LC01 a LC03, LF01 a LF05, PB01 a PB03 e os criados pelos testes) × Operador, Gestor e Administrador, e o log. Zero CPF (solto, com e sem máscara, incluindo o `CPF_USUARIO` fictício do plano B), grupo técnico, chave, token ou coluna do Camunda; ids técnicos e os campos `idTecnico`, `repeticoes`, `idsNaoMapeados` e `diagnosticos` só para o Administrador; nenhum nome de servidor para o Operador; plano B com `aproximado` e sem nenhum responsável (`VarreduraDaTramitacaoHttpTest`). Com `RASTRO_MOSTRAR_NOME_RESPONSAVEL` desligado, nenhum nome em passagens, participantes ou signatários, para nenhum perfil, e o papel continua (`VarreduraSemNomeDoResponsavelHttpTest`). O plano B é provado também pelo SQL de fato emitido ao Oracle (`PlanoBSemResponsavelTest`: nunca `SERVIDOR`, `PESSOA`, CPF nem `ASSIGNEE_`; o caminho do Camunda, ao contrário, consulta `SERVIDOR` para o nome, o que mostra que a captura funciona) e pelo contrato `HistoricoAproximadoResponse` (nenhum campo de responsável, nome ou CPF). A matriz de acesso das rotas por perfil e sem login é a do bloco 6 (`MatrizDeAcessoTest`, `TramitacaoCompletaHttpTest`).
+
+**S7, bloco 7 (posição):**
+
 `VarreduraDaTramitacaoHttpTest` sobe o **serviço inteiro** com o datasource do SIGA apontado para o Oracle de teste (usuário de leitura; Testcontainers, nenhum sistema real) e chama as duas rotas para **todos** os requerimentos fictícios (7001 a 7103 e 7200 a 7205, hoje 37) com os **três perfis**. Resposta e log são varridos:
 
 - **CPF**: 11 dígitos soltos, com máscara ou mascarado parcialmente (`***.123.456-**`); no log, os CPFs fictícios dos cenários, o CNPJ do Operador e os nomes dos servidores;
