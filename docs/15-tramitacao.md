@@ -205,6 +205,8 @@ Levantamentos 1 e 2, confirmadas em homologação e produção. Valem para todo 
 | G02 | 7102 | Hídrico | `EM_CONFERENCIA` | conferência | grupo `0` |
 | G03 | 7103 | Hídrico | `EM_ANALISE` | revisão do parecer | CPF sem servidor (`Responsável não identificado`) |
 
+A tabela de **resultado esperado por cenário** (etapa, com quem, avisos) e a conferência na tela estão no roteiro [roteiros/s7-homologacao.md](roteiros/s7-homologacao.md), seção 1 (bloco 11).
+
 As situações são **hipóteses fictícias** coerentes com a lista do Apêndice A de docs/04 (P34); a tabela de compatibilidade situação × etapa é do bloco 5. Como criar um cenário novo: docs/13, "Dados fictícios de teste".
 
 ## Posição atual (bloco 3)
