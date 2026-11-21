@@ -430,6 +430,51 @@ Sem laço por linha (provado por `CaminhoPercorridoJdbcTest`, que conta os coman
 - **Variáveis:** lidas da raiz **e das filhas** (a variável de decisão pode ficar numa filha: NÃO CONFIRMADO, P40). `TEXT_` e `LONG_` vêm separados: o Camunda guarda booleano em `LONG_` (0 ou 1), enquanto as fixtures da S8 gravam o texto `true`; o bloco 3 interpreta e confere (P40).
 - **NÃO CONFIRMADO (P40):** índice em `ACT_HI_PROCINST(SUPER_PROCESS_INSTANCE_ID_)` (se faltar, as consultas 2 são varreduras: recomendação de índice no bloco 7); que `PARENT_ACT_INST_ID_` aponte para o corpo da multi-instância (as fixtures não o preenchem; o bloco 3 agrupa pelo corpo e, se faltar, por proximidade); o valor de `LONG_` dos booleanos reais.
 
+## Reconstrução do caminho (S8, bloco 3)
+
+`ReconstruirCaminho` (`tramitacao.domain`, função pura, sem banco) transforma o `CaminhoBruto` do bloco 2, com o modelo do catálogo e a identificação dos responsáveis (a mesma porta da S7, `IdentificacaoDosResponsaveis`; `ReconstruirCaminho.paraConsultar` lista os CPFs), em `CaminhoReconstruido`: lista ordenada de `PassagemPelaEtapa`, complementações ao lado, taxa do ramo principal e da correção, ids não mapeados, contagem de ignorados e diagnósticos. O final (bola preta) é do bloco 4; o plano B, do bloco 5.
+
+| Peça | Conteúdo |
+|---|---|
+| `PassagemPelaEtapa` | etapa (vazia = "Etapa não mapeada"), `ciclo`, `ramo`, `entrada`, `saida` (vazia = atual), `duracao()`, `responsaveis[]`, `multiInstancia`, `atos[]`, `motivoDaVolta`, `emParalelo`, `repeticoes` (diagnóstico), `processoConcluido` (selo da verificação da revisão); `semNomes()` aplica o parâmetro de nome |
+| `ResponsavelDaPassagem` | tipo, papel, nome (nunca CPF), início, fim e estado: `CONCLUIU`, `PENDENTE`, `ENCERRADA_SEM_ACAO` |
+| `AtoDaEmissao` | tipo (autorização, outros atos, certificado, portaria, não mapeado), início, fim, estado (`EMITIDO`, `NAO_CONCLUIDO`, `EM_ANDAMENTO`, `INDETERMINADO`); `ocorreu()` = emitido |
+| `MotivosDaVolta` / `MotivoDaVolta` | regras explícitas do motivo (tabela abaixo) |
+
+### Regras
+
+1. **Percorrida** = atividade com fim e, se tarefa, `completed`. Tarefa `deleted` ou com outro motivo **não** vira passagem (no ciclo multi-instância, ela aparece como participante "encerrada sem ação"). A atividade aberta é a passagem atual.
+2. **Ruído:** id ignorado pelo catálogo (Suporte, `Gateway_aguardando_emtx`, `taskAnalisarReducaoTaxa`) sai e é contado. Id fora do catálogo: se for **tarefa humana**, vira passagem "Etapa não mapeada"; senão (scripts, eventos, gateways, "Report Kafka", repetição por erro) sai do caminho e vai para `idsNaoMapeados` (só Administrador). O protocolo depois do pagamento (`taskGerarNumeroProtocolo` com passagem pela espera) fica nesse grupo: o rótulo dele continua NÃO CONFIRMADO (P33).
+3. **Repetições consecutivas** da mesma etapa viram uma passagem (`repeticoes` conta quantas atividades); por isso scripts repetidos por erro e os vários ids de uma etapa automática somem numa caixa só. **Duas tarefas humanas seguidas da mesma etapa** continuam duas passagens (a segunda é uma volta real).
+4. **Multi-instância:** uma passagem por ciclo, entre o início e o fim do corpo `<tarefa>#multiInstanceBody`; tarefas do mesmo id iniciadas dentro dele são os participantes. Sem corpo, as tarefas seguidas da etapa formam o ciclo. Ciclo encerrado sem nenhuma tarefa concluída não é percorrido.
+5. **Emissão:** `callActivity` seguidas da etapa "Emissão do ato" e as filhas ligadas por `CALL_PROC_INST_ID_` viram **uma** passagem, com um ato por filha; os responsáveis são os signatários das tarefas das filhas ("Signatário"). Filha sem a chamada lida (raiz truncada) vira emissão própria, pela data. Filha que termina sem `COMPLETED` (devolvida, P40) fica `NAO_CONCLUIDO`. O tipo do ato é pela chave do processo filho ou da chamada (as do levantamento 2, em `AtoDaEmissao.Tipo`).
+6. **Ciclo** = n-ésima passagem pela etapa (contagem por etapa, na ordem). **Em paralelo** = a passagem se sobrepõe no tempo (estritamente) a outra passagem ou a uma complementação.
+7. **Taxável × isento pela rota:** passou (ou está) numa espera do ramo principal = `TAXAVEL`; senão, passou por "Isenção confirmada" = `ISENTA`; senão `INDETERMINADA`. Correção: espera própria = `TAXAVEL`, sem ela = `SEM_NOVA_TAXA`. O último `statusConferencia` da época que seja `isento` ou `taxavel` só confirma; se discordar, a rota vence e sai `ROTA_DIVERGE_DO_STATUS` (só no diagnóstico).
+8. **Ramo da correção** vem do catálogo (C1 a C3). "Correção expirada" no Hídrico: a tarefa de correção `deleted` não conta, a passagem da correção fica com o que foi percorrido (o script de status) e o fluxo segue para a análise; não é final.
+9. **Verificação da revisão do processo** é passagem normal, com `processoConcluido = true` (regra técnica 9).
+
+### Motivos da volta
+
+O motivo só existe a partir do 2º ciclo. A regra olha a passagem **imediatamente anterior** e o **valor da época** das variáveis da lista branca entre a entrada da anterior e a entrada da volta (inclusive). Sem a rota e a variável exigidas, ou com duas decisões disputando a mesma volta: **sem motivo**.
+
+| Volta para | Passagem anterior | Exige | Motivo (`MotivoDaVolta`) |
+|---|---|---|---|
+| qualquer etapa do ramo principal | do ramo da correção | — | `CORRECAO_DO_REQUERIMENTO` ("depois da correção do requerimento") |
+| Cadastro | Conferência | `statusConferencia` = `reprovado` | `REPROVADO_NA_CONFERENCIA` |
+| Análise | Validação | `decisaoValidacaoParecerTecnico` = `RA` **ou** `isRevisaoAnalise` verdadeiro (não os dois) | `DEVOLVIDO_NA_VALIDACAO_PARA_ANALISE` ou `TROCA_DE_ANALISTA` |
+| Análise | Revisão do parecer | `isRevisaoAnalise` verdadeiro, sem `RA` | `TROCA_DE_ANALISTA` |
+| Revisão do parecer | Validação | `decisaoValidacaoParecerTecnico` = `RP`, sem troca | `DEVOLVIDO_NA_VALIDACAO_PARA_REVISAO` |
+| Revisão do parecer | Emissão do ato | `isRevisaoParecer` verdadeiro | `DEVOLVIDO_NA_EMISSAO` |
+| Emissão do ato | Verificação da revisão | `decisaoVerificarRevisao` = `REVISAR` | `REVISAR_NA_VERIFICACAO` |
+| Atribuição | Aceite | algum participante do aceite "encerrada sem ação" | `RECUSA_NO_ACEITE` |
+| Atribuição | Análise | — | `REDISTRIBUICAO` |
+
+"Verdadeiro" = `true` (texto) ou `1` (`LONG_`). Os valores comparam sem diferença de maiúsculas.
+
+**Conferência das hipóteses do P40 (bloco 3):** o BPMN e os levantamentos **não estão no repositório**, então nenhuma hipótese pôde ser confirmada aqui. Por isso: (a) os valores esperados das variáveis ficam num único lugar (`MotivosDaVolta`) e são **NÃO CONFIRMADOS**; (b) toda regra baseada em decisão exige rota **e** variável; (c) as duas regras só de rota (recusa no aceite, redistribuição) e a correção vêm do prompt (cenários HC06 e HC07 a HC09); (d) a correção expirada (P40 b) e a devolução da emissão como `INTERNALLY_TERMINATED` (P40 e) só mudam o estado mostrado, nunca criam passagem. Valor diferente na homologação = motivo vazio (não um motivo errado).
+
+Testes: `ReconstruirCaminhoComFixturesTest` (Docker: sequência exata de HC01 a HC15 e LC01 a LC03, motivos, emissão, correção, taxa, complementação, limite; propriedades em todos os HC, HF, LC e LF: nenhuma etapa futura, ordem por entrada, no máximo uma passagem atual, nenhum CPF) e `ReconstruirCaminhoTest` (sem Docker: ciclo sem corpo, repetições, tarefa excluída, etapa não mapeada, motivo vazio sem variável, decisões em conflito, variável fora da janela, booleano numérico, rota × status, isenção, parâmetro de nome).
+
 ## Dependências do módulo
 
 `tramitacao` não depende de `documento` nem de `dossie` (`ArchitectureTest`); o reuso do que `consulta` oferece é **só por porta**. O domínio não conhece YAML nem Spring (`ArchitectureTest`, regra `dominio_da_tramitacao_sem_yaml`). O SQL contra `SIGA2_CAMUNDA` e `SIGA2_LICENCIAMENTO` fica em `integration.siga` (bloco 3), como todo SQL do SIGA.
