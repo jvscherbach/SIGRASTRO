@@ -61,7 +61,14 @@
             <h2><app-icone nome="search" />Resultados da consulta</h2>
             <p>{{ pagina.totalElementos }} resultado(s). Selecione um para abrir.</p>
           </div>
-          <button type="button" class="link-btn" (click)="fecharResultados()"><app-icone nome="close" />Fechar resultados</button>
+          <span class="row">
+            @if (pagina.conteudo.length) {
+              <button type="button" class="link-btn" [attr.aria-pressed]="mostrarEtapa()" (click)="mostrarEtapa.set(!mostrarEtapa())">
+                <app-icone nome="flow" />{{ mostrarEtapa() ? 'Ocultar etapa atual' : 'Mostrar etapa atual' }}
+              </button>
+            }
+            <button type="button" class="link-btn" (click)="fecharResultados()"><app-icone nome="close" />Fechar resultados</button>
+          </span>
         </div>
         @if (processoRepetido()) {
           <div class="note amber processo-repetido" role="status" style="margin-bottom: 12px">
@@ -77,6 +84,9 @@
                   <th>Interessado</th>
                   <th>Tipo de processo</th>
                   <th>Situação</th>
+                  @if (mostrarEtapa()) {
+                    <th>Etapa atual</th>
+                  }
                   <th>Abertura</th>
                   <th></th>
                 </tr>
@@ -94,6 +104,9 @@
                     </td>
                     <td>{{ r.tipoProcesso || '—' }}</td>
                     <td><app-situacao-tag [situacao]="r.situacao" /></td>
+                    @if (mostrarEtapa()) {
+                      <td class="etapa-atual"><app-onde-esta-agora modo="celula" [idRequerimento]="r.id" /></td>
+                    }
                     <td class="nowrap">{{ formatarData(r.abertura) }}</td>
                     <td style="text-align: right">
                       <button type="button" class="btn sm" (click)="abrir(r.id)">Abrir<app-icone nome="arrow" /></button>

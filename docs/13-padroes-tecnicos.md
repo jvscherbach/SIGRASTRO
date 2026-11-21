@@ -34,6 +34,7 @@ Pacote raiz `br.gov.mt.sema.rastro` (antes `br.gov.mt.sema.vistas`; renomeado na
 | `dossie` | pedidos de geração, fila, conversão, montagem do PDF, expiração, regra "nada incompleto sem decisão" (RN09) e continuação |
 | `auditoria` | registro (somente inclusão) e consulta de eventos de documentos e de acessos |
 | `configuracao` | parâmetros administráveis |
+| `tramitacao` | posição do requerimento no fluxo do Camunda (etapa atual, desde quando, com quem) pelo catálogo de etapas em YAML (`resources/rastro/etapas/`); não depende de `documento` nem de `dossie` (S7, docs/15) |
 | `integration.siga` | **único** lugar que conhece tabelas, colunas, SQL e enums do banco do SIGA |
 | `integration.licenciamento` | cliente da API de arquivos do Licenciamento (`/api/arquivo/{chave}`) |
 | `integration.scorp` | cliente do SCORP (documentos pessoais de interessado, representantes e responsáveis técnicos) |
@@ -199,6 +200,18 @@ O volume só guarda temporários do dossiê, do modal e das geometrias (todos ex
 ## Verificação sem sistemas externos
 
 Toda subida de verificação usa `compose.yaml` + `compose.local.yaml` + **`compose.verificacao.yaml`**, que esvazia as variáveis externas, e confirma as variáveis vazias dentro do container (D34; [`padroes/ambientes-e-docker.md`](padroes/ambientes-e-docker.md)).
+
+### Dados fictícios de teste (recorte do SIGA e cenários do Camunda, S7 bloco 2)
+
+O **único** mecanismo de dados do SIGA em teste é o recorte no Oracle 23 Free por Testcontainers: `SigaOracleTeste` sobe o container uma vez por execução do Maven e roda, como `system`, os scripts `api/src/test/resources/sql/siga/01-recorte.sql` a `06-camunda-s7.sql` (DDL mínimo + dados fixos), e em seguida grava os cenários da tramitação com o `CamundaFicticioBuilder` (`CenariosFicticiosDaS7`). O Compose de verificação **não** tem SIGA (R66, R69). Lista dos cenários: [docs/15](15-tramitacao.md#ambiente-de-verificação-camunda-e-licenciamento-fictícios-bloco-2).
+
+**Como criar um cenário novo:**
+
+1. Escolha um id livre (7000 a 7199 são da S7; a S8 e a S9 podem usar 7200 em diante) e use número `<id>/2026`.
+2. Se ele for de uso geral (outros testes vão consultá-lo), acrescente-o em `CenariosFicticiosDaS7.carregar` com uma constante e documente a linha na tabela de docs/15. Se for só de um teste, grave-o no próprio teste: `new CamundaFicticioBuilder(new NamedParameterJdbcTemplate(SigaOracleTeste.dataSourceAdministrador()), CatalogoDeEtapasDeTeste.padrao()).processo(Fluxo.HIDRICO, 7201)...gravar()` (feche o datasource).
+3. Use só ids técnicos do catálogo (`rastro/etapas/*.yml`); o construtor recusa o resto. Coluna nova do SIGA: `ALTER TABLE` num script novo `0N-...sql` (nunca recriar tabela que outro script já criou) com o `GRANT SELECT` ao usuário de leitura, e acrescente o script na lista de `SigaOracleTeste`.
+4. Dados pessoais: só CPFs `000000000NN` (inválidos de propósito) e nomes evidentes ("Servidor Exemplo NN", "Interessado Fictício S7"). `DadosFicticiosDaS7Test` varre as fixtures (sem Docker) e falha em CPF/CNPJ válido, sem imprimir o valor.
+5. `CamundaFicticioBuilderTest` confere o que foi gravado (tarefas, filhas, assinaturas, finais). Sem Docker, os testes de integração ficam pulados, mas `CamundaFicticioBuilderValidacaoTest` e `DadosFicticiosDaS7Test` rodam.
 
 ## Regras que não mudam
 

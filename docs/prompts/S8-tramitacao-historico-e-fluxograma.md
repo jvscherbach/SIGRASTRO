@@ -24,6 +24,13 @@ Leia antes de começar: `docs/02`, `docs/03`, `docs/07`, `docs/08`, `docs/09`, `
 - **Camunda lento ou fora:** o histórico responde `INDISPONIVEL`, e o plano B **não** é usado como substituto silencioso (seria mostrar dado aproximado como se fosse exato): mostra o aviso e a posição do Licenciamento.
 - **Leitura direta por `PROC_INST_ID_`**, com cache curto, **limite de linhas** por requerimento e recusa explícita acima do limite (ex.: instância com milhares de atividades por erro repetido: colapsa repetições e, se ainda passar do limite, devolve o que coube com aviso `HISTORICO_TRUNCADO`).
 
+## Correções herdadas da S7 (decisões do responsável, D83; fazer na S8)
+
+Estas duas correções vêm de decisões do responsável depois da S7 e **entram na S8** (sessão e bloco a definir no início da sprint; não pertencem a um bloco já descrito acima):
+
+1. **Verificação da revisão = processo concluído (P38).** A etapa `verificacao_da_revisao_do_processo` (`taskVerificarRevisaoProcesso`) **não é etapa em andamento**: é o arquivamento do processo concluído. Na tela, a posição mostra o **status "Concluído"** (o mesmo estado de um final), com o aviso neutro `CONCLUIDO_ANTES_DA_VERIFICACAO`. Mudança de contrato: o `estado` ou o `final` da posição passa a refletir "Concluído" para H12 (e para qualquer requerimento na verificação da revisão). Atualizar `docs/15` (regra 9 e avisos), `docs/07` (`PosicaoResponse`), `docs/08` ("Onde está agora") e o roteiro `docs/roteiros/s7-homologacao.md` (linha H12).
+2. **"Camunda" fora das telas de consulta (P39).** O termo não aparece em nenhuma tela de consulta, para **nenhum** perfil. A aba Conexões das Configurações pode mostrar o teste do fluxo, **somente para o Administrador** (RN08). Teste de regressão: percorrer as telas de consulta de cada perfil e procurar o termo; ajustar `docs/08` ("Termos na interface").
+
 ## Regras desta sprint
 
 - **Você não executa nada contra o SIGA real, o SCORP real, o Camunda real nem a API de arquivos real.** Testes e demonstração com dados **fictícios e sintéticos** (nenhum CPF, CNPJ, nome, número de processo ou número de DAR real em teste, doc, exemplo, log ou repositório). CPF fictício é sempre **inválido de propósito** (ex.: `000.000.000-01`) e nomes são evidentes (`Servidor Exemplo 01`).

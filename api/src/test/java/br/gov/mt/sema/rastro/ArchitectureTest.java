@@ -32,7 +32,7 @@ class ArchitectureTest {
 
     private static final String RAIZ = "br.gov.mt.sema.rastro.";
     private static final List<String> MODULOS =
-            List.of("acesso", "consulta", "documento", "dossie", "auditoria", "configuracao");
+            List.of("acesso", "consulta", "documento", "dossie", "auditoria", "configuracao", "tramitacao");
     private static final List<String> INTEGRACOES =
             List.of("siga", "licenciamento", "scorp", "arrecadacao", "libreoffice");
 
@@ -228,6 +228,20 @@ class ArchitectureTest {
     static final ArchRule cadastro_de_usuarios_e_interno_ao_acesso =
             noClasses().that().resideOutsideOfPackage(RAIZ + "acesso..")
                     .should().dependOnClassesThat().belongToAnyOf(CadastroDeUsuarios.class)
+                    .allowEmptyShould(true);
+
+    // S7 (bloco 1): a tramitação só lê e mostra a posição; não conhece documentos nem dossiê.
+    @ArchTest
+    static final ArchRule tramitacao_nao_depende_de_documento_nem_de_dossie =
+            noClasses().that().resideInAPackage(RAIZ + "tramitacao..")
+                    .should().dependOnClassesThat().resideInAnyPackage(RAIZ + "documento..", RAIZ + "dossie..")
+                    .allowEmptyShould(true);
+
+    // S7 (bloco 1): o domínio da tramitação não conhece o formato do arquivo do catálogo (YAML fica na infraestrutura).
+    @ArchTest
+    static final ArchRule dominio_da_tramitacao_sem_yaml =
+            noClasses().that().resideInAPackage(RAIZ + "tramitacao.domain..")
+                    .should().dependOnClassesThat().resideInAnyPackage("org.yaml..", "org.springframework..")
                     .allowEmptyShould(true);
 
     private static String[] concat(String[]... partes) {

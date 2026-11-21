@@ -107,13 +107,46 @@ Variáveis de ambiente do protótipo: `VISUALIZACAO_TTL_MINUTOS` (10), `VISUALIZ
 
 ### Conexões
 
-Estado e teste de conexão de: banco do SIGA (somente leitura), arquivos do Licenciamento (com horas até expirar o token), SCORP e taxas (desativada até a forma de obtenção ser confirmada). Tempo limite de download: 120 s (10–300).
+Estado e teste de conexão de: banco do SIGA (somente leitura), arquivos do Licenciamento (com horas até expirar o token), SCORP, taxas (desativada até a forma de obtenção ser confirmada) e, desde a S7 (bloco 10), **fluxo (Camunda)**. Tempo limite de download: 120 s (10–300).
+
+**Teste do Camunda (S7, bloco 10), separado do banco do SIGA e do Licenciamento** (`integration.siga.VerificadorDoCamunda`, nome `camunda`): pelo mesmo datasource somente leitura, lê uma linha de `SIGA2_CAMUNDA.ACT_RE_PROCDEF` trazendo só a constante 1 (`sql/siga/verificacao-camunda.sql`), **sem nenhum dado**. Prova o que o teste do banco do SIGA (`SELECT 1 FROM DUAL`) não prova: o grant de `SELECT` nas tabelas do Camunda. Tempo limite = `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS` (o das consultas da posição). Diagnóstico por causa, sem a mensagem do driver: **OK** ("Leitura das tabelas do fluxo estabelecida."); **sem acesso** (ORA-00942/01031: "o usuário de leitura não tem acesso às tabelas do fluxo; peça ao DBA o SELECT no SIGA2_CAMUNDA"); **tempo limite excedido**; **indisponível**. É JDBC, sem HTTP: os falsos alarmes conhecidos das conexões HTTP (503 isolado, 400 à chave fictícia, os antigos 5 s) não se aplicam a ele, e os testes da API de arquivos e do SCORP (S6) não mudaram.
 
 Credenciais ficam no arquivo de ambiente do servidor; a tela não as exibe nem edita.
 
 **Testes (S5, bloco 8; S6, bloco 4):** banco do SIGA, `SELECT 1 FROM DUAL` pelo datasource somente leitura (`sql/siga/verificacao.sql`); API de arquivos, `GET` numa chave fictícia, sem ler o corpo; SCORP, `GET` para uma pessoa fictícia. Desde a S6 as duas APIs usam **o mesmo cliente, a mesma base de URL e a mesma autenticação do consumo real**, e o resultado é **classificado**: **OK** (2xx), **Alcançável com ressalva** (4xx esperado para a chamada de teste, ex.: 400/404, com o código e a explicação), **Falha de autenticação** (401/403 ou token vencido: renovar o token) e **Falha** (DNS, recusa, TLS, tempo esgotado, 5xx persistente; um 503 isolado ganha uma nova tentativa). Como ler cada um: docs/05, "Teste de conexão". Só a data de expiração do token é lida, sem validar a assinatura; token vencido nem é enviado.
 
 **`CONEXAO_TESTE_TIMEOUT_SEGUNDOS`** (S6, padrão **15**; antes 5 s fixos): tempo limite de conexão e de leitura de cada chamada do teste, mostrado na aba antes de testar e no resultado ("120 ms (limite 15 s)"). O teste inteiro tem teto de 2 × o valor + 5 s (duas chamadas e a espera). Variável de ambiente, fora da tela.
+
+**`RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS`** (S7, bloco 3, padrão **10**; propriedade `rastro.tramitacao.camunda-timeout-segundos`): tempo limite de **cada** consulta da posição atual ao Camunda (até 7 por requerimento, docs/15). Estourado, a posição responde `INDISPONIVEL` e o resto do detalhe segue. Vale só para a tramitação; as demais consultas do SIGA continuam só com `SIGA_DB_READ_TIMEOUT_MS`. Desde o bloco 10, editável em Configurações › Rastro (ver abaixo).
+
+**Responsável e cache da posição** (S7, bloco 4; propriedades `rastro.tramitacao.*`, lidas a cada consulta, classe "imediato"; docs/15, "Responsável"):
+
+| Variável | Padrão | Faixa | Efeito |
+|---|---|---|---|
+| `RASTRO_MOSTRAR_NOME_RESPONSAVEL` | `true` (protótipo) | `true`/`false` | desligado, só a área e o papel, sem nome do servidor (nunca o CPF, em nenhum caso). Regra definitiva depende da SEMA (P32) |
+| `RASTRO_MAX_NOMES_POR_EQUIPE` | 10 | 1 a 100 | participantes listados numa equipe; o resto aparece como "e mais N" |
+| `RASTRO_POSICAO_CACHE_SEGUNDOS` | 30 | 0 a 3600 | validade do cache da posição em memória; 0 desliga |
+
+Valor fora da faixa cai no padrão, com aviso no log.
+
+### Rastro (S7, bloco 10)
+
+Aba **Rastro** das Configurações (só Administrador; RN08, `PERFIL_SEM_PERMISSAO` para os demais), com os parâmetros da tramitação. Como nas demais abas, editar não grava: as alterações saem no "Salvar alterações", num **único evento `CONFIG` com antes e depois**. O padrão vem da variável de ambiente; a tela sobrepõe (em memória, some ao reiniciar). **Credenciais não aparecem** na aba.
+
+| Parâmetro (nome na API) | Variável de ambiente (padrão) | Faixa | Classe | Efeito |
+|---|---|---|---|---|
+| Mostrar o nome do responsável (`rastro.mostrarNomeResponsavel`) | `RASTRO_MOSTRAR_NOME_RESPONSAVEL` (`true`) | `true`/`false` | imediato | desligado, só área e papel (P32; o Operador nunca vê o nome, RN12) |
+| Validade do cache da posição (`rastro.posicaoCacheSegundos`) | `RASTRO_POSICAO_CACHE_SEGUNDOS` (30) | 0 a 3600 | imediato | 0 desliga |
+| Máximo de nomes por equipe (`rastro.maxNomesPorEquipe`) | `RASTRO_MAX_NOMES_POR_EQUIPE` (10) | 1 a 100 | imediato | o resto vira "e mais N" |
+| Posições consultadas ao mesmo tempo (`rastro.posicoesSimultaneas`) | `RASTRO_POSICOES_SIMULTANEAS` (4) | 1 a 20 | imediato (no front: ao abrir o Rastro de novo) | limite da fila de posições da tela (busca e processo) |
+| Tempo limite das consultas ao fluxo (`rastro.camundaTimeoutSegundos`) | `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS` (10) | 1 a 120 | imediato (próxima leitura) | cada consulta da posição ao Camunda e o teste de conexão do Camunda |
+
+- **"Imediato" vale na próxima leitura:** o back-end lê cada valor a cada consulta (`ParametrosDoRastroDoAmbiente` sobre `ParametrosEmVigor`); o tempo limite do Camunda é aplicado em cada `Statement` (`CamundaPosicaoJdbc`), sem reiniciar.
+- **Posições simultâneas no front:** a tela lê o valor em `GET /api/tramitacao/parametros` (qualquer perfil autenticado; só esse número) no primeiro pedido de posição de cada carregamento da página. Até a resposta, a fila libera **um pedido por vez** (um limite menor nunca é ultrapassado); se a leitura falhar, usa 4.
+
+**Resiliência e variáveis (S7, bloco 7).** O tempo de resposta da posição no pior caso é limitado por três variáveis já existentes: `SIGA_DB_CONN_TIMEOUT_MS` (5000; espera por uma conexão do pool, inclusive com o banco mudo), `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS` (10; cada uma das até 8 consultas) e `SIGA_DB_READ_TIMEOUT_MS` (30000; leitura do socket, por baixo). Estourar qualquer uma delas devolve a posição `INDISPONIVEL` (200), nunca 5xx; o detalhe do requerimento não depende da posição. Com o desligamento do nome (`RASTRO_MOSTRAR_NOME_RESPONSAVEL=false`), nenhuma resposta da posição traz nome de servidor, provado por varredura em todos os cenários (docs/15).
+
+**Posições simultâneas pedidas pela tela (S7, bloco 9): N = 4.** A coluna opcional "Etapa atual" da busca e os "Outros requerimentos deste processo" do detalhe pedem a posição de vários requerimentos; o front passa todos esses pedidos por uma fila (`FilaDePosicoes`) com **no máximo 4 em andamento** (`MAXIMO_DE_POSICOES_SIMULTANEAS` em `front/src/app/features/detalhe/fila-de-posicoes.service.ts`); os demais esperam a vez, e um pedido cancelado antes de começar não chega ao servidor. Só as linhas da página exibida (até 20) pedem posição, e a coluna vem desligada. Desde o bloco 10 o valor vem de Configurações › Rastro (`RASTRO_POSICOES_SIMULTANEAS`, padrão 4); a constante do front é só o padrão de reserva.
 
 ### Modo de demonstração e servidor MCP (S6, bloco 7)
 

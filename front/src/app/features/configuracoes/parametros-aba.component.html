@@ -11,6 +11,16 @@
         <span><b>Ordem cronológica:</b> fixa (RN03), não pode ser alterada. Documentos sem data vão para o final.</span>
       </div>
     }
+    @case ('RASTRO') {
+      <div class="note cfg-fixo">
+        <app-icone nome="lock" />
+        <span>
+          Posição na tramitação. O CPF do responsável nunca aparece, em nenhum valor; o nome do servidor depende de
+          aprovação da SEMA (pendência P32). O Operador nunca vê o nome (RN12). Credenciais do banco não ficam aqui.
+          As posições simultâneas valem ao abrir o Rastro de novo.
+        </span>
+      </div>
+    }
     @case ('CONVERSAO') {
       <div class="note cfg-fixo">
         <app-icone nome="lock" />

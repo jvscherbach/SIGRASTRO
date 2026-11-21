@@ -93,6 +93,31 @@ Como ajustado (S1.1), com o mapeamento P01:
   - Pendência P20: o SIGA mostra "LAC" como Objetivo em licenciamento por adesão sem objetivos cadastrados; o Rastro não mostra (regra de origem ainda não levantada).
 - **Responsável na tarefa atual (RN12):** a linha "Responsável" só é renderizada quando a API manda o campo, isto é, para Gestor e Administrador: o nome, "Não atribuída" ou "Responsável não identificado". Para o Operador a linha não aparece (RN08). O front não esconde dado que a API mandou: a regra é do back-end, e a tela só reflete a resposta.
 
+### Onde está agora (S7, bloco 8)
+
+Bloco no topo da folha do detalhe, **acima** do objeto e dos documentos (componente `OndeEstaAgoraComponent`, `GET /api/requerimentos/{id}/posicao`, docs/07 e docs/15). Fica fora do quadro do topo: **não altera a altura do quadro**. Carrega e falha sozinho; o resto do detalhe não espera por ele.
+
+- **Ativo:** rótulo da etapa em destaque, selo de tipo ("Tarefa", "Espera", "Automática", "Emissão"), **"+N em paralelo"** (botão que expande a lista das demais etapas ativas, com `aria-expanded`), **"Complementação em andamento"** quando houver (fora do "+N"), "Desde" em tempo relativo ("há 3 dias") com a data completa no `title` e no texto acessível, "desde a última entrada nesta etapa" quando a tarefa foi recriada, "Com quem" (`responsavel.texto`: nome, senão área, senão papel) e, na multi-instância, "x de y concluídos" com os participantes (concluiu/pendente; "e mais N"). Ciclo desconhecido: só "N pendentes", sem inventar o "y". Data desconhecida: "Data não informada".
+- **Avisos:** um item por aviso, com ícone **e texto** (a gravidade também é dita ao leitor de tela: "Informação:" ou "Atenção:"); `INFO` em azul, `ATENCAO` em âmbar. Tom neutro, explica sem alarmar.
+- **Estados:** carregando (esqueleto com a altura reservada e `role="status"`), `ENCERRADO` (o final, selo "Final" e "Encerrado em"), `SEM_INSTANCIA` ("Histórico detalhado indisponível para este requerimento"; sem diagrama, o plano B é da S8), `NAO_SUPORTADO` ("Fluxo ainda não suportado pelo Rastro"), `INDISPONIVEL` e erro HTTP com **"Tentar novamente"** (o resto da tela segue normal).
+- **Nunca no texto:** id técnico (`task…`, `gtw…`, `Event_…`) nem CPF. Os campos só do Administrador são ignorados pela tela.
+- **Nome do servidor:** a tela mostra o que a API manda; o Operador recebe só área e papel (RN12, RN14).
+- **Datas** no relógio de Cuiabá pela utilidade única (`formatarDataHora`, `tempoDesde` em `shared/formato.ts`).
+- **Testes:** `onde-esta-agora.component.spec.ts` (um por estado e por selo, teclado, texto sem id técnico nem CPF), `detalhe.component.spec.ts` (posição acima do objeto e dos documentos; falha não derruba o detalhe), `relogio-de-cuiaba.spec.ts` (`tempoDesde`) e `front/e2e/onde-esta-agora.e2e.ts` (estados, teclado, altura do quadro igual, objeto e documentos sem saltar mais de 24 px ao carregar, celular sem rolagem horizontal).
+
+### Outros requerimentos deste processo (S7, bloco 9)
+
+O Rastro não tem uma tela própria de processo: a busca por número de processo lista os requerimentos (1:N), e cada um abre o próprio detalhe. No detalhe de um requerimento protocolado, logo abaixo de "Onde está agora", a seção **"Outros requerimentos deste processo"** (componente `RequerimentosDoProcessoComponent`) lista os demais requerimentos do mesmo processo, pela busca por número de processo (com o RN07 do back-end: o Operador só vê os dele). Sem outros, a seção não aparece; 403/404 na lista também não mostra nada; outro erro mostra um aviso curto, sem derrubar o detalhe.
+
+- Cada requerimento é uma linha com o número (link para o detalhe dele) e a posição **resumida** (`OndeEstaAgoraComponent` no modo `resumido`): **ponto de estado** com texto alternativo ("Estado: Em andamento", "Em andamento, com aviso", "Encerrado", "Sem histórico detalhado", "Não suportado", "Indisponível"), etapa ou final, "· com quem", selo de tipo e "+N em paralelo". O botão **"Ver posição completa"** (`aria-expanded`) abre o bloco completo ali mesmo; "Ver menos" fecha.
+- **Cada posição carrega e falha sozinha:** a falha de um requerimento mostra "Não foi possível consultar" e um botão de ícone para consultar de novo só naquele item; os demais e o detalhe seguem normais.
+
+### Coluna "Etapa atual" na busca (S7, bloco 9)
+
+Na lista de resultados da consulta (por número de processo, CPF/CNPJ ou nome), o botão **"Mostrar etapa atual"** (`aria-pressed`) liga uma coluna opcional com a posição de cada linha (modo `celula`: ponto de estado, etapa, com quem). Desligada por padrão. Ligada, só as linhas da página exibida pedem a posição, no máximo **4 ao mesmo tempo** (fila de posições; docs/12), para não disparar dezenas de consultas ao Camunda de uma vez.
+
+Testes: `requerimentos-do-processo.component.spec.ts` (processo com 3 outros requerimentos: um com falha, um sem instância, um encerrado), `onde-esta-agora.component.spec.ts` (modos resumido e célula, pontos de estado), `fila-de-posicoes.service.spec.ts` (limite, erro e cancelamento), `consulta.component.spec.ts` (coluna desligada por padrão; ligada respeita o limite) e `front/e2e/posicoes-do-processo.e2e.ts` (o mesmo processo, a busca com 20 linhas sem passar de 4 simultâneas, teclado e celular sem rolagem horizontal).
+
 O requerimento vira processo após o pagamento da taxa e a conclusão do protocolo. O topo da tela mostra sempre o número do processo; o número do requerimento só aparece, com a marca "Não protocolado", enquanto não houver processo. A mesma regra vale para a navegação, os atalhos, a lista de resultados e o dossiê.
 
 ### Geometrias
@@ -228,6 +253,6 @@ Somente Administrador. Detalhes em [12 — Configurações](12-configuracoes.md)
 
 ## Termos na interface
 
-A interface não menciona o motor de fluxo (Camunda). O bloco é chamado apenas de "Tarefa atual".
+A interface não menciona o motor de fluxo (Camunda). O bloco é chamado apenas de "Tarefa atual". A posição na tramitação (S7) se chama "Onde está agora" e usa o vocabulário do catálogo de etapas ("Análise do processo"), nunca o id técnico.
 
 **Tabelas de Usuários e perfis e de Auditoria (S6, bloco 2).** O detalhe da auditoria (Acessos e Documentos) fica numa célula de tabela comum (a flexibilidade de linha é interna, num `div`), com largura entre 200 e 420 px, quebra de texto longo e o texto completo no `title`. Em Configurações › Usuários e perfis, até 768 px cada usuário aparece como um cartão (rótulo e valor) em vez de linha de tabela, sem rolagem horizontal; acima disso, a tabela de seis colunas. Teste: `front/e2e/layout-tabelas.e2e.ts` (geometria em 1280, 1024, 768 e 360 px).

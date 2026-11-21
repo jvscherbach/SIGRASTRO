@@ -32,7 +32,7 @@ export const LOGIN_VALIDO = /^[a-z0-9._-]{3,60}$/;
 
 // --- parâmetros em tempo de execução (GET/PUT/DELETE /configuracoes/parametros)
 
-export type GrupoDeParametro = 'DOSSIE' | 'CONVERSAO' | 'VISUALIZACAO' | 'CONEXOES' | 'AUDITORIA';
+export type GrupoDeParametro = 'DOSSIE' | 'CONVERSAO' | 'VISUALIZACAO' | 'CONEXOES' | 'AUDITORIA' | 'RASTRO';
 export type ClasseDeAplicacao = 'IMEDIATO' | 'PROXIMA_GERACAO' | 'EXIGE_REINICIO';
 
 export interface Parametro {

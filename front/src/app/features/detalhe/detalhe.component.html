@@ -75,6 +75,11 @@
     </app-quadro-topo>
 
     <app-folha-sobreposta>
+      <app-onde-esta-agora [idRequerimento]="r.id" />
+      @if (r.numeroProcesso) {
+        <app-requerimentos-do-processo [numeroProcesso]="r.numeroProcesso" [idAtual]="r.id" />
+      }
+
       <section aria-label="Objeto do requerimento">
         <div class="dash-sec-head"><h2><app-icone nome="leaf" />Objeto do requerimento</h2></div>
         <app-objeto-do-requerimento [objeto]="r.objeto" />

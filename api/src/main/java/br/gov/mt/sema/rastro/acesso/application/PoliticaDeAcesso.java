@@ -51,6 +51,11 @@ public class PoliticaDeAcesso {
         return usuario.perfil().podeVerResponsavelTarefa();
     }
 
+    /** S7: ids técnicos do fluxo (atividade do BPMN, filha, não mapeados) só para o Administrador. */
+    public boolean podeVerIdsTecnicosDoFluxo(Usuario usuario) {
+        return usuario.perfil().podeVerIdsTecnicosDoFluxo();
+    }
+
     /**
      * Pedido de dossiê: quem o criou, enquanto ainda tiver acesso ao requerimento (RN07) e aos sigilosos que ele contém
      * (um Gestor rebaixado perde o pedido que gerou com sigiloso), e quem acessa qualquer requerimento e qualquer
@@ -151,6 +156,10 @@ public class PoliticaDeAcesso {
 
     public boolean podeVerPedidosDeOutros() {
         return podeVerPedidosDeOutros(usuarioAtual.obter());
+    }
+
+    public boolean podeVerIdsTecnicosDoFluxo() {
+        return podeVerIdsTecnicosDoFluxo(usuarioAtual.obter());
     }
 
     public String loginDoUsuarioAtual() {

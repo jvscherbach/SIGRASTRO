@@ -90,7 +90,9 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
             "GET /api/configuracoes/usuarios", "POST /api/configuracoes/usuarios", "PATCH /api/configuracoes/usuarios/{id}",
             "GET /api/configuracoes/parametros", "PUT /api/configuracoes/parametros",
             "DELETE /api/configuracoes/parametros/{nome}", "GET /api/configuracoes/conexoes",
-            "POST /api/configuracoes/conexoes/{nome}/teste");
+            "POST /api/configuracoes/conexoes/{nome}/teste",
+            "GET /api/requerimentos/{id}/posicao", "GET /api/processos/{numero}/posicao",
+            "GET /api/tramitacao/parametros");
 
     private enum Perfil {
         OPERADOR("operador.demo"), GESTOR("gestor.demo"), ADMIN("admin.demo");
@@ -268,6 +270,7 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
         usuarios();
         parametrosEConexoes();
         dossiesGerados();
+        posicao();
         mascaramentoNoPdfDoOperador();
 
         varreduraDeVazamento();
@@ -331,6 +334,43 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
                     () -> comToken(get("/api/requerimentos/202"), p));
             verificar(rota, "inexistente", p, 404, "NAO_ENCONTRADO", () -> comToken(get("/api/requerimentos/404"), p));
         }
+    }
+
+    /**
+     * S7, bloco 6: posição na tramitação, com a mesma regra da consulta (RN07). Sem SIGA, a posição é INDISPONIVEL
+     * (200): o acesso é conferido antes. O bloco 7 estende com a varredura de ids técnicos e CPF por cenário.
+     */
+    private void posicao() throws Exception {
+        String rota = "GET /api/requerimentos/{id}/posicao";
+        String doProcesso = "GET /api/processos/{numero}/posicao";
+        String processoDoOperador = PROCESSO_DO_OPERADOR.replace('/', '-');
+        String processoDeOutro = PROCESSO_DE_OUTRO.replace('/', '-');
+        for (Perfil p : Perfil.values()) {
+            boolean op = p == Perfil.OPERADOR;
+            verificar(rota, "do interessado", p, 200, null, () -> comToken(get("/api/requerimentos/101/posicao"), p));
+            verificar(rota, "de outro", p, op ? 403 : 200, op ? "NAO_INTERESSADO" : null,
+                    () -> comToken(get("/api/requerimentos/202/posicao"), p));
+            verificar(rota, "inexistente", p, 404, "NAO_ENCONTRADO",
+                    () -> comToken(get("/api/requerimentos/404/posicao"), p));
+            verificar(doProcesso, "processo do interessado", p, 200, null,
+                    () -> comToken(get("/api/processos/" + processoDoOperador + "/posicao"), p));
+            verificar(doProcesso, "processo de outro", p, op ? 403 : 200, op ? "NAO_INTERESSADO" : null,
+                    () -> comToken(get("/api/processos/" + processoDeOutro + "/posicao"), p));
+            verificar(doProcesso, "inexistente", p, 404, "NAO_ENCONTRADO",
+                    () -> comToken(get("/api/processos/9999-1999/posicao"), p));
+        }
+        verificar(rota, "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(get("/api/requerimentos/101/posicao")));
+        verificar(doProcesso, "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(get("/api/processos/" + processoDoOperador + "/posicao")));
+        // S7, bloco 10: parâmetros de exibição para qualquer perfil (só números da interface).
+        String parametros = "GET /api/tramitacao/parametros";
+        for (Perfil p : Perfil.values()) {
+            verificar(parametros, "parâmetros de exibição", p, 200, null,
+                    () -> comToken(get("/api/tramitacao/parametros"), p));
+        }
+        verificar(parametros, "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(get("/api/tramitacao/parametros")));
     }
 
     private void listaDeDocumentos() throws Exception {

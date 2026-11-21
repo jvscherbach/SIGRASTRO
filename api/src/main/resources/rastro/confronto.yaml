@@ -1,0 +1,125 @@
+# Confronto entre a situação do Licenciamento (REQUERIMENTO.SITUACAO_PROCESSO) e a posição do fluxo (S7, bloco 5;
+# docs/15, "Avisos"). A etapa do fluxo SEMPRE prevalece: aqui só se decide que aviso mostrar ao lado dela.
+# Validado na subida: situação fora da lista, código de aviso desconhecido ou sem texto, modelo, etapa ou final que não
+# existem no catálogo de etapas, e campo desconhecido derrubam a subida.
+#
+# A tabela de compatibilidade é uma HIPÓTESE construída a partir das regras técnicas e dos nomes das situações
+# (NÃO CONFIRMADA, P37): conferir na homologação com requerimentos reais. Etapa ou final sem entrada não é confrontado.
+
+# As 29 situações do enum EnumSituacaoProcesso do SIGA (docs/04, Apêndice A).
+situacoes:
+  - EM_CADASTRO
+  - EM_CORRECAO_CADASTRO
+  - AGUARDANDO_CONFERENCIA
+  - EM_CONFERENCIA
+  - CHECKLIST_REPROVADO
+  - ENCAMINHADO_PARA_ARRECADACAO
+  - CANCELADO_POR_SOLICITACAO_DO_CADASTRANTE
+  - CANCELADO_POR_EXPIRACAO_DE_PRAZO_DE_CADASTRO
+  - CANCELADO_POR_FALTA_DE_PAGAMENTO
+  - AGUARDANDO_EMISSAO_DE_TAXAS
+  - AGUARDANDO_PAGAMENTO_DE_TAXAS
+  - AGUARDANDO_ASSINATURA_LAC
+  - AGUARDANDO_ATRIBUICAO
+  - AGUARDANDO_ANALISE
+  - AGUARDANDO_ELABORACAO
+  - AGUARDANDO_ACEITE_ATRIBUICAO
+  - EM_ANALISE
+  - AGUARDANDO_PUBLICACAO
+  - AGUARDANDO_CHECKLIST_DOCUMENTOS
+  - ARQUIVADO_DEFINITIVAMENTE
+  - ARQUIVADO_TEMPORARIAMENTE
+  - CONCLUIDO
+  - CANCELADO
+  - AGUARDANDO_REVISAO
+  - EM_REVISAO
+  - REQUERIMENTO_REVISADO
+  - AGUARDANDO_CORRECAO
+  - EM_CORRECAO
+  - REQUERIMENTO_CORRIGIDO
+
+# Texto curto ao usuário (o selo mostra texto, não só cor ou ícone). Tom neutro: explica, não alarma.
+# {situacao} é trocado pelo valor da situação do SIGA.
+avisos:
+  - codigo: FLUXO_ENCERRADO_SEM_STATUS
+    gravidade: ATENCAO
+    texto: O fluxo foi encerrado por taxa não paga no prazo, mas o SIGA ainda mostra "aguardando pagamento".
+  - codigo: CONCLUIDO_ANTES_DA_VERIFICACAO
+    gravidade: INFO
+    texto: Processo concluído; a verificação da revisão é só arquivamento.
+  - codigo: SITUACAO_NAO_CONFERE
+    gravidade: ATENCAO
+    texto: A situação do SIGA ('{situacao}') não corresponde exatamente à etapa do fluxo. Vale a etapa do fluxo.
+  - codigo: EXPIRADO_NA_CORRECAO_LAC
+    gravidade: INFO
+    texto: O prazo da correção expirou. O SIGA mostra a mesma situação do prazo de cadastro expirado; vale o final do fluxo.
+  - codigo: VARIAS_INSTANCIAS
+    gravidade: ATENCAO
+    texto: Há mais de um fluxo para este requerimento; vale o mais recente.
+  - codigo: EM_SUPORTE
+    gravidade: INFO
+    texto: Em atendimento de suporte técnico.
+  - codigo: ETAPA_NAO_MAPEADA
+    gravidade: ATENCAO
+    texto: O fluxo está num ponto que o Rastro ainda não sabe nomear.
+  - codigo: SEM_INSTANCIA
+    gravidade: INFO
+    texto: Histórico detalhado indisponível para este requerimento.
+
+# Por modelo (chave do Camunda): situações aceitas em cada etapa e em cada final, e divergências conhecidas
+# (situação -> aviso próprio, que vence o "não confere").
+compatibilidade:
+  procOutorgaAguaSupSub:
+    etapas:
+      cadastro_do_requerimento: {aceitas: [EM_CADASTRO, EM_CORRECAO_CADASTRO]}
+      conferencia_dos_documentos: {aceitas: [AGUARDANDO_CONFERENCIA, EM_CONFERENCIA, AGUARDANDO_CHECKLIST_DOCUMENTOS, REQUERIMENTO_CORRIGIDO]}
+      # AGUARDANDO_EMISSAO_DE_TAXAS cobre dois pontos do fluxo (regra técnica 8): a taxa inicial e a da correção.
+      emissao_da_taxa: {aceitas: [ENCAMINHADO_PARA_ARRECADACAO, AGUARDANDO_EMISSAO_DE_TAXAS]}
+      aguardando_pagamento: {aceitas: [AGUARDANDO_PAGAMENTO_DE_TAXAS]}
+      isencao_confirmada: {aceitas: [ENCAMINHADO_PARA_ARRECADACAO, AGUARDANDO_ATRIBUICAO]}
+      atribuicao_ao_analista: {aceitas: [AGUARDANDO_ATRIBUICAO]}
+      aceite_pelo_analista: {aceitas: [AGUARDANDO_ACEITE_ATRIBUICAO]}
+      analise_do_processo: {aceitas: [AGUARDANDO_ANALISE, EM_ANALISE, AGUARDANDO_ELABORACAO]}
+      revisao_do_parecer_tecnico: {aceitas: [EM_ANALISE, AGUARDANDO_ELABORACAO, AGUARDANDO_REVISAO, EM_REVISAO]}
+      validacao_do_parecer_tecnico: {aceitas: [EM_ANALISE, AGUARDANDO_REVISAO, EM_REVISAO, REQUERIMENTO_REVISADO]}
+      emissao_do_ato: {aceitas: [EM_ANALISE, REQUERIMENTO_REVISADO, AGUARDANDO_PUBLICACAO]}
+      registro_do_comprovante_de_publicacao: {aceitas: [AGUARDANDO_PUBLICACAO]}
+      # Regra técnica 9: CONCLUIDO é gravado antes; a etapa é só arquivamento.
+      verificacao_da_revisao_do_processo:
+        aceitas: [CONCLUIDO]
+        conhecidas: {CONCLUIDO: CONCLUIDO_ANTES_DA_VERIFICACAO}
+      correcao_do_requerimento: {aceitas: [AGUARDANDO_CORRECAO, EM_CORRECAO, CHECKLIST_REPROVADO, EM_CORRECAO_CADASTRO]}
+      emissao_da_taxa_correcao: {aceitas: [ENCAMINHADO_PARA_ARRECADACAO, AGUARDANDO_EMISSAO_DE_TAXAS, REQUERIMENTO_CORRIGIDO]}
+      aguardando_pagamento_correcao: {aceitas: [AGUARDANDO_PAGAMENTO_DE_TAXAS]}
+    finais:
+      concluido: {aceitas: [CONCLUIDO, ARQUIVADO_DEFINITIVAMENTE]}
+      cancelado_pelo_cadastrante: {aceitas: [CANCELADO_POR_SOLICITACAO_DO_CADASTRANTE, CANCELADO]}
+      expirado_no_cadastro: {aceitas: [CANCELADO_POR_EXPIRACAO_DE_PRAZO_DE_CADASTRO, CANCELADO]}
+      # Bug de origem (regra técnica 8): o encerramento por taxa vencida não atualiza a situação. Quando o SIGA corrigir,
+      # a situação passa a ser a de falta de pagamento e o aviso some sozinho.
+      encerrado_por_taxa_nao_paga:
+        aceitas: [CANCELADO_POR_FALTA_DE_PAGAMENTO, CANCELADO]
+        conhecidas: {AGUARDANDO_PAGAMENTO_DE_TAXAS: FLUXO_ENCERRADO_SEM_STATUS}
+
+  procLicenciamentoLac:
+    etapas:
+      cadastro_do_requerimento: {aceitas: [EM_CADASTRO, EM_CORRECAO_CADASTRO]}
+      conferencia_dos_documentos: {aceitas: [AGUARDANDO_CONFERENCIA, EM_CONFERENCIA, AGUARDANDO_CHECKLIST_DOCUMENTOS, REQUERIMENTO_CORRIGIDO]}
+      emissao_da_taxa: {aceitas: [ENCAMINHADO_PARA_ARRECADACAO, AGUARDANDO_EMISSAO_DE_TAXAS]}
+      aguardando_pagamento: {aceitas: [AGUARDANDO_PAGAMENTO_DE_TAXAS]}
+      isencao_confirmada: {aceitas: [ENCAMINHADO_PARA_ARRECADACAO, AGUARDANDO_ASSINATURA_LAC]}
+      termo_de_adesao_gerado: {aceitas: [AGUARDANDO_ASSINATURA_LAC]}
+      envio_do_termo_assinado: {aceitas: [AGUARDANDO_ASSINATURA_LAC]}
+      conclusao: {aceitas: [AGUARDANDO_ASSINATURA_LAC, CONCLUIDO]}
+      correcao_do_requerimento: {aceitas: [AGUARDANDO_CORRECAO, EM_CORRECAO, CHECKLIST_REPROVADO, EM_CORRECAO_CADASTRO]}
+    finais:
+      concluido: {aceitas: [CONCLUIDO]}
+      cancelado_pelo_cadastrante: {aceitas: [CANCELADO_POR_SOLICITACAO_DO_CADASTRANTE, CANCELADO]}
+      expirado_no_cadastro: {aceitas: [CANCELADO_POR_EXPIRACAO_DE_PRAZO_DE_CADASTRO, CANCELADO]}
+      # Regra técnica 8: o LAC grava para "expirado na correção" a mesma situação do expirado no cadastro. O rótulo
+      # mostrado vem do final, não da situação.
+      expirado_na_correcao:
+        aceitas: [CANCELADO]
+        conhecidas: {CANCELADO_POR_EXPIRACAO_DE_PRAZO_DE_CADASTRO: EXPIRADO_NA_CORRECAO_LAC}
+      cancelado_por_falta_de_pagamento: {aceitas: [CANCELADO_POR_FALTA_DE_PAGAMENTO, CANCELADO]}
+      arquivado_termo_nao_enviado: {aceitas: [ARQUIVADO_DEFINITIVAMENTE, ARQUIVADO_TEMPORARIAMENTE]}

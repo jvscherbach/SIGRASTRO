@@ -89,7 +89,7 @@ test('Administrador abre Configurações pelo menu: abas, faixa de memória e li
   await page.locator('.sidebar .nav-item', { hasText: 'Configurações' }).click();
 
   await expect(page).toHaveURL(/\/configuracoes$/);
-  await expect(page.getByRole('tab')).toHaveText(['Usuários e perfis', 'Dossiê', 'Conversão', 'Visualização', 'Conexões', 'Auditoria']);
+  await expect(page.getByRole('tab')).toHaveText(['Usuários e perfis', 'Dossiê', 'Conversão', 'Visualização', 'Rastro', 'Conexões', 'Auditoria']);
   await expect(page.getByRole('tab', { name: 'Usuários e perfis' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('.cfg-memoria')).toContainText('somem ao reiniciar o serviço');
   await expect(page.locator('tbody tr')).toHaveCount(3);

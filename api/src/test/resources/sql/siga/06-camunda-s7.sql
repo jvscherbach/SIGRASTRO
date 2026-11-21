@@ -1,0 +1,165 @@
+-- S7 (bloco 2): Camunda e Licenciamento fictícios para a tramitação. Só o DDL mínimo (colunas que o Rastro lê, nomes
+-- padrão do Camunda 7) e os dados fixos (tipos de processo, interessado e servidores). As linhas de cada cenário
+-- (H01 a H21, L01 a L07, Trifásico) são gravadas pelo CamundaFicticioBuilder, chamado por SigaOracleTeste ao subir
+-- (CenariosFicticiosDaS7). Como criar um cenário novo: docs/13, "Dados fictícios de teste".
+-- Tudo é FICTÍCIO: CPFs inválidos de propósito (000000000NN, com NN diferente de 00), nomes evidentes.
+-- Tipos do Camunda em NVARCHAR2, como no Oracle real do Camunda 7, para que o SQL do bloco 3 prove o TO_CHAR dos dois
+-- lados (ORA-12704). DDL compatível com Oracle 19c.
+
+-- Tabelas que já existiam no recorte (S1): só as colunas novas.
+ALTER TABLE SIGA2_CAMUNDA.ACT_RE_PROCDEF ADD (KEY_ NVARCHAR2(255), VERSION_ NUMBER(10));
+
+ALTER TABLE SIGA2_CAMUNDA.ACT_RU_EXECUTION ADD (
+    PROC_DEF_ID_       NVARCHAR2(64),
+    ROOT_PROC_INST_ID_ NVARCHAR2(64),
+    SUPER_EXEC_        NVARCHAR2(64),
+    ACT_ID_            NVARCHAR2(255),
+    ACT_INST_ID_       NVARCHAR2(64),
+    IS_ACTIVE_         NUMBER(1),
+    IS_CONCURRENT_     NUMBER(1),
+    IS_SCOPE_          NUMBER(1)
+);
+
+ALTER TABLE SIGA2_CAMUNDA.ACT_RU_TASK ADD (
+    EXECUTION_ID_  NVARCHAR2(64),
+    TASK_DEF_KEY_  NVARCHAR2(255)
+);
+
+CREATE TABLE SIGA2_CAMUNDA.ACT_RU_IDENTITYLINK (
+    ID_          NVARCHAR2(64)  NOT NULL PRIMARY KEY,
+    GROUP_ID_    NVARCHAR2(255),
+    TYPE_        NVARCHAR2(255),
+    USER_ID_     NVARCHAR2(255),
+    TASK_ID_     NVARCHAR2(64),
+    PROC_DEF_ID_ NVARCHAR2(64)
+);
+
+-- Sem o "RIPTION": é assim que a tabela se chama no Camunda 7.
+CREATE TABLE SIGA2_CAMUNDA.ACT_RU_EVENT_SUBSCR (
+    ID_            NVARCHAR2(64)  NOT NULL PRIMARY KEY,
+    EVENT_TYPE_    NVARCHAR2(255) NOT NULL,
+    EVENT_NAME_    NVARCHAR2(255),
+    EXECUTION_ID_  NVARCHAR2(64),
+    PROC_INST_ID_  NVARCHAR2(64),
+    ACTIVITY_ID_   NVARCHAR2(255),
+    CREATED_       TIMESTAMP(6)   NOT NULL
+);
+
+CREATE TABLE SIGA2_CAMUNDA.ACT_HI_PROCINST (
+    ID_                        NVARCHAR2(64)  NOT NULL PRIMARY KEY,
+    PROC_INST_ID_              NVARCHAR2(64)  NOT NULL,
+    BUSINESS_KEY_              NVARCHAR2(255),
+    PROC_DEF_KEY_              NVARCHAR2(255),
+    PROC_DEF_ID_               NVARCHAR2(64)  NOT NULL,
+    START_TIME_                TIMESTAMP(6)   NOT NULL,
+    END_TIME_                  TIMESTAMP(6),
+    END_ACT_ID_                NVARCHAR2(255),
+    SUPER_PROCESS_INSTANCE_ID_ NVARCHAR2(64),
+    ROOT_PROC_INST_ID_         NVARCHAR2(64),
+    DELETE_REASON_             NVARCHAR2(2000),
+    STATE_                     NVARCHAR2(255)
+);
+
+CREATE TABLE SIGA2_CAMUNDA.ACT_HI_ACTINST (
+    ID_                 NVARCHAR2(64)  NOT NULL PRIMARY KEY,
+    PARENT_ACT_INST_ID_ NVARCHAR2(64),
+    PROC_DEF_KEY_       NVARCHAR2(255),
+    PROC_DEF_ID_        NVARCHAR2(64)  NOT NULL,
+    ROOT_PROC_INST_ID_  NVARCHAR2(64),
+    PROC_INST_ID_       NVARCHAR2(64)  NOT NULL,
+    EXECUTION_ID_       NVARCHAR2(64)  NOT NULL,
+    ACT_ID_             NVARCHAR2(255) NOT NULL,
+    TASK_ID_            NVARCHAR2(64),
+    CALL_PROC_INST_ID_  NVARCHAR2(64),
+    ACT_NAME_           NVARCHAR2(255),
+    ACT_TYPE_           NVARCHAR2(255) NOT NULL,
+    ASSIGNEE_           NVARCHAR2(64),
+    START_TIME_         TIMESTAMP(6)   NOT NULL,
+    END_TIME_           TIMESTAMP(6),
+    ACT_INST_STATE_     NUMBER(10),
+    SEQUENCE_COUNTER_   NUMBER(19)
+);
+
+CREATE TABLE SIGA2_CAMUNDA.ACT_HI_TASKINST (
+    ID_                NVARCHAR2(64)  NOT NULL PRIMARY KEY,
+    TASK_DEF_KEY_      NVARCHAR2(255),
+    PROC_DEF_KEY_      NVARCHAR2(255),
+    PROC_DEF_ID_       NVARCHAR2(64),
+    ROOT_PROC_INST_ID_ NVARCHAR2(64),
+    PROC_INST_ID_      NVARCHAR2(64),
+    EXECUTION_ID_      NVARCHAR2(64),
+    ACT_INST_ID_       NVARCHAR2(64),
+    NAME_              NVARCHAR2(255),
+    ASSIGNEE_          NVARCHAR2(255),
+    START_TIME_        TIMESTAMP(6)   NOT NULL,
+    END_TIME_          TIMESTAMP(6),
+    DELETE_REASON_     NVARCHAR2(2000)
+);
+
+-- Variáveis e detalhe: só a estrutura (o Rastro lê apenas uma lista branca sem dado pessoal; regra da S7).
+CREATE TABLE SIGA2_CAMUNDA.ACT_HI_VARINST (
+    ID_           NVARCHAR2(64)  NOT NULL PRIMARY KEY,
+    PROC_DEF_KEY_ NVARCHAR2(255),
+    PROC_INST_ID_ NVARCHAR2(64),
+    EXECUTION_ID_ NVARCHAR2(64),
+    ACT_INST_ID_  NVARCHAR2(64),
+    NAME_         NVARCHAR2(255) NOT NULL,
+    VAR_TYPE_     NVARCHAR2(100),
+    TEXT_         NVARCHAR2(2000),
+    LONG_         NUMBER(19),
+    CREATE_TIME_  TIMESTAMP(6),
+    STATE_        NVARCHAR2(20)
+);
+
+CREATE TABLE SIGA2_CAMUNDA.ACT_HI_DETAIL (
+    ID_               NVARCHAR2(64)  NOT NULL PRIMARY KEY,
+    TYPE_             NVARCHAR2(255) NOT NULL,
+    PROC_DEF_KEY_     NVARCHAR2(255),
+    PROC_INST_ID_     NVARCHAR2(64),
+    EXECUTION_ID_     NVARCHAR2(64),
+    ACT_INST_ID_      NVARCHAR2(64),
+    VAR_INST_ID_      NVARCHAR2(64),
+    NAME_             NVARCHAR2(255) NOT NULL,
+    VAR_TYPE_         NVARCHAR2(255),
+    TIME_             TIMESTAMP(6)   NOT NULL,
+    TEXT_             NVARCHAR2(2000),
+    LONG_             NUMBER(19),
+    SEQUENCE_COUNTER_ NUMBER(19)
+);
+
+-- Licenciamento: o que a S7 lê além do recorte anterior.
+ALTER TABLE SIGA2_LICENCIAMENTO.TIPO_PROCESSO ADD (INSTANCIA_REQUERIMENTO VARCHAR2(60));
+ALTER TABLE SIGA2_LICENCIAMENTO.SERVIDOR ADD (MATRICULA VARCHAR2(30), CARGO VARCHAR2(200));
+
+-- COMPLEMENTACAO já existe desde a S2 (ID, ID_REQUERIMENTO; grant em 04-documentos-s2.sql): só as colunas da S7.
+ALTER TABLE SIGA2_LICENCIAMENTO.COMPLEMENTACAO ADD (
+    DATA_INICIO     TIMESTAMP(6),
+    DATA_ENTREGA    TIMESTAMP(6),
+    SITUACAO        VARCHAR2(60)
+);
+
+GRANT SELECT ON SIGA2_CAMUNDA.ACT_RU_IDENTITYLINK TO VISTAS_LEITURA_SIGA;
+GRANT SELECT ON SIGA2_CAMUNDA.ACT_RU_EVENT_SUBSCR TO VISTAS_LEITURA_SIGA;
+GRANT SELECT ON SIGA2_CAMUNDA.ACT_HI_PROCINST TO VISTAS_LEITURA_SIGA;
+GRANT SELECT ON SIGA2_CAMUNDA.ACT_HI_ACTINST TO VISTAS_LEITURA_SIGA;
+GRANT SELECT ON SIGA2_CAMUNDA.ACT_HI_TASKINST TO VISTAS_LEITURA_SIGA;
+GRANT SELECT ON SIGA2_CAMUNDA.ACT_HI_VARINST TO VISTAS_LEITURA_SIGA;
+GRANT SELECT ON SIGA2_CAMUNDA.ACT_HI_DETAIL TO VISTAS_LEITURA_SIGA;
+
+-- Tipos de processo da S7. O Trifásico usa um valor fora do catálogo de etapas: vira "fluxo não suportado".
+INSERT INTO SIGA2_LICENCIAMENTO.TIPO_PROCESSO (ID, DESCRICAO, INSTANCIA_REQUERIMENTO) VALUES (71, 'Outorga de recursos hídricos (FICTÍCIO S7)', 'RECURSO_HIDRICO');
+INSERT INTO SIGA2_LICENCIAMENTO.TIPO_PROCESSO (ID, DESCRICAO, INSTANCIA_REQUERIMENTO) VALUES (72, 'Licença por adesão e compromisso (FICTÍCIO S7)', 'LICENCIAMENTO_ADESAO');
+INSERT INTO SIGA2_LICENCIAMENTO.TIPO_PROCESSO (ID, DESCRICAO, INSTANCIA_REQUERIMENTO) VALUES (73, 'Licenciamento trifásico (FICTÍCIO S7)', 'LICENCIAMENTO_TRIFASICO_FICTICIO');
+
+-- Interessado (cadastrante) de todos os cenários da S7. CPF inválido de propósito.
+INSERT INTO SIGA2_LICENCIAMENTO.PESSOA (ID, NOME, CPF_CNPJ) VALUES (7000, 'Interessado Fictício S7', '00000000091');
+
+-- Servidores fictícios 01 a 12 (CPF 000000000NN, inválido de propósito). O CPF 00000000099 fica SEM servidor
+-- (fallback "Responsável não identificado", bloco 4).
+INSERT INTO SIGA2_LICENCIAMENTO.SERVIDOR (ID, CPF, NOME, DATA_ATUALIZACAO, MATRICULA, CARGO)
+SELECT 7000 + LEVEL, LPAD(TO_CHAR(LEVEL), 11, '0'), 'Servidor Exemplo ' || LPAD(TO_CHAR(LEVEL), 2, '0'),
+       TIMESTAMP '2026-01-01 00:00:00', 'FICT-' || LPAD(TO_CHAR(LEVEL), 4, '0'),
+       CASE WHEN LEVEL = 4 THEN 'Chefia Fictícia' ELSE 'Analista Fictício' END
+FROM   DUAL
+CONNECT BY LEVEL <= 12;
+COMMIT;

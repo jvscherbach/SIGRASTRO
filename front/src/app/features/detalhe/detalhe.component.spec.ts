@@ -6,6 +6,7 @@ import { NEVER, of, throwError } from 'rxjs';
 
 import { AuthService } from '../../core/auth.service';
 import { TrilhaService } from '../../shared/trilha.service';
+import { ConsultaApiService } from '../consulta/consulta-api.service';
 import { DocumentosApiService } from '../documentos/documentos-api.service';
 import { DetalheApiService } from './detalhe-api.service';
 import { DetalheComponent } from './detalhe.component';
@@ -34,8 +35,9 @@ function requerimento(sobre: Partial<Requerimento> = {}): Requerimento {
 }
 
 describe('DetalheComponent', () => {
-  let api: { obter: ReturnType<typeof vi.fn> };
+  let api: { obter: ReturnType<typeof vi.fn>; posicao: ReturnType<typeof vi.fn>; parametrosDeExibicao: ReturnType<typeof vi.fn> };
   let documentosApi: { listar: ReturnType<typeof vi.fn> };
+  let consultaApi: { buscar: ReturnType<typeof vi.fn> };
 
   function criar(id = '101'): { fixture: ComponentFixture<DetalheComponent>; raiz: HTMLElement } {
     TestBed.configureTestingModule({
@@ -44,6 +46,7 @@ describe('DetalheComponent', () => {
         provideRouter([]),
         { provide: DetalheApiService, useValue: api },
         { provide: DocumentosApiService, useValue: documentosApi },
+        { provide: ConsultaApiService, useValue: consultaApi },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => id } } } },
         { provide: AuthService, useValue: { usuario: signal({ login: 'u.demo' }) } },
       ],
@@ -57,11 +60,52 @@ describe('DetalheComponent', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    api = { obter: vi.fn() };
+    // A posição (S7) carrega sozinha; aqui fica pendente, e os estados dela são provados em onde-esta-agora.component.spec.
+    api = { obter: vi.fn(), posicao: vi.fn(() => NEVER), parametrosDeExibicao: vi.fn(() => NEVER) };
     documentosApi = { listar: vi.fn(() => NEVER) };
+    // Outros requerimentos do processo (S7, bloco 9): provados em requerimentos-do-processo.component.spec.
+    consultaApi = { buscar: vi.fn(() => NEVER) };
   });
 
   afterEach(() => localStorage.clear());
+
+  describe('"Onde está agora" (S7)', () => {
+    it('fica acima do objeto e dos documentos e pede a posição do mesmo requerimento', () => {
+      api.obter.mockReturnValue(of(requerimento()));
+      const { raiz } = criar();
+      const onde = raiz.querySelector('app-folha-sobreposta app-onde-esta-agora')!;
+      const objeto = raiz.querySelector('app-folha-sobreposta [aria-label="Objeto do requerimento"]')!;
+      const documentos = raiz.querySelector('app-folha-sobreposta app-documentos-secao')!;
+
+      expect(onde.compareDocumentPosition(objeto) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(onde.compareDocumentPosition(documentos) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(api.posicao).toHaveBeenCalledWith(101);
+    });
+
+    it('falha da posição não derruba o detalhe', () => {
+      api.obter.mockReturnValue(of(requerimento()));
+      api.posicao.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
+      const { raiz } = criar();
+
+      expect(raiz.querySelector('h1')!.textContent).toBe('2825/2025');
+      expect(texto(raiz)).toContain('Objeto do requerimento');
+      expect(texto(raiz)).toContain('Tentar novamente');
+    });
+
+    it('com processo, lista os outros requerimentos dele; sem processo, não pergunta', () => {
+      api.obter.mockReturnValue(of(requerimento()));
+      criar();
+      expect(consultaApi.buscar).toHaveBeenCalledWith({ tipo: 'PROCESSO', numero: '2825/2025', pagina: 0, tamanho: 100 });
+
+      TestBed.resetTestingModule();
+      consultaApi.buscar.mockClear();
+      api.obter.mockReturnValue(
+        of(requerimento({ numeroProcesso: null, identificacao: { rotulo: 'Requerimento', numero: '3331/2025', protocolado: false } })),
+      );
+      criar();
+      expect(consultaApi.buscar).not.toHaveBeenCalled();
+    });
+  });
 
   describe('identificação (RN04)', () => {
     it('com processo, o número do processo é o título e o do requerimento aparece à parte', () => {

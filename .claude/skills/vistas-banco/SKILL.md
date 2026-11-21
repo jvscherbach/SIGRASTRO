@@ -39,6 +39,7 @@ Pacote raiz `br.gov.mt.sema.rastro` (antes `br.gov.mt.sema.vistas`; renomeado na
 | `dossie` | pedidos de geração, fila, conversão, montagem do PDF, expiração, regra "nada incompleto sem decisão" (RN09) e continuação |
 | `auditoria` | registro (somente inclusão) e consulta de eventos de documentos e de acessos |
 | `configuracao` | parâmetros administráveis |
+| `tramitacao` | posição do requerimento no fluxo do Camunda (etapa atual, desde quando, com quem) pelo catálogo de etapas em YAML (`resources/rastro/etapas/`); não depende de `documento` nem de `dossie` (S7, docs/15) |
 | `integration.siga` | **único** lugar que conhece tabelas, colunas, SQL e enums do banco do SIGA |
 | `integration.licenciamento` | cliente da API de arquivos do Licenciamento (`/api/arquivo/{chave}`) |
 | `integration.scorp` | cliente do SCORP (documentos pessoais de interessado, representantes e responsáveis técnicos) |

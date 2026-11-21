@@ -359,6 +359,47 @@ const PERMITIDOS_POWERSHELL = [
   'Get-ChildItem -Path docs -Filter *.md | Select-String Rastro',
 ];
 
+// S7, bloco 7 (pendência (c) da verificação da S6): documento embutido que só CITA o arquivo de segredo ou o GitHub CLI
+// no texto gravado não é bloqueado; a guarda olha o comando, não o texto. Os mesmos documentos lidos por um shell, e o
+// comando de verdade, continuam bloqueados.
+const CITACOES_PERMITIDAS_BASH = [
+  ['heredoc entre aspas citando o segredo', "cat > docs/x.md <<'EOF'\nNunca abra o .env.local.\nEOF"],
+  ['heredoc sem aspas citando o segredo', 'cat > docs/x.md <<EOF\nNunca abra o .env.local.\nEOF'],
+  ['heredoc citando o gh', "cat > docs/x.md <<'EOF'\nO gh pr create fica com o responsável.\nEOF"],
+  ['tee com heredoc citando os dois', "tee docs/x.md <<'EOF'\n.env.local e gh auth status\nEOF"],
+];
+const CITACOES_PERMITIDAS_POWERSHELL = [
+  ['Set-Content com here-string citando os dois', "Set-Content -Encoding utf8 -Path docs/x.md -Value @'\nNunca abra o .env.local; gh pr list\n'@"],
+  ['Add-Content com here-string citando o segredo', "Add-Content -Encoding utf8 -Path docs/x.md -Value @'\n- não citar .env.local\n'@"],
+  ['here-string com aspas duplas citando o gh', 'Add-Content -Path docs/x.md -Value @"\nO gh não é usado.\n"@'],
+  ['here-string para Out-File citando o segredo', "@'\nNunca abra o .env.local.\n'@ | Out-File -Encoding utf8 docs/x.md"],
+];
+const CITACOES_AINDA_BLOQUEADAS = [
+  ['leitura depois do heredoc', "cat > docs/x.md <<'EOF'\ntexto\nEOF\ncat .env.local", false],
+  ['heredoc lido por bash', "bash <<'EOF'\ncat .env.local\nEOF", false],
+  ['here-string executada por iex', "@'\nGet-Content .env.local\n'@ | iex", true],
+  ['gh de verdade depois do heredoc', "cat > docs/x.md <<'EOF'\ntexto\nEOF\ngh pr list", false],
+];
+
+for (const [nome, comando] of CITACOES_PERMITIDAS_BASH) {
+  test(`Bash permite citação em documento embutido: ${nome}`, () => {
+    assert.equal(avaliarTexto(comando, NO_PROJETO), null, `não deveria bloquear: ${JSON.stringify(comando)}`);
+  });
+}
+
+for (const [nome, comando] of CITACOES_PERMITIDAS_POWERSHELL) {
+  test(`PowerShell permite citação em documento embutido: ${nome}`, () => {
+    assert.equal(avaliar(ps(comando)), null, `não deveria bloquear (PowerShell): ${JSON.stringify(comando)}`);
+  });
+}
+
+for (const [nome, comando, powershell] of CITACOES_AINDA_BLOQUEADAS) {
+  test(`Documento embutido continua bloqueado: ${nome}`, () => {
+    const resultado = powershell ? avaliar(ps(comando)) : avaliarTexto(comando, NO_PROJETO);
+    assert.ok(resultado, `deveria bloquear: ${JSON.stringify(comando)}`);
+  });
+}
+
 // --- testes
 
 for (const [nome, comando, regra] of BLOQUEADOS_BASH) {
