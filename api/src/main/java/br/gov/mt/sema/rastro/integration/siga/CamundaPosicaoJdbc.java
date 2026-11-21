@@ -14,6 +14,8 @@ import java.util.Set;
 import java.util.function.IntSupplier;
 
 import br.gov.mt.sema.rastro.tramitacao.application.port.CaminhoPercorrido;
+import br.gov.mt.sema.rastro.tramitacao.application.port.HistoricoDoLicenciamento;
+import br.gov.mt.sema.rastro.tramitacao.domain.LeituraDoPlanoB;
 import br.gov.mt.sema.rastro.tramitacao.application.port.IdentificacaoDosResponsaveis;
 import br.gov.mt.sema.rastro.tramitacao.application.port.ParametrosDoRastro;
 import br.gov.mt.sema.rastro.tramitacao.application.port.PosicaoNoFluxo;
@@ -47,7 +49,8 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 @ConditionalOnExpression(SigaCondicoes.CONFIGURADO)
-class CamundaPosicaoJdbc implements PosicaoNoFluxo, IdentificacaoDosResponsaveis, CaminhoPercorrido {
+class CamundaPosicaoJdbc implements PosicaoNoFluxo, IdentificacaoDosResponsaveis, CaminhoPercorrido,
+        HistoricoDoLicenciamento {
 
     /** Complementação: instância independente, fora do catálogo (regra técnica 7). */
     static final String CHAVE_COMPLEMENTACAO = "procGestaoComplementacao";
@@ -60,6 +63,9 @@ class CamundaPosicaoJdbc implements PosicaoNoFluxo, IdentificacaoDosResponsaveis
     static final int CONSULTAS_DO_CAMINHO = 6;
     /** Linhas de atividade lidas por instância no caminho percorrido (docs/15; {@code rastro.tramitacao.limite-de-linhas}). */
     static final int LIMITE_PADRAO_DE_LINHAS = 3000;
+    /** Plano B (S8, bloco 5): eventos lidos de {@code HISTORICO_REQUERIMENTO} (o SQL pede um a mais). */
+    static final int LIMITE_DE_EVENTOS = 500;
+    static final int CONSULTAS_DO_PLANO_B = 2;
 
     private static final String PASTA = "tramitacao/";
 
@@ -77,6 +83,8 @@ class CamundaPosicaoJdbc implements PosicaoNoFluxo, IdentificacaoDosResponsaveis
     private final String sqlHistoricoAtividades = SigaSql.carregar(PASTA + "historico-atividades");
     private final String sqlHistoricoVariaveisEpoca = SigaSql.carregar(PASTA + "historico-variaveis-epoca");
     private final String sqlHistoricoVariaveisFinais = SigaSql.carregar(PASTA + "historico-variaveis-finais");
+    private final String sqlPlanoBEventos = SigaSql.carregar(PASTA + "plano-b-eventos");
+    private final String sqlPlanoBRequerimento = SigaSql.carregar(PASTA + "plano-b-requerimento");
     private final int limiteDeLinhas;
 
     /**
@@ -216,6 +224,29 @@ class CamundaPosicaoJdbc implements PosicaoNoFluxo, IdentificacaoDosResponsaveis
         List<VariavelBruta> daEpoca = jdbc.query(sqlHistoricoVariaveisEpoca, variaveis, (rs, n) -> variavel(rs));
         List<VariavelBruta> finais = jdbc.query(sqlHistoricoVariaveisFinais, variaveis, (rs, n) -> variavel(rs));
         return new CaminhoBruto(lidasPorInstancia, raizes.size(), atividades, daEpoca, finais);
+    }
+
+    /**
+     * S8, bloco 5: plano B, 2 consultas (datas e situação; eventos até {@value #LIMITE_DE_EVENTOS}). {@code CPF_USUARIO}
+     * nunca é lido.
+     */
+    @Override
+    public LeituraDoPlanoB lerPlanoB(long idRequerimento) {
+        MapSqlParameterSource parametros = new MapSqlParameterSource("idRequerimento", idRequerimento);
+        record DoRequerimento(Optional<String> situacao, LeituraDoPlanoB.Datas datas) {}
+        DoRequerimento requerimento = jdbc.query(sqlPlanoBRequerimento, parametros,
+                (rs, n) -> new DoRequerimento(Optional.ofNullable(rs.getString("SITUACAO")),
+                        new LeituraDoPlanoB.Datas(DataHoraDoSiga.ler(rs, "ABERTURA"), DataHoraDoSiga.ler(rs, "PROTOCOLO"),
+                                DataHoraDoSiga.ler(rs, "CANCELAMENTO"), DataHoraDoSiga.ler(rs, "EXPIRACAO_REQUERIMENTO"),
+                                DataHoraDoSiga.ler(rs, "EXPIRACAO_PROCESSO"))))
+                .stream().findFirst().orElse(new DoRequerimento(Optional.empty(), LeituraDoPlanoB.Datas.NENHUMA));
+        List<LeituraDoPlanoB.Evento> eventos = new ArrayList<>(jdbc.query(sqlPlanoBEventos, parametros,
+                (rs, n) -> new LeituraDoPlanoB.Evento(rs.getString("EVENTO"), DataHoraDoSiga.ler(rs, "QUANDO"))));
+        boolean truncados = eventos.size() > LIMITE_DE_EVENTOS;
+        if (truncados) {
+            eventos = eventos.subList(0, LIMITE_DE_EVENTOS);
+        }
+        return new LeituraDoPlanoB(requerimento.situacao(), requerimento.datas(), eventos, truncados);
     }
 
     private static AtividadeBruta atividade(ResultSet rs, String instancia, OrigemDaInstancia origem)

@@ -71,6 +71,10 @@ avisos:
   - codigo: SEM_INSTANCIA
     gravidade: INFO
     texto: Histórico detalhado indisponível para este requerimento.
+  # S8, bloco 5: texto fixo do prompt (o mesmo de HistoricoAproximado.SELO; um teste confere).
+  - codigo: HISTORICO_APROXIMADO
+    gravidade: INFO
+    texto: "Histórico aproximado: este requerimento é anterior ao registro detalhado do fluxo"
 
 # Por modelo (chave do Camunda): situações aceitas em cada etapa e em cada final, e divergências conhecidas
 # (situação -> aviso próprio, que vence o "não confere").

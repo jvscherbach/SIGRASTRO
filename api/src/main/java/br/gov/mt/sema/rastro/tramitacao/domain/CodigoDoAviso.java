@@ -20,7 +20,9 @@ public enum CodigoDoAviso {
     VARIAS_INSTANCIAS(false),
     EM_SUPORTE(false),
     ETAPA_NAO_MAPEADA(false),
-    SEM_INSTANCIA(false);
+    SEM_INSTANCIA(false),
+    /** S8, bloco 5: plano B, linha do tempo aproximada (requerimento sem instância no Camunda). Selo fixo. */
+    HISTORICO_APROXIMADO(false);
 
     private final boolean divergenciaConhecida;
 

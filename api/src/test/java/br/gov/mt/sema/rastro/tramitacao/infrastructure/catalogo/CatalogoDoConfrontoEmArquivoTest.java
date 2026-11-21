@@ -61,6 +61,7 @@ class CatalogoDoConfrontoEmArquivoTest {
               - {codigo: EM_SUPORTE, gravidade: INFO, texto: f}
               - {codigo: ETAPA_NAO_MAPEADA, gravidade: ATENCAO, texto: g}
               - {codigo: SEM_INSTANCIA, gravidade: INFO, texto: h}
+              - {codigo: HISTORICO_APROXIMADO, gravidade: INFO, texto: k}
             compatibilidade:
               procOutorgaAguaSupSub:
                 etapas:

@@ -356,6 +356,7 @@ A **etapa do fluxo sempre prevalece** sobre a situação do Licenciamento (excet
 | `EM_SUPORTE` | INFO | tarefa "Suporte" ativa | Em atendimento de suporte técnico. |
 | `ETAPA_NAO_MAPEADA` | ATENÇÃO | ponto ativo ou final fora do catálogo | O fluxo está num ponto que o Rastro ainda não sabe nomear. |
 | `SEM_INSTANCIA` | INFO | requerimento sem instância no Camunda | Histórico detalhado indisponível para este requerimento. |
+| `HISTORICO_APROXIMADO` | INFO | **S8, bloco 5:** a tramitação veio do plano B | Histórico aproximado: este requerimento é anterior ao registro detalhado do fluxo |
 
 O selo mostra o **texto** (não só cor ou ícone). `{situacao}` no texto é trocado pelo valor da situação. O "Taxa vencida" por data é da S9, não daqui.
 
@@ -498,6 +499,44 @@ Testes: `ReconstruirCaminhoComFixturesTest` (Docker: sequência exata de HC01 a 
 - **Mudança de contrato da posição (S7):** um final com situação fora da tabela passa a dar `FINAL_E_SITUACAO_DIVERGEM` em vez de `SITUACAO_NAO_CONFERE` (o front não trata os códigos um a um: mostra o texto). A P38 (verificação = status "Concluído" na posição) **não** foi feita neste bloco.
 
 Testes: `AvaliarDesfechoTest` (sem Docker: todos os finais do Hídrico e do LAC, mesma situação com rótulos diferentes, combinação divergente, evento não mapeado, sem situação, arquivado temporariamente, verificação, em andamento, sem instância), `ReconciliarTest` (final divergente, arquivado temporariamente) e `DesfechoComFixturesTest` (Docker: HF01 a HF04, LC01, LF01 a LF05 com a situação gravada, HC01 concluído, em andamento, combinação divergente, PB01).
+
+## Plano B: histórico aproximado (S8, bloco 5)
+
+Para requerimento **sem instância** no Camunda (legado de 2021/2022; de 2023 em diante todo requerimento tem instância). **Dado aproximado nunca pode parecer exato.**
+
+| Peça | Onde | Papel |
+|---|---|---|
+| `MontarTramitacao` | `tramitacao.application` | escolhe a fonte: tipo fora do catálogo = `NAO_SUPORTADO`; caminho do Camunda; raiz inexistente = `SEM_INSTANCIA` e **só então** o plano B; **qualquer falha** (Camunda, plano B, leitura do requerimento) = `INDISPONIVEL`, **sem** tentar o plano B no lugar. Sem acesso, auditoria nem contrato HTTP (bloco 6), sem cache nem tempo total (bloco 7) |
+| `HistoricoDoLicenciamento` | `tramitacao.application.port` | porta do plano B; implementada em `CamundaPosicaoJdbc` (o mesmo componente de acesso, R04) com 2 consultas: `plano-b-requerimento.sql` (datas e situação, por chave primária) e `plano-b-eventos.sql` (`DATA_CADASTRO` e `EVENTO`, até 500; **nunca** `CPF_USUARIO`) |
+| `MapaDeEventosDoHistorico` | `tramitacao.domain` (porta) | evento → etapa do modelo ou marco; implementado por `MapaDeEventosEmArquivo` (`resources/rastro/eventos-historico.yaml`, validado na subida contra o catálogo: modelo e etapa existentes, `etapa` ou `marco` e só um, nome em maiúsculas, campo desconhecido é erro) |
+| `MontarHistoricoAproximado` | `tramitacao.domain` | função pura que monta `HistoricoAproximado` |
+| `HistoricoAproximado` | `tramitacao.domain` | `etapas` (etapa, entrada, saída aproximada, quantos eventos), `marcos` (abertura, protocolo, conclusão, cancelamento, expirações), situação, eventos ignorados e truncados; **sem campo de responsável**; `aproximado()` sempre verdadeiro |
+| `TramitacaoDoRequerimento` | `tramitacao.domain` | resultado completo: estado, modelo, situação, caminho e desfecho (Camunda) **ou** plano B, nunca os dois, e os avisos |
+
+Regras:
+
+1. Eventos em ordem de data; cada um vira, pelo mapa, uma etapa, um marco ou nada (desconhecido: ignorado e contado). Eventos seguidos da mesma etapa viram uma etapa; a mesma etapa mais adiante vira outra linha, **sem** número de ciclo nem motivo.
+2. **Sem** aceite, revisão e validação separados: `REVISAR_PARECER_TECNICO` e `VALIDAR_PARECER_TECNICO` caem na análise.
+3. Saída = entrada da etapa seguinte; a última fecha no primeiro marco de encerramento depois dela (conclusão, cancelamento, expiração), senão fica sem saída.
+4. Marcos: as colunas de `REQUERIMENTO` e os eventos `PROTOCOLO` e `CONCLUSAO_REQUERIMENTO`; um por tipo, a coluna vence o evento.
+5. Sem nenhuma etapa: "Sem detalhamento disponível" (`HistoricoAproximado.SEM_DETALHAMENTO`), com a situação e as datas.
+6. Aviso fixo `HISTORICO_APROXIMADO` (INFO): "Histórico aproximado: este requerimento é anterior ao registro detalhado do fluxo" (o mesmo texto de `HistoricoAproximado.SELO`; um teste confere). Sem fluxograma (o front, blocos 9 e 10).
+7. **Sem responsável:** o plano B não consulta `SERVIDOR` nem `PESSOA` e não lê `CPF_USUARIO` (as fixtures preenchem essa coluna justamente para provar isso).
+
+Mapa (`eventos-historico.yaml`, hipótese pelo nome, NÃO CONFIRMADO, P41):
+
+| Evento | Hídrico | LAC |
+|---|---|---|
+| `CRIACAO_REQUERIMENTO` | Cadastro do requerimento | Cadastro do requerimento |
+| `AGUARDANDO_CONFERENCIA`, `CHECKLIST_APROVADO`, `CHECKLIST_REPROVADO` | Conferência dos documentos | Conferência dos documentos |
+| `AGUARDANDO_PAGAMENTO_TAXA`, `PAGAMENTO_CONFIRMADO` | Aguardando pagamento | Aguardando pagamento |
+| `PROTOCOLO` | marco | marco |
+| `EM_ANALISE`, `REVISAR_PARECER_TECNICO`, `VALIDAR_PARECER_TECNICO` | Análise do processo | (ignorado) |
+| `TITULOS_EMITIDOS` | Emissão do ato | Conclusão |
+| `TITULACOES_DISPONIVEIS` | Registro do comprovante de publicação | Conclusão |
+| `CONCLUSAO_REQUERIMENTO` | marco | marco |
+
+O `HISTORICO_REQUERIMENTO` não tem índice conhecido em `ID_REQUERIMENTO` (R73): a consulta só roda para requerimento sem instância. Testes: `MontarHistoricoAproximadoTest`, `MapaDeEventosEmArquivoTest`, `MontarTramitacaoTest` (sem Docker: Camunda fora ou lento = `INDISPONIVEL` e o plano B nem é consultado; falha no plano B; não suportado; nome desligado; identificação falhando) e `PlanoBComFixturesTest` (Docker: PB01 a PB03, 2 consultas, nenhum CPF, SQL sem `CPF`, `SERVIDOR`, `PESSOA`).
 
 ## Dependências do módulo
 
