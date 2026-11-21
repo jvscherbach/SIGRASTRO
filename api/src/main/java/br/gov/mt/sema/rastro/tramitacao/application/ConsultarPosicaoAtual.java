@@ -44,10 +44,12 @@ public class ConsultarPosicaoAtual {
     private final ParametrosDoRastro parametros;
     private final CacheDaPosicao cache;
     private final Reconciliar reconciliar;
+    private final LimiteDeLeiturasDoCamunda limite;
 
     public ConsultarPosicaoAtual(VerificarAcessoAoRequerimento acesso, PosicaoNoFluxo camunda, CatalogoDeEtapas catalogo,
             ResolverResponsavel responsaveis, ParametrosDoRastro parametros, CacheDaPosicao cache,
-            CatalogoDoConfronto confronto) {
+            CatalogoDoConfronto confronto, LimiteDeLeiturasDoCamunda limite) {
+        this.limite = limite;
         this.acesso = acesso;
         this.camunda = camunda;
         this.catalogo = catalogo;
@@ -79,11 +81,25 @@ public class ConsultarPosicaoAtual {
                 return guardada.get();
             }
         }
-        PosicaoConfrontada lida = doCamunda(idRequerimento);
+        PosicaoConfrontada lida = comVaga(idRequerimento);
         if (validade > 0 && lida.posicao().estado() != EstadoDaPosicao.INDISPONIVEL) {
             cache.guardar(idRequerimento, versao, lida, Duration.ofSeconds(validade));
         }
         return lida;
+    }
+
+    /**
+     * S8, bloco 7: a leitura ao Camunda passa pelo mesmo limite de leituras simultâneas da tramitação; sem vaga dentro do
+     * tempo limite de uma consulta, {@code INDISPONIVEL} (como qualquer falha do Camunda).
+     */
+    private PosicaoConfrontada comVaga(long idRequerimento) {
+        try {
+            return limite.executar(Duration.ofSeconds(Math.max(1, parametros.camundaTimeoutSegundos())),
+                    () -> doCamunda(idRequerimento));
+        } catch (LimiteDeLeiturasDoCamunda.SemVagaNoCamunda e) {
+            log.warn("Posição do requerimento {} indisponível (sem vaga para ler o Camunda)", idRequerimento);
+            return reconciliar.reconciliar(PosicaoAtual.indisponivel(null), Optional.empty());
+        }
     }
 
     private PosicaoConfrontada doCamunda(long idRequerimento) {

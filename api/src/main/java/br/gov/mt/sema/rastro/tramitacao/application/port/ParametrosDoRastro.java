@@ -23,4 +23,28 @@ public interface ParametrosDoRastro {
 
     /** {@code RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS} (S7, bloco 10): tempo limite de cada consulta ao Camunda, lido a cada consulta. */
     int camundaTimeoutSegundos();
+
+    /**
+     * {@code RASTRO_TRAMITACAO_CACHE_SEGUNDOS} (S8, bloco 7): validade da tramitação em cache; 0 desliga. O padrão aqui
+     * serve aos dublês de teste; a aplicação lê do ambiente.
+     */
+    default int cacheDaTramitacaoSegundos() {
+        return 60;
+    }
+
+    /**
+     * {@code RASTRO_TRAMITACAO_TIMEOUT_SEGUNDOS} (S8, bloco 7): tempo total de uma leitura da tramitação (todas as
+     * consultas, incluindo a espera por vaga); estourado, {@code INDISPONIVEL}.
+     */
+    default int tramitacaoTimeoutSegundos() {
+        return 20;
+    }
+
+    /**
+     * {@code RASTRO_CAMUNDA_LEITURAS_SIMULTANEAS} (S8, bloco 7): quantas leituras ao Camunda (posição e tramitação) podem
+     * acontecer ao mesmo tempo nesta instância do Rastro; as demais esperam a vez.
+     */
+    default int leiturasSimultaneasDoCamunda() {
+        return 4;
+    }
 }

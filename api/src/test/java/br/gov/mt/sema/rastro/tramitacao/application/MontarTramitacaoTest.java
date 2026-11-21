@@ -71,7 +71,7 @@ class MontarTramitacaoTest {
             }
         };
         return new MontarTramitacao(posicao, camunda, licenciamento, identificacao, CatalogoDeEtapasDeTeste.padrao(),
-                MapaDeEventosDeTeste.padrao(), CatalogoDoConfrontoDeTeste.padrao(), parametros).montar(8001);
+                MapaDeEventosDeTeste.padrao(), CatalogoDoConfrontoDeTeste.padrao()).montar(8001);
     }
 
     private static CaminhoBruto comAnalise() {
@@ -180,11 +180,12 @@ class MontarTramitacaoTest {
     }
 
     @Test
-    void parametro_de_nome_desligado_tira_os_nomes_e_falha_na_identificacao_nao_derruba() {
+    void montar_guarda_os_nomes_e_falha_na_identificacao_nao_derruba() {
+        // O parâmetro de nome vale depois do cache, em LerTramitacao (bloco 7); montar sempre resolve o nome.
         camunda = (id, chave) -> comAnalise();
         parametros.mostrarNome = false;
-        assertThat(montar().caminho().passagens().getFirst().responsaveis().getFirst().nome()).isEmpty();
-        parametros.mostrarNome = true;
+        assertThat(montar().caminho().passagens().getFirst().responsaveis().getFirst().nome())
+                .contains("Servidor Exemplo 05");
         identificacao = (id, ids) -> {
             throw new SigaIndisponivelException();
         };

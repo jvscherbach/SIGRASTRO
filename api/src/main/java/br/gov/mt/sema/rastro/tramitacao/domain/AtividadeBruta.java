@@ -27,6 +27,8 @@ import java.util.Optional;
  * @param responsavel {@code ASSIGNEE_} da atividade
  * @param chamada     {@code CALL_PROC_INST_ID_}: a filha que a {@code callActivity} chamou
  * @param tarefa      a tarefa humana ligada à atividade ({@code TASK_ID_}); vazia nas demais
+ * @param representa  quantas linhas de {@code ACT_HI_ACTINST} esta linha vale (bloco 7): repetições seguidas de um script
+ *                    são colapsadas na leitura em primeira e última linha; 1 nas demais
  */
 public record AtividadeBruta(
         String instancia,
@@ -41,7 +43,8 @@ public record AtividadeBruta(
         LocalDateTime fim,
         Optional<IdentificadorDoResponsavel> responsavel,
         String chamada,
-        Optional<TarefaBruta> tarefa) {
+        Optional<TarefaBruta> tarefa,
+        int representa) {
 
     public AtividadeBruta {
         Objects.requireNonNull(instancia, "instancia");
@@ -51,6 +54,17 @@ public record AtividadeBruta(
         Objects.requireNonNull(inicio, "inicio");
         responsavel = Objects.requireNonNullElse(responsavel, Optional.empty());
         tarefa = Objects.requireNonNullElse(tarefa, Optional.empty());
+        if (representa < 1) {
+            throw new IllegalArgumentException("representa deve ser 1 ou mais");
+        }
+    }
+
+    /** Linha que vale só por ela mesma (sem colapso). */
+    public AtividadeBruta(String instancia, OrigemDaInstancia origem, String id, String idPai, String idExecucao,
+            String idTecnico, String nome, String tipo, LocalDateTime inicio, LocalDateTime fim,
+            Optional<IdentificadorDoResponsavel> responsavel, String chamada, Optional<TarefaBruta> tarefa) {
+        this(instancia, origem, id, idPai, idExecucao, idTecnico, nome, tipo, inicio, fim, responsavel, chamada, tarefa,
+                1);
     }
 
     public boolean aberta() {

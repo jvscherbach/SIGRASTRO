@@ -265,11 +265,21 @@ class ReconstruirCaminhoComFixturesTest {
     }
 
     @Test
-    void instancia_acima_do_limite_sai_truncada_e_com_as_repeticoes_colapsadas() {
+    void milhares_de_repeticoes_viram_uma_passagem_e_a_etapa_atual_aparece() {
+        // Bloco 7: o colapso acontece na leitura, antes do limite de linhas; o HC15 cabe e não é truncado.
         CaminhoReconstruido c = reconstruir(HC15);
-        assertThat(c.truncado()).isTrue();
-        assertThat(sequencia(c)).containsExactly(CAD, CONF, TAXA);
-        assertThat(c.passagens().getLast().repeticoes()).isGreaterThan(2_000);
+        assertThat(c.truncado()).isFalse();
+        assertThat(sequencia(c)).containsExactly(CAD, CONF, TAXA, PAG + "*");
+        assertThat(c.passagens().get(2).repeticoes()).isEqualTo(REPETICOES_DO_HC15);
+    }
+
+    @Test
+    void se_ainda_passa_do_limite_o_caminho_sai_truncado_com_o_que_coube() {
+        CaminhoBruto c = new CamundaPosicaoJdbc(new NamedParameterJdbcTemplate(leitura), 10, 3).lerCaminho(HC15, HIDRICO);
+        CaminhoReconstruido r = ReconstruirCaminho.reconstruir(c, CATALOGO.modelo(HIDRICO).orElseThrow(),
+                java.util.Map.of());
+        assertThat(r.truncado()).isTrue();
+        assertThat(sequencia(r)).containsExactly(CAD, CONF, TAXA);
     }
 
     // --- propriedades

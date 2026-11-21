@@ -129,7 +129,16 @@ Credenciais ficam no arquivo de ambiente do servidor; a tela não as exibe nem e
 
 Valor fora da faixa cai no padrão, com aviso no log.
 
-**`RASTRO_TRAMITACAO_LIMITE_LINHAS`** (S8, bloco 2, padrão **3000**; propriedade `rastro.tramitacao.limite-de-linhas`): quantas atividades do histórico do Camunda são lidas **por instância** no caminho percorrido. Passando disso, a instância vem truncada (as primeiras atividades). Só do ambiente por enquanto; o bloco 7 decide se vai para a tela de Configurações junto com o tempo limite total da tramitação (docs/15, "Caminho percorrido").
+**Desempenho da tramitação** (S8, blocos 2 e 7; propriedades `rastro.tramitacao.*`; docs/15, "Desempenho, limites, cache e degradação"). **Só do ambiente**: valem a partir da subida e não estão na tela de Configurações (decisão do bloco 7: são proteções do Camunda de produção, ajustadas por quem opera o servidor, não pela tela).
+
+| Variável | Padrão | Faixa | Efeito |
+|---|---|---|---|
+| `RASTRO_TRAMITACAO_LIMITE_LINHAS` | 3000 | — | atividades do histórico lidas **por instância**, contadas depois do colapso das repetições; passando disso, a instância vem truncada (as primeiras) e sai o aviso `HISTORICO_TRUNCADO` |
+| `RASTRO_TRAMITACAO_CACHE_SEGUNDOS` | 60 | 0 a 3600 | validade da tramitação em cache (chave = requerimento + versão do catálogo); 0 desliga. `INDISPONIVEL` nunca entra |
+| `RASTRO_TRAMITACAO_TIMEOUT_SEGUNDOS` | 20 | 1 a 120 | tempo **total** de uma leitura da tramitação, contando a espera por vaga; estourado, `INDISPONIVEL` |
+| `RASTRO_CAMUNDA_LEITURAS_SIMULTANEAS` | 4 | 1 a 20 | leituras ao Camunda ao mesmo tempo nesta instância do Rastro, **somando posição e tramitação**; as demais esperam a vez (a posição, até o tempo limite de uma consulta) |
+
+O tempo limite de **cada** consulta continua sendo `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS`.
 
 ### Rastro (S7, bloco 10)
 

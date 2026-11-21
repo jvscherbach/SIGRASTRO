@@ -17,7 +17,6 @@ import br.gov.mt.sema.rastro.consulta.domain.Requerimento;
 import br.gov.mt.sema.rastro.consulta.domain.ResumoRequerimento;
 import br.gov.mt.sema.rastro.consulta.domain.Situacao;
 import br.gov.mt.sema.rastro.tramitacao.application.PosicaoDoRequerimento.SituacaoDoLicenciamento;
-import br.gov.mt.sema.rastro.tramitacao.domain.CaminhoReconstruido;
 import br.gov.mt.sema.rastro.tramitacao.domain.CatalogoDeEtapas;
 import br.gov.mt.sema.rastro.tramitacao.domain.ModeloDeFluxo;
 import br.gov.mt.sema.rastro.tramitacao.domain.TramitacaoDoRequerimento;
@@ -25,7 +24,8 @@ import org.springframework.stereotype.Service;
 
 /**
  * Abertura da tramitação completa pelo usuário (S8, bloco 6): confere o acesso (404; RN07, 403) <b>antes</b> de qualquer
- * leitura, monta a tramitação pelo {@link MontarTramitacao}, aplica as regras de exibição do perfil e registra o evento
+ * leitura, lê a tramitação pelo {@link LerTramitacao} (cache e limites), aplica as regras de exibição do perfil e
+ * registra o evento
  * {@code TRAMITACAO} (detalhe "histórico").
  *
  * <ul>
@@ -39,7 +39,7 @@ import org.springframework.stereotype.Service;
  *       interessado na própria consulta). Até {@value #MAXIMO_POR_PROCESSO} requerimentos por processo.</li>
  * </ul>
  *
- * <p>Cache, limite de tempo total e de concorrência são do bloco 7.
+ * <p>Cache, tempo total e limite de leituras simultâneas: {@link LerTramitacao} (bloco 7). O RN12 vale depois do cache.
  */
 @Service
 public class AbrirTramitacao {
@@ -49,18 +49,18 @@ public class AbrirTramitacao {
 
     private final VerificarAcessoAoRequerimento acesso;
     private final BuscarRequerimentos busca;
-    private final MontarTramitacao montar;
+    private final LerTramitacao ler;
     private final PoliticaDeAcesso politica;
     private final RegistrarEvento registrar;
     private final ContextoDoEvento contexto;
     private final CatalogoDeEtapas catalogo;
 
-    public AbrirTramitacao(VerificarAcessoAoRequerimento acesso, BuscarRequerimentos busca, MontarTramitacao montar,
+    public AbrirTramitacao(VerificarAcessoAoRequerimento acesso, BuscarRequerimentos busca, LerTramitacao ler,
             PoliticaDeAcesso politica, RegistrarEvento registrar, ContextoDoEvento contexto, CatalogoDeEtapas catalogo) {
         this.catalogo = catalogo;
         this.acesso = acesso;
         this.busca = busca;
-        this.montar = montar;
+        this.ler = ler;
         this.politica = politica;
         this.registrar = registrar;
         this.contexto = contexto;
@@ -84,10 +84,10 @@ public class AbrirTramitacao {
 
     private TramitacaoAberta abrir(long id, String numeroRequerimento, String numeroProcesso, String cpfCnpj,
             Identificacao identificacao) {
-        TramitacaoDoRequerimento tramitacao = montar.montar(id);
+        TramitacaoDoRequerimento tramitacao = ler.ler(id);
         if (!politica.podeVerResponsavelTarefa()) {
             // RN12: sem nome do servidor em nenhuma passagem nem participante.
-            tramitacao = semNomes(tramitacao);
+            tramitacao = tramitacao.semNomes();
         }
         registrar.registrar(contexto.novo(TipoDeEvento.TRAMITACAO)
                 .requerimento(id, numeroProcesso, numeroRequerimento)
@@ -100,11 +100,5 @@ public class AbrirTramitacao {
         Optional<String> rotuloDoModelo = tramitacao.modelo().flatMap(catalogo::modelo).map(ModeloDeFluxo::rotulo);
         return new TramitacaoAberta(id, numeroRequerimento, numeroProcesso, tramitacao, rotuloDoModelo, situacao,
                 politica.podeVerIdsTecnicosDoFluxo());
-    }
-
-    private static TramitacaoDoRequerimento semNomes(TramitacaoDoRequerimento t) {
-        CaminhoReconstruido caminho = t.caminho().semNomes();
-        return new TramitacaoDoRequerimento(t.estado(), t.modelo(), t.situacao(), caminho, t.desfecho(), t.planoB(),
-                t.avisos());
     }
 }

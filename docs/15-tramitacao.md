@@ -387,7 +387,7 @@ Quando o SIGA corrigir o bug de origem da taxa vencida, a situação passa a `CA
 - **DTO** (`TramitacaoResponse`): passagens (etapa com id estável e rótulo, ciclo, ramo, entrada, saída, duração, atual, em paralelo, selo "processo concluído", motivo da volta com código e texto, `responsaveis[]` ou `participantes[]` na multi-instância, `atos[]`), complementações, taxa pela rota, final (`FINAL` = bola preta; `CONCLUIDO_NA_VERIFICACAO` = sem bola), avisos, `planoB` e `truncado`. O plano B **não tem campo de responsável**.
 - **Só para o Administrador** (campos que **não existem** para os demais): `passagens[].idTecnico`, `passagens[].repeticoes`, `final.idTecnico`, `idsNaoMapeados`, `diagnosticos`. A chave do modelo (`procOutorgaAguaSupSub`) nunca sai: o campo `modelo` é o rótulo.
 - **Aviso novo `HISTORICO_TRUNCADO`** (`ATENCAO`, texto em `confronto.yaml`): o `MontarTramitacao` o acrescenta quando o limite de linhas por instância foi atingido (`CaminhoReconstruido.truncado()`).
-- **Fora deste bloco:** cache da tramitação, tempo total, limite de concorrência e teste de carga (bloco 7); matriz de acesso estendida com varredura de vazamento por cenário (bloco 11). A matriz por perfil das duas rotas já está no `MatrizDeAcessoTest`.
+- **Fora deste bloco:** cache da tramitação, tempo total, limite de concorrência e teste de carga (S8, bloco 7: seção "Desempenho, limites, cache e degradação"); matriz de acesso estendida com varredura de vazamento por cenário (bloco 11). A matriz por perfil das duas rotas já está no `MatrizDeAcessoTest`.
 
 ## Acesso, vazamento e resiliência (bloco 7)
 
@@ -439,10 +439,10 @@ Só leitura **crua**: a interpretação (etapas, ciclos, voltas, finais) é do b
 Sem laço por linha (provado por `CaminhoPercorridoJdbcTest`, que conta os comandos preparados: 6 em HC01, HC12, HC14 e HC15; 1 nos PB). Parâmetros nomeados, `TO_CHAR` onde há `NVARCHAR2` em `CASE` (regra 12), nenhum `TO_NUMBER`. Tempo limite por consulta: o mesmo `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS`.
 
 - **Ordem:** `START_TIME_` e id da atividade (o id carrega um contador crescente por instância, então o empate de início sai na ordem de gravação). Ruído, repetições e tarefas encerradas sem ação **não são removidos aqui**.
-- **Limite por instância:** `RASTRO_TRAMITACAO_LIMITE_LINHAS` (propriedade `rastro.tramitacao.limite-de-linhas`, padrão **3.000**). A janela é `ROW_NUMBER() OVER (PARTITION BY PROC_INST_ID_ ...)`; a linha 3.001 só indica o excesso e é descartada. A instância fica `truncada` e vem **com as primeiras** atividades, na ordem de gravação (as últimas, e portanto a etapa atual, ficam de fora: a posição atual continua vindo do bloco 3 da S7). O bloco 7 acrescenta o colapso de repetições e o aviso `HISTORICO_TRUNCADO`. Teto teórico de linhas: 71 instâncias (1 raiz + 50 filhas + 20 complementações) × limite.
-- **Duas instâncias raiz:** vale a mais recente; `instanciasRaiz` guarda quantas há (aviso `VARIAS_INSTANCIAS` como na posição). Nada da anterior entra.
+- **Ordem:** `START_TIME_` e id da atividade (o id carrega um contador crescente por instância, então o empate de início sai na ordem de gravação). Ruído e tarefas encerradas sem ação **não são removidos aqui**. **Desde o bloco 7**, repetições seguidas do mesmo `ACT_ID_` encerradas e sem tarefa (script repetido por erro) são **colapsadas no SQL** em primeira e última linha, com `AtividadeBruta.representa` dizendo quantas linhas cada uma vale (a reconstrução soma em `repeticoes`).
+- **Limite por instância:** `RASTRO_TRAMITACAO_LIMITE_LINHAS` (propriedade `rastro.tramitacao.limite-de-linhas`, padrão **3.000**), contado **depois do colapso** (bloco 7). A janela é `ROW_NUMBER() OVER (PARTITION BY PROC_INST_ID_ ...)`; a linha 3.001 só indica o excesso e é descartada. Se ainda passar, a instância fica `truncada` e vem **com as primeiras** atividades, na ordem de gravação, e a tramitação sai com o aviso `HISTORICO_TRUNCADO`. O HC15 (3.500 repetições) cabe depois do colapso. Teto teórico de linhas: 71 instâncias (1 raiz + 50 filhas + 20 complementações) × limite.
 - **Variáveis:** lidas da raiz **e das filhas** (a variável de decisão pode ficar numa filha: NÃO CONFIRMADO, P40). `TEXT_` e `LONG_` vêm separados: o Camunda guarda booleano em `LONG_` (0 ou 1), enquanto as fixtures da S8 gravam o texto `true`; o bloco 3 interpreta e confere (P40).
-- **NÃO CONFIRMADO (P40):** índice em `ACT_HI_PROCINST(SUPER_PROCESS_INSTANCE_ID_)` (se faltar, as consultas 2 são varreduras: recomendação de índice no bloco 7); que `PARENT_ACT_INST_ID_` aponte para o corpo da multi-instância (as fixtures não o preenchem; o bloco 3 agrupa pelo corpo e, se faltar, por proximidade); o valor de `LONG_` dos booleanos reais.
+- **NÃO CONFIRMADO (P40):** índice em `ACT_HI_PROCINST(SUPER_PROCESS_INSTANCE_ID_)` (se faltar, as consultas 2 são varreduras: recomendação de índice em P42); que `PARENT_ACT_INST_ID_` aponte para o corpo da multi-instância (as fixtures não o preenchem; o bloco 3 agrupa pelo corpo e, se faltar, por proximidade); o valor de `LONG_` dos booleanos reais.
 
 ## Reconstrução do caminho (S8, bloco 3)
 
@@ -547,6 +547,33 @@ Mapa (`eventos-historico.yaml`, hipótese pelo nome, NÃO CONFIRMADO, P41):
 | `CONCLUSAO_REQUERIMENTO` | marco | marco |
 
 O `HISTORICO_REQUERIMENTO` não tem índice conhecido em `ID_REQUERIMENTO` (R73): a consulta só roda para requerimento sem instância. Testes: `MontarHistoricoAproximadoTest`, `MapaDeEventosEmArquivoTest`, `MontarTramitacaoTest` (sem Docker: Camunda fora ou lento = `INDISPONIVEL` e o plano B nem é consultado; falha no plano B; não suportado; nome desligado; identificação falhando) e `PlanoBComFixturesTest` (Docker: PB01 a PB03, 2 consultas, nenhum CPF, SQL sem `CPF`, `SERVIDOR`, `PESSOA`).
+
+## Desempenho, limites, cache e degradação (S8, bloco 7)
+
+Protege o Camunda de produção. Tudo em memória, nada gravado no Oracle.
+
+| Peça | Onde | Papel |
+|---|---|---|
+| `LerTramitacao` | `tramitacao.application` | entre `AbrirTramitacao` (que já conferiu o acesso) e `MontarTramitacao`: cache, uma leitura por requerimento, tempo total e o parâmetro de nome depois do cache |
+| `CacheDaTramitacao` / `CacheDaTramitacaoEmMemoria` | porta / `infrastructure/memoria` | chave = id do requerimento + `CatalogoDeEtapas.versao()` (como a posição: mudou o catálogo, as duas deixam de servir o antigo), validade `RASTRO_TRAMITACAO_CACHE_SEGUNDOS`, teto de **500** entradas (acima dele saem as vencidas e, se não bastar, tudo); `INDISPONIVEL` **nunca** entra |
+| `LimiteDeLeiturasDoCamunda` | `tramitacao.application` | teto de leituras simultâneas ao Camunda nesta instância (`RASTRO_CAMUNDA_LEITURAS_SIMULTANEAS`), **compartilhado pela posição e pela tramitação** (lista da busca, outros requerimentos do processo, painel); sem vaga dentro da espera = `INDISPONIVEL` |
+
+Fluxo de uma leitura (`LerTramitacao.ler`):
+
+1. **Cache** (se a validade for maior que zero): achou, devolve. O valor guardado tem os nomes; o parâmetro `RASTRO_MOSTRAR_NOME_RESPONSAVEL` é aplicado **depois** (vale na próxima leitura) e o RN12 do Operador depois disso, em `AbrirTramitacao`. O CPF nunca entra no cache (sai na montagem).
+2. **Uma leitura por requerimento** (*single flight*): pedidos simultâneos do mesmo requerimento (e mesma versão do catálogo) esperam a mesma leitura, com ou sem cache. A leitura sai do "em andamento" **antes** de entregar o resultado: quem chega depois vai ao cache ou faz a própria leitura (nunca reaproveita um `INDISPONIVEL`).
+3. A leitura roda numa thread própria (até 32), com **vaga** no limite de leituras. Quem pediu espera no máximo o **tempo total** (`RASTRO_TRAMITACAO_TIMEOUT_SEGUNDOS`, contando a espera por vaga); estourado, `INDISPONIVEL` na hora. A leitura que ficou para trás termina sozinha (cada consulta tem o próprio tempo limite, `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS`) e ainda alimenta o cache.
+4. Tempo estourado, sem vaga, sem thread livre ou erro: `INDISPONIVEL`; o **plano B nunca substitui** a falha. O log leva só o id e o motivo (nunca a mensagem do driver).
+
+Na **posição** (S7), `ConsultarPosicaoAtual` passa a ler o Camunda com vaga no mesmo limite; a espera é o tempo limite de uma consulta. O resto da posição não muda (cache próprio, `RASTRO_POSICAO_CACHE_SEGUNDOS`).
+
+**Consultas por requerimento (máximo documentado e testado):** tramitação com instância, **8** (tipo e situação 1; caminho 6: instâncias, filhas, complementações, atividades, variáveis da época e finais; responsáveis 1, só se houver CPF); plano B, **4** (tipo 1, instâncias 1, plano B 2); tipo não suportado, **1**. Sem laço por linha. Posição (S7): 8.
+
+**Colapso de repetições antes do limite:** o SQL das atividades (`historico-atividades.sql`) junta, por "ilhas" (diferença entre a numeração geral e a numeração por `ACT_ID_`), as atividades seguidas do mesmo id encerradas e sem tarefa, deixando a primeira e a última; o limite de linhas é contado depois. Tarefas e atividades abertas nunca são colapsadas. Se ainda passar do limite: o que coube, com `HISTORICO_TRUNCADO`.
+
+Testes: `LerTramitacaoTest` (cache e validade, cache desligado, `INDISPONIVEL` fora do cache, versão do catálogo, 20 pedidos simultâneos = 1 leitura, com e sem cache, Camunda lento = `INDISPONIVEL` em menos de 1,8 s com tempo total de 1 s e a leitura tardia alimentando o cache, teto de leituras simultâneas, sem vaga = `INDISPONIVEL`, nome depois do cache), `LimiteDeLeiturasDoCamundaTest`, `CacheDaTramitacaoEmMemoriaTest`, `CaminhoPercorridoJdbcTest` (colapso: HC11 com 2 linhas valendo 4, HC15 com 3.500 repetições sem truncar e com a etapa atual; limite 3 trunca o HC15 depois do colapso) e `CargaDaTramitacaoTest` (Docker, pilha real: 200 leituras em sequência sem falha, sem truncar e com no máximo 8 consultas cada; 20 em paralelo sem passar de 3 conexões abertas ao mesmo tempo com o teto 3; 20 pedidos do mesmo requerimento com cache = uma leitura).
+
+**Recomendações de índice** (só documento: o usuário do Rastro é somente leitura; decisão da equipe do SIGA): ver P42 em [10](10-pendencias-e-riscos.md).
 
 ## Dependências do módulo
 

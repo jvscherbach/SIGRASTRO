@@ -74,11 +74,13 @@ public final class ReconstruirCaminho {
         final List<InstanciaDoHistorico> filhas = new ArrayList<>();
         final List<AtividadeBruta> chamadasSemFilha = new ArrayList<>();
         AtividadeBruta corpo;
+        /** Quantas linhas de ACT_HI_ACTINST a passagem junta (somando as colapsadas na leitura). */
         int repeticoes;
 
         Item(Etapa etapa, AtividadeBruta primeira) {
             this.etapa = etapa;
             this.primeira = primeira;
+            this.repeticoes = primeira.representa();
         }
 
         boolean multi() {
@@ -248,7 +250,7 @@ public final class ReconstruirCaminho {
                 item = new Item(e, a);
                 itens.add(item);
             } else {
-                item.repeticoes++;
+                item.repeticoes += a.representa();
             }
             InstanciaDoHistorico filha = a.chamada() == null ? null : filhasPorId.get(a.chamada());
             if (filha != null) {
@@ -267,7 +269,7 @@ public final class ReconstruirCaminho {
             Item item = ultimo();
             boolean junta = item != null && item.etapa == e && !item.multi() && !(item.temTarefa() && ehTarefa(a));
             if (junta) {
-                item.repeticoes++;
+                item.repeticoes += a.representa();
             } else {
                 item = new Item(e, a);
                 itens.add(item);
@@ -320,7 +322,7 @@ public final class ReconstruirCaminho {
                 }
                 passagens.add(new PassagemPelaEtapa(Optional.ofNullable(i.etapa), i.primeira.idTecnico(), ciclo,
                         i.etapa != null ? i.etapa.ramo() : Ramo.PRINCIPAL, i.entrada(), i.saida(), responsaveis(i),
-                        i.multi(), atos(i), Optional.empty(), paralelo, i.repeticoes + 1,
+                        i.multi(), atos(i), Optional.empty(), paralelo, i.repeticoes,
                         i.etapa != null && MotivosDaVolta.VERIFICACAO.equals(i.etapa.id())));
             }
             List<PassagemPelaEtapa> comMotivo = new ArrayList<>();

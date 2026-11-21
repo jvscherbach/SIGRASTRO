@@ -38,6 +38,11 @@ public record TramitacaoDoRequerimento(
         }
     }
 
+    /** Sem o nome dos servidores em nenhuma passagem nem participante (RN12, parâmetro de nome). */
+    public TramitacaoDoRequerimento semNomes() {
+        return new TramitacaoDoRequerimento(estado, modelo, situacao, caminho.semNomes(), desfecho, planoB, avisos);
+    }
+
     /** Dado aproximado: só no plano B. */
     public boolean aproximado() {
         return planoB.isPresent();

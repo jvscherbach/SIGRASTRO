@@ -8,7 +8,6 @@ import java.util.Optional;
 import br.gov.mt.sema.rastro.tramitacao.application.port.CaminhoPercorrido;
 import br.gov.mt.sema.rastro.tramitacao.application.port.HistoricoDoLicenciamento;
 import br.gov.mt.sema.rastro.tramitacao.application.port.IdentificacaoDosResponsaveis;
-import br.gov.mt.sema.rastro.tramitacao.application.port.ParametrosDoRastro;
 import br.gov.mt.sema.rastro.tramitacao.application.port.PosicaoNoFluxo;
 import br.gov.mt.sema.rastro.tramitacao.domain.AvaliarDesfecho;
 import br.gov.mt.sema.rastro.tramitacao.domain.Aviso;
@@ -35,7 +34,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * Monta a tramitação completa de um requerimento (S8, blocos 2 a 5), <b>sem</b> a checagem de acesso, a auditoria e o
- * contrato HTTP (bloco 6) e sem o cache e os limites de tempo total (bloco 7).
+ * contrato HTTP (bloco 6). O cache, o tempo total e o limite de leituras simultâneas ficam em {@link LerTramitacao} (bloco 7).
  *
  * <ol>
  *   <li>Tipo do requerimento → modelo do catálogo; fora do catálogo: {@code NAO_SUPORTADO}, sem ir ao Camunda.</li>
@@ -43,8 +42,8 @@ import org.springframework.stereotype.Service;
  *       <b>não</b> é tentado: mostrar dado aproximado como se fosse exato seria pior que não mostrar.</li>
  *   <li>Raiz inexistente em {@code ACT_HI_PROCINST} = {@code SEM_INSTANCIA}: só então o plano B (histórico aproximado,
  *       aviso {@code HISTORICO_APROXIMADO}); falha no plano B também é {@code INDISPONIVEL}.</li>
- *   <li>Com raiz: identificação dos responsáveis (falha tolerante: "não identificado"), reconstrução, desfecho e o
- *       parâmetro de nome ({@code RASTRO_MOSTRAR_NOME_RESPONSAVEL}). Os CPFs não saem daqui.</li>
+ *   <li>Com raiz: identificação dos responsáveis (falha tolerante: "não identificado"), reconstrução e desfecho, com os
+ *       nomes dos servidores (o parâmetro de nome e o RN12 valem depois do cache). Os CPFs não saem daqui.</li>
  * </ol>
  */
 @Service
@@ -58,20 +57,18 @@ public class MontarTramitacao {
     private final IdentificacaoDosResponsaveis identificacao;
     private final CatalogoDeEtapas catalogo;
     private final MapaDeEventosDoHistorico eventos;
-    private final ParametrosDoRastro parametros;
     private final Reconciliar reconciliar;
     private final AvaliarDesfecho desfecho;
 
     public MontarTramitacao(PosicaoNoFluxo requerimentos, CaminhoPercorrido camunda, HistoricoDoLicenciamento licenciamento,
             IdentificacaoDosResponsaveis identificacao, CatalogoDeEtapas catalogo, MapaDeEventosDoHistorico eventos,
-            CatalogoDoConfronto confronto, ParametrosDoRastro parametros) {
+            CatalogoDoConfronto confronto) {
         this.requerimentos = requerimentos;
         this.camunda = camunda;
         this.licenciamento = licenciamento;
         this.identificacao = identificacao;
         this.catalogo = catalogo;
         this.eventos = eventos;
-        this.parametros = parametros;
         this.reconciliar = new Reconciliar(confronto);
         this.desfecho = new AvaliarDesfecho(reconciliar);
     }
@@ -111,9 +108,6 @@ public class MontarTramitacao {
     private TramitacaoDoRequerimento doCamunda(long idRequerimento, ModeloDeFluxo modelo, CaminhoBruto bruto,
             Optional<String> situacao) {
         CaminhoReconstruido caminho = ReconstruirCaminho.reconstruir(bruto, modelo, identificar(idRequerimento, bruto));
-        if (!parametros.mostrarNomeDoResponsavel()) {
-            caminho = caminho.semNomes();
-        }
         DesfechoDoCaminho fim = desfecho.avaliar(bruto, caminho, modelo, situacao);
         List<Aviso> avisos = new ArrayList<>(fim.avisos());
         if (caminho.instanciasRaiz() > 1) {

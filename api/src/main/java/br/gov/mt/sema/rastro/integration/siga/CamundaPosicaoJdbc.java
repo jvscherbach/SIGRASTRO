@@ -260,7 +260,8 @@ class CamundaPosicaoJdbc implements PosicaoNoFluxo, IdentificacaoDosResponsaveis
         return new AtividadeBruta(instancia, origem, rs.getString("ID"), rs.getString("ID_PAI"),
                 rs.getString("EXECUCAO"), rs.getString("ATIVIDADE"), rs.getString("NOME"), rs.getString("TIPO"),
                 DataHoraDoSiga.ler(rs, "INICIO"), DataHoraDoSiga.ler(rs, "FIM"),
-                IdentificadorDoResponsavel.de(rs.getString("RESPONSAVEL")), rs.getString("CHAMADA"), tarefa);
+                IdentificadorDoResponsavel.de(rs.getString("RESPONSAVEL")), rs.getString("CHAMADA"), tarefa,
+                Math.max(1, rs.getInt("REPRESENTA")));
     }
 
     private static VariavelBruta variavel(ResultSet rs) throws SQLException {

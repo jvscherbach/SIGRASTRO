@@ -58,7 +58,8 @@ import org.springframework.test.web.servlet.ResultActions;
  * sai para cada perfil, o evento de auditoria "histórico" e a ausência de CPF e de ids técnicos para quem não é
  * Administrador.
  */
-@SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url="})
+@SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url=",
+        "rastro.tramitacao.tramitacao-cache-segundos=0"})
 @AutoConfigureMockMvc
 class TramitacaoCompletaHttpTest {
 

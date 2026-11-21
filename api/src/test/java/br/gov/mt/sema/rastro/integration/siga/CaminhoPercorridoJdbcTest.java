@@ -228,13 +228,24 @@ class CaminhoPercorridoJdbcTest {
                 a -> assertThat(a.tarefa()).hasValueSatisfying(t -> assertThat(t.motivo()).isEqualTo(MotivoDaTarefa.EXCLUIDA)));
     }
 
-    // --- ruído e tarefas encerradas sem ação: nada é removido aqui
+    // --- ruído e tarefas encerradas sem ação: nada é removido aqui; só repetições seguidas de script são colapsadas
+
+    private static int representadas(List<AtividadeBruta> atividades, String idTecnico) {
+        return atividades.stream().filter(a -> a.idTecnico().equals(idTecnico)).mapToInt(AtividadeBruta::representa)
+                .sum();
+    }
 
     @Test
-    void ruido_nao_e_removido_nem_colapsado() {
-        List<String> ids = ids(da(caminho(HC11), "fict-" + HC11));
-        assertThat(ids).contains("Activity_0miwhxt", REPORT_KAFKA_FICTICIO, REPETICAO_POR_ERRO_FICTICIA);
-        assertThat(ids.stream().filter(EMITIR_TAXA::equals)).hasSize(4);
+    void ruido_nao_e_removido_e_o_script_repetido_vira_primeira_e_ultima_linha() {
+        List<AtividadeBruta> raiz = da(caminho(HC11), "fict-" + HC11);
+        assertThat(ids(raiz)).contains("Activity_0miwhxt", REPORT_KAFKA_FICTICIO, REPETICAO_POR_ERRO_FICTICIA);
+        List<AtividadeBruta> taxa = raiz.stream().filter(a -> a.idTecnico().equals(EMITIR_TAXA)).toList();
+        assertThat(taxa).hasSize(2);
+        assertThat(taxa).extracting(AtividadeBruta::representa).containsExactly(3, 1);
+        assertThat(representadas(raiz, EMITIR_TAXA)).isEqualTo(4);
+        // As demais atividades valem uma linha cada.
+        assertThat(raiz).filteredOn(a -> !a.idTecnico().equals(EMITIR_TAXA))
+                .allSatisfy(a -> assertThat(a.representa()).isEqualTo(1));
     }
 
     @Test
@@ -244,7 +255,8 @@ class CaminhoPercorridoJdbcTest {
         assertThat(analise).hasSize(3);
         assertThat(analise.stream().filter(a -> a.tarefa().get().motivo() == MotivoDaTarefa.CONCLUIDA)).hasSize(1);
         assertThat(analise.stream().filter(a -> a.tarefa().get().motivo() == MotivoDaTarefa.EXCLUIDA)).hasSize(2);
-        // A tarefa aberta (correção do interessado) vem como aberta.
+        // Tarefas nunca são colapsadas, nem as do mesmo id seguidas.
+        assertThat(analise).allSatisfy(a -> assertThat(a.representa()).isEqualTo(1));
         assertThat(da(caminho(HC10), "fict-" + HC10).stream().filter(AtividadeBruta::aberta)
                 .filter(a -> a.tarefa().isPresent()))
                 .allSatisfy(a -> assertThat(a.tarefa().get().motivo()).isEqualTo(MotivoDaTarefa.ABERTA));
@@ -258,38 +270,45 @@ class CaminhoPercorridoJdbcTest {
         assertThat(aceite.stream().filter(a -> a.tarefa().get().motivo() == MotivoDaTarefa.CONCLUIDA)).isNotEmpty();
     }
 
-    // --- limite por instância
+    // --- limite por instância (bloco 7: contado depois do colapso)
 
     @Test
-    void instancia_com_milhares_de_atividades_vem_truncada_no_limite_padrao() {
+    void milhares_de_repeticoes_sao_colapsadas_antes_do_limite_e_a_etapa_atual_nao_se_perde() {
         CaminhoBruto c = caminho(HC15);
         InstanciaDoHistorico raiz = c.raiz().orElseThrow();
         assertThat(contarNoBanco(raiz.id())).isGreaterThan(3000);
-        assertThat(raiz.truncada()).isTrue();
-        assertThat(raiz.lidas()).isEqualTo(3000);
-        assertThat(da(c, raiz.id())).hasSize(3000);
-        assertThat(c.truncado()).isTrue();
-        // As primeiras, na ordem de gravação: o cadastro abre o caminho.
-        assertThat(da(c, raiz.id()).getFirst().idTecnico()).isEqualTo(CADASTRO);
-    }
-
-    @Test
-    void limite_maior_que_a_instancia_le_tudo_sem_marcar_truncado() {
-        CamundaPosicaoJdbc folgado = new CamundaPosicaoJdbc(new NamedParameterJdbcTemplate(leitura), 10, 10_000);
-        CaminhoBruto c = folgado.lerCaminho(HC15, HIDRICO);
-        InstanciaDoHistorico raiz = c.raiz().orElseThrow();
         assertThat(raiz.truncada()).isFalse();
-        assertThat(raiz.lidas()).isEqualTo(contarNoBanco(raiz.id()));
         assertThat(c.truncado()).isFalse();
+        List<AtividadeBruta> lidas = da(c, raiz.id());
+        assertThat(lidas.size()).isLessThan(20).isEqualTo(raiz.lidas());
+        assertThat(representadas(lidas, EMITIR_TAXA)).isEqualTo(REPETICOES_DO_HC15);
+        assertThat(lidas.stream().mapToInt(AtividadeBruta::representa).sum()).isEqualTo(contarNoBanco(raiz.id()));
+        // A espera de pagamento, aberta, continua lá.
+        assertThat(lidas.getLast().aberta()).isTrue();
+        assertThat(lidas.getFirst().idTecnico()).isEqualTo(CADASTRO);
     }
 
     @Test
-    void limite_pequeno_vale_por_instancia_e_so_a_instancia_grande_fica_truncada() {
-        CamundaPosicaoJdbc curto = new CamundaPosicaoJdbc(new NamedParameterJdbcTemplate(leitura), 10, 6);
-        CaminhoBruto c = curto.lerCaminho(HC12, HIDRICO);
+    void se_ainda_passa_do_limite_depois_do_colapso_devolve_o_que_coube_marcado_como_truncado() {
+        CamundaPosicaoJdbc curto = new CamundaPosicaoJdbc(new NamedParameterJdbcTemplate(leitura), 10, 3);
+        CaminhoBruto c = curto.lerCaminho(HC15, HIDRICO);
+        InstanciaDoHistorico raiz = c.raiz().orElseThrow();
+        assertThat(raiz.truncada()).isTrue();
+        assertThat(raiz.lidas()).isEqualTo(3);
+        assertThat(ids(da(c, raiz.id()))).containsExactly(CADASTRO, CONFERENCIA, EMITIR_TAXA);
+        assertThat(c.truncado()).isTrue();
+    }
+
+    @Test
+    void limite_vale_por_instancia_e_so_a_instancia_grande_fica_truncada() {
+        CaminhoBruto completo = new CamundaPosicaoJdbc(new NamedParameterJdbcTemplate(leitura), 10, 10_000)
+                .lerCaminho(HC12, HIDRICO);
+        CaminhoBruto c = new CamundaPosicaoJdbc(new NamedParameterJdbcTemplate(leitura), 10, 6).lerCaminho(HC12, HIDRICO);
+        assertThat(completo.truncado()).isFalse();
         for (InstanciaDoHistorico i : c.instancias()) {
-            assertThat(i.lidas()).as(i.id()).isEqualTo(Math.min(6, contarNoBanco(i.id())));
-            assertThat(i.truncada()).as(i.id()).isEqualTo(contarNoBanco(i.id()) > 6);
+            int todas = completo.atividadesDe(i.id()).size();
+            assertThat(i.lidas()).as(i.id()).isEqualTo(Math.min(6, todas));
+            assertThat(i.truncada()).as(i.id()).isEqualTo(todas > 6);
             assertThat(da(c, i.id())).as(i.id()).hasSize(i.lidas());
         }
         assertThat(c.raiz().orElseThrow().truncada()).isTrue();
