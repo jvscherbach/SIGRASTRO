@@ -12,6 +12,14 @@
 | RF04 | Exibir os dados do requerimento: prioridade de atendimento, tipo de requerimento, nº do processo (ou do requerimento, se não protocolado), situação, data de abertura, interessado, CPF/CNPJ, tipo de processo, última atualização, objetivos, finalidades e atividades. |
 | RF05 | Exibir a tarefa atual do fluxo (nome da tarefa, data de criação e responsável) ou indicar que não há tarefa ativa. |
 
+### Tramitação (S7)
+
+| ID | Requisito |
+|---|---|
+| RF31 | Exibir a **posição atual** do requerimento no fluxo (Hídrico e LAC), em linguagem de negócio: etapa atual, desde quando, pontos em paralelo ("+N em paralelo"), complementação em andamento, "x de y" da multi-instância e, quando encerrado, o final ("Concluído", "Cancelado pelo cadastrante"...). Fluxo fora do catálogo: "não suportado"; sem instância: "sem instância"; Camunda fora do ar: "indisponível", sem derrubar o detalhe (`GET /requerimentos/{id}/posicao`, `GET /processos/{numero}/posicao`; docs/07, docs/15). |
+| RF32 | Exibir **com quem** está a etapa: nome do servidor (sem CPF, nunca), área do grupo, "Interessado (cadastrante)" ou "Sistema". O nome segue o RN12 e o parâmetro `RASTRO_MOSTRAR_NOME_RESPONSAVEL`. |
+| RF33 | Exibir os **avisos** do confronto entre a situação do Licenciamento e o fluxo (selo com texto, código estável e gravidade `INFO`/`ATENCAO`), sem alterar a posição (RN14). |
+
 ### Documentos
 
 | ID | Requisito |
@@ -95,3 +103,4 @@
 | RN11 | Arquivos compactados (ZIP, RAR, 7Z) são desconsiderados: não aparecem na lista nem entram no dossiê. |
 | RN12 | Responsável pela tarefa atual: só o **nome** do servidor é exibido, e só para Gestor e Administrador. O Operador não recebe o campo (a API o omite). O CPF do servidor nunca sai na API nem na tela. Sem responsável: "Não atribuída"; sem nome encontrado ou valor em outro formato: "Responsável não identificado". |
 | RN13 | Seleção total (S2.2): ao abrir o requerimento, todo documento **selecionável** vem selecionado: vigente ou sem efeito (`DATA_FIM` preenchida), de qualquer tipo, inclusive tipo não informado (`DESCONHECIDO`). Com a conversão ligada (S3), planilhas, textos e imagens de formato convertível (RF13) também são selecionáveis e vêm selecionados. Não são selecionáveis: indisponíveis (chave nula, vazia ou `"0"`), não PDF por extensão conhecida que não é convertível (por exemplo `txt`) ou, com `CONVERSAO_HABILITADA=false` ou conversor indisponível, qualquer não PDF ("conversão indisponível"), e sigilosos para o Operador. "Seleção padrão" volta a marcar todos os selecionáveis. |
+| RN14 | **A etapa do fluxo prevalece sobre a situação do Licenciamento** (S7): a posição vem do Camunda e do catálogo de etapas; `SITUACAO_PROCESSO` só aparece ao lado e, quando diverge, vira aviso (selo), nunca correção silenciosa. Exceção: requerimento sem instância no Camunda (plano B da S8). O mesmo RN12 vale para o responsável da etapa (Operador vê área e papel, sem nome); ids técnicos do fluxo só para o Administrador. |

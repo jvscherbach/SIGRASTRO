@@ -27,6 +27,7 @@ Registro de quem consultou, visualizou, gerou e baixou dossiês, com destaque pa
 | `FALHA` | Falha na geração | Geração com falha em documento (desde a S2.2, o pedido fica aguardando decisão; cada tentativa com falha gera um evento) ou falha na montagem (evento sem documento) | Documento e motivo |
 | `DOWNLOAD` | Download | Download completo do PDF do dossiê (a pré-visualização não conta) | Nome do arquivo e pedido |
 | `GEOMETRIAS` | Geometrias baixadas | Download completo do ZIP das geometrias (RN10; previsto desde a S4, registrado a partir da S5) | Quantidade de arquivos, quantas sigilosas e nome do ZIP |
+| `TRAMITACAO` | Posição na tramitação | Posição atual devolvida (S7): do requerimento, ou uma por requerimento do processo; também quando o Camunda está indisponível (a consulta aconteceu). Acesso negado não registra | Número consultado (como em `CONSULTA`). **Nunca** o responsável pela etapa, a área, ids técnicos nem CPF |
 
 O evento `DOSSIE` é registrado quando a geração termina com sucesso; uma tentativa interrompida gera `FALHA`.
 
@@ -74,7 +75,7 @@ Schema próprio do serviço (ver D09), em Oracle (D21): desenvolvimento em Oracl
 | `LOGIN_USUARIO` / `NOME_USUARIO` | Retrato do usuário no momento do evento (sem FK para `USUARIO`) |
 | `PERFIL` | Perfil no momento do evento |
 | `GRUPO` | `DOCUMENTOS` ou `ACESSOS` |
-| `TIPO_EVENTO` | `CONSULTA`, `VISUALIZACAO`, `DOSSIE`, `FALHA`, `DOWNLOAD`, `GEOMETRIAS`, `LOGIN`, `USUARIO`, `CONFIG` |
+| `TIPO_EVENTO` | `CONSULTA`, `VISUALIZACAO`, `DOSSIE`, `FALHA`, `DOWNLOAD`, `GEOMETRIAS`, `TRAMITACAO` (S7), `LOGIN`, `USUARIO`, `CONFIG` |
 | `ID_REQUERIMENTO` | Requerimento do SIGA (referência lógica, sem FK entre bancos) |
 | `NUMERO_PROCESSO` / `NUMERO_REQUERIMENTO` | Números no momento do evento |
 | `SIGILOSO` | Evento envolve documento sigiloso |

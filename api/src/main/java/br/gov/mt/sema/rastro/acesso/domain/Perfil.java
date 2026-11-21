@@ -45,6 +45,14 @@ public enum Perfil {
         return restritoAoInteressado;
     }
 
+    /**
+     * Ids técnicos do fluxo (id de atividade do BPMN, chave da filha, ids não mapeados) só para o Administrador (S7):
+     * o usuário vê a etapa em linguagem de negócio.
+     */
+    public boolean podeVerIdsTecnicosDoFluxo() {
+        return this == ADMIN;
+    }
+
     /** O nome do responsável pela tarefa atual é visível só para Gestor e Administrador (RN12). */
     public boolean podeVerResponsavelTarefa() {
         return verResponsavelTarefa;

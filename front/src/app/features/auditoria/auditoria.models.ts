@@ -19,6 +19,7 @@ export const TIPOS_DO_GRUPO: Record<GrupoDeAuditoria, { codigo: string; rotulo: 
     { codigo: 'FALHA', rotulo: 'Falha na geração' },
     { codigo: 'DOWNLOAD', rotulo: 'Download' },
     { codigo: 'GEOMETRIAS', rotulo: 'Geometrias baixadas' },
+    { codigo: 'TRAMITACAO', rotulo: 'Posição na tramitação' },
   ],
   acessos: [
     { codigo: 'LOGIN', rotulo: 'Acesso' },

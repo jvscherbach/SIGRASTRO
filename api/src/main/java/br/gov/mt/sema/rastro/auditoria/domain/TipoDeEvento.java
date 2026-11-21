@@ -9,6 +9,8 @@ public enum TipoDeEvento {
     FALHA(GrupoDeEvento.DOCUMENTOS, "Falha na geração"),
     DOWNLOAD(GrupoDeEvento.DOCUMENTOS, "Download"),
     GEOMETRIAS(GrupoDeEvento.DOCUMENTOS, "Geometrias baixadas"),
+    /** Posição na tramitação (S7, bloco 6): só usuário e números; nunca o responsável pela etapa nem CPF. */
+    TRAMITACAO(GrupoDeEvento.DOCUMENTOS, "Posição na tramitação"),
     LOGIN(GrupoDeEvento.ACESSOS, "Acesso"),
     PERFIL(GrupoDeEvento.ACESSOS, "Troca de perfil"),
     USUARIO(GrupoDeEvento.ACESSOS, "Usuário alterado"),
