@@ -209,6 +209,38 @@ A tabela de **resultado esperado por cenário** (etapa, com quem, avisos) e a co
 
 As situações são **hipóteses fictícias** coerentes com a lista do Apêndice A de docs/04 (P34); a tabela de compatibilidade situação × etapa é do bloco 5. Como criar um cenário novo: docs/13, "Dados fictícios de teste".
 
+### Cenários do caminho percorrido (S8, bloco 1; ids 8001 a 8199)
+
+Gravados por `CenariosFicticiosDaS8` (mesmo mecanismo: Oracle de teste + `CamundaFicticioBuilder`, script `07-historico-s8.sql` para `HISTORICO_REQUERIMENTO` e as datas de `REQUERIMENTO`). Os cenários da S7 (H01 a H21 etc.) **mantêm** o caminho mínimo e a posição atual; os da S8 trazem o caminho com início e fim reais, em `ACT_HI_ACTINST`, `ACT_HI_TASKINST`, `ACT_HI_PROCINST` (filhas e complementação), `ACT_HI_DETAIL` e `ACT_HI_VARINST` (lista branca). Responsáveis fictícios: conferência 02, atribuição 03, revisão do parecer 04, analistas e validadores 05 a 07, publicação 08, emissão (filhas) 09, verificação 10, suporte 12; cadastrante = interessado fictício. Tempos relativos a 02/03/2026 08:00. **Sequência abaixo = atividades encerradas em ordem; "ativo" = o que ficou aberto.** Legenda: `M(x)` = ciclo multi-instância de `x` (corpo + uma tarefa por participante); "taxável" = emissão da taxa → espera de pagamento → protocolo.
+
+| Cenário | Id | Fluxo | O que prova | Caminho (resumo) | Ativo / final |
+|---|---|---|---|---|---|
+| HC01 | 8001 | Hídrico | feliz taxável, concluído pela publicação | cadastro, conferência, taxa, pagamento, protocolo, atribuição, M(aceite), M(análise), revisão, M(validação), emissão (autorizações + portaria em paralelo), publicação | verificação da revisão (ativa = arquivado/concluído, regra 9) |
+| HC02 | 8002 | Hídrico | isento: sem emissão da taxa nem espera | cadastro, conferência (`isento`), protocolo (isenção confirmada), atribuição, M(aceite) | M(análise) |
+| HC03 | 8003 | Hídrico | conferência reprova e volta ao cadastro; `statusConferencia` regravado | cadastro, conferência (`reprovado`), cadastro (2ª), conferência (2ª, `taxavel`), taxa | espera de pagamento |
+| HC04 | 8004 | Hídrico | validação devolvida `RA` (volta à análise) e depois `RP` (volta à revisão) | … M(validação) `RA`, M(análise), revisão, M(validação) `RP`, revisão | M(validação) |
+| HC05 | 8005 | Hídrico | troca de analista na revisão e na validação: sempre volta à análise | M(análise), revisão (`isRevisaoAnalise`), M(análise), revisão, M(validação) (`isRevisaoAnalise`), M(análise) | revisão |
+| HC06 | 8006 | Hídrico | recusa no aceite (2 tarefas `deleted`) e redistribuição | atribuição, M(aceite, recusa), atribuição, M(aceite), M(análise), atribuição (redistribuição) | M(aceite) |
+| HC07 | 8007 | Hídrico | correção **com** nova taxa, retorno direto à análise | M(análise, pedido de correção), status da correção, correção, taxa (correção), pagamento (correção) | M(análise) |
+| HC08 | 8008 | Hídrico | correção **sem** nova taxa | M(análise, pedido de correção), status da correção, correção | M(análise) |
+| HC09 | 8009 | Hídrico | correção expirada segue para a análise (P40) | … correção `deleted`, evento de borda fictício | M(análise) |
+| HC10 | 8010 | Hídrico | um analista pede correção; 2 tarefas `deleted` | M(análise: 1 `completed`, 2 `deleted`), status da correção | correção (interessado) |
+| HC11 | 8011 | Hídrico | ruído: Suporte, "Report Kafka", script ×4, evento de repetição | cadastro, **Suporte**, conferência, **Report Kafka**, taxa ×4, **repetição por erro** | espera de pagamento |
+| HC12 | 8012 | Hídrico | emissão com 3 filhas, 1 devolvida (`isRevisaoParecer`), refeita | … M(validação), emissão (3, 1 devolvida), revisão, M(validação), emissão (3) | publicação |
+| HC13 | 8013 | Hídrico | `REVISAR` na verificação recria a emissão | … emissão, publicação, verificação (`REVISAR`), emissão | publicação |
+| HC14 | 8014 | Hídrico | complementação paralela concluída durante a análise (id 8814) | … M(análise) com `procGestaoComplementacao` encerrada em paralelo | revisão |
+| HC15 | 8015 | Hídrico | milhares de atividades (3.500 repetições do script): passa do limite padrão de 3.000 linhas | cadastro, conferência, taxa ×3.500 | espera de pagamento |
+| HF01 a HF04 | 8021 a 8024 | Hídrico | finais com histórico: `Event_1wiuc48` (concluído, depois da verificação), `Event_1kq2k0z`, `Event_0abm55w` (cadastro expirado), `Event_0h1oige` (situação `AGUARDANDO_PAGAMENTO_DE_TAXAS` mantida) | | final |
+| LC01 | 8051 | LAC | feliz: conferência, taxa, pagamento, termo, termo assinado, concluído | cadastro, conferência, taxa, pagamento, protocolo, termo, envio do termo, conclusão | final `evtProcessoConcluido` |
+| LC02 | 8052 | LAC | isento | cadastro, conferência, protocolo, termo | envio do termo assinado |
+| LC03 | 8053 | LAC | reprova, correção, volta à conferência, sem nova taxa na correção | cadastro, conferência, correção, conferência (2ª), taxa | espera de pagamento |
+| LF01 a LF05 | 8061 a 8065 | LAC | finais: `evtFimRequerimentoAPedidoCadastrante`, `evtEncerrarRequerimentoPrazoCadExpirado`, `evtEncerrarProcessoPrazoCorrecaoExpirado` (**mesma situação** do expirado no cadastro), `evtEncerrarProcessoFaltaPagto`, `Event_0x7hz1p` | | final |
+| PB01 | 8091 | Hídrico (2021) | plano B completo: 11 eventos de `HISTORICO_REQUERIMENTO`, datas de protocolo, `CONCLUIDO`, **sem instância** | `CRIACAO_REQUERIMENTO` … `CONCLUSAO_REQUERIMENTO` | — |
+| PB02 | 8092 | Hídrico (2021) | plano B com **evento desconhecido** (`EVENTO_FICTICIO_DESCONHECIDO`), expirado no cadastro | 4 eventos + `DATA_EXPIRACAO_REQUERIMENTO` | — |
+| PB03 | 8093 | Hídrico (2021) | plano B **sem nenhum evento** ("Sem detalhamento disponível") | só situação e datas | — |
+
+Regras das fixtures: `HISTORICO_REQUERIMENTO.CPF_USUARIO` existe (a tabela real a tem) com CPF fictício inválido, **para que o bloco 5 e a varredura do bloco 11 provem que o plano B nunca o lê**. Os cenários finais não têm "etapa ativa"; o evento de fim é a última atividade, com `START_TIME_` = `END_TIME_` = fim da instância. Hipóteses não confirmadas: P40. Testes: `CamundaFicticioBuilderCaminhoTest` (a sequência exata de cada cenário), `CamundaFicticioBuilderValidacaoTest` (o que o construtor recusa) e `DadosFicticiosDaS7Test` (nenhum CPF/CNPJ válido).
+
 ## Posição atual (bloco 3)
 
 ### Peças

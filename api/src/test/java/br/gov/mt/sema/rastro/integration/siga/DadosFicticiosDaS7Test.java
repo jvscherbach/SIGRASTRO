@@ -23,7 +23,10 @@ class DadosFicticiosDaS7Test {
     private static final List<Path> FIXTURES = List.of(
             Path.of("src/test/resources/sql/siga/06-camunda-s7.sql"),
             Path.of("src/test/java/br/gov/mt/sema/rastro/integration/siga/CamundaFicticioBuilder.java"),
-            Path.of("src/test/java/br/gov/mt/sema/rastro/integration/siga/CenariosFicticiosDaS7.java"));
+            Path.of("src/test/java/br/gov/mt/sema/rastro/integration/siga/CenariosFicticiosDaS7.java"),
+            // S8 (bloco 1): caminho percorrido e plano B
+            Path.of("src/test/resources/sql/siga/07-historico-s8.sql"),
+            Path.of("src/test/java/br/gov/mt/sema/rastro/integration/siga/CenariosFicticiosDaS8.java"));
 
     /** 11 ou 14 dígitos seguidos, com ou sem máscara, sem fazer parte de um número maior. */
     private static final Pattern DOCUMENTO = Pattern.compile(
