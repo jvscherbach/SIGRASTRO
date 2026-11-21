@@ -11,6 +11,7 @@ import { IconeComponent } from '../../shared/icone.component';
 import { QuadroTopoComponent } from '../../shared/quadro-topo.component';
 import { RecentesService } from '../../shared/recentes.service';
 import { SituacaoTagComponent } from '../../shared/situacao-tag.component';
+import { OndeEstaAgoraComponent } from '../detalhe/onde-esta-agora.component';
 import { ConsultaApiService } from './consulta-api.service';
 import { CriterioBusca, ResultadoBusca, TipoBusca } from './consulta.models';
 
@@ -20,7 +21,7 @@ const NOME_MINIMO = 3;
 @Component({
   selector: 'app-consulta',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [QuadroTopoComponent, FolhaSobrepostaComponent, IconeComponent, SituacaoTagComponent],
+  imports: [QuadroTopoComponent, FolhaSobrepostaComponent, IconeComponent, SituacaoTagComponent, OndeEstaAgoraComponent],
   templateUrl: './consulta.component.html',
 })
 export class ConsultaComponent {
@@ -38,6 +39,11 @@ export class ConsultaComponent {
   protected readonly resultado = signal<PageResponse<ResultadoBusca> | null>(null);
   protected readonly recentes = signal(this.recentesService.listarParaExibicao());
   protected readonly processoRepetido = signal(false);
+  /**
+   * Coluna opcional "Etapa atual" (S7, bloco 9): desligada por padrão. Ligada, só as linhas da página exibida pedem a
+   * posição, e no máximo MAXIMO_DE_POSICOES_SIMULTANEAS de cada vez (fila de posições; docs/12).
+   */
+  protected readonly mostrarEtapa = signal(false);
 
   private criterioAtual: CriterioBusca | null = null;
 

@@ -105,6 +105,19 @@ Bloco no topo da folha do detalhe, **acima** do objeto e dos documentos (compone
 - **Datas** no relógio de Cuiabá pela utilidade única (`formatarDataHora`, `tempoDesde` em `shared/formato.ts`).
 - **Testes:** `onde-esta-agora.component.spec.ts` (um por estado e por selo, teclado, texto sem id técnico nem CPF), `detalhe.component.spec.ts` (posição acima do objeto e dos documentos; falha não derruba o detalhe), `relogio-de-cuiaba.spec.ts` (`tempoDesde`) e `front/e2e/onde-esta-agora.e2e.ts` (estados, teclado, altura do quadro igual, objeto e documentos sem saltar mais de 24 px ao carregar, celular sem rolagem horizontal).
 
+### Outros requerimentos deste processo (S7, bloco 9)
+
+O Rastro não tem uma tela própria de processo: a busca por número de processo lista os requerimentos (1:N), e cada um abre o próprio detalhe. No detalhe de um requerimento protocolado, logo abaixo de "Onde está agora", a seção **"Outros requerimentos deste processo"** (componente `RequerimentosDoProcessoComponent`) lista os demais requerimentos do mesmo processo, pela busca por número de processo (com o RN07 do back-end: o Operador só vê os dele). Sem outros, a seção não aparece; 403/404 na lista também não mostra nada; outro erro mostra um aviso curto, sem derrubar o detalhe.
+
+- Cada requerimento é uma linha com o número (link para o detalhe dele) e a posição **resumida** (`OndeEstaAgoraComponent` no modo `resumido`): **ponto de estado** com texto alternativo ("Estado: Em andamento", "Em andamento, com aviso", "Encerrado", "Sem histórico detalhado", "Não suportado", "Indisponível"), etapa ou final, "· com quem", selo de tipo e "+N em paralelo". O botão **"Ver posição completa"** (`aria-expanded`) abre o bloco completo ali mesmo; "Ver menos" fecha.
+- **Cada posição carrega e falha sozinha:** a falha de um requerimento mostra "Não foi possível consultar" e um botão de ícone para consultar de novo só naquele item; os demais e o detalhe seguem normais.
+
+### Coluna "Etapa atual" na busca (S7, bloco 9)
+
+Na lista de resultados da consulta (por número de processo, CPF/CNPJ ou nome), o botão **"Mostrar etapa atual"** (`aria-pressed`) liga uma coluna opcional com a posição de cada linha (modo `celula`: ponto de estado, etapa, com quem). Desligada por padrão. Ligada, só as linhas da página exibida pedem a posição, no máximo **4 ao mesmo tempo** (fila de posições; docs/12), para não disparar dezenas de consultas ao Camunda de uma vez.
+
+Testes: `requerimentos-do-processo.component.spec.ts` (processo com 3 outros requerimentos: um com falha, um sem instância, um encerrado), `onde-esta-agora.component.spec.ts` (modos resumido e célula, pontos de estado), `fila-de-posicoes.service.spec.ts` (limite, erro e cancelamento), `consulta.component.spec.ts` (coluna desligada por padrão; ligada respeita o limite) e `front/e2e/posicoes-do-processo.e2e.ts` (o mesmo processo, a busca com 20 linhas sem passar de 4 simultâneas, teclado e celular sem rolagem horizontal).
+
 O requerimento vira processo após o pagamento da taxa e a conclusão do protocolo. O topo da tela mostra sempre o número do processo; o número do requerimento só aparece, com a marca "Não protocolado", enquanto não houver processo. A mesma regra vale para a navegação, os atalhos, a lista de resultados e o dossiê.
 
 ### Geometrias

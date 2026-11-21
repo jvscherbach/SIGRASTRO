@@ -1,12 +1,33 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+} from '@angular/core';
 import { Subscription } from 'rxjs';
 
 import { mensagemDoErro } from '../../core/mensagens-erro';
 import { formatarDataHora, tempoDesde } from '../../shared/formato';
 import { IconeComponent } from '../../shared/icone.component';
-import { DetalheApiService } from './detalhe-api.service';
-import { EtapaDaPosicao, PosicaoDoRequerimento, ROTULO_DO_TIPO } from './posicao.models';
+import { FilaDePosicoes } from './fila-de-posicoes.service';
+import {
+  EtapaDaPosicao,
+  PosicaoDoRequerimento,
+  RESUMO_DE_ERRO,
+  ROTULO_DO_TIPO,
+  ResumoDaPosicao,
+  resumirPosicao,
+} from './posicao.models';
+
+/** Ids únicos por instância (várias posições na mesma página: processo e busca). */
+let instancias = 0;
 
 /**
  * Bloco "Onde está agora" do detalhe do requerimento (S7, bloco 8; docs/08): etapa atual, desde quando, com quem,
@@ -17,16 +38,58 @@ import { EtapaDaPosicao, PosicaoDoRequerimento, ROTULO_DO_TIPO } from './posicao
 @Component({
   selector: 'app-onde-esta-agora',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconeComponent],
+  imports: [IconeComponent, NgTemplateOutlet],
   template: `
-    <section class="onde panel" aria-labelledby="onde-titulo" [attr.aria-busy]="carregando()">
-      <div class="onde-head">
-        <h2 id="onde-titulo"><app-icone nome="flow" />Onde está agora</h2>
-        @if (posicao()?.modelo; as modelo) {
-          <span class="muted onde-modelo">{{ modelo }}</span>
+    @if (modo() === 'completo') {
+      <section class="onde panel" [attr.aria-labelledby]="'onde-titulo-' + uid" [attr.aria-busy]="carregando()">
+        <div class="onde-head">
+          <h2 [id]="'onde-titulo-' + uid"><app-icone nome="flow" />Onde está agora</h2>
+          @if (posicao()?.modelo; as modelo) {
+            <span class="muted onde-modelo">{{ modelo }}</span>
+          }
+        </div>
+        <ng-container [ngTemplateOutlet]="corpo" />
+      </section>
+    } @else {
+      <div class="onde-linha" [attr.aria-busy]="carregando()">
+        @if (carregando()) {
+          <span class="ponto neutro" aria-hidden="true"></span>
+          <span class="muted" role="status">Carregando a etapa…</span>
+        } @else if (resumo(); as r) {
+          <span [class]="'ponto ' + r.ponto" role="img" [attr.aria-label]="'Estado: ' + r.estado"></span>
+          <span class="onde-linha-texto">
+            <b>{{ r.texto }}</b>
+            @if (r.comQuem) {
+              <span class="muted"> · {{ r.comQuem }}</span>
+            }
+          </span>
+          @if (r.tipo) {
+            <span class="tag gray">{{ r.tipo }}</span>
+          }
+          @if (r.paralelos) {
+            <span class="tag blue">+{{ r.paralelos }} em paralelo</span>
+          }
+          @if (r.ponto === 'erro') {
+            <button type="button" class="btn sm quiet" aria-label="Consultar a etapa de novo" title="Consultar a etapa de novo" (click)="carregar()">
+              <app-icone nome="refresh" />
+            </button>
+          }
+          @if (modo() === 'resumido') {
+            <button type="button" class="btn sm" [attr.aria-expanded]="expandido()" [attr.aria-controls]="'onde-corpo-' + uid"
+              (click)="expandido.set(!expandido())">
+              {{ expandido() ? 'Ver menos' : 'Ver posição completa' }}
+            </button>
+          }
         }
       </div>
+      @if (modo() === 'resumido' && expandido()) {
+        <div class="onde-corpo-resumido" [id]="'onde-corpo-' + uid">
+          <ng-container [ngTemplateOutlet]="corpo" />
+        </div>
+      }
+    }
 
+    <ng-template #corpo>
       @if (carregando()) {
         <div class="onde-esqueleto" role="status">
           <span class="sr-only">Carregando a posição do requerimento…</span>
@@ -50,7 +113,7 @@ import { EtapaDaPosicao, PosicaoDoRequerimento, ROTULO_DO_TIPO } from './posicao
                 }
                 @if (p.emParalelo.length) {
                   <button type="button" class="tag blue onde-paralelo" [attr.aria-expanded]="paralelosAbertos()"
-                    aria-controls="onde-paralelos" (click)="paralelosAbertos.set(!paralelosAbertos())">
+                    [attr.aria-controls]="'onde-paralelos-' + uid" (click)="paralelosAbertos.set(!paralelosAbertos())">
                     +{{ p.emParalelo.length }} em paralelo
                   </button>
                 }
@@ -104,7 +167,7 @@ import { EtapaDaPosicao, PosicaoDoRequerimento, ROTULO_DO_TIPO } from './posicao
                 </ul>
               }
               @if (paralelosAbertos() && p.emParalelo.length) {
-                <ul id="onde-paralelos" class="onde-lista" aria-label="Etapas em paralelo">
+                <ul [id]="'onde-paralelos-' + uid" class="onde-lista" aria-label="Etapas em paralelo">
                   @for (e of p.emParalelo; track $index) {
                     <li>
                       <b>{{ e.rotulo }}</b>
@@ -158,10 +221,20 @@ import { EtapaDaPosicao, PosicaoDoRequerimento, ROTULO_DO_TIPO } from './posicao
           </ul>
         }
       }
-    </section>
+    </ng-template>
   `,
+  host: { '[class.completo]': "modo() === 'completo'" },
   styles: `
-    :host { display: block; margin-bottom: 22px; }
+    :host { display: block; }
+    :host(.completo) { margin-bottom: 22px; }
+    .onde-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; min-height: 32px; }
+    .onde-linha-texto { overflow-wrap: anywhere; }
+    .ponto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--muted); }
+    .ponto.ativo { background: #6cc51a; }
+    .ponto.atencao { background: var(--amber); }
+    .ponto.encerrado { background: var(--forest); }
+    .ponto.erro { background: var(--red); }
+    .onde-corpo-resumido { margin-top: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; }
     .onde { min-height: 150px; }
     .onde-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; margin-bottom: 10px; }
     .onde-head h2 { display: flex; align-items: center; gap: 10px; }
@@ -190,14 +263,25 @@ import { EtapaDaPosicao, PosicaoDoRequerimento, ROTULO_DO_TIPO } from './posicao
   `,
 })
 export class OndeEstaAgoraComponent {
-  private readonly api = inject(DetalheApiService);
+  private readonly fila = inject(FilaDePosicoes);
 
   readonly idRequerimento = input.required<number>();
+  /**
+   * `completo`: o bloco inteiro (detalhe do requerimento). `resumido`: uma linha (ponto de estado, etapa, com quem,
+   * selo) que abre o bloco completo (outros requerimentos do processo). `celula`: só a linha (coluna da busca).
+   */
+  readonly modo = input<'completo' | 'resumido' | 'celula'>('completo');
 
+  protected readonly uid = ++instancias;
   protected readonly posicao = signal<PosicaoDoRequerimento | null>(null);
   protected readonly carregando = signal(true);
   protected readonly erro = signal('');
   protected readonly paralelosAbertos = signal(false);
+  protected readonly expandido = signal(false);
+  protected readonly resumo = computed<ResumoDaPosicao | null>(() => {
+    const p = this.posicao();
+    return this.erro() ? RESUMO_DE_ERRO : p ? resumirPosicao(p) : null;
+  });
 
   protected readonly formatarDataHora = formatarDataHora;
   protected readonly tempoDesde = tempoDesde;
@@ -220,7 +304,7 @@ export class OndeEstaAgoraComponent {
     this.assinatura?.unsubscribe();
     this.carregando.set(true);
     this.erro.set('');
-    this.assinatura = this.api.posicao(this.idRequerimento()).subscribe({
+    this.assinatura = this.fila.posicao(this.idRequerimento()).subscribe({
       next: (p) => {
         this.posicao.set(p);
         this.carregando.set(false);

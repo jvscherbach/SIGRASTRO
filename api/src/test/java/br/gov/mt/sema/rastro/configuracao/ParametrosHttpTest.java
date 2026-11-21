@@ -27,6 +27,7 @@ import br.gov.mt.sema.rastro.documento.application.port.ParametrosDaVisualizacao
 import br.gov.mt.sema.rastro.documento.domain.OrigemDocumento;
 import br.gov.mt.sema.rastro.dossie.application.port.ParametrosDoDossie;
 import br.gov.mt.sema.rastro.testsupport.BaseHttpDeDocumentos;
+import br.gov.mt.sema.rastro.tramitacao.application.port.ParametrosDoRastro;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -59,6 +60,9 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
 
     @Autowired
     OrigensLigadas origens;
+
+    @Autowired
+    ParametrosDoRastro rastro;
 
     /** Nenhum teste deixa sobreposição para o próximo. */
     @AfterEach
@@ -294,6 +298,67 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
                 .andReturn().getResponse().getStatus()).isEqualTo(404);
 
         assertThat(eventosConfigDepoisDe(antes)).isEmpty();
+    }
+
+    // --- S7, bloco 10: parâmetros do Rastro
+
+    @Test
+    void rastro_lista_os_cinco_parametros_imediatos_sem_credencial() throws Exception {
+        String lista = chamarParametros();
+        for (String nome : List.of("rastro.mostrarNomeResponsavel", "rastro.posicaoCacheSegundos",
+                "rastro.maxNomesPorEquipe", "rastro.posicoesSimultaneas", "rastro.camundaTimeoutSegundos")) {
+            JsonNode p = parametro(nome);
+            assertThat(p.get("grupo").asText()).as(nome).isEqualTo("RASTRO");
+            assertThat(p.get("classeDeAplicacao").asText()).as(nome).isEqualTo("IMEDIATO");
+        }
+        assertThat(parametro("rastro.posicoesSimultaneas").get("valor").asText()).isEqualTo("4");
+        assertThat(parametro("rastro.camundaTimeoutSegundos").get("valor").asText()).isEqualTo("10");
+        assertThat(lista).doesNotContainIgnoringCase("SIGA_DB").doesNotContainIgnoringCase("senha")
+                .doesNotContainIgnoringCase("token");
+    }
+
+    @Test
+    void rastro_alteracao_gera_um_evento_com_antes_e_depois_e_vale_na_proxima_leitura() throws Exception {
+        long antes = ultimoId();
+        Map<String, Object> alteracoes = new LinkedHashMap<>();
+        alteracoes.put("rastro.mostrarNomeResponsavel", false);
+        alteracoes.put("rastro.posicaoCacheSegundos", 0);
+        alteracoes.put("rastro.maxNomesPorEquipe", 3);
+        alteracoes.put("rastro.posicoesSimultaneas", 6);
+        alteracoes.put("rastro.camundaTimeoutSegundos", 20);
+
+        assertThat(salvar("admin.demo", alteracoes).getStatus()).isEqualTo(200);
+
+        List<EventoDeAuditoria> novos = eventosConfigDepoisDe(antes);
+        assertThat(novos).hasSize(1);
+        assertThat(novos.get(0).alteracoes()).containsExactly(
+                new AlteracaoDoEvento("Mostrar o nome do responsável", "true", "false"),
+                new AlteracaoDoEvento("Validade do cache da posição (s; 0 desliga)", "30", "0"),
+                new AlteracaoDoEvento("Máximo de nomes por equipe", "10", "3"),
+                new AlteracaoDoEvento("Posições consultadas ao mesmo tempo (lista da busca)", "4", "6"),
+                new AlteracaoDoEvento("Tempo limite das consultas ao fluxo (s)", "10", "20"));
+        assertThat(rastro.mostrarNomeDoResponsavel()).isFalse();
+        assertThat(rastro.cacheDaPosicaoSegundos()).isZero();
+        assertThat(rastro.maximoDeNomesPorEquipe()).isEqualTo(3);
+        assertThat(rastro.posicoesSimultaneas()).isEqualTo(6);
+        assertThat(rastro.camundaTimeoutSegundos()).isEqualTo(20);
+        assertThat(json.readTree(mvc.perform(get("/api/tramitacao/parametros")
+                        .header(HttpHeaders.AUTHORIZATION, bearer("operador.demo"))).andReturn().getResponse()
+                .getContentAsString()).get("posicoesSimultaneas").asInt()).isEqualTo(6);
+    }
+
+    @Test
+    void rastro_faixas_e_o_operador_nao_altera() throws Exception {
+        invalido(salvar("admin.demo", Map.of("rastro.posicoesSimultaneas", 0)), "rastro.posicoesSimultaneas");
+        invalido(salvar("admin.demo", Map.of("rastro.camundaTimeoutSegundos", 121)), "rastro.camundaTimeoutSegundos");
+        invalido(salvar("admin.demo", Map.of("rastro.mostrarNomeResponsavel", "talvez")), "rastro.mostrarNomeResponsavel");
+
+        for (String usuario : List.of("operador.demo", "gestor.demo")) {
+            MockHttpServletResponse resposta = salvar(usuario, Map.of("rastro.posicoesSimultaneas", 6));
+            assertThat(resposta.getStatus()).isEqualTo(403);
+            assertThat(resposta.getContentAsString()).contains("PERFIL_SEM_PERMISSAO");
+        }
+        assertThat(rastro.posicoesSimultaneas()).isEqualTo(4);
     }
 
     @Test

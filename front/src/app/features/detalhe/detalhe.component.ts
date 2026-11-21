@@ -16,6 +16,7 @@ import { DetalheApiService } from './detalhe-api.service';
 import { Requerimento, Responsavel } from './detalhe.models';
 import { ObjetoDoRequerimentoComponent } from './objeto-do-requerimento.component';
 import { OndeEstaAgoraComponent } from './onde-esta-agora.component';
+import { RequerimentosDoProcessoComponent } from './requerimentos-do-processo.component';
 
 @Component({
   selector: 'app-detalhe',
@@ -29,6 +30,7 @@ import { OndeEstaAgoraComponent } from './onde-esta-agora.component';
     ObjetoDoRequerimentoComponent,
     DocumentosSecaoComponent,
     OndeEstaAgoraComponent,
+    RequerimentosDoProcessoComponent,
   ],
   templateUrl: './detalhe.component.html',
 })

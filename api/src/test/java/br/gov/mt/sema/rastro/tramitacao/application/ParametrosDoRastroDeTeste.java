@@ -23,4 +23,14 @@ final class ParametrosDoRastroDeTeste implements ParametrosDoRastro {
     public int cacheDaPosicaoSegundos() {
         return cacheSegundos;
     }
+
+    @Override
+    public int posicoesSimultaneas() {
+        return 4;
+    }
+
+    @Override
+    public int camundaTimeoutSegundos() {
+        return 10;
+    }
 }

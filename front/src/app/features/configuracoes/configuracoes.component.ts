@@ -22,6 +22,7 @@ export const ABAS: AbaDeConfiguracao[] = [
   { id: 'dossie', rotulo: 'Dossiê', grupo: 'DOSSIE' },
   { id: 'conversao', rotulo: 'Conversão', grupo: 'CONVERSAO' },
   { id: 'visualizacao', rotulo: 'Visualização', grupo: 'VISUALIZACAO' },
+  { id: 'rastro', rotulo: 'Rastro', grupo: 'RASTRO' },
   { id: 'conexoes', rotulo: 'Conexões' },
   { id: 'auditoria', rotulo: 'Auditoria', grupo: 'AUDITORIA' },
 ];

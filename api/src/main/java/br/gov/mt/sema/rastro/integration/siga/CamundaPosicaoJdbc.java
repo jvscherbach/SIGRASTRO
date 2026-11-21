@@ -7,13 +7,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.IntSupplier;
 
 import br.gov.mt.sema.rastro.tramitacao.application.port.IdentificacaoDosResponsaveis;
+import br.gov.mt.sema.rastro.tramitacao.application.port.ParametrosDoRastro;
 import br.gov.mt.sema.rastro.tramitacao.application.port.PosicaoNoFluxo;
 import br.gov.mt.sema.rastro.tramitacao.domain.IdentificacaoDoResponsavel;
 import br.gov.mt.sema.rastro.tramitacao.domain.IdentificadorDoResponsavel;
 import br.gov.mt.sema.rastro.tramitacao.domain.LeituraDoFluxo;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -56,11 +58,29 @@ class CamundaPosicaoJdbc implements PosicaoNoFluxo, IdentificacaoDosResponsaveis
     private final String sqlPercorridas = SigaSql.carregar(PASTA + "percorridas");
     private final String sqlResponsaveis = SigaSql.carregar(PASTA + "responsaveis");
 
-    CamundaPosicaoJdbc(NamedParameterJdbcTemplate sigaJdbcTemplate,
-            @Value("${rastro.tramitacao.camunda-timeout-segundos:10}") int timeoutSegundos) {
-        // Template próprio: o tempo limite vale só para a tramitação, sem mudar o das demais consultas do SIGA.
-        JdbcTemplate base = new JdbcTemplate(sigaJdbcTemplate.getJdbcTemplate().getDataSource());
-        base.setQueryTimeout(Math.max(1, timeoutSegundos));
+    /**
+     * S7, bloco 10: o tempo limite vem de {@code ParametrosDoRastro} (ambiente, sobreposto pela tela de Configurações) e é
+     * lido a cada consulta: uma alteração vale na próxima leitura, sem reiniciar.
+     */
+    @Autowired
+    CamundaPosicaoJdbc(NamedParameterJdbcTemplate sigaJdbcTemplate, ParametrosDoRastro parametros) {
+        this(sigaJdbcTemplate, (IntSupplier) parametros::camundaTimeoutSegundos);
+    }
+
+    /** Para teste: tempo limite fixo. */
+    CamundaPosicaoJdbc(NamedParameterJdbcTemplate sigaJdbcTemplate, int timeoutSegundos) {
+        this(sigaJdbcTemplate, (IntSupplier) () -> timeoutSegundos);
+    }
+
+    private CamundaPosicaoJdbc(NamedParameterJdbcTemplate sigaJdbcTemplate, IntSupplier timeoutSegundos) {
+        // Template próprio: o tempo limite vale só para a tramitação, sem mudar o das demais consultas do SIGA. O Spring
+        // aplica getQueryTimeout() em cada Statement, então o valor é lido de novo a cada consulta.
+        JdbcTemplate base = new JdbcTemplate(sigaJdbcTemplate.getJdbcTemplate().getDataSource()) {
+            @Override
+            public int getQueryTimeout() {
+                return Math.max(1, timeoutSegundos.getAsInt());
+            }
+        };
         this.jdbc = new NamedParameterJdbcTemplate(base);
     }
 

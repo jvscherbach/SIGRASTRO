@@ -39,12 +39,19 @@ public final class CatalogoDeParametros {
     public static final String AUDITORIA_RETENCAO_DOCUMENTOS = "auditoria.retencaoDocumentosAnos";
     public static final String AUDITORIA_RETENCAO_ACESSOS = "auditoria.retencaoAcessosAnos";
     public static final String PREFIXO_ORIGEM = "dossie.origem.";
+    /** S7, bloco 10: parâmetros do Rastro (tramitação), todos lidos a cada consulta. */
+    public static final String RASTRO_MOSTRAR_NOME = "rastro.mostrarNomeResponsavel";
+    public static final String RASTRO_CACHE_POSICAO = "rastro.posicaoCacheSegundos";
+    public static final String RASTRO_MAX_NOMES = "rastro.maxNomesPorEquipe";
+    public static final String RASTRO_POSICOES_SIMULTANEAS = "rastro.posicoesSimultaneas";
+    public static final String RASTRO_CAMUNDA_TIMEOUT = "rastro.camundaTimeoutSegundos";
 
     private static final String DOSSIE = "DOSSIE";
     private static final String CONVERSAO = "CONVERSAO";
     private static final String VISUALIZACAO = "VISUALIZACAO";
     private static final String CONEXOES = "CONEXOES";
     private static final String AUDITORIA = "AUDITORIA";
+    private static final String RASTRO = "RASTRO";
     private static final List<String> RETENCOES = List.of("1", "2", "5", "10");
 
     private static final List<DefinicaoDeParametro> DEFINICOES = List.of(
@@ -77,7 +84,13 @@ public final class CatalogoDeParametros {
             inteiro(VISUALIZACAO_FILA, "Conversões do modal à espera", VISUALIZACAO, "rastro.visualizacao.fila-de-conversoes", 4, 0, 32, EXIGE_REINICIO),
             inteiro(DOWNLOAD_TIMEOUT, "Tempo limite de download (s)", CONEXOES, "rastro.dossie.download-timeout-segundos", 120, 10, 300, PROXIMA_GERACAO),
             opcao(AUDITORIA_RETENCAO_DOCUMENTOS, "Retenção da auditoria de documentos (anos)", AUDITORIA, "rastro.auditoria.retencao-documentos-anos", "5", RETENCOES, IMEDIATO),
-            opcao(AUDITORIA_RETENCAO_ACESSOS, "Retenção da auditoria de acessos (anos)", AUDITORIA, "rastro.auditoria.retencao-acessos-anos", "1", RETENCOES, IMEDIATO));
+            opcao(AUDITORIA_RETENCAO_ACESSOS, "Retenção da auditoria de acessos (anos)", AUDITORIA, "rastro.auditoria.retencao-acessos-anos", "1", RETENCOES, IMEDIATO),
+            // S7, bloco 10. O nome do servidor depende de aprovação da SEMA (P32); CPF nunca, em nenhum valor.
+            booleano(RASTRO_MOSTRAR_NOME, "Mostrar o nome do responsável", RASTRO, "rastro.tramitacao.mostrar-nome-responsavel", true, IMEDIATO),
+            inteiro(RASTRO_CACHE_POSICAO, "Validade do cache da posição (s; 0 desliga)", RASTRO, "rastro.tramitacao.posicao-cache-segundos", 30, 0, 3600, IMEDIATO),
+            inteiro(RASTRO_MAX_NOMES, "Máximo de nomes por equipe", RASTRO, "rastro.tramitacao.max-nomes-por-equipe", 10, 1, 100, IMEDIATO),
+            inteiro(RASTRO_POSICOES_SIMULTANEAS, "Posições consultadas ao mesmo tempo (lista da busca)", RASTRO, "rastro.tramitacao.posicoes-simultaneas", 4, 1, 20, IMEDIATO),
+            inteiro(RASTRO_CAMUNDA_TIMEOUT, "Tempo limite das consultas ao fluxo (s)", RASTRO, "rastro.tramitacao.camunda-timeout-segundos", 10, 1, 120, IMEDIATO));
 
     private CatalogoDeParametros() {
     }

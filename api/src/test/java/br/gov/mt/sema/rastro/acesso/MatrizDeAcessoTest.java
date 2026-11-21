@@ -91,7 +91,8 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
             "GET /api/configuracoes/parametros", "PUT /api/configuracoes/parametros",
             "DELETE /api/configuracoes/parametros/{nome}", "GET /api/configuracoes/conexoes",
             "POST /api/configuracoes/conexoes/{nome}/teste",
-            "GET /api/requerimentos/{id}/posicao", "GET /api/processos/{numero}/posicao");
+            "GET /api/requerimentos/{id}/posicao", "GET /api/processos/{numero}/posicao",
+            "GET /api/tramitacao/parametros");
 
     private enum Perfil {
         OPERADOR("operador.demo"), GESTOR("gestor.demo"), ADMIN("admin.demo");
@@ -362,6 +363,14 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
                 () -> mvc.perform(get("/api/requerimentos/101/posicao")));
         verificar(doProcesso, "sem token", null, 401, "NAO_AUTENTICADO",
                 () -> mvc.perform(get("/api/processos/" + processoDoOperador + "/posicao")));
+        // S7, bloco 10: parâmetros de exibição para qualquer perfil (só números da interface).
+        String parametros = "GET /api/tramitacao/parametros";
+        for (Perfil p : Perfil.values()) {
+            verificar(parametros, "parâmetros de exibição", p, 200, null,
+                    () -> comToken(get("/api/tramitacao/parametros"), p));
+        }
+        verificar(parametros, "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(get("/api/tramitacao/parametros")));
     }
 
     private void listaDeDocumentos() throws Exception {

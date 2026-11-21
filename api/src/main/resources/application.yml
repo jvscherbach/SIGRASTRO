@@ -150,6 +150,8 @@ rastro:
     max-nomes-por-equipe: ${RASTRO_MAX_NOMES_POR_EQUIPE:10}
     # Cache curto da posição, em memória (0 desliga).
     posicao-cache-segundos: ${RASTRO_POSICAO_CACHE_SEGUNDOS:30}
+    # Posições que a tela pede ao mesmo tempo (lista da busca e processo), 1 a 20. Editável em Configurações › Rastro.
+    posicoes-simultaneas: ${RASTRO_POSICOES_SIMULTANEAS:4}
   agendamento:
     enabled: ${AGENDAMENTO_ENABLED:true}
     limpeza-dossie: PT5M

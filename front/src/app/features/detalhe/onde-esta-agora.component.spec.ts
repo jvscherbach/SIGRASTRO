@@ -56,15 +56,19 @@ function posicao(sobre: Partial<PosicaoDoRequerimento> = {}): PosicaoDoRequerime
 }
 
 describe('OndeEstaAgoraComponent', () => {
-  let api: { posicao: ReturnType<typeof vi.fn> };
+  let api: { posicao: ReturnType<typeof vi.fn>; parametrosDeExibicao: ReturnType<typeof vi.fn> };
 
-  function criar(): { fixture: ComponentFixture<OndeEstaAgoraComponent>; raiz: HTMLElement } {
+  function criar(modo: 'completo' | 'resumido' | 'celula' = 'completo'): {
+    fixture: ComponentFixture<OndeEstaAgoraComponent>;
+    raiz: HTMLElement;
+  } {
     TestBed.configureTestingModule({
       imports: [OndeEstaAgoraComponent],
       providers: [{ provide: DetalheApiService, useValue: api }],
     });
     const fixture = TestBed.createComponent(OndeEstaAgoraComponent);
     fixture.componentRef.setInput('idRequerimento', 7101);
+    fixture.componentRef.setInput('modo', modo);
     fixture.detectChanges();
     return { fixture, raiz: fixture.nativeElement as HTMLElement };
   }
@@ -82,7 +86,7 @@ describe('OndeEstaAgoraComponent', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-11T13:30:00Z')); // 09:30 em Cuiabá (UTC-4)
-    api = { posicao: vi.fn() };
+    api = { posicao: vi.fn(), parametrosDeExibicao: vi.fn(() => NEVER) };
   });
 
   afterEach(() => vi.useRealTimers());
@@ -129,14 +133,15 @@ describe('OndeEstaAgoraComponent', () => {
     expect(botao.tagName).toBe('BUTTON'); // focável e acionável por Enter/Espaço
     expect(botao.textContent!.trim()).toBe('+2 em paralelo');
     expect(botao.getAttribute('aria-expanded')).toBe('false');
-    expect(raiz.querySelector('#onde-paralelos')).toBeNull();
+    expect(raiz.querySelector('[id^="onde-paralelos-"]')).toBeNull();
     expect(texto(raiz)).toContain('Complementação em andamento');
 
     botao.click();
     fixture.detectChanges();
     expect(botao.getAttribute('aria-expanded')).toBe('true');
-    expect(botao.getAttribute('aria-controls')).toBe('onde-paralelos');
-    const itens = [...raiz.querySelectorAll('#onde-paralelos li')].map((li) => li.textContent!.replace(/\s+/g, ' '));
+    const lista = raiz.querySelector('[id^="onde-paralelos-"]')!;
+    expect(botao.getAttribute('aria-controls')).toBe(lista.id);
+    const itens = [...raiz.querySelectorAll('[id^="onde-paralelos-"] li')].map((li) => li.textContent!.replace(/\s+/g, ' '));
     expect(itens[0]).toContain('Emissão do ato');
     expect(itens[0]).toContain('Emissão de títulos');
     expect(itens[1]).toContain('Etapa não mapeada');
@@ -145,7 +150,7 @@ describe('OndeEstaAgoraComponent', () => {
 
     botao.click();
     fixture.detectChanges();
-    expect(raiz.querySelector('#onde-paralelos')).toBeNull();
+    expect(raiz.querySelector('[id^="onde-paralelos-"]')).toBeNull();
   });
 
   it('multi-instância com ciclo desconhecido mostra só as pendentes, sem inventar o "y", e "e mais N"', () => {
@@ -267,5 +272,76 @@ describe('OndeEstaAgoraComponent', () => {
     expect(raiz.querySelector('[role="alert"]')!.textContent!.length).toBeGreaterThan(0);
     expect(texto(raiz)).toContain('Tentar novamente');
     semIdTecnicoNemCpf(raiz);
+  });
+
+  describe('modo resumido (processo com vários requerimentos, S7 bloco 9)', () => {
+    it('uma linha com ponto de estado acessível, etapa, com quem, selo e "+N"; expande para o bloco completo', () => {
+      api.posicao.mockReturnValue(of(posicao()));
+      const { fixture, raiz } = criar('resumido');
+
+      expect(raiz.querySelector('section')).toBeNull(); // sem o cabeçalho do bloco completo
+      const ponto = raiz.querySelector('.ponto')!;
+      expect(ponto.classList.contains('ativo')).toBe(true);
+      expect(ponto.getAttribute('role')).toBe('img');
+      expect(ponto.getAttribute('aria-label')).toBe('Estado: Em andamento');
+      expect(texto(raiz)).toContain('Análise do processo · Analista');
+      expect(texto(raiz)).toContain('Tarefa');
+      expect(texto(raiz)).toContain('+2 em paralelo');
+      expect(raiz.querySelector('.onde-participantes')).toBeNull();
+
+      const abrir = [...raiz.querySelectorAll('button')].find((b) => b.textContent!.includes('Ver posição completa'))!;
+      expect(abrir.getAttribute('aria-expanded')).toBe('false');
+      abrir.click();
+      fixture.detectChanges();
+
+      expect(abrir.getAttribute('aria-expanded')).toBe('true');
+      expect(abrir.textContent!.trim()).toBe('Ver menos');
+      const corpo = raiz.querySelector(`#${abrir.getAttribute('aria-controls')}`)!;
+      expect(corpo.textContent).toContain('1 de 3 concluídos');
+      expect(corpo.querySelectorAll('.onde-participantes li')).toHaveLength(3);
+      semIdTecnicoNemCpf(raiz);
+    });
+
+    it('ponto de estado por situação: atenção, encerrado, neutro e erro', () => {
+      const casos: [Partial<PosicaoDoRequerimento>, string, string][] = [
+        [{ avisos: [{ codigo: 'X', texto: 'Aviso.', gravidade: 'ATENCAO' }] }, 'ponto atencao', 'Estado: Em andamento, com aviso'],
+        [{ estado: 'ENCERRADO', final: { rotulo: 'Concluído', encerradoEm: null } }, 'ponto encerrado', 'Estado: Encerrado'],
+        [{ estado: 'SEM_INSTANCIA' }, 'ponto neutro', 'Estado: Sem histórico detalhado'],
+        [{ estado: 'NAO_SUPORTADO' }, 'ponto neutro', 'Estado: Não suportado'],
+        [{ estado: 'INDISPONIVEL' }, 'ponto erro', 'Estado: Indisponível'],
+      ];
+      for (const [sobre, classe, rotulo] of casos) {
+        TestBed.resetTestingModule();
+        api.posicao.mockReturnValue(of(posicao(sobre)));
+        const { raiz } = criar('resumido');
+        const ponto = raiz.querySelector('.ponto')!;
+        expect([...ponto.classList].sort()).toEqual(classe.split(' ').sort());
+        expect(ponto.getAttribute('aria-label')).toBe(rotulo);
+      }
+    });
+  });
+
+  describe('modo célula (coluna "Etapa atual" da busca)', () => {
+    it('só a linha, sem botão de expandir', () => {
+      api.posicao.mockReturnValue(of(posicao({ estado: 'ENCERRADO', final: { rotulo: 'Concluído', encerradoEm: null } })));
+      const { raiz } = criar('celula');
+
+      expect(texto(raiz)).toContain('Concluído');
+      expect(raiz.querySelector('button')).toBeNull();
+    });
+
+    it('erro: "não foi possível" e um botão de ícone para consultar de novo', () => {
+      api.posicao.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 500 })));
+      api.posicao.mockReturnValueOnce(of(posicao()));
+      const { fixture, raiz } = criar('celula');
+
+      expect(texto(raiz)).toContain('Não foi possível consultar');
+      expect(raiz.querySelector('.ponto')!.getAttribute('aria-label')).toBe('Estado: Indisponível');
+      const botao = raiz.querySelector<HTMLButtonElement>('button[aria-label="Consultar a etapa de novo"]')!;
+      botao.click();
+      fixture.detectChanges();
+
+      expect(texto(raiz)).toContain('Análise do processo');
+    });
   });
 });

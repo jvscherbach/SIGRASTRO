@@ -64,6 +64,55 @@ export interface PosicaoDoRequerimento {
   final: { rotulo: string; encerradoEm: string | null } | null;
 }
 
+/** Cor do ponto de estado; o texto acessível vem junto em {@link ResumoDaPosicao.estado}. */
+export type PontoDeEstado = 'ativo' | 'atencao' | 'encerrado' | 'neutro' | 'erro';
+
+/** Posição numa linha (modo resumido do processo e coluna "Etapa atual" da busca). */
+export interface ResumoDaPosicao {
+  texto: string;
+  comQuem: string | null;
+  tipo: string | null;
+  paralelos: number;
+  ponto: PontoDeEstado;
+  /** Texto do ponto de estado para o leitor de tela ("Em andamento", "Encerrado"...). */
+  estado: string;
+}
+
+export const RESUMO_DE_ERRO: ResumoDaPosicao = {
+  texto: 'Não foi possível consultar',
+  comQuem: null,
+  tipo: null,
+  paralelos: 0,
+  ponto: 'erro',
+  estado: 'Indisponível',
+};
+
+export function resumirPosicao(p: PosicaoDoRequerimento): ResumoDaPosicao {
+  const base = { comQuem: null, tipo: null, paralelos: 0 };
+  switch (p.estado) {
+    case 'ATIVO': {
+      const etapa = p.etapaAtual;
+      const atencao = p.avisos.some((a) => a.gravidade === 'ATENCAO');
+      return {
+        texto: etapa?.rotulo ?? 'Etapa não identificada',
+        comQuem: etapa?.responsavel?.texto ?? null,
+        tipo: etapa?.tipo ? ROTULO_DO_TIPO[etapa.tipo] : null,
+        paralelos: p.emParalelo.length,
+        ponto: atencao ? 'atencao' : 'ativo',
+        estado: atencao ? 'Em andamento, com aviso' : 'Em andamento',
+      };
+    }
+    case 'ENCERRADO':
+      return { ...base, texto: p.final?.rotulo ?? 'Encerrado', ponto: 'encerrado', estado: 'Encerrado' };
+    case 'SEM_INSTANCIA':
+      return { ...base, texto: 'Histórico detalhado indisponível', ponto: 'neutro', estado: 'Sem histórico detalhado' };
+    case 'NAO_SUPORTADO':
+      return { ...base, texto: 'Fluxo ainda não suportado', ponto: 'neutro', estado: 'Não suportado' };
+    default:
+      return { ...base, texto: 'Andamento indisponível agora', ponto: 'erro', estado: 'Indisponível' };
+  }
+}
+
 /** Rótulo do selo de tipo (texto, não só cor). */
 export const ROTULO_DO_TIPO: Record<TipoDeEtapa, string> = {
   TAREFA_HUMANA: 'Tarefa',

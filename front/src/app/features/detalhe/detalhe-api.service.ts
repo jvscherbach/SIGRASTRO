@@ -17,6 +17,13 @@ export class DetalheApiService {
     });
   }
 
+  /** Parâmetros de exibição da tramitação (S7, bloco 10): quantas posições pedir ao mesmo tempo. Sem toast. */
+  parametrosDeExibicao(): Observable<{ posicoesSimultaneas: number }> {
+    return this.http.get<{ posicoesSimultaneas: number }>('/api/tramitacao/parametros', {
+      context: new HttpContext().set(SEM_TOAST, true),
+    });
+  }
+
   /** Posição na tramitação (S7). Carrega e falha sozinha: o erro aparece no próprio bloco, sem toast. */
   posicao(id: number): Observable<PosicaoDoRequerimento> {
     return this.http.get<PosicaoDoRequerimento>(`/api/requerimentos/${id}/posicao`, {

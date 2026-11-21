@@ -53,6 +53,7 @@ abstract class BaseVarreduraDaTramitacao {
     static final List<String> PERFIS = List.of(OPERADOR, GESTOR, ADMIN);
 
     private static final Pattern CPF_SOLTO = Pattern.compile("(?<![0-9])\\d{11}(?![0-9])");
+    private static final String UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
     private static final Pattern CPF_COM_MASCARA = Pattern.compile("[\\d*xX]{3}\\.[\\d*xX]{3}\\.[\\d*xX]{3}-[\\d*xX]{2}");
     private static final Pattern ID_TECNICO = Pattern.compile(
             "\\b(task|gtw|gwt|evt|proc)[A-Z]\\w*|\\b(Event|Activity|Gateway)_\\w+|#multiInstanceBody");
@@ -125,8 +126,11 @@ abstract class BaseVarreduraDaTramitacao {
 
     /** Nada de CPF, grupo técnico, chave, token nem coluna do Camunda; ids técnicos só para o Administrador. */
     static void varrer(SoftAssertions soft, String onde, String texto, boolean administrador) {
-        soft.assertThat(texto).as(onde + ": CPF solto").doesNotContainPattern(CPF_SOLTO);
-        soft.assertThat(texto).as(onde + ": CPF com ou sem máscara").doesNotContainPattern(CPF_COM_MASCARA);
+        // O correlationId é um UUID aleatório: um bloco dele pode ter 11 dígitos seguidos (ex.: "b37248249184") e dar
+        // falso positivo de CPF de vez em quando. UUID nunca é CPF, então sai só destas duas checagens.
+        String semUuid = texto.replaceAll(UUID, "<uuid>");
+        soft.assertThat(semUuid).as(onde + ": CPF solto").doesNotContainPattern(CPF_SOLTO);
+        soft.assertThat(semUuid).as(onde + ": CPF com ou sem máscara").doesNotContainPattern(CPF_COM_MASCARA);
         soft.assertThat(texto).as(onde + ": grupo técnico").doesNotContainPattern(GRUPO_TECNICO);
         soft.assertThat(texto).as(onde + ": chave, token ou coluna do Camunda").doesNotContainPattern(SEGREDO);
         if (!administrador) {

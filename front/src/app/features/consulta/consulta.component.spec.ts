@@ -2,11 +2,14 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { NEVER, Subject, of, throwError } from 'rxjs';
 
 import { AuthService } from '../../core/auth.service';
 import { Perfil, Usuario } from '../../core/usuario.model';
 import { PageResponse } from '../../shared/api-tipos';
+import { DetalheApiService } from '../detalhe/detalhe-api.service';
+import { MAXIMO_DE_POSICOES_SIMULTANEAS } from '../detalhe/fila-de-posicoes.service';
+import { PosicaoDoRequerimento } from '../detalhe/posicao.models';
 import { ConsultaApiService } from './consulta-api.service';
 import { ConsultaComponent } from './consulta.component';
 import { ResultadoBusca } from './consulta.models';
@@ -87,7 +90,67 @@ describe('ConsultaComponent', () => {
         { provide: ConsultaApiService, useValue: api },
         { provide: Router, useValue: router },
         { provide: AuthService, useValue: { usuario: usuarioAtual } },
+        { provide: DetalheApiService, useValue: detalheApi },
       ],
+    });
+  });
+
+  // S7, bloco 9: coluna opcional "Etapa atual" (as posições pendentes ficam abertas para medir a fila).
+  const pedidosDePosicao = new Map<number, Subject<PosicaoDoRequerimento>>();
+  const detalheApi = {
+    parametrosDeExibicao: vi.fn(() => of({ posicoesSimultaneas: MAXIMO_DE_POSICOES_SIMULTANEAS })),
+    posicao: vi.fn((id: number) => {
+      const s = new Subject<PosicaoDoRequerimento>();
+      pedidosDePosicao.set(id, s);
+      return s;
+    }),
+  };
+
+  describe('coluna "Etapa atual" (S7)', () => {
+    beforeEach(() => {
+      pedidosDePosicao.clear();
+      detalheApi.posicao.mockClear();
+    });
+
+    it('desligada por padrão: nenhuma posição pedida', () => {
+      api.buscar.mockReturnValue(of(pagina([resultado(1, '1/2026'), resultado(2, '2/2026')])));
+      const raiz = criar();
+      digitar(raiz, '#consulta-numero', '1/2026');
+      consultar(raiz);
+
+      expect(raiz.querySelectorAll('tbody tr')).toHaveLength(2);
+      expect(raiz.querySelector('thead')!.textContent).not.toContain('Etapa atual');
+      expect(detalheApi.posicao).not.toHaveBeenCalled();
+    });
+
+    it(`ligada: só as linhas da página e no máximo ${MAXIMO_DE_POSICOES_SIMULTANEAS} de cada vez`, () => {
+      const itens = Array.from({ length: 12 }, (_, i) => resultado(100 + i, `${100 + i}/2026`));
+      api.buscar.mockReturnValue(of(pagina(itens, 12)));
+      const raiz = criar();
+      digitar(raiz, '#consulta-numero', '1/2026');
+      consultar(raiz);
+
+      const botao = [...raiz.querySelectorAll('button')].find((b) => b.textContent!.includes('Mostrar etapa atual'))!;
+      expect(botao.getAttribute('aria-pressed')).toBe('false');
+      botao.click();
+      fixture.detectChanges();
+
+      expect(botao.getAttribute('aria-pressed')).toBe('true');
+      expect(texto(raiz)).toContain('Etapa atual');
+      expect(raiz.querySelectorAll('td.etapa-atual')).toHaveLength(12);
+      expect(detalheApi.posicao).toHaveBeenCalledTimes(MAXIMO_DE_POSICOES_SIMULTANEAS);
+
+      const primeiro = pedidosDePosicao.get(100)!;
+      primeiro.next({
+        idRequerimento: 100, numeroRequerimento: '100/2026', numeroProcesso: null, situacaoLicenciamento: null,
+        modelo: 'Outorga de recursos hídricos', estado: 'ENCERRADO', etapaAtual: null, emParalelo: [], complementacao: null,
+        multiInstancia: null, avisos: [], final: { rotulo: 'Concluído', encerradoEm: null },
+      });
+      primeiro.complete();
+      fixture.detectChanges();
+
+      expect(detalheApi.posicao).toHaveBeenCalledTimes(MAXIMO_DE_POSICOES_SIMULTANEAS + 1);
+      expect(raiz.querySelector('td.etapa-atual')!.textContent).toContain('Concluído');
     });
   });
 

@@ -35,7 +35,9 @@ class ConexoesHttpTest extends BaseHttpDeDocumentos {
         JsonNode conexoes = json.readTree(resposta.getContentAsString(StandardCharsets.UTF_8)).get("conexoes");
         List<String> nomes = new ArrayList<>();
         conexoes.forEach(c -> nomes.add(c.get("nome").asText()));
-        assertThat(nomes).containsExactly("siga", "arquivos", "scorp", "taxas");
+        // S7, bloco 10: o Camunda tem teste próprio, separado do banco do SIGA e da API de arquivos.
+        assertThat(nomes).containsExactly("siga", "arquivos", "scorp", "taxas", "camunda");
+        assertThat(conexoes.get(4).get("estado").asText()).isEqualTo("NAO_CONFIGURADA");
         assertThat(conexoes.get(0).get("estado").asText()).isEqualTo("NAO_CONFIGURADA");
         assertThat(conexoes.get(3).get("estado").asText()).isEqualTo("DESATIVADA");
         assertThat(resposta.getContentAsString()).doesNotContain(TOKEN_DE_ARQUIVOS);
@@ -61,5 +63,10 @@ class ConexoesHttpTest extends BaseHttpDeDocumentos {
         assertThat(siga.has("codigoHttp")).as("sem resposta HTTP, o campo nem aparece").isFalse();
         assertThat(siga.get("mensagem").asText()).isEqualTo("Conexão não configurada.");
         assertThat(testar("admin.demo", "desconhecida").getStatus()).isEqualTo(404);
+
+        JsonNode camunda = json.readTree(testar("admin.demo", "camunda").getContentAsString(StandardCharsets.UTF_8));
+        assertThat(camunda.get("sucesso").asBoolean()).isFalse();
+        assertThat(camunda.get("mensagem").asText()).isEqualTo("Conexão não configurada.");
+        assertThat(camunda.has("codigoHttp")).isFalse();
     }
 }

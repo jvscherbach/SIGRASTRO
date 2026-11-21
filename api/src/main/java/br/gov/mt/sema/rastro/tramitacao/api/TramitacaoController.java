@@ -2,8 +2,10 @@ package br.gov.mt.sema.rastro.tramitacao.api;
 
 import java.util.List;
 
+import br.gov.mt.sema.rastro.tramitacao.api.dto.ParametrosDeExibicaoResponse;
 import br.gov.mt.sema.rastro.tramitacao.api.dto.PosicaoResponse;
 import br.gov.mt.sema.rastro.tramitacao.application.AbrirPosicao;
+import br.gov.mt.sema.rastro.tramitacao.application.ConsultarParametrosDeExibicao;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -19,9 +21,22 @@ import org.springframework.web.bind.annotation.RestController;
 public class TramitacaoController {
 
     private final AbrirPosicao abrirPosicao;
+    private final ConsultarParametrosDeExibicao parametrosDeExibicao;
 
-    public TramitacaoController(AbrirPosicao abrirPosicao) {
+    public TramitacaoController(AbrirPosicao abrirPosicao, ConsultarParametrosDeExibicao parametrosDeExibicao) {
         this.abrirPosicao = abrirPosicao;
+        this.parametrosDeExibicao = parametrosDeExibicao;
+    }
+
+    @GetMapping("/tramitacao/parametros")
+    @Operation(summary = "Parâmetros de exibição da tramitação",
+            description = "Quantas posições a tela pede ao mesmo tempo (lista da busca e outros requerimentos do "
+                    + "processo). Qualquer usuário autenticado; sem credencial nem dado de negócio. Alterável pelo "
+                    + "Administrador em Configurações › Rastro (vale na próxima leitura).")
+    @ApiResponse(responseCode = "200", description = "Parâmetros.")
+    @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized")
+    public ParametrosDeExibicaoResponse parametros() {
+        return new ParametrosDeExibicaoResponse(parametrosDeExibicao.consultar().posicoesSimultaneas());
     }
 
     @GetMapping("/requerimentos/{id}/posicao")

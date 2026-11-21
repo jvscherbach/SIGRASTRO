@@ -14,4 +14,13 @@ public interface ParametrosDoRastro {
 
     /** {@code RASTRO_POSICAO_CACHE_SEGUNDOS}: validade da posição em cache; 0 desliga o cache. */
     int cacheDaPosicaoSegundos();
+
+    /**
+     * {@code RASTRO_POSICOES_SIMULTANEAS} (S7, bloco 10): quantas posições a tela pede ao mesmo tempo (lista da busca e
+     * outros requerimentos do processo). O front lê pela rota de parâmetros de exibição.
+     */
+    int posicoesSimultaneas();
+
+    /** {@code RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS} (S7, bloco 10): tempo limite de cada consulta ao Camunda, lido a cada consulta. */
+    int camundaTimeoutSegundos();
 }

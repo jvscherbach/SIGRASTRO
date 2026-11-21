@@ -81,12 +81,12 @@ describe('ConfiguracoesComponent', () => {
   });
 
   describe('abas', () => {
-    it('seis abas, a de usuários ativa, com faixa de memória', () => {
+    it('sete abas (Rastro desde a S7), a de usuários ativa, com faixa de memória', () => {
       abrir();
 
       const abas = Array.from(raiz.querySelectorAll('[role="tab"]'));
       expect(abas.map((a) => a.textContent!.trim())).toEqual([
-        'Usuários e perfis', 'Dossiê', 'Conversão', 'Visualização', 'Conexões', 'Auditoria',
+        'Usuários e perfis', 'Dossiê', 'Conversão', 'Visualização', 'Rastro', 'Conexões', 'Auditoria',
       ]);
       expect(abas[0].getAttribute('aria-selected')).toBe('true');
       expect(texto()).toContain('Neste protótipo, as alterações ficam na memória e somem ao reiniciar o serviço.');
@@ -94,6 +94,33 @@ describe('ConfiguracoesComponent', () => {
       fixture.detectChanges();
       expect(texto()).toContain('Editar não grava');
       expect(texto()).not.toContain('em construção');
+    });
+
+    it('aba Rastro (S7): os parâmetros do grupo RASTRO e a nota de CPF, nome e credenciais', () => {
+      api.parametros.mockReturnValue(
+        of({
+          parametros: [
+            {
+              nome: 'rastro.posicoesSimultaneas', rotulo: 'Posições consultadas ao mesmo tempo (lista da busca)', grupo: 'RASTRO',
+              tipo: 'INTEIRO', valor: '4', padrao: '4', minimo: 1, maximo: 20, opcoes: [], classeDeAplicacao: 'IMEDIATO',
+              sobreposto: false, pendenteDeReinicio: false,
+            },
+            {
+              nome: 'dossie.ttlMinutos', rotulo: 'Expiração do dossiê (min)', grupo: 'DOSSIE', tipo: 'INTEIRO', valor: '30',
+              padrao: '30', minimo: 5, maximo: 240, opcoes: [], classeDeAplicacao: 'PROXIMA_GERACAO', sobreposto: false,
+              pendenteDeReinicio: false,
+            },
+          ],
+        }),
+      );
+      abrir();
+      (raiz.querySelector('#aba-rastro') as HTMLElement).click();
+      fixture.detectChanges();
+
+      expect(texto()).toContain('Posições consultadas ao mesmo tempo (lista da busca)');
+      expect(texto()).not.toContain('Expiração do dossiê');
+      expect(texto()).toContain('O CPF do responsável nunca aparece');
+      expect(texto()).toContain('Credenciais do banco não ficam aqui');
     });
 
     it('setas, Home e End navegam e movem o foco; só a aba ativa está na ordem de tabulação', () => {
