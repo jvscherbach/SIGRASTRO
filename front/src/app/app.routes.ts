@@ -3,7 +3,6 @@ import { Routes } from '@angular/router';
 import { autenticadoGuard, permissaoGuard, visitanteGuard } from './core/guards';
 import { pendenciasGuard } from './features/configuracoes/pendencias.guard';
 import { ConsultaComponent } from './features/consulta/consulta.component';
-import { DetalheComponent } from './features/detalhe/detalhe.component';
 import { DossiesGeradosComponent } from './features/dossies/dossies-gerados.component';
 import { LoginComponent } from './features/login/login.component';
 import { ShellComponent } from './layout/shell.component';
@@ -24,7 +23,8 @@ export const routes: Routes = [
       },
       {
         path: 'consulta/requerimentos/:id',
-        component: DetalheComponent,
+        // Sob demanda (S8, bloco 9): a tramitação e o fluxograma fizeram o bundle inicial passar do orçamento de 500 kB.
+        loadComponent: () => import('./features/detalhe/detalhe.component').then((m) => m.DetalheComponent),
         title: 'Requerimento · Rastro',
         data: { crumb: ['Consulta'] },
       },

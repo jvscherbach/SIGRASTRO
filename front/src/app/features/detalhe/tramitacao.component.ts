@@ -6,6 +6,7 @@ import { mensagemDoErro } from '../../core/mensagens-erro';
 import { duracaoLegivel, formatarData, formatarDataHora } from '../../shared/formato';
 import { IconeComponent } from '../../shared/icone.component';
 import { DetalheApiService } from './detalhe-api.service';
+import { FluxogramaSimplificadoComponent } from './fluxograma-simplificado.component';
 import {
   ROTULO_DO_ESTADO_DO_ATO,
   ROTULO_DO_ESTADO_DO_PARTICIPANTE,
@@ -30,15 +31,20 @@ let instancias = 0;
 @Component({
   selector: 'app-tramitacao',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconeComponent],
+  imports: [IconeComponent, FluxogramaSimplificadoComponent],
   template: `
     <section class="tram panel" [attr.aria-labelledby]="'tram-titulo-' + uid" [attr.aria-busy]="carregando()">
       <div class="tram-head">
         <h2 [id]="'tram-titulo-' + uid"><app-icone nome="flow" />Tramitação</h2>
-        <button type="button" class="btn sm" [attr.aria-expanded]="aberta()" [attr.aria-controls]="'tram-corpo-' + uid"
-          (click)="aberta.set(!aberta())">
-          {{ aberta() ? 'Recolher' : 'Expandir' }}
-        </button>
+        <div class="tram-acoes">
+          @if (aberta() && podeImprimir()) {
+            <button type="button" class="btn sm" (click)="imprimir()">Imprimir tramitação</button>
+          }
+          <button type="button" class="btn sm" [attr.aria-expanded]="aberta()" [attr.aria-controls]="'tram-corpo-' + uid"
+            (click)="aberta.set(!aberta())">
+            {{ aberta() ? 'Recolher' : 'Expandir' }}
+          </button>
+        </div>
       </div>
 
       @if (aberta()) {
@@ -97,6 +103,7 @@ let instancias = 0;
                 }
               }
               @default {
+                <app-fluxograma-simplificado [tramitacao]="t" />
                 <div class="tram-filtro">
                   <label>
                     <input type="checkbox" [checked]="ocultarAutomaticas()" (change)="alternarFiltro($event)" />
@@ -210,6 +217,7 @@ let instancias = 0;
     .tram-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; margin-bottom: 10px; }
     .tram-head h2 { display: flex; align-items: center; gap: 10px; }
     .tram-head h2 .icon { color: var(--olive); width: 23px; height: 23px; }
+    .tram-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
     .btn:focus-visible, .tram-filtro input:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
     .tram-filtro { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin-bottom: 12px; font-size: 13px; }
     .tram-filtro label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
@@ -278,6 +286,24 @@ export class TramitacaoComponent {
       untracked(() => this.carregar());
     });
     inject(DestroyRef).onDestroy(() => this.assinatura?.unsubscribe());
+  }
+
+  /** Só há o que imprimir com caminho (ATIVO ou ENCERRADO) ou com o histórico aproximado. */
+  protected readonly podeImprimir = computed(() => {
+    const t = this.tramitacao();
+    return !!t && !this.erro() && (t.passagens.length > 0 || t.planoB !== null);
+  });
+
+  /**
+   * "Imprimir tramitação" (S8, bloco 9): marca o body só durante a impressão para o CSS de `impressao.css` deixar sair
+   * apenas esta seção, em preto e branco legível.
+   */
+  protected imprimir(): void {
+    const corpo = document.body;
+    const limpar = () => corpo.classList.remove('imprimindo-tramitacao');
+    corpo.classList.add('imprimindo-tramitacao');
+    window.addEventListener('afterprint', limpar, { once: true });
+    window.print();
   }
 
   protected duracao(segundos: number | null): string {

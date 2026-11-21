@@ -359,6 +359,182 @@ test.describe('celular (360 px)', () => {
   });
 });
 
+/** S8, bloco 9: fluxograma simplificado (HTML, CSS e SVG), em linha reta, só com o que passou. */
+const ISENCAO = etapa('isencao_confirmada', 'Isenção confirmada', 'AUTOMATICA');
+const HC02 = tramitacao([passagem(CADASTRO, 2, 3), passagem(CONFERENCIA, 3, 4), passagem(ISENCAO, 4, 4), passagem(ANALISE, 4, null, { participantes: TRES_ANALISTAS.map((x, i) => (i === 0 ? x : { ...x, estado: 'PENDENTE', fim: null })) })], {
+  taxa: { principal: 'ISENTA', correcao: null },
+});
+/** HC15: passou do limite de linhas; o que coube vem com o aviso. */
+const HC15 = tramitacao([passagem(CADASTRO, 2, 3), passagem(CONFERENCIA, 3, 4), passagem(TAXA, 4, 4), passagem(PAGAMENTO, 4, null)], {
+  truncado: true,
+  avisos: [{ codigo: 'HISTORICO_TRUNCADO', texto: 'Histórico incompleto: este requerimento tem registros demais e só parte do caminho é mostrada.', gravidade: 'ATENCAO' }],
+});
+const encerrado = (rotulo: string, modelo = 'Outorga de recursos hídricos') =>
+  tramitacao([passagem(CADASTRO, 2, 3), passagem(CONFERENCIA, 3, 4)], { estado: 'ENCERRADO', modelo, final: { rotulo, tipo: 'FINAL', encerradoEm: dia(12), idTecnico: 'Event_FicticioDoAdministrador' } });
+
+const fluxo = (page: Page) => page.locator('app-fluxograma-simplificado');
+const caixas = (page: Page) => fluxo(page).locator('.caixa .caixa-rotulo');
+
+test.describe('fluxograma simplificado (desktop)', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test('HC01: caixas na ordem, etapa atual destacada, estado em texto, data e "Processo concluído"; sem bola (sem evento de fim)', async ({ page }) => {
+    await simular(page, { tramitacoes: [HC01] });
+    await page.goto('/consulta/requerimentos/101');
+
+    await expect(caixas(page)).toHaveText(['Cadastro do requerimento', 'Conferência dos documentos', 'Emissão da taxa', 'Aguardando pagamento', 'Análise do processo', 'Verificação da revisão do processo']);
+    await expect(fluxo(page).locator('.caixa.atual')).toContainText('Etapa atual');
+    await expect(fluxo(page).locator('.caixa.atual')).toContainText('Processo concluído');
+    await expect(fluxo(page).locator('.caixa').first()).toContainText('02/03/2026');
+    await expect(fluxo(page).locator('.caixa').nth(4)).toContainText('3 analistas');
+    await expect(fluxo(page).locator('svg.bola')).toHaveCount(0);
+    await expect(fluxo(page).getByRole('group')).toHaveAttribute('aria-label', /6 etapas percorridas/);
+  });
+
+  test('HC02: isento mostra "Isenção confirmada" e a análise com "1 de 3 concluídos"', async ({ page }) => {
+    await simular(page, { tramitacoes: [HC02] });
+    await page.goto('/consulta/requerimentos/101');
+
+    await expect(caixas(page)).toHaveText(['Cadastro do requerimento', 'Conferência dos documentos', 'Isenção confirmada', 'Análise do processo']);
+    await expect(fluxo(page).locator('.caixa').last()).toContainText('1 de 3 concluídos');
+  });
+
+  test('HC03: a volta é nova caixa com "2ª passagem", sem seta de retorno', async ({ page }) => {
+    await simular(page, { tramitacoes: [HC03] });
+    await page.goto('/consulta/requerimentos/101');
+
+    await expect(caixas(page)).toHaveText(['Cadastro do requerimento', 'Conferência dos documentos', 'Cadastro do requerimento', 'Conferência dos documentos']);
+    await expect(fluxo(page).locator('.caixa-passagem')).toHaveText(['2ª passagem', '2ª passagem']);
+    // uma seta entre cada caixa e nenhuma de volta: n - 1 setas na linha
+    await expect(fluxo(page).locator('svg.seta')).toHaveCount(3);
+  });
+
+  test('HC07: a correção numa faixa identificada, com a taxa e o pagamento dela', async ({ page }) => {
+    await simular(page, { tramitacoes: [HC07] });
+    await page.goto('/consulta/requerimentos/101');
+
+    const faixa = fluxo(page).locator('li.faixa');
+    await expect(faixa.locator('.faixa-rotulo')).toHaveText('Correção do requerimento');
+    await expect(faixa.locator('.caixa .caixa-rotulo')).toHaveText(['Correção do requerimento', 'Emissão da taxa (correção)', 'Aguardando pagamento (correção)']);
+    await expect(caixas(page)).toHaveCount(5);
+  });
+
+  test('HC12: "Emissão do ato" é uma caixa só e lista só os atos que ocorreram', async ({ page }) => {
+    await simular(page, { tramitacoes: [HC12] });
+    await page.goto('/consulta/requerimentos/101');
+
+    const emissao = fluxo(page).locator('.caixa', { hasText: 'Emissão do ato' });
+    await expect(emissao).toHaveCount(1);
+    await expect(emissao.locator('.caixa-detalhe')).toHaveText('Autorização, Portaria');
+  });
+
+  test('HC15: o que coube é desenhado e o aviso de histórico incompleto aparece', async ({ page }) => {
+    await simular(page, { tramitacoes: [HC15] });
+    await page.goto('/consulta/requerimentos/101');
+
+    await expect(caixas(page)).toHaveCount(4);
+    await expect(fluxo(page).locator('.caixa.aguardando')).toContainText('Aguardando');
+    await expect(secao(page)).toContainText('Histórico incompleto');
+  });
+
+  for (const [rotulo, modelo] of [
+    ['Concluído', 'Outorga de recursos hídricos'],
+    ['Cancelado pelo cadastrante', 'Outorga de recursos hídricos'],
+    ['Expirado no cadastro', 'Outorga de recursos hídricos'],
+    ['Encerrado por taxa não paga no prazo', 'Outorga de recursos hídricos'],
+    ['Expirado na correção', 'Licença por Adesão e Compromisso (LAC)'],
+    ['Cancelado por falta de pagamento', 'Licença por Adesão e Compromisso (LAC)'],
+  ] as const) {
+    test(`final "${rotulo}": bola preta com o rótulo escrito em cima`, async ({ page }) => {
+      await simular(page, { tramitacoes: [encerrado(rotulo, modelo)] });
+      await page.goto('/consulta/requerimentos/101');
+
+      const final = fluxo(page).locator('li.final');
+      await expect(final.locator('.final-rotulo')).toHaveText(rotulo);
+      await expect(final.locator('svg.bola')).toHaveAttribute('aria-label', `Final: ${rotulo}`);
+      const [rotuloY, bolaY] = await Promise.all([
+        final.locator('.final-rotulo').evaluate((e) => e.getBoundingClientRect().bottom),
+        final.locator('svg.bola').evaluate((e) => e.getBoundingClientRect().top),
+      ]);
+      expect(rotuloY).toBeLessThanOrEqual(bolaY + 1);
+      await expect(fluxo(page).locator('polygon')).toHaveCount(0);
+      expect(await fluxo(page).innerText()).not.toMatch(/task|gtw|gwt|Event_|Activity_|procSurh|procOutorga/);
+    });
+  }
+
+  test('o arquivado do LAC leva o rótulo curto "Arquivado"', async ({ page }) => {
+    await simular(page, { tramitacoes: [encerrado('Arquivado (termo não enviado no prazo)', 'Licença por Adesão e Compromisso (LAC)')] });
+    await page.goto('/consulta/requerimentos/101');
+
+    await expect(fluxo(page).locator('.final-rotulo')).toHaveText('Arquivado');
+  });
+
+  test('tooltip por teclado: a dica aparece no foco e traz entrada, saída e duração', async ({ page }) => {
+    await simular(page, { tramitacoes: [HC01] });
+    await page.goto('/consulta/requerimentos/101');
+
+    const primeira = fluxo(page).locator('.caixa').first();
+    const dica = primeira.locator('.dica');
+    await expect(dica).toBeHidden();
+    await primeira.focus();
+    await expect(dica).toBeVisible();
+    await expect(dica).toContainText('Entrada: 02/03/2026 09:00');
+    await expect(dica).toContainText('Duração: 1 dia');
+    await expect(primeira).toHaveAttribute('aria-describedby', (await dica.getAttribute('id'))!);
+  });
+
+  test('plano B, não suportado e indisponível não desenham fluxograma', async ({ page }) => {
+    await simular(page, { tramitacoes: [tramitacao([], { estado: 'NAO_SUPORTADO', modelo: null })] });
+    await page.goto('/consulta/requerimentos/101');
+
+    await expect(secao(page)).toContainText('Fluxo ainda não suportado pelo Rastro.');
+    await expect(fluxo(page).locator('.fluxo')).toHaveCount(0);
+    await expect(secao(page).getByRole('button', { name: 'Imprimir tramitação' })).toHaveCount(0);
+  });
+
+  test('impressão em preto e branco: só a tramitação sai, e o estado se distingue por forma e texto', async ({ page }) => {
+    await simular(page, { tramitacoes: [HC15] });
+    await page.goto('/consulta/requerimentos/101');
+    await expect(secao(page).getByRole('button', { name: 'Imprimir tramitação' })).toBeVisible();
+
+    await page.evaluate(() => document.body.classList.add('imprimindo-tramitacao'));
+    await page.emulateMedia({ media: 'print' });
+
+    await expect(page.locator('.dash-hero')).toHaveCSS('visibility', 'hidden');
+    await expect(secao(page)).toHaveCSS('visibility', 'visible');
+    const estilos = await fluxo(page).locator('.caixa').evaluateAll((els) => els.map((e) => ({ classe: e.className, borda: getComputedStyle(e).borderTopStyle, largura: getComputedStyle(e).borderTopWidth })));
+    expect(estilos.find((e) => e.classe.includes('concluida'))!.borda).toBe('solid');
+    expect(estilos.find((e) => e.classe.includes('aguardando'))!.borda).toBe('dashed');
+    // o texto do estado está lá, não só a cor
+    await expect(fluxo(page).locator('.caixa-estado').last()).toContainText('Aguardando');
+    await expect(secao(page).locator('.tram-acoes')).toBeHidden();
+  });
+});
+
+test.describe('fluxograma simplificado (celular 360 px)', () => {
+  test.use({ viewport: { width: 360, height: 740 } });
+
+  test('a linha quebra em várias linhas, sem rolagem horizontal da página', async ({ page }) => {
+    await simular(page, { tramitacoes: [HC07] });
+    await page.goto('/consulta/requerimentos/101');
+
+    await expect(caixas(page)).toHaveCount(5);
+    const medidas = await page.evaluate(() => ({ rolagem: document.documentElement.scrollWidth, janela: window.innerWidth }));
+    expect(medidas.rolagem).toBeLessThanOrEqual(medidas.janela);
+    const topos = await fluxo(page).locator('.caixa').evaluateAll((els) => new Set(els.map((e) => Math.round(e.getBoundingClientRect().top))).size);
+    expect(topos).toBeGreaterThan(1);
+  });
+
+  test('com final, ainda sem rolagem horizontal', async ({ page }) => {
+    await simular(page, { tramitacoes: [encerrado('Cancelado por falta de pagamento', 'Licença por Adesão e Compromisso (LAC)')] });
+    await page.goto('/consulta/requerimentos/101');
+
+    await expect(fluxo(page).locator('svg.bola')).toBeVisible();
+    const medidas = await page.evaluate(() => ({ rolagem: document.documentElement.scrollWidth, janela: window.innerWidth }));
+    expect(medidas.rolagem).toBeLessThanOrEqual(medidas.janela);
+  });
+});
+
 /** P39 (D83): o termo do motor de fluxo não aparece em nenhuma tela de consulta, para nenhum perfil. */
 test.describe('P39: o termo "Camunda" fora das telas de consulta', () => {
   test.use({ viewport: { width: 1280, height: 900 } });

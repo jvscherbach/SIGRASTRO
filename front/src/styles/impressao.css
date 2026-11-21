@@ -1,0 +1,17 @@
+/*
+ * Impressão da tramitação (S8, bloco 9): "Imprimir tramitação" marca o body com .imprimindo-tramitacao só durante a
+ * impressão; aí só a seção Tramitação (fluxograma e lista) sai na página, em preto e branco legível (borda cheia, grossa
+ * ou tracejada e texto do estado, não só cor). Sem a classe, nada muda na impressão do navegador.
+ */
+@media print {
+  body.imprimindo-tramitacao { background: #fff !important; }
+  body.imprimindo-tramitacao app-root * { visibility: hidden; }
+  body.imprimindo-tramitacao app-tramitacao,
+  body.imprimindo-tramitacao app-tramitacao * { visibility: visible; }
+  body.imprimindo-tramitacao app-tramitacao { position: absolute; left: 0; top: 0; width: 100%; margin: 0; }
+  body.imprimindo-tramitacao app-tramitacao .panel { box-shadow: none; border: 0; background: #fff; color: #000; }
+  body.imprimindo-tramitacao app-tramitacao .tram-acoes,
+  body.imprimindo-tramitacao app-tramitacao .tram-filtro { display: none; }
+  body.imprimindo-tramitacao app-tramitacao .tag { border: 1px solid #000; background: #fff; color: #000; }
+  body.imprimindo-tramitacao app-tramitacao .muted { color: #000; }
+}

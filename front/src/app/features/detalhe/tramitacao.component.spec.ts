@@ -343,7 +343,7 @@ describe('TramitacaoComponent', () => {
     it('recolhe o corpo e mantém o botão acessível (aria-expanded e aria-controls)', () => {
       api.tramitacao.mockReturnValue(of(HC01));
       const { fixture, raiz } = criar();
-      const botao = raiz.querySelector<HTMLButtonElement>('.tram-head button')!;
+      const botao = raiz.querySelector<HTMLButtonElement>('.tram-head button[aria-controls]')!;
 
       expect(botao.getAttribute('aria-expanded')).toBe('true');
       expect(raiz.querySelector('#' + botao.getAttribute('aria-controls'))).not.toBeNull();
@@ -363,6 +363,45 @@ describe('TramitacaoComponent', () => {
 
       expect(raiz.querySelector('#' + secao.getAttribute('aria-labelledby'))!.textContent).toContain('Tramitação');
       expect(raiz.querySelector('ol.tram-lista')!.getAttribute('aria-label')).toContain('Etapas percorridas');
+    });
+  });
+
+  describe('fluxograma e impressão (S8, bloco 9)', () => {
+    it('o fluxograma vem acima da lista e a lista é o equivalente textual', () => {
+      api.tramitacao.mockReturnValue(of(HC01));
+      const { raiz } = criar();
+
+      const fluxo = raiz.querySelector('app-fluxograma-simplificado')!;
+      const lista = raiz.querySelector('ol.tram-lista')!;
+      expect(fluxo.querySelectorAll('.caixa').length).toBeGreaterThan(0);
+      expect(fluxo.compareDocumentPosition(lista) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(fluxo.querySelector('[role="group"]')!.getAttribute('aria-label')).toContain('A lista da seção Tramitação');
+    });
+
+    it('"Imprimir tramitação" marca o body só durante a impressão e chama window.print', () => {
+      api.tramitacao.mockReturnValue(of(HC01));
+      const imprimir = vi.spyOn(window, 'print').mockImplementation(() => {
+        expect(document.body.classList.contains('imprimindo-tramitacao')).toBe(true);
+      });
+      const { raiz } = criar();
+      const botao = Array.from(raiz.querySelectorAll<HTMLButtonElement>('.tram-acoes button')).find((b) => b.textContent!.includes('Imprimir tramitação'))!;
+
+      botao.click();
+      expect(imprimir).toHaveBeenCalledTimes(1);
+      window.dispatchEvent(new Event('afterprint'));
+      expect(document.body.classList.contains('imprimindo-tramitacao')).toBe(false);
+      imprimir.mockRestore();
+    });
+
+    it('sem caminho a imprimir (indisponível, não suportado) não há botão nem fluxograma', () => {
+      for (const estado of ['INDISPONIVEL', 'NAO_SUPORTADO'] as const) {
+        TestBed.resetTestingModule();
+        api.tramitacao.mockReturnValue(of(tramitacao([], { estado })));
+        const { raiz } = criar();
+
+        expect(texto(raiz.querySelector('.tram-acoes')!)).not.toContain('Imprimir');
+        expect(raiz.querySelector('.fluxo')).toBeNull();
+      }
     });
   });
 
