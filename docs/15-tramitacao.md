@@ -235,7 +235,7 @@ A situação do Licenciamento é lida (`RequerimentoNoFluxo.situacao`) e **não 
 | 6 | `complementacoes.sql` | instância ativa | `COMPLEMENTACAO` do requerimento → instância `procGestaoComplementacao` ativa com `BUSINESS_KEY_ = TO_CHAR(COMPLEMENTACAO.ID)` |
 | 7 | `percorridas.sql` | instância ativa | `ACT_HI_ACTINST` encerradas (tarefa só se `DELETE_REASON_ = 'completed'` em `ACT_HI_TASKINST`), até 500, da mais recente |
 
-Sem instância ou encerrada: 2 consultas; tipo não suportado: 1. Não há consulta por linha (provado por `CamundaPosicaoJdbcTest`, que conta os comandos preparados: 7 no H10 e no H07, 2 no H15, 1 no Trifásico). Todas por `PROC_INST_ID_` ou chave primária, exceto a 2 e a 6 (pela `BUSINESS_KEY_`, como na S1).
+Sem instância ou encerrada: 2 consultas; tipo não suportado: 1. O bloco 4 acrescenta no máximo 1 (`responsaveis.sql`), só quando há `ASSIGNEE_` com cara de CPF: teto de **8**. Não há consulta por linha (provado por `CamundaPosicaoJdbcTest`, que conta os comandos preparados: 7 no H10 e no H07, 2 no H15, 1 no Trifásico). Todas por `PROC_INST_ID_` ou chave primária, exceto a 2 e a 6 (pela `BUSINESS_KEY_`, como na S1).
 
 - **Tempo limite:** `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS` (padrão 10) em cada consulta, num `JdbcTemplate` próprio (não muda as demais consultas do SIGA); estourado, a posição fica `INDISPONIVEL`. O `SIGA_DB_READ_TIMEOUT_MS` do driver continua valendo por baixo. O bloco 10 leva o parâmetro para a tela.
 - **`TO_CHAR` e índices:** nas comparações entre coluna `NVARCHAR2` do Camunda e valor `VARCHAR2`/número, o `TO_CHAR` fica do lado do **valor** (parâmetro ou `COMPLEMENTACAO.ID`), e a coluna fica sem função, para não perder o índice de `BUSINESS_KEY_` (a igualdade entre `NVARCHAR2` e `VARCHAR2` não gera `ORA-12704`; o erro aparece ao misturar os dois em `CASE`, `COALESCE` ou `UNION`, que estas consultas não fazem). Em `percorridas.sql`, sem índice envolvido, o `TO_CHAR` está nos dois lados.
@@ -257,6 +257,52 @@ Sem instância ou encerrada: 2 consultas; tipo não suportado: 1. Não há consu
 8. Instância ativa sem nenhum ponto: principal vazia, com `ETAPA_NAO_MAPEADA`.
 
 **NÃO CONFIRMADO** (conferir na homologação com o Camunda real, P35): (a) que a execução parada no gateway por evento tem `ACT_ID_` do gateway e a assinatura ligada a ela (o montador não usa `IS_ACTIVE_`, justamente para não depender disso); (b) que o corpo da multi-instância aparece como execução `<tarefa>#multiInstanceBody` e como atividade aberta no histórico; (c) que 500 atividades percorridas bastam para a condição de percurso e a última etapa real em processos longos (R70).
+
+## Responsável: com quem está (bloco 4)
+
+### Peças
+
+| Peça | Onde | Papel |
+|---|---|---|
+| `RegraDoResponsavel` | `tramitacao.domain` | função pura: o tipo de responsável de cada ponto (tabela abaixo) |
+| `ResponsavelDaEtapa` | `tramitacao.domain` | tipo, papel, área, nome (opcional), participantes (concluiu/pendente) e "e mais N"; `texto()` = nome, senão área, senão papel |
+| `IdentificacaoDoResponsavel` | `tramitacao.domain` | o que o SIGA diz de um `ASSIGNEE_`: nome em `SERVIDOR` e se é o interessado; **sem o CPF** |
+| `CatalogoDeGrupos` | `tramitacao.domain` (porta) | id do grupo → área; implementado por `CatalogoDeGruposEmArquivo` (`resources/rastro/grupos.yaml`, validado na subida) |
+| `IdentificacaoDosResponsaveis` | `tramitacao.application.port` | uma consulta por requerimento; implementada em `CamundaPosicaoJdbc` (`tramitacao/responsaveis.sql`) |
+| `ResolverResponsavel` | `tramitacao.application` | junta os `ASSIGNEE_` de todos os pontos, consulta uma vez, aplica a regra e **tira os identificadores (CPF) da posição** |
+| `ParametrosDoRastro` | `tramitacao.application.port` | nome do responsável, limite de nomes e cache; ligado em `config.ParametrosDoRastroDoAmbiente` |
+| `CacheDaPosicao` | `tramitacao.application.port` | cache curto em memória (`infrastructure/memoria/CacheDaPosicaoEmMemoria`) |
+
+### Regra
+
+| Situação do ponto | Responsável mostrado |
+|---|---|
+| Tarefa com `ASSIGNEE_` = CPF do interessado do requerimento (`REQUERIMENTO.ID_PESSOA`) | "Interessado (cadastrante)" (vale em qualquer etapa) |
+| Tarefa com `ASSIGNEE_` = CPF que está em `SERVIDOR` | nome do servidor (versão mais recente por CPF), com o papel da etapa ("Analista", "Chefia"...) e a área do grupo, se houver |
+| `ASSIGNEE_` sem correspondência, ou que não é CPF de 11 dígitos | "Responsável não identificado" (nunca o valor cru) |
+| Tarefa de grupo sem `ASSIGNEE_` | a área do grupo (`grupos.yaml`); grupo desconhecido ou `0`: "Equipe responsável" |
+| Multi-instância, ou mais de uma tarefa no ponto | lista de participantes (os que concluíram o ciclo e os pendentes), com nome ou papel |
+| Ponto sem tarefa | pelo papel da etapa no catálogo: espera de pagamento e etapas do interessado, "Interessado (cadastrante)"; automática, "Sistema"; etapa de grupo sem tarefa ativa (ex.: última etapa real no suporte), "Equipe responsável"; não mapeada sem tarefa, "Sistema" |
+
+A espera de pagamento segue o **papel do catálogo** (interessado), e não "gateway = Sistema": quem precisa agir é o interessado, como na tabela do bloco 1.
+
+- **Uma consulta por requerimento:** só os `ASSIGNEE_` com exatamente 11 dígitos, sem repetição, até 500, num único `IN`. Junta `SERVIDOR` (nome) e a `PESSOA` do requerimento (interessado). Sem nenhum CPF, a consulta não é feita. Teto da leitura: **8 consultas** (7 da posição + 1).
+- **Falha na consulta** não derruba a posição: os servidores ficam "Responsável não identificado", e o log registra só o id do requerimento e a classe da exceção (o texto do driver pode trazer os parâmetros, que são CPFs; provado por teste com CPF fictício na mensagem).
+- **Depois da resolução** os `ASSIGNEE_` saem das tarefas e das concluídas (`ElementoDaPosicao.comResponsavel`): nada a jusante (cache, resposta, auditoria, log) recebe o CPF. O identificador é um tipo próprio cujo `toString()` não mostra o valor.
+
+### Parâmetros (classe "imediato": valem na próxima leitura)
+
+| Variável | Padrão | Efeito |
+|---|---|---|
+| `RASTRO_MOSTRAR_NOME_RESPONSAVEL` | `true` (protótipo) | desligado, só a área e o papel, sem nome, também nos participantes. Regra definitiva com a SEMA (P32) |
+| `RASTRO_MAX_NOMES_POR_EQUIPE` | 10 (1 a 100) | participantes listados; o resto vira "e mais N" (`maisParticipantes`) |
+| `RASTRO_POSICAO_CACHE_SEGUNDOS` | 30 (0 a 3600; 0 desliga) | validade da posição em cache |
+
+O cache guarda a posição **já resolvida e sem CPF**, com a chave **id do requerimento + versão do catálogo** (`CatalogoDeEtapas.versao()`), nunca o usuário nem CPF. O acesso (RN07) é conferido a cada chamada, **antes** do cache. `INDISPONIVEL` não entra no cache. Nome e limite de nomes são aplicados **depois** do cache, por isso mudam na próxima leitura mesmo com a posição guardada. Teto de 2.000 entradas (acima dele saem as vencidas e, se preciso, todas).
+
+### Grupos (`resources/rastro/grupos.yaml`)
+
+Os 22 grupos reais da regra 13 (com as variantes subterrânea, superficial, barramento e multidisciplinar expandidas), cada um com um rótulo de área em linguagem de negócio. Validado na subida: id repetido, rótulo vazio, id `0` (reservado) e campo desconhecido derrubam a subida. Os rótulos são uma **proposta** (P36): conferir com a área.
 
 ## Dependências do módulo
 

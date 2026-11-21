@@ -18,6 +18,8 @@ import java.util.Optional;
  * @param tarefas          tarefas ativas do ponto (multi-instância: uma por analista/signatário)
  * @param multiInstancia   resumo "x de y" quando a etapa é multi-instância
  * @param processoFilho    chave da filha, quando o ponto é uma emissão
+ * @param concluidas       tarefas já concluídas do ciclo atual da multi-instância (participantes que concluíram)
+ * @param responsavel      com quem está (bloco 4); vazio até a resolução
  */
 public record ElementoDaPosicao(
         Optional<Etapa> etapa,
@@ -26,13 +28,24 @@ public record ElementoDaPosicao(
         boolean desdeUltimaEntrada,
         List<LeituraDoFluxo.Tarefa> tarefas,
         Optional<MultiInstancia> multiInstancia,
-        Optional<String> processoFilho) {
+        Optional<String> processoFilho,
+        List<LeituraDoFluxo.Percorrida> concluidas,
+        Optional<ResponsavelDaEtapa> responsavel) {
 
     public ElementoDaPosicao {
         etapa = Objects.requireNonNullElse(etapa, Optional.empty());
         tarefas = List.copyOf(Objects.requireNonNullElse(tarefas, List.of()));
         multiInstancia = Objects.requireNonNullElse(multiInstancia, Optional.empty());
         processoFilho = Objects.requireNonNullElse(processoFilho, Optional.empty());
+        concluidas = List.copyOf(Objects.requireNonNullElse(concluidas, List.of()));
+        responsavel = Objects.requireNonNullElse(responsavel, Optional.empty());
+    }
+
+    /** Ponto sem concluídas nem responsável (antes da resolução do bloco 4). */
+    public ElementoDaPosicao(Optional<Etapa> etapa, String idTecnico, LocalDateTime desde, boolean desdeUltimaEntrada,
+            List<LeituraDoFluxo.Tarefa> tarefas, Optional<MultiInstancia> multiInstancia, Optional<String> processoFilho) {
+        this(etapa, idTecnico, desde, desdeUltimaEntrada, tarefas, multiInstancia, processoFilho, List.of(),
+                Optional.empty());
     }
 
     public String rotulo() {
@@ -41,6 +54,27 @@ public record ElementoDaPosicao(
 
     public boolean mapeado() {
         return etapa.isPresent();
+    }
+
+    ElementoDaPosicao comConcluidas(List<LeituraDoFluxo.Percorrida> doCiclo) {
+        return new ElementoDaPosicao(etapa, idTecnico, desde, desdeUltimaEntrada, tarefas, multiInstancia, processoFilho,
+                doCiclo, responsavel);
+    }
+
+    /**
+     * Com o responsável resolvido e sem os {@code ASSIGNEE_} (CPF): depois da resolução, o identificador não segue para
+     * cache, resposta nem log.
+     */
+    public ElementoDaPosicao comResponsavel(ResponsavelDaEtapa resolvido) {
+        return new ElementoDaPosicao(etapa, idTecnico, desde, desdeUltimaEntrada,
+                tarefas.stream().map(LeituraDoFluxo.Tarefa::semResponsavel).toList(), multiInstancia, processoFilho,
+                concluidas.stream().map(LeituraDoFluxo.Percorrida::semResponsavel).toList(), Optional.of(resolvido));
+    }
+
+    /** Parâmetros de exibição do responsável aplicados na leitura. */
+    public ElementoDaPosicao conforme(boolean mostrarNome, int maximoDeNomes) {
+        return new ElementoDaPosicao(etapa, idTecnico, desde, desdeUltimaEntrada, tarefas, multiInstancia, processoFilho,
+                concluidas, responsavel.map(r -> r.conforme(mostrarNome, maximoDeNomes)));
     }
 
     /**

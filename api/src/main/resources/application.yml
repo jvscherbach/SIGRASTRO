@@ -144,6 +144,12 @@ rastro:
   # Tramitação (S7): tempo limite (s) de cada consulta da posição ao Camunda; estourado, a posição fica INDISPONIVEL.
   tramitacao:
     camunda-timeout-segundos: ${RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS:10}
+    # Nome do servidor com quem está a tarefa (nunca o CPF). Ligado no protótipo; regra definitiva com a SEMA (P32).
+    mostrar-nome-responsavel: ${RASTRO_MOSTRAR_NOME_RESPONSAVEL:true}
+    # Participantes listados numa equipe (multi-instância); o resto aparece como "e mais N".
+    max-nomes-por-equipe: ${RASTRO_MAX_NOMES_POR_EQUIPE:10}
+    # Cache curto da posição, em memória (0 desliga).
+    posicao-cache-segundos: ${RASTRO_POSICAO_CACHE_SEGUNDOS:30}
   agendamento:
     enabled: ${AGENDAMENTO_ENABLED:true}
     limpeza-dossie: PT5M

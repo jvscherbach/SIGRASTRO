@@ -23,7 +23,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.sql.DataSource;
 
 import br.gov.mt.sema.rastro.integration.siga.CamundaFicticioBuilder.Fluxo;
+import br.gov.mt.sema.rastro.tramitacao.application.ResolverResponsavel;
 import br.gov.mt.sema.rastro.tramitacao.application.port.PosicaoNoFluxo;
+import br.gov.mt.sema.rastro.tramitacao.domain.ResponsavelDaEtapa;
+import br.gov.mt.sema.rastro.tramitacao.infrastructure.catalogo.CatalogoDeGruposDeTeste;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import br.gov.mt.sema.rastro.tramitacao.domain.CatalogoDeEtapas;
 import br.gov.mt.sema.rastro.tramitacao.domain.ElementoDaPosicao;
 import br.gov.mt.sema.rastro.tramitacao.domain.EstadoDaPosicao;
@@ -56,6 +60,7 @@ class CamundaPosicaoJdbcTest {
     /** Cenários próprios deste teste (fora da faixa 7000 a 7199 da S7). */
     private static final long DUAS_INSTANCIAS = 7200;
     private static final long MODELO_ERRADO = 7202;
+    private static final long DOZE_ANALISTAS = 7203;
 
     private static final CatalogoDeEtapas CATALOGO = CatalogoDeEtapasDeTeste.padrao();
     private static final AtomicInteger CONSULTAS = new AtomicInteger();
@@ -103,6 +108,10 @@ class CamundaPosicaoJdbcTest {
                     .desde(LocalDateTime.of(2026, 5, 5, 9, 0)).gravar();
             jdbc.update("UPDATE SIGA2_LICENCIAMENTO.REQUERIMENTO SET ID_TIPO_PROCESSO = 72 WHERE ID = :id",
                     new MapSqlParameterSource("id", MODELO_ERRADO));
+            // Bloco 4: equipe grande, 12 analistas (servidores fictícios 01 a 12) na análise.
+            construtor.processo(Fluxo.HIDRICO, DOZE_ANALISTAS).situacao("EM_ANALISE")
+                    .naEtapa("taskAnalisarRequerimento").comAnalistas(12)
+                    .desde(LocalDateTime.of(2026, 5, 6, 9, 0)).gravar();
         }
     }
 
@@ -268,11 +277,11 @@ class CamundaPosicaoJdbcTest {
     @Test
     void numero_de_consultas_por_requerimento_tem_teto() {
         CONSULTAS.set(0);
-        posicao(H10); // ativa, com filhas: o caso mais caro
-        assertThat(CONSULTAS.get()).isEqualTo(CamundaPosicaoJdbc.CONSULTAS_NO_MAXIMO);
+        posicao(H10); // ativa, com filhas: o caso mais caro da leitura
+        assertThat(CONSULTAS.get()).isEqualTo(CamundaPosicaoJdbc.CONSULTAS_DA_POSICAO);
         CONSULTAS.set(0);
         posicao(H07); // ativa com 3 analistas: as mesmas 7, sem consulta por linha
-        assertThat(CONSULTAS.get()).isEqualTo(CamundaPosicaoJdbc.CONSULTAS_NO_MAXIMO);
+        assertThat(CONSULTAS.get()).isEqualTo(CamundaPosicaoJdbc.CONSULTAS_DA_POSICAO);
         CONSULTAS.set(0);
         posicao(H15); // encerrada
         assertThat(CONSULTAS.get()).isEqualTo(2);
@@ -285,6 +294,96 @@ class CamundaPosicaoJdbcTest {
     void nenhum_cpf_na_posicao_montada() {
         for (long id : new long[] {H01, H06, H09, H20, CenariosFicticiosDaS7.G03}) {
             assertThat(posicao(id).toString()).doesNotContainPattern("\\d{11}");
+        }
+    }
+
+    // ---- Bloco 4: responsável ----
+
+    private static PosicaoAtual comResponsavel(long id) {
+        return new ResolverResponsavel(camunda, CatalogoDeGruposDeTeste.padrao()).resolver(id, posicao(id));
+    }
+
+    private static ResponsavelDaEtapa responsavel(long id) {
+        return comResponsavel(id).principal().flatMap(ElementoDaPosicao::responsavel).orElseThrow();
+    }
+
+    @ParameterizedTest(name = "{0}: {2}")
+    @CsvSource(delimiter = '|', value = {
+            "H01|7001|INTERESSADO|Interessado (cadastrante)",
+            "H02|7002|AREA|Conferência de documentos (subterrânea)",
+            "H03|7003|INTERESSADO|Interessado (cadastrante)",
+            "H04|7004|SISTEMA|Sistema",
+            "H05|7005|AREA|Atribuição de requerimentos (superficial)",
+            "H08|7008|SERVIDOR|Servidor Exemplo 04",
+            "H11|7011|AREA|Registro de publicação (barramento)",
+            "H12|7012|AREA|Revisão da decisão (multidisciplinar)",
+            "H13|7013|INTERESSADO|Interessado (cadastrante)",
+            "H14|7014|INTERESSADO|Interessado (cadastrante)",
+            "H19|7019|EQUIPE|Equipe responsável",
+            "L01|7051|AREA|Atendimento (LAC)",
+            "L03|7053|INTERESSADO|Interessado (cadastrante)",
+            "L04|7054|INTERESSADO|Interessado (cadastrante)",
+            "G01|7101|EQUIPE|Equipe responsável",
+            "G02|7102|EQUIPE|Equipe responsável",
+            "G03|7103|NAO_IDENTIFICADO|Responsável não identificado"})
+    void com_quem_esta(String cenario, long id, ResponsavelDaEtapa.Tipo tipo, String texto) {
+        ResponsavelDaEtapa r = responsavel(id);
+        assertThat(r.tipo()).as(cenario).isEqualTo(tipo);
+        assertThat(r.texto()).as(cenario).isEqualTo(texto);
+    }
+
+    @Test
+    void h08_servidor_com_papel_de_chefia() {
+        assertThat(responsavel(CenariosFicticiosDaS7.H08).papel()).isEqualTo("Chefia");
+    }
+
+    @Test
+    void h06_participantes_concluiu_e_pendente() {
+        assertThat(responsavel(H06).participantes())
+                .extracting(p -> p.nome().orElse("?"), ResponsavelDaEtapa.Participante::concluiu)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("Servidor Exemplo 01", true),
+                        org.assertj.core.groups.Tuple.tuple("Servidor Exemplo 02", true),
+                        org.assertj.core.groups.Tuple.tuple("Servidor Exemplo 03", false));
+    }
+
+    @Test
+    void h10_signatarios_pela_area_do_grupo_em_cada_filha() {
+        PosicaoAtual p = comResponsavel(H10);
+        assertThat(p.pontos()).hasSize(2).allSatisfy(e -> assertThat(e.responsavel().orElseThrow().texto())
+                .isEqualTo("Emissão de títulos"));
+    }
+
+    @Test
+    void equipe_de_12_analistas_na_consulta_em_lote() {
+        ResponsavelDaEtapa todos = responsavel(DOZE_ANALISTAS);
+        assertThat(todos.participantes()).hasSize(12).allSatisfy(p -> assertThat(p.nome()).isPresent());
+        ResponsavelDaEtapa limitado = todos.conforme(true, 10);
+        assertThat(limitado.participantes()).hasSize(10);
+        assertThat(limitado.maisParticipantes()).isEqualTo(2);
+        assertThat(todos.conforme(false, 10).participantes()).allSatisfy(p -> assertThat(p.nome()).isEmpty());
+    }
+
+    @Test
+    void responsaveis_numa_consulta_so_e_teto_de_8() {
+        CONSULTAS.set(0);
+        comResponsavel(H06);
+        assertThat(CONSULTAS.get()).isEqualTo(CamundaPosicaoJdbc.CONSULTAS_NO_MAXIMO);
+        CONSULTAS.set(0);
+        comResponsavel(DOZE_ANALISTAS); // 12 CPFs, a mesma única consulta
+        assertThat(CONSULTAS.get()).isEqualTo(CamundaPosicaoJdbc.CONSULTAS_NO_MAXIMO);
+        CONSULTAS.set(0);
+        comResponsavel(CenariosFicticiosDaS7.H02); // grupo, sem ASSIGNEE_: não consulta SERVIDOR
+        assertThat(CONSULTAS.get()).isEqualTo(CamundaPosicaoJdbc.CONSULTAS_DA_POSICAO);
+    }
+
+    @Test
+    void nenhum_cpf_no_json_de_nenhum_cenario() throws Exception {
+        ObjectMapper json = new ObjectMapper().findAndRegisterModules();
+        for (long id : new long[] {H01, CenariosFicticiosDaS7.H02, H06, H07, CenariosFicticiosDaS7.H08, H09, H10, H19,
+                H20, CenariosFicticiosDaS7.G01, CenariosFicticiosDaS7.G02, CenariosFicticiosDaS7.G03, DOZE_ANALISTAS}) {
+            String texto = json.writeValueAsString(comResponsavel(id));
+            assertThat(texto).as("requerimento %d", id).doesNotContainPattern("\\d{11}").doesNotContain("000.000.000");
         }
     }
 

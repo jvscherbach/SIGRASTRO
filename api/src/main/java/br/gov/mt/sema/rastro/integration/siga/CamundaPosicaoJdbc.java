@@ -1,12 +1,16 @@
 package br.gov.mt.sema.rastro.integration.siga;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import br.gov.mt.sema.rastro.tramitacao.application.port.IdentificacaoDosResponsaveis;
 import br.gov.mt.sema.rastro.tramitacao.application.port.PosicaoNoFluxo;
+import br.gov.mt.sema.rastro.tramitacao.domain.IdentificacaoDoResponsavel;
 import br.gov.mt.sema.rastro.tramitacao.domain.IdentificadorDoResponsavel;
 import br.gov.mt.sema.rastro.tramitacao.domain.LeituraDoFluxo;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,18 +26,23 @@ import org.springframework.stereotype.Repository;
  *
  * <p>Número de consultas por requerimento, fixo e sem laço por linha: 1 ({@code requerimento}) + 1 ({@code instancias})
  * quando não há instância ou ela está encerrada; mais 5 quando está ativa ({@code execucoes}, {@code filhas},
- * {@code tarefas}, {@code complementacoes}, {@code percorridas}). <b>Máximo: 7.</b>
+ * {@code tarefas}, {@code complementacoes}, {@code percorridas}), e mais 1 ({@code responsaveis}, bloco 4) quando há
+ * {@code ASSIGNEE_} com cara de CPF. <b>Máximo: 8.</b>
  *
- * <p>Não interpreta nada: devolve os fatos crus; quem resolve etapa, principal e paralelos é o domínio. O
+ * <p>Não interpreta nada: devolve os fatos crus; quem resolve etapa, principal, paralelos e responsável é o domínio. O
  * {@code ASSIGNEE_} (CPF) sai daqui só protegido ({@link IdentificadorDoResponsavel}).
  */
 @Repository
 @ConditionalOnExpression(SigaCondicoes.CONFIGURADO)
-class CamundaPosicaoJdbc implements PosicaoNoFluxo {
+class CamundaPosicaoJdbc implements PosicaoNoFluxo, IdentificacaoDosResponsaveis {
 
     /** Complementação: instância independente, fora do catálogo (regra técnica 7). */
     static final String CHAVE_COMPLEMENTACAO = "procGestaoComplementacao";
-    static final int CONSULTAS_NO_MAXIMO = 7;
+    /** Leitura da posição (bloco 3) sem a identificação dos responsáveis. */
+    static final int CONSULTAS_DA_POSICAO = 7;
+    static final int CONSULTAS_NO_MAXIMO = CONSULTAS_DA_POSICAO + 1;
+    /** Teto da lista em {@code IN} (o Oracle aceita até 1000). */
+    static final int MAXIMO_DE_CPFS = 500;
 
     private static final String PASTA = "tramitacao/";
 
@@ -45,6 +54,7 @@ class CamundaPosicaoJdbc implements PosicaoNoFluxo {
     private final String sqlTarefas = SigaSql.carregar(PASTA + "tarefas");
     private final String sqlComplementacoes = SigaSql.carregar(PASTA + "complementacoes");
     private final String sqlPercorridas = SigaSql.carregar(PASTA + "percorridas");
+    private final String sqlResponsaveis = SigaSql.carregar(PASTA + "responsaveis");
 
     CamundaPosicaoJdbc(NamedParameterJdbcTemplate sigaJdbcTemplate,
             @Value("${rastro.tramitacao.camunda-timeout-segundos:10}") int timeoutSegundos) {
@@ -52,6 +62,42 @@ class CamundaPosicaoJdbc implements PosicaoNoFluxo {
         JdbcTemplate base = new JdbcTemplate(sigaJdbcTemplate.getJdbcTemplate().getDataSource());
         base.setQueryTimeout(Math.max(1, timeoutSegundos));
         this.jdbc = new NamedParameterJdbcTemplate(base);
+    }
+
+    /**
+     * Bloco 4: uma consulta para todos os responsáveis do requerimento. O CPF vai só como parâmetro e volta só para casar
+     * com o identificador que já se tinha; a resposta é indexada pelo próprio identificador recebido.
+     */
+    @Override
+    public Map<IdentificadorDoResponsavel, IdentificacaoDoResponsavel> identificar(long idRequerimento,
+            Collection<IdentificadorDoResponsavel> responsaveis) {
+        Map<String, IdentificadorDoResponsavel> porValor = new LinkedHashMap<>();
+        responsaveis.stream().limit(MAXIMO_DE_CPFS).forEach(r -> porValor.putIfAbsent(r.valorProtegido(), r));
+        if (porValor.isEmpty()) {
+            return Map.of();
+        }
+        Map<IdentificadorDoResponsavel, String> nomes = new HashMap<>();
+        Map<IdentificadorDoResponsavel, Boolean> interessado = new HashMap<>();
+        jdbc.query(sqlResponsaveis, new MapSqlParameterSource()
+                .addValue("idRequerimento", idRequerimento).addValue("cpfs", List.copyOf(porValor.keySet())), rs -> {
+                    IdentificadorDoResponsavel id = porValor.get(rs.getString("CPF"));
+                    if (id == null) {
+                        return;
+                    }
+                    if (rs.getInt("INTERESSADO") == 1) {
+                        interessado.put(id, Boolean.TRUE);
+                    } else if (rs.getString("NOME") != null) {
+                        nomes.put(id, rs.getString("NOME"));
+                    }
+                });
+        Map<IdentificadorDoResponsavel, IdentificacaoDoResponsavel> resultado = new HashMap<>();
+        porValor.values().forEach(id -> {
+            if (nomes.containsKey(id) || interessado.containsKey(id)) {
+                resultado.put(id, new IdentificacaoDoResponsavel(Optional.ofNullable(nomes.get(id)),
+                        interessado.getOrDefault(id, false)));
+            }
+        });
+        return resultado;
     }
 
     @Override

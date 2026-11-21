@@ -157,13 +157,17 @@ public final class MontadorDaPosicao {
 
         private ElementoDaPosicao multiInstancia(Etapa etapa, String idTecnico, List<LeituraDoFluxo.Tarefa> ativas) {
             LocalDateTime ciclo = inicioDoCiclo.get(idTecnico);
-            Optional<Integer> concluidos = ciclo == null ? Optional.empty() : Optional.of((int) leitura.percorridas().stream()
+            List<LeituraDoFluxo.Percorrida> doCiclo = ciclo == null ? List.of() : leitura.percorridas().stream()
                     .filter(p -> p.tarefa() && idTecnico.equals(p.idTecnico()) && p.inicio() != null
                             && !p.inicio().isBefore(ciclo))
-                    .count());
+                    .sorted(Comparator.comparing(LeituraDoFluxo.Percorrida::fim,
+                            Comparator.nullsLast(Comparator.naturalOrder())))
+                    .toList();
+            Optional<Integer> concluidos = ciclo == null ? Optional.empty() : Optional.of(doCiclo.size());
             LocalDateTime desde = ciclo != null ? ciclo : ativas.isEmpty() ? null : ativas.getFirst().criadaEm();
             return new ElementoDaPosicao(Optional.of(etapa), idTecnico, desde, true, ativas,
-                    Optional.of(new ElementoDaPosicao.MultiInstancia(concluidos, ativas.size())), Optional.empty());
+                    Optional.of(new ElementoDaPosicao.MultiInstancia(concluidos, ativas.size())), Optional.empty())
+                    .comConcluidas(doCiclo);
         }
 
         private void filhas() {

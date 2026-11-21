@@ -54,7 +54,8 @@ Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTes
 | `dossie` | `SelecionarDocumentosParaDossie` (seleção validada, em ordem, com a chave resolvida) | `documento.application` |
 | `integration.siga` | porta `DocumentosDoRequerimento` | `documento.application.port` |
 | `tramitacao` (S7) | `VerificarAcessoAoRequerimento` (existe + RN07, antes da posição) | `consulta.application` |
-| `integration.siga` (S7) | porta `PosicaoNoFluxo` (`CamundaPosicaoJdbc`) | `tramitacao.application.port` |
+| `integration.siga` (S7) | portas `PosicaoNoFluxo` e `IdentificacaoDosResponsaveis` (`CamundaPosicaoJdbc`) | `tramitacao.application.port` |
+| `config` (S7) | `ParametrosDoRastro` (variáveis de ambiente; a tela vem no bloco 10) | `tramitacao.application.port` |
 | `integration.licenciamento` | porta `ArquivosDoRepositorio` | `dossie.application.port` |
 | `dossie.infrastructure` | portas `ValidadorDePdf`, `MontadorDoDossie`, `RepositorioDePedidos`, `FilaDeGeracao` | `dossie.application.port` |
 | `config` | `ParametrosDoDossie` (variáveis de ambiente; a S5 troca) | `dossie.application.port` |

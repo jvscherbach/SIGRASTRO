@@ -1,0 +1,27 @@
+# Grupos candidatos do Camunda (ACT_RU_IDENTITYLINK.GROUP_ID_) e a área mostrada ao usuário (S7, bloco 4; docs/15).
+# Nomes de grupo não são dado pessoal (regra técnica 13). Validado na subida: id repetido, rótulo vazio e campo
+# desconhecido derrubam a subida. Grupo fora daqui, ou "0", aparece como "Equipe responsável", sem erro.
+# Os rótulos são uma proposta em linguagem de negócio: conferir com a área (P36).
+grupos:
+  - {id: GrpProcSurhResponsavelAtendimento, rotulo: Atendimento (recursos hídricos)}
+  - {id: grpSurhConferirDocumentoSubterranea, rotulo: Conferência de documentos (subterrânea)}
+  - {id: grpSurhConferirDocumentoSuperficial, rotulo: Conferência de documentos (superficial)}
+  - {id: grpSurhConferirDocumentoBarramento, rotulo: Conferência de documentos (barramento)}
+  - {id: grpProcSurhConferirDocumentoMultidisciplinar, rotulo: Conferência de documentos (multidisciplinar)}
+  - {id: grpProcSurhResponsavelDistribuicao, rotulo: Distribuição de requerimentos}
+  - {id: grpSurhAtribuirRequerimentoSubterranea, rotulo: Atribuição de requerimentos (subterrânea)}
+  - {id: grpSurhAtribuirRequerimentoSuperficial, rotulo: Atribuição de requerimentos (superficial)}
+  - {id: grpSurhAtribuirRequerimentoBarramento, rotulo: Atribuição de requerimentos (barramento)}
+  - {id: grpProcSurhAtribuirRequerimentoMultidisciplinar, rotulo: Atribuição de requerimentos (multidisciplinar)}
+  - {id: GrpProcPublicacaoOficial, rotulo: Publicação oficial}
+  - {id: grpSurhRegistrarPublicacaoSubterranea, rotulo: Registro de publicação (subterrânea)}
+  - {id: grpSurhRegistrarPublicacaoSuperficial, rotulo: Registro de publicação (superficial)}
+  - {id: grpSurhRegistrarPublicacaoBarramento, rotulo: Registro de publicação (barramento)}
+  - {id: grpProcSurhRegistrarPublicacaoMultidisciplinar, rotulo: Registro de publicação (multidisciplinar)}
+  - {id: grpSurhRevisarDecisaoSubterranea, rotulo: Revisão da decisão (subterrânea)}
+  - {id: grpSurhRevisarDecisaoSuperficial, rotulo: Revisão da decisão (superficial)}
+  - {id: grpSurhRevisarDecisaoBarramento, rotulo: Revisão da decisão (barramento)}
+  - {id: grpSurhRevisarDecisaoMultidisciplinar, rotulo: Revisão da decisão (multidisciplinar)}
+  - {id: GrpProcSurhEmissorTitulos, rotulo: Emissão de títulos}
+  - {id: GrpProcResponsavelAtendimentoLac, rotulo: Atendimento (LAC)}
+  - {id: suporte, rotulo: Suporte técnico}

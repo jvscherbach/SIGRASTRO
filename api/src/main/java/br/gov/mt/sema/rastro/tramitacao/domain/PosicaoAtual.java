@@ -70,6 +70,18 @@ public record PosicaoAtual(
                 Optional.empty(), Optional.empty(), Optional.empty(), marcas, List.of(), Optional.empty());
     }
 
+    /** A mesma posição com cada ponto transformado (ex.: responsável resolvido, parâmetros de exibição). */
+    public PosicaoAtual comPontos(java.util.function.UnaryOperator<ElementoDaPosicao> transformar) {
+        return new PosicaoAtual(estado, chaveDoModelo, rotuloDoModelo, principal.map(transformar),
+                emParalelo.stream().map(transformar).toList(), complementacao, fim, encerradaEm, emSuporteDesde, marcas,
+                idsNaoMapeados, diagnostico);
+    }
+
+    /** Todos os pontos ativos: a principal e os paralelos. */
+    public List<ElementoDaPosicao> pontos() {
+        return java.util.stream.Stream.concat(principal.stream(), emParalelo.stream()).toList();
+    }
+
     /** Complementação: quantas instâncias ativas e desde quando (a mais antiga). */
     public record ComplementacaoEmAndamento(int quantidade, LocalDateTime desde) {}
 }

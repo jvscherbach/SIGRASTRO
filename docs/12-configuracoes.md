@@ -117,6 +117,16 @@ Credenciais ficam no arquivo de ambiente do servidor; a tela não as exibe nem e
 
 **`RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS`** (S7, bloco 3, padrão **10**; propriedade `rastro.tramitacao.camunda-timeout-segundos`): tempo limite de **cada** consulta da posição atual ao Camunda (até 7 por requerimento, docs/15). Estourado, a posição responde `INDISPONIVEL` e o resto do detalhe segue. Vale só para a tramitação; as demais consultas do SIGA continuam só com `SIGA_DB_READ_TIMEOUT_MS`. Variável de ambiente por enquanto; o bloco 10 da S7 a leva para a tela de Configurações.
 
+**Responsável e cache da posição** (S7, bloco 4; propriedades `rastro.tramitacao.*`, lidas a cada consulta, classe "imediato"; docs/15, "Responsável"):
+
+| Variável | Padrão | Faixa | Efeito |
+|---|---|---|---|
+| `RASTRO_MOSTRAR_NOME_RESPONSAVEL` | `true` (protótipo) | `true`/`false` | desligado, só a área e o papel, sem nome do servidor (nunca o CPF, em nenhum caso). Regra definitiva depende da SEMA (P32) |
+| `RASTRO_MAX_NOMES_POR_EQUIPE` | 10 | 1 a 100 | participantes listados numa equipe; o resto aparece como "e mais N" |
+| `RASTRO_POSICAO_CACHE_SEGUNDOS` | 30 | 0 a 3600 | validade do cache da posição em memória; 0 desliga |
+
+Valor fora da faixa cai no padrão, com aviso no log. O bloco 10 da S7 leva os três para a tela de Configurações.
+
 ### Modo de demonstração e servidor MCP (S6, bloco 7)
 
 Variáveis de ambiente, fora da tela:

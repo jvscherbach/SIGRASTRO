@@ -85,6 +85,10 @@ public record LeituraDoFluxo(
             responsavel = Objects.requireNonNullElse(responsavel, Optional.empty());
             grupos = List.copyOf(Objects.requireNonNullElse(grupos, List.of()));
         }
+
+        Tarefa semResponsavel() {
+            return new Tarefa(instancia, idTecnico, criadaEm, Optional.empty(), grupos);
+        }
     }
 
     /** Instância filha ativa; {@code chave} é a chave da definição dela ({@code procSurh*}). */
@@ -102,6 +106,10 @@ public record LeituraDoFluxo(
 
         public Percorrida {
             responsavel = Objects.requireNonNullElse(responsavel, Optional.empty());
+        }
+
+        Percorrida semResponsavel() {
+            return new Percorrida(idTecnico, inicio, fim, tarefa, Optional.empty());
         }
     }
 }
