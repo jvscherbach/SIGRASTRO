@@ -75,6 +75,10 @@ avisos:
   - codigo: HISTORICO_APROXIMADO
     gravidade: INFO
     texto: "Histórico aproximado: este requerimento é anterior ao registro detalhado do fluxo"
+  # S8, bloco 6: o limite de linhas por instância foi atingido; o que se mostra é o que coube.
+  - codigo: HISTORICO_TRUNCADO
+    gravidade: ATENCAO
+    texto: "Histórico incompleto: este requerimento tem registros demais e só parte do caminho é mostrada."
 
 # Por modelo (chave do Camunda): situações aceitas em cada etapa e em cada final, e divergências conhecidas
 # (situação -> aviso próprio, que vence o "não confere").

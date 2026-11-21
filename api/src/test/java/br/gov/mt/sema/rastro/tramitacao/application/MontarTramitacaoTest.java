@@ -75,8 +75,12 @@ class MontarTramitacaoTest {
     }
 
     private static CaminhoBruto comAnalise() {
+        return comAnalise(false);
+    }
+
+    private static CaminhoBruto comAnalise(boolean truncada) {
         InstanciaDoHistorico raiz = new InstanciaDoHistorico("r", OrigemDaInstancia.RAIZ, "procOutorgaAguaSupSub", T0, null,
-                null, "ACTIVE", null, false, 1);
+                null, "ACTIVE", null, truncada, 1);
         IdentificadorDoResponsavel id = IdentificadorDoResponsavel.de(CPF).orElseThrow();
         AtividadeBruta revisao = new AtividadeBruta("r", OrigemDaInstancia.RAIZ, "r-a000001", null, "r",
                 "taskRevisarParecerTecnico", null, "userTask", T0, null, Optional.of(id), null,
@@ -162,6 +166,17 @@ class MontarTramitacaoTest {
         assertThat(codigos(t)).contains(CodigoDoAviso.VARIAS_INSTANCIAS);
         assertThat(chamadasAoPlanoB).hasValue(0);
         assertThat(t.toString()).doesNotContain(CPF);
+    }
+
+    @Test
+    void historico_acima_do_limite_de_linhas_traz_o_aviso_de_truncado_e_sem_ele_nao() {
+        camunda = (id, chave) -> comAnalise(true);
+        TramitacaoDoRequerimento truncado = montar();
+        assertThat(truncado.caminho().truncado()).isTrue();
+        assertThat(codigos(truncado)).contains(CodigoDoAviso.HISTORICO_TRUNCADO);
+
+        camunda = (id, chave) -> comAnalise(false);
+        assertThat(codigos(montar())).doesNotContain(CodigoDoAviso.HISTORICO_TRUNCADO);
     }
 
     @Test

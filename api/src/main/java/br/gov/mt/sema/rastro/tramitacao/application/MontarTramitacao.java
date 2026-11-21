@@ -119,6 +119,9 @@ public class MontarTramitacao {
         if (caminho.instanciasRaiz() > 1) {
             avisos.add(reconciliar.aviso(CodigoDoAviso.VARIAS_INSTANCIAS, situacao.orElse("")));
         }
+        if (caminho.truncado()) {
+            avisos.add(reconciliar.aviso(CodigoDoAviso.HISTORICO_TRUNCADO, situacao.orElse("")));
+        }
         Estado estado = fim.estado() == DesfechoDoCaminho.Estado.ENCERRADO ? Estado.ENCERRADO : Estado.ATIVO;
         return new TramitacaoDoRequerimento(estado, Optional.of(modelo.chave()), situacao, caminho, Optional.of(fim),
                 Optional.empty(), avisos);

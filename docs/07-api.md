@@ -127,6 +127,8 @@ Onde o requerimento está agora, desde quando e com quem (docs/15). Controller `
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/requerimentos/{id}/posicao` | Posição atual do requerimento. |
+| `GET` | `/requerimentos/{id}/tramitacao` | **S8.** Tramitação completa: o caminho percorrido, com quem esteve em cada etapa, as voltas, o final e, sem instância no Camunda, o histórico aproximado (plano B). Caso de uso `AbrirTramitacao`. |
+| `GET` | `/processos/{numero}/tramitacao` | **S8.** Uma tramitação por requerimento vinculado ao processo (1:N), em lista, no mesmo contrato. `{numero}` com hífen, como na posição; até 100 requerimentos. |
 | `GET` | `/tramitacao/parametros` | Parâmetros de exibição (S7, bloco 10): `{posicoesSimultaneas}`, quantas posições a tela pede ao mesmo tempo. Qualquer perfil. Alterável em Configurações › Rastro (vale na próxima leitura). |
 | `GET` | `/processos/{numero}/posicao` | Uma posição por requerimento vinculado ao processo (1:N), em lista, no mesmo contrato. `{numero}` com **hífen** no lugar da barra (`7900-2022` = processo 7900/2022), porque a barra não cabe num segmento de caminho; formato inválido é 400 `PARAMETRO_INVALIDO`. Até 100 requerimentos por processo. |
 
@@ -137,6 +139,19 @@ Onde o requerimento está agora, desde quando e com quem (docs/15). Controller `
 - **Nome do servidor:** segue o RN12 como a tarefa atual da consulta: o Operador vê só área e papel. Para Gestor e Administrador vale o parâmetro `RASTRO_MOSTRAR_NOME_RESPONSAVEL` (docs/12).
 - **Degradação:** Camunda fora do ar ou lento responde **200** com `estado: INDISPONIVEL` (com a situação do Licenciamento, se lida), nunca 5xx. 503 `SIGA_INDISPONIVEL` só quando nem o acesso pode ser conferido (SIGA não configurado ou fora do ar na leitura do requerimento).
 - **Erros:** 404 `NAO_ENCONTRADO` (requerimento ou processo inexistente), 403 `NAO_INTERESSADO` (RN07), 401 `NAO_AUTENTICADO`.
+
+### Tramitação completa (S8, bloco 6)
+
+**Contrato (`TramitacaoResponse`):** `idRequerimento`, `numeroRequerimento`, `numeroProcesso`; `situacaoLicenciamento`; `modelo` (rótulo, vazio se não suportado); `estado` (`ATIVO`, `ENCERRADO`, `SEM_INSTANCIA`, `NAO_SUPORTADO`, `INDISPONIVEL`); `aproximado` (`true` só no plano B); `truncado` (o limite de linhas por instância foi atingido); `passagens[]`; `complementacoes[]` (`entrada`, `saida`); `taxa` (`principal`: `TAXAVEL`, `ISENTA` ou `INDETERMINADA`; `correcao`: `SEM_NOVA_TAXA` ou vazio; pela **rota**); `final` (`rotulo`; `tipo`: `FINAL` = evento de fim, bola preta, ou `CONCLUIDO_NA_VERIFICACAO` = sem bola preta; `encerradoEm`; vazio em andamento); `avisos[]` (`codigo`, `texto`, `gravidade`; inclui `HISTORICO_APROXIMADO`, `HISTORICO_TRUNCADO`, `VARIAS_INSTANCIAS` e os da posição); `planoB`.
+
+**`passagens[]`** (só o que aconteceu, em ordem de entrada): `etapa` (`id` estável, vazio se não mapeada; `rotulo`), `ciclo` (1, 2, 3...), `ramo` (`PRINCIPAL` ou `CORRECAO`), `entrada`, `saida` e `duracaoSegundos` (vazios na passagem atual), `atual`, `emParalelo`, `processoConcluido` (selo da verificação da revisão), `motivoDaVolta` (`codigo`, `texto`; vazio se a regra não casa), `responsaveis[]` (fora da multi-instância) e `participantes[]` (multi-instância), cada um com `tipo`, `papel`, `nome`, `inicio`, `fim` e `estado` (`CONCLUIU`, `PENDENTE`, `ENCERRADA_SEM_ACAO`); `atos[]` (só na "Emissão do ato": `tipo`, `rotulo`, `inicio`, `fim`, `estado`, `ocorreu`).
+
+**`planoB`** (só `SEM_INSTANCIA`): `selo` (texto fixo), `semDetalhamento`, `etapas[]` (`etapa`, `entrada`, `saida`, `eventos`), `marcos[]`, `situacao`, `eventosIgnorados`, `eventosTruncados`. **Sem campo de responsável** e sem `passagens`.
+
+- **Só para o Administrador:** `passagens[].idTecnico`, `passagens[].repeticoes`, `final.idTecnico`, `idsNaoMapeados` e `diagnosticos`. Para os demais perfis os campos **não existem** no JSON. **Nunca saem:** CPF, chave de arquivo, token.
+- **Nome do servidor:** RN12, como na posição (o Operador vê só o papel; Gestor e Administrador conforme `RASTRO_MOSTRAR_NOME_RESPONSAVEL`), em `responsaveis[]` e `participantes[]`.
+- **Degradação:** Camunda fora do ar ou lento = **200** `INDISPONIVEL`, **sem** plano B no lugar (dado aproximado nunca substitui falha). Erros como na posição (403 `NAO_INTERESSADO`, 404 `NAO_ENCONTRADO`, 401; 503 `SIGA_INDISPONIVEL` só quando o acesso não pode ser conferido).
+- O **fluxograma** é desenhado pelo front a partir de `passagens`; o back-end não devolve imagem.
 
 ## Documentos
 
@@ -376,6 +391,8 @@ Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **
 | `GET /requerimentos/{id}` | sessão | ✓ | ✓ | ✓ | 403/404 | — | — | `exigirAcessoAoRequerimento`; responsável pela tarefa só para Ge e Ad (`podeVerResponsavelTarefa`, RN12) |
 | `GET /requerimentos/{id}/posicao` (S7) | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler o Camunda; negado não registra evento) | — | — | `exigirAcessoAoRequerimento`; nome do servidor só para Ge e Ad (`podeVerResponsavelTarefa`, RN12); ids técnicos só para Ad (`podeVerIdsTecnicosDoFluxo`) |
 | `GET /processos/{numero}/posicao` (S7) | sessão | ✓ | ✓ | ✓ | como a busca por número de processo: filtro na consulta; nenhum dele e o número existe: 403; não existe: 404 | — | — | `restricaoDoUsuarioAtual` (pela busca da consulta); exibição como na linha acima |
+| `GET /requerimentos/{id}/tramitacao` (S8) | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler o Camunda; negado não registra evento) | — | — | `exigirAcessoAoRequerimento`; nome do servidor só para Ge e Ad (`podeVerResponsavelTarefa`, RN12); ids técnicos e diagnóstico só para Ad (`podeVerIdsTecnicosDoFluxo`) |
+| `GET /processos/{numero}/tramitacao` (S8) | sessão | ✓ | ✓ | ✓ | como a busca por número de processo: filtro na consulta; nenhum dele e o número existe: 403; não existe: 404 | — | — | `restricaoDoUsuarioAtual` (pela busca da consulta); exibição como na linha acima |
 | `GET /tramitacao/parametros` (S7) | sessão | ✓ | ✓ | ✓ | — | — | — | nenhuma: só números de comportamento da tela (`posicoesSimultaneas`), sem credencial nem dado de negócio |
 | `GET /requerimentos/{id}/documentos` | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler os documentos e de chamar o SCORP) | listados para todos; para o Op, mascarados e bloqueados; geometria sigilosa não aparece para o Op (só `totais.geometriasOmitidas`) | — | `exigirAcessoAoRequerimento`, `podeAcessarDocumento`, `mascararTitulo` |
 | `GET /documentos/{origem}/{id}/conteudo?requerimento=` | sessão | ✓ | ✓ | ✓ | 403/404 do requerimento; origem e id fora do requerimento: 404 | 403 | — | `exigirAcessoAoRequerimento`, `exigirAcessoAoDocumento` (a cada requisição, mesmo com cache) |
@@ -438,6 +455,7 @@ O registro dos eventos é feito pelo próprio back-end nas rotas de consulta, co
 | `POST /dossies`, `POST /dossies/{id}/continuacao` | `FALHA` | Na thread de geração, um por documento em cada tentativa com falha, e um sem documento na falha de montagem ou de preparo da pasta. Interrupção por cancelamento não conta. |
 | `GET /dossies/{id}/arquivo` com `disposicao=attachment` | `DOWNLOAD` | Arquivo lido por inteiro, em nome de quem baixou (sessão) ou de quem pediu o ticket. Pré-visualização (`inline`), download interrompido e ticket recusado não registram. |
 | `GET /requerimentos/{id}/geometrias/arquivo` | `GEOMETRIAS` | ZIP lido por inteiro. |
+| `GET /requerimentos/{id}/tramitacao`, `GET /processos/{numero}/tramitacao` (S8) | `TRAMITACAO` | Tramitação devolvida, inclusive `INDISPONIVEL` e plano B; detalhe "histórico" + identificação do requerimento; no processo, um evento por requerimento devolvido. Só usuário e números: nunca o responsável nem CPF. |
 | `GET /requerimentos/{id}/posicao`, `GET /processos/{numero}/posicao` (S7) | `TRAMITACAO` | Posição devolvida, inclusive `INDISPONIVEL`; no processo, um evento por requerimento devolvido. Só usuário e números: nunca o responsável pela etapa nem CPF. |
 
 ## Configurações

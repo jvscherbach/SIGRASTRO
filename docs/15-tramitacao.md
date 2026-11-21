@@ -357,6 +357,7 @@ A **etapa do fluxo sempre prevalece** sobre a situação do Licenciamento (excet
 | `ETAPA_NAO_MAPEADA` | ATENÇÃO | ponto ativo ou final fora do catálogo | O fluxo está num ponto que o Rastro ainda não sabe nomear. |
 | `SEM_INSTANCIA` | INFO | requerimento sem instância no Camunda | Histórico detalhado indisponível para este requerimento. |
 | `HISTORICO_APROXIMADO` | INFO | **S8, bloco 5:** a tramitação veio do plano B | Histórico aproximado: este requerimento é anterior ao registro detalhado do fluxo |
+| `HISTORICO_TRUNCADO` | ATENCAO | **S8, bloco 6:** alguma instância passou do limite de linhas; o caminho é o que coube | Histórico incompleto: este requerimento tem registros demais e só parte do caminho é mostrada. |
 
 O selo mostra o **texto** (não só cor ou ícone). `{situacao}` no texto é trocado pelo valor da situação. O "Taxa vencida" por data é da S9, não daqui.
 
@@ -378,6 +379,15 @@ Quando o SIGA corrigir o bug de origem da taxa vencida, a situação passa a `CA
 ## API e auditoria (bloco 6)
 
 `GET /requerimentos/{id}/posicao` e `GET /processos/{numero}/posicao` (número com hífen: `7900-2022`); contrato, campos só do Administrador e erros em [docs/07, "Tramitação"](07-api.md#tramitação-s7). O caso de uso `AbrirPosicao` confere o acesso (requerimento pelo `VerificarAcessoAoRequerimento`; processo pela `BuscarRequerimentos` da consulta, uma vez), lê pelo `ConsultarPosicaoAtual`, aplica o **RN12** ao responsável (Operador sem nome) e registra o evento **`TRAMITACAO`** (grupo `DOCUMENTOS`; só usuário e números). Os ids técnicos só saem para o Administrador (`PoliticaDeAcesso.podeVerIdsTecnicosDoFluxo`). `INDISPONIVEL` é 200.
+
+### Tramitação completa (S8, bloco 6)
+
+`GET /requerimentos/{id}/tramitacao` e `GET /processos/{numero}/tramitacao` (contrato em [docs/07](07-api.md#tramitação-completa-s8-bloco-6)). O caso de uso `AbrirTramitacao` (`tramitacao.application`) é o par do `AbrirPosicao`: confere o acesso **antes** de montar (404, RN07 403; o processo, uma vez pela busca da consulta), chama o `MontarTramitacao.montar(id)`, aplica o **RN12** (`CaminhoReconstruido.semNomes()` para o Operador: nome some das passagens e dos participantes) e registra um evento **`TRAMITACAO`** por requerimento devolvido, com o detalhe `histórico <rótulo> <número>` (sem responsável, CPF nem id técnico). Acesso negado não registra; `INDISPONIVEL` registra.
+
+- **DTO** (`TramitacaoResponse`): passagens (etapa com id estável e rótulo, ciclo, ramo, entrada, saída, duração, atual, em paralelo, selo "processo concluído", motivo da volta com código e texto, `responsaveis[]` ou `participantes[]` na multi-instância, `atos[]`), complementações, taxa pela rota, final (`FINAL` = bola preta; `CONCLUIDO_NA_VERIFICACAO` = sem bola), avisos, `planoB` e `truncado`. O plano B **não tem campo de responsável**.
+- **Só para o Administrador** (campos que **não existem** para os demais): `passagens[].idTecnico`, `passagens[].repeticoes`, `final.idTecnico`, `idsNaoMapeados`, `diagnosticos`. A chave do modelo (`procOutorgaAguaSupSub`) nunca sai: o campo `modelo` é o rótulo.
+- **Aviso novo `HISTORICO_TRUNCADO`** (`ATENCAO`, texto em `confronto.yaml`): o `MontarTramitacao` o acrescenta quando o limite de linhas por instância foi atingido (`CaminhoReconstruido.truncado()`).
+- **Fora deste bloco:** cache da tramitação, tempo total, limite de concorrência e teste de carga (bloco 7); matriz de acesso estendida com varredura de vazamento por cenário (bloco 11). A matriz por perfil das duas rotas já está no `MatrizDeAcessoTest`.
 
 ## Acesso, vazamento e resiliência (bloco 7)
 

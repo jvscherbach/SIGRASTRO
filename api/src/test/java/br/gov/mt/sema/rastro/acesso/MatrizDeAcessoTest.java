@@ -92,7 +92,8 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
             "DELETE /api/configuracoes/parametros/{nome}", "GET /api/configuracoes/conexoes",
             "POST /api/configuracoes/conexoes/{nome}/teste",
             "GET /api/requerimentos/{id}/posicao", "GET /api/processos/{numero}/posicao",
-            "GET /api/tramitacao/parametros");
+            "GET /api/tramitacao/parametros",
+            "GET /api/requerimentos/{id}/tramitacao", "GET /api/processos/{numero}/tramitacao");
 
     private enum Perfil {
         OPERADOR("operador.demo"), GESTOR("gestor.demo"), ADMIN("admin.demo");
@@ -363,6 +364,28 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
                 () -> mvc.perform(get("/api/requerimentos/101/posicao")));
         verificar(doProcesso, "sem token", null, 401, "NAO_AUTENTICADO",
                 () -> mvc.perform(get("/api/processos/" + processoDoOperador + "/posicao")));
+        // S8, bloco 6: tramitação completa, com a mesma regra de acesso (RN07) conferida antes de ler o Camunda.
+        String tramitacao = "GET /api/requerimentos/{id}/tramitacao";
+        String tramitacaoDoProcesso = "GET /api/processos/{numero}/tramitacao";
+        for (Perfil p : Perfil.values()) {
+            boolean op = p == Perfil.OPERADOR;
+            verificar(tramitacao, "do interessado", p, 200, null,
+                    () -> comToken(get("/api/requerimentos/101/tramitacao"), p));
+            verificar(tramitacao, "de outro", p, op ? 403 : 200, op ? "NAO_INTERESSADO" : null,
+                    () -> comToken(get("/api/requerimentos/202/tramitacao"), p));
+            verificar(tramitacao, "inexistente", p, 404, "NAO_ENCONTRADO",
+                    () -> comToken(get("/api/requerimentos/404/tramitacao"), p));
+            verificar(tramitacaoDoProcesso, "processo do interessado", p, 200, null,
+                    () -> comToken(get("/api/processos/" + processoDoOperador + "/tramitacao"), p));
+            verificar(tramitacaoDoProcesso, "processo de outro", p, op ? 403 : 200, op ? "NAO_INTERESSADO" : null,
+                    () -> comToken(get("/api/processos/" + processoDeOutro + "/tramitacao"), p));
+            verificar(tramitacaoDoProcesso, "inexistente", p, 404, "NAO_ENCONTRADO",
+                    () -> comToken(get("/api/processos/9999-1999/tramitacao"), p));
+        }
+        verificar(tramitacao, "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(get("/api/requerimentos/101/tramitacao")));
+        verificar(tramitacaoDoProcesso, "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(get("/api/processos/" + processoDoOperador + "/tramitacao")));
         // S7, bloco 10: parâmetros de exibição para qualquer perfil (só números da interface).
         String parametros = "GET /api/tramitacao/parametros";
         for (Perfil p : Perfil.values()) {
