@@ -589,3 +589,15 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 - **Nada é adivinhado:** isenção e passagem são pareadas por ordem só quando as quantidades batem.
 - "Pago que virou isento" fica para a S11; aqui os dois lançamentos aparecem em ordem. `STATUS_PROCESSADO = N` só marca o diagnóstico.
 **Consequência:** a homologação da S9 fecha a cadeia (P44); mudar a ordem ou tirar um elo é mudar só a constante. Provado por `DataDaIsencaoTest`, `LerLancamentosIsencaoTest`, `PassagensDeIsencaoPelaTramitacaoTest` e `LancamentosDoSigaJdbcTest` (FIN05, FIN06, FIN12).
+
+## D88 — Financeiro na tramitação: porta da tramitação implementada pelo financeiro, só acrescentando (S9, bloco 5)
+
+**Contexto:** a posição precisa do aviso "Taxa vencida" e a linha do tempo, das marcas financeiras; o financeiro precisa do caminho da tramitação ("da correção", data de apoio da isenção). Uma dependência nos dois sentidos seria um ciclo entre módulos (proibido pelo ArchUnit), e falha de um não pode afetar o outro.
+**Decisão:**
+- **Uma só direção:** `financeiro` → `tramitacao`. A tramitação declara a porta `FinanceiroDoRequerimento` (aviso e marcas, em tipos neutros: código, rótulo, data, valor); o financeiro a implementa e lê a tramitação pela sua porta `CaminhoDaTramitacao` (que substitui a `PassagensDeIsencao` do bloco 4).
+- **Só acrescenta:** o aviso `TAXA_VENCIDA` entra no fim da lista, depois do cache da posição; as marcas são um campo novo de cada passagem. Etapa, situação, caminho e avisos existentes nunca mudam. Toda falha do financeiro vira "nada a acrescentar".
+- **Aviso:** "Taxa vencida em dd/mm/aaaa."; a explicação da causa só quando vencida pela data. A data é o vencimento da taxa vencida mais recente.
+- **Casamento lançamento × passagem por data** (não por instante): guia → última emissão com entrada até a data de emissão; espera → emissão anterior; isenção → por ordem, só com quantidades iguais. Sem casamento, sem marca.
+- **"Da correção":** emissão depois da entrada no ramo de correção; sem caminho exato, vale "1ª taxa", "2ª taxa".
+- **Sem leitura por linha:** a lista do processo lê o financeiro em lote; o indicador da busca (`IndicadoresFinanceiros`) também, sem tramitação. A tramitação completa entrega o caminho já lido ao financeiro (o Camunda não é lido de novo).
+**Consequência:** a resposta da tramitação ganhou `passagens[].marcasFinanceiras` e a posição pode ter o aviso `TAXA_VENCIDA` (docs/07). Casamentos e ids de etapa em docs/15; pontos a conferir em P45.

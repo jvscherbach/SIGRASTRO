@@ -16,17 +16,21 @@ import java.util.Optional;
  * @param vencidaPorData {@code AGUARDANDO_PAGAMENTO} com vencimento <b>anterior</b> a hoje em Cuiabá: o SIGA ainda não a
  *                       marcou. Só este caso ganha o aviso {@code TAXA_VENCIDA}; quando o SIGA marcar {@code VENCIDA}, o aviso
  *                       some sozinho e a situação passa a dizer
+ * @param daCorrecao     guia emitida <b>depois</b> da entrada no ramo de correção da tramitação (bloco 5); falso sem
+ *                       caminho exato (Camunda fora, plano B): aí vale "1ª taxa", "2ª taxa"
  */
 public record LancamentoAvaliado(LancamentoMantido mantido, int ordem, Integer numeroDaTaxa,
-        SituacaoFinanceira situacao, boolean vencida, boolean vencidaPorData) {
+        SituacaoFinanceira situacao, boolean vencida, boolean vencidaPorData, boolean daCorrecao) {
+
+    public static final String ROTULO_DA_CORRECAO = "Taxa da correção";
 
     public Lancamento lancamento() {
         return mantido.lancamento();
     }
 
-    /** "1ª taxa", "2ª taxa"; vazio para isenção e status desconhecido. */
+    /** "1ª taxa", "2ª taxa" ou "Taxa da correção"; vazio para isenção e status desconhecido. */
     public Optional<String> rotulo() {
-        return Optional.ofNullable(numeroDaTaxa).map(n -> n + "ª taxa");
+        return Optional.ofNullable(numeroDaTaxa).map(n -> daCorrecao ? ROTULO_DA_CORRECAO : n + "ª taxa");
     }
 
     public Optional<LocalDate> emitidaEm() {

@@ -79,6 +79,12 @@ avisos:
   - codigo: HISTORICO_TRUNCADO
     gravidade: ATENCAO
     texto: "Histórico incompleto: este requerimento tem registros demais e só parte do caminho é mostrada."
+  # S9, bloco 5: resumo financeiro "vencido". Aqui {situacao} recebe " em dd/mm/aaaa" (ou nada, sem data de vencimento),
+  # não a situação do SIGA. Quando a taxa está vencida só pela data, o Rastro acrescenta a explicação de
+  # AvisoDeTaxaVencida.EXPLICACAO_POR_DATA. Não muda a etapa nem a situação.
+  - codigo: TAXA_VENCIDA
+    gravidade: ATENCAO
+    texto: "Taxa vencida{situacao}."
 
 # Por modelo (chave do Camunda): situações aceitas em cada etapa e em cada final, e divergências conhecidas
 # (situação -> aviso próprio, que vence o "não confere").

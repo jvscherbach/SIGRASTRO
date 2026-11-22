@@ -31,7 +31,9 @@ class DataDaIsencaoTest {
 
     private static HistoricoFinanceiro avaliar(List<LocalDateTime> fluxo, Lancamento... lancamentos) {
         return AvaliarSituacao.avaliar(
-                ClassificarValidade.classificar(new LeituraDosLancamentos(List.of(lancamentos), false)), RELOGIO, fluxo);
+                ClassificarValidade.classificar(new LeituraDosLancamentos(List.of(lancamentos), false)), RELOGIO,
+                new CaminhoDoFluxo(fluxo.stream()
+                        .map(e -> new PassagemDoFluxo(Optional.of("isencao_confirmada"), false, e)).toList()));
     }
 
     @Test

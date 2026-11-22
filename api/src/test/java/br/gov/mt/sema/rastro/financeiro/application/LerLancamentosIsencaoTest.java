@@ -8,26 +8,33 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import br.gov.mt.sema.rastro.financeiro.application.port.CaminhoDaTramitacao;
 import br.gov.mt.sema.rastro.financeiro.application.port.LancamentosDoRequerimento;
-import br.gov.mt.sema.rastro.financeiro.application.port.PassagensDeIsencao;
+import br.gov.mt.sema.rastro.financeiro.domain.CaminhoDoFluxo;
 import br.gov.mt.sema.rastro.financeiro.domain.Lancamento;
 import br.gov.mt.sema.rastro.financeiro.domain.LeituraDosLancamentos;
 import br.gov.mt.sema.rastro.financeiro.domain.OrigemDaData;
+import br.gov.mt.sema.rastro.financeiro.domain.PassagemDoFluxo;
 import br.gov.mt.sema.rastro.financeiro.domain.RegistroDeIsencao;
 import org.junit.jupiter.api.Test;
 
-/** S9, bloco 4: a tramitação só é lida quando há isenção sem data no lançamento, e nunca no lote. */
+/**
+ * S9, blocos 4 e 5: a tramitação só é lida quando muda alguma coisa (guia, que pode ser "da correção", ou isenção sem data
+ * no lançamento), e nunca no lote.
+ */
 class LerLancamentosIsencaoTest {
 
     private static final LocalDateTime EMISSAO = LocalDateTime.of(2026, 3, 4, 9, 0);
     private static final LocalDateTime ENTRADA_NO_FLUXO = LocalDateTime.of(2026, 3, 4, 10, 0);
 
     private final AtomicInteger leiturasDoFluxo = new AtomicInteger();
-    private final PassagensDeIsencao fluxo = id -> {
+    private final CaminhoDaTramitacao fluxo = id -> {
         leiturasDoFluxo.incrementAndGet();
-        return List.of(ENTRADA_NO_FLUXO);
+        return new CaminhoDoFluxo(List.of(
+                new PassagemDoFluxo(Optional.of("isencao_confirmada"), false, ENTRADA_NO_FLUXO)));
     };
 
     private static Lancamento isenta(LocalDateTime emissao) {
@@ -49,7 +56,7 @@ class LerLancamentosIsencaoTest {
     }
 
     @Test
-    void isencao_com_data_no_lancamento_nao_le_a_tramitacao() {
+    void so_isencao_com_data_no_lancamento_nao_le_a_tramitacao() {
         var h = new LerLancamentos(porta(isenta(EMISSAO)), Clock.systemUTC(), fluxo).historico(10);
         assertThat(leiturasDoFluxo).hasValue(0);
         assertThat(h.isencoes()).singleElement().extracting(RegistroDeIsencao::origemDaData)
@@ -68,12 +75,23 @@ class LerLancamentosIsencaoTest {
     }
 
     @Test
-    void sem_isencao_nao_le_a_tramitacao() {
+    void com_guia_le_a_tramitacao_uma_vez() {
         Lancamento paga = new Lancamento(2, 10, "PAGA", false, "P", "FICT-0001", EMISSAO, null, EMISSAO, null, null,
                 null, null, null);
-        var h = new LerLancamentos(porta(paga), Clock.systemUTC(), fluxo).historico(10);
+        new LerLancamentos(porta(paga), Clock.systemUTC(), fluxo).historico(10);
+        assertThat(leiturasDoFluxo).hasValue(1);
+    }
+
+    @Test
+    void sem_lancamento_nao_le_a_tramitacao() {
+        new LerLancamentos(porta(), Clock.systemUTC(), fluxo).historico(10);
         assertThat(leiturasDoFluxo).hasValue(0);
-        assertThat(h.isencoes()).isEmpty();
+    }
+
+    @Test
+    void com_caminho_em_maos_nao_le_a_tramitacao() {
+        new LerLancamentos(porta(isenta(null)), Clock.systemUTC(), fluxo).historico(10, CaminhoDoFluxo.NENHUM);
+        assertThat(leiturasDoFluxo).hasValue(0);
     }
 
     @Test

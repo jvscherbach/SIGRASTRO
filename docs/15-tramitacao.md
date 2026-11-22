@@ -646,12 +646,12 @@ Uma consulta (`sql/siga/financeiro/lancamentos.sql`, só em `integration.siga.La
 Para cada lançamento `ISENTA` válido, uma entrada **"Isento de Taxa"** (`RegistroDeIsencao`), em ordem; requerimento isento mais de uma vez (cadastro e correção) tem várias. **Qual coluna dá a data é decisão provisória** (D87; P44, a validar com dados reais na homologação). A data sai da **cadeia de apoio**, configurada num só lugar, a constante `DataDaIsencao.CADEIA`:
 
 1. `LANCAMENTO`: `DATA_EMISSAO` do lançamento `ISENTA`;
-2. `FLUXO`: entrada da passagem **"Isenção confirmada"** (`isencao_confirmada`) do caminho **exato** da tramitação (S8), pela porta `PassagensDeIsencao` (adaptador `financeiro.infrastructure.tramitacao`, sobre o caso de uso `LerTramitacao`, com o cache e os limites dele). Plano B (aproximado), tramitação indisponível, tipo não suportado ou falha: o elo é pulado;
+2. `FLUXO`: entrada da passagem **"Isenção confirmada"** (`isencao_confirmada`) do caminho **exato** da tramitação (S8), pela porta `CaminhoDaTramitacao` (bloco 5; no bloco 4, `PassagensDeIsencao`), adaptador `financeiro.infrastructure.tramitacao.CaminhoPelaTramitacao` (sobre o caso de uso `LerTramitacao`, com o cache e os limites dele). Plano B (aproximado), tramitação indisponível, tipo não suportado ou falha: o elo é pulado;
 3. `AUSENTE`: "data não registrada".
 
 - Cada entrada traz `origemDaData` (`LANCAMENTO`, `FLUXO`, `AUSENTE`) para o diagnóstico e para a nota **"data a confirmar"** na tela quando não for `LANCAMENTO`.
 - **Pareamento com o fluxo:** a k-ésima isenção (por emissão) usa a k-ésima passagem (por entrada) **só quando as quantidades batem**; com quantidades diferentes, o elo do fluxo é pulado (não se adivinha qual passagem é de qual lançamento).
-- **A tramitação só é lida quando muda alguma coisa:** no detalhe, só se há isenção sem `DATA_EMISSAO`; no lote (lista da busca), nunca.
+- **A tramitação só é lida quando muda alguma coisa:** no detalhe, só se há isenção sem `DATA_EMISSAO` ou (bloco 5) alguma guia, que pode ser "da correção"; no lote (lista da busca e lista do processo), nunca.
 - **"Pago que virou isento"** (S11) não é tratado aqui: os dois lançamentos aparecem, em ordem (FIN12).
 - `STATUS_PROCESSADO = N` num `ISENTA`: sem tratamento especial; só a marca `naoProcessado` no diagnóstico (P44).
 
@@ -660,6 +660,28 @@ Para cada lançamento `ISENTA` válido, uma entrada **"Isento de Taxa"** (`Regis
 | FIN05 | 1 entrada, data da emissão | `LANCAMENTO` |
 | FIN06 | 1 entrada, data da emissão; marca "não processado" no diagnóstico | `LANCAMENTO` |
 | FIN12 | 1 entrada (a da correção), depois da taxa paga | `LANCAMENTO` |
+
+### Integração com a tramitação: aviso, marcas e indicador (bloco 5)
+
+**Direção das dependências:** `financeiro` → `tramitacao`, nunca o contrário (sem ciclo, ArchUnit). A tramitação declara a porta `FinanceiroDoRequerimento` (em `tramitacao.application.port`), que o financeiro implementa (`financeiro.infrastructure.tramitacao.FinanceiroParaATramitacao`); o financeiro lê a tramitação pela própria porta `CaminhoDaTramitacao` (sobre `LerTramitacao`). A porta só **acrescenta** e é tolerante: falha do financeiro = nada acrescentado.
+
+- **Aviso `TAXA_VENCIDA` na posição** (`AbrirPosicao`, depois do cache): resumo `VENCIDO` → aviso no fim da lista, "Taxa vencida em dd/mm/aaaa." (texto em `confronto.yaml`, `AvisoDeTaxaVencida`), com a explicação "O SIGA ainda não marca a taxa como vencida; o Rastro compara a data de vencimento com hoje." **só** quando vencida pela data. Etapa, situação e os outros avisos não mudam (prova: `FinanceiroNaTramitacaoHttpTest` compara o JSON da posição com e sem o aviso). Com `FLUXO_ENCERRADO_SEM_STATUS` (FIN15/H18), os dois aparecem: um explica o fim do fluxo, o outro a taxa. Lista do processo: uma leitura em lote para todos. Data do aviso = vencimento da taxa vencida mais recente.
+- **Etiqueta "da correção"** (`LancamentoAvaliado.daCorrecao`): guia emitida **depois** da entrada na primeira passagem do ramo de correção; rótulo "Taxa da correção" no lugar de "Nª taxa". Sem caminho exato, vale a numeração.
+- **Marcas nas passagens** (`MarcarPassagens`; `marcasFinanceiras[]` de cada passagem na resposta da tramitação), só no caminho exato. Ids de etapa fixos em `CaminhoDoFluxo` (mudou o catálogo, mudar lá):
+  - `emissao_da_taxa` / `emissao_da_taxa_correcao`: "Emitida em", "DAR" e "da correção" de cada guia casada. A guia é casada com a **última** passagem de emissão cuja **data** de entrada é igual ou anterior à **data** de emissão (`DATA_EMISSAO` pode vir sem hora); emitida antes de qualquer emissão, não é casada.
+  - `aguardando_pagamento` / `aguardando_pagamento_correcao`: da guia mais recente da emissão logo antes da espera, "Vence em", "Paga em" (se houve), "Taxa vencida" e "da correção".
+  - `isencao_confirmada`: o "Isento de Taxa" do bloco 4 (com `dataAConfirmar`), pareado por ordem só quando as quantidades batem.
+  - Passagem sem lançamento casado fica sem marca; plano B, Camunda fora e tipo não suportado, nenhuma (o bloco "Taxas e pagamentos" segue completo).
+- **Indicador da lista da busca** (`IndicadoresFinanceiros`): só o resumo de cada requerimento já autorizado, uma consulta em lote a cada 500, sem tramitação; falha = sem indicador. A rota e a fila da tela (limite `RASTRO_POSICOES_SIMULTANEAS` da S7) são dos blocos 6 e 8.
+
+| Cenário | Posição | Tramitação |
+|---|---|---|
+| FIN03 | + `TAXA_VENCIDA` (por data, com a explicação) | "Vence em" e "Taxa vencida" na espera |
+| FIN11 | sem aviso | emissão: "Emitida em", DAR; espera: "Vence em", "Paga em"; emissão da correção: + "da correção"; espera da correção: "Vence em", "da correção" |
+| FIN15 | `FLUXO_ENCERRADO_SEM_STATUS` + `TAXA_VENCIDA` | — |
+| FIN16 (plano B) | conforme o resumo | sem marcas, sem erro |
+| Camunda fora | `INDISPONIVEL` + aviso, se vencido | `INDISPONIVEL`, sem marcas |
+| Financeiro fora | igual à de sem o financeiro | sem marcas |
 
 ## Dependências do módulo
 

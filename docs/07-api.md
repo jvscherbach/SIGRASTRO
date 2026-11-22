@@ -153,6 +153,13 @@ Onde o requerimento está agora, desde quando e com quem (docs/15). Controller `
 - **Degradação:** Camunda fora do ar ou lento = **200** `INDISPONIVEL`, **sem** plano B no lugar (dado aproximado nunca substitui falha). Erros como na posição (403 `NAO_INTERESSADO`, 404 `NAO_ENCONTRADO`, 401; 503 `SIGA_INDISPONIVEL` só quando o acesso não pode ser conferido).
 - O **fluxograma** é desenhado pelo front a partir de `passagens`; o back-end não devolve imagem.
 
+### Financeiro na posição e na tramitação (S9, bloco 5)
+
+Por porta (`tramitacao.application.port.FinanceiroDoRequerimento`, implementada no módulo `financeiro`): só **acrescenta**, nunca muda etapa, situação nem caminho. Falha do financeiro = nada acrescentado (a resposta sai igual à de sem o financeiro).
+
+- **Posição:** com o resumo financeiro `VENCIDO`, `avisos[]` ganha, no fim, `TAXA_VENCIDA` (`ATENCAO`): "Taxa vencida em dd/mm/aaaa." e, quando vencida só pela data (o SIGA ainda mostra "aguardando pagamento"), "O SIGA ainda não marca a taxa como vencida; o Rastro compara a data de vencimento com hoje.". Junto com `FLUXO_ENCERRADO_SEM_STATUS` os dois aparecem. Na lista do processo o financeiro é lido numa só consulta em lote.
+- **Tramitação:** cada `passagens[]` ganha `marcasFinanceiras[]` (`tipo`: `EMITIDA_EM`, `NUMERO_DAR`, `VENCE_EM`, `PAGA_EM`, `TAXA_VENCIDA`, `ISENTO_DE_TAXA` ou `DA_CORRECAO`; `rotulo`; `data` (data pura); `valor` (só o número do DAR); `dataAConfirmar` (só no "Isento de Taxa" de data provisória)). Vazia sem lançamento casado, no plano B e com o Camunda fora. Regras de casamento em docs/15.
+
 ## Documentos
 
 | Método | Rota | Descrição |

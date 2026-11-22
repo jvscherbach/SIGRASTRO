@@ -60,7 +60,8 @@ Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTes
 | `config` (S7) | `ParametrosDoRastro` (variáveis de ambiente; a tela vem no bloco 10) | `tramitacao.application.port` |
 | `integration.siga` (S9) | porta `LancamentosDoRequerimento` (`LancamentosDoSigaJdbc`, único leitor de `LANCAMENTO_TAXA`) | `financeiro.application.port` |
 | `config` (S9) | `ParametrosDoFinanceiro` (variáveis de ambiente; a tela vem no bloco 10) | `financeiro.application.port` |
-| `financeiro.infrastructure.tramitacao` (S9, bloco 4) | caso de uso `LerTramitacao` (passagens "Isenção confirmada", atrás da porta `PassagensDeIsencao`) | `tramitacao.application` |
+| `financeiro.infrastructure.tramitacao` (S9, blocos 4 e 5) | caso de uso `LerTramitacao` (caminho exato, atrás da porta `CaminhoDaTramitacao`) | `tramitacao.application` |
+| `financeiro.infrastructure.tramitacao` (S9, bloco 5) | implementa a porta `FinanceiroDoRequerimento` (aviso de taxa vencida e marcas nas passagens), chamada por `AbrirPosicao` e `AbrirTramitacao` | `tramitacao.application.port` |
 | `integration.licenciamento` | porta `ArquivosDoRepositorio` | `dossie.application.port` |
 | `dossie.infrastructure` | portas `ValidadorDePdf`, `MontadorDoDossie`, `RepositorioDePedidos`, `FilaDeGeracao` | `dossie.application.port` |
 | `config` | `ParametrosDoDossie` (variáveis de ambiente; a S5 troca) | `dossie.application.port` |

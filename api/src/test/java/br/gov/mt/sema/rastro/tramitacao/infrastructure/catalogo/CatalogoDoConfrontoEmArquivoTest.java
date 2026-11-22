@@ -63,6 +63,7 @@ class CatalogoDoConfrontoEmArquivoTest {
               - {codigo: SEM_INSTANCIA, gravidade: INFO, texto: h}
               - {codigo: HISTORICO_APROXIMADO, gravidade: INFO, texto: k}
               - {codigo: HISTORICO_TRUNCADO, gravidade: ATENCAO, texto: l}
+              - {codigo: TAXA_VENCIDA, gravidade: ATENCAO, texto: "m{situacao}."}
             compatibilidade:
               procOutorgaAguaSupSub:
                 etapas:
@@ -74,6 +75,19 @@ class CatalogoDoConfrontoEmArquivoTest {
         CatalogoDoConfrontoEmArquivo c = new CatalogoDoConfrontoEmArquivo(MINIMO, ETAPAS);
         assertThat(c.aviso(CodigoDoAviso.SITUACAO_NAO_CONFERE, "EM_ANALISE").texto()).isEqualTo("c EM_ANALISE");
         assertThat(c.daEtapa("procOutorgaAguaSupSub", "cadastro_do_requerimento")).isEmpty();
+    }
+
+    @Test
+    void aviso_de_taxa_vencida_com_e_sem_data_e_a_explicacao_so_por_data() {
+        assertThat(br.gov.mt.sema.rastro.tramitacao.domain.AvisoDeTaxaVencida.de(CATALOGO,
+                java.util.Optional.of(java.time.LocalDate.of(2026, 3, 19)), true).texto())
+                .isEqualTo("Taxa vencida em 19/03/2026. O SIGA ainda não marca a taxa como vencida; o Rastro compara a "
+                        + "data de vencimento com hoje.");
+        assertThat(br.gov.mt.sema.rastro.tramitacao.domain.AvisoDeTaxaVencida.de(CATALOGO,
+                java.util.Optional.of(java.time.LocalDate.of(2026, 3, 19)), false).texto())
+                .isEqualTo("Taxa vencida em 19/03/2026.");
+        assertThat(br.gov.mt.sema.rastro.tramitacao.domain.AvisoDeTaxaVencida.de(CATALOGO, java.util.Optional.empty(),
+                false).texto()).isEqualTo("Taxa vencida.");
     }
 
     @Test

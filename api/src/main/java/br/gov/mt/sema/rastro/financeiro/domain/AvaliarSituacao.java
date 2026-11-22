@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Situação financeira, taxa vencida por data e ciclos (S9, bloco 3; docs/15). Avalia os lançamentos <b>mantidos</b> pela
@@ -23,24 +24,27 @@ import java.util.List;
  * pesa pelo status (é mostrado como está), mas nunca é dado como vencido <b>por data</b>.
  *
  * <p><b>Ciclos:</b> as guias (todo lançamento menos isenção e status desconhecido) são numeradas por ordem de emissão,
- * "1ª taxa", "2ª taxa"; a etiqueta "da correção" é do bloco 5.
+ * "1ª taxa", "2ª taxa". Bloco 5: com o caminho exato da tramitação, a guia emitida <b>depois</b> da entrada no ramo de
+ * correção é a "Taxa da correção" (sem caminho, vale a numeração).
  */
 public final class AvaliarSituacao {
 
     private AvaliarSituacao() {
     }
 
-    /** Sem o elo do fluxo: a data do "Isento de Taxa" vem só do lançamento (ou fica ausente). */
+    /** Sem caminho da tramitação: sem "da correção" e a data do "Isento de Taxa" só do lançamento (ou ausente). */
     public static HistoricoFinanceiro avaliar(LancamentosClassificados classificados, Clock relogio) {
-        return avaliar(classificados, relogio, List.of());
+        return avaliar(classificados, relogio, CaminhoDoFluxo.NENHUM);
     }
 
     /**
-     * @param entradasDeIsencaoNoFluxo entradas das passagens "Isenção confirmada" (bloco 4; vazia quando a tramitação não
-     *                                 foi lida), para a cadeia de apoio de {@link DataDaIsencao}
+     * @param caminho o caminho exato da tramitação ({@link CaminhoDoFluxo#NENHUM} quando não foi lido): dá a entrada no
+     *                ramo de correção (etiqueta "da correção", bloco 5) e as entradas "Isenção confirmada" (cadeia de
+     *                apoio de {@link DataDaIsencao}, bloco 4)
      */
     public static HistoricoFinanceiro avaliar(LancamentosClassificados classificados, Clock relogio,
-            List<LocalDateTime> entradasDeIsencaoNoFluxo) {
+            CaminhoDoFluxo caminho) {
+        Optional<LocalDateTime> entradaNaCorrecao = caminho.entradaNaCorrecao();
         LocalDate hoje = CalendarioDeCuiaba.hoje(relogio);
         List<LancamentoAvaliado> avaliados = new ArrayList<>();
         List<AvisoFinanceiro> avisos = new ArrayList<>(classificados.avisos());
@@ -54,8 +58,10 @@ public final class AvaliarSituacao {
             boolean guia = situacao != SituacaoFinanceira.ISENTA && situacao != SituacaoFinanceira.DESCONHECIDA;
             boolean vencidaPorData = vencidaPorData(mantido, situacao, hoje);
             boolean vencida = vencidaPorData || (situacao == SituacaoFinanceira.VENCIDA && emAberto(l));
+            boolean daCorrecao = guia && l.emitidoEm() != null
+                    && entradaNaCorrecao.filter(l.emitidoEm()::isAfter).isPresent();
             LancamentoAvaliado avaliado = new LancamentoAvaliado(mantido, ++ordem, guia ? ++guias : null, situacao,
-                    vencida, vencidaPorData);
+                    vencida, vencidaPorData, daCorrecao);
             avaliados.add(avaliado);
             if (situacao != SituacaoFinanceira.DESCONHECIDA) {
                 algumConhecido = true;
@@ -70,8 +76,17 @@ public final class AvaliarSituacao {
         if (!avaliados.isEmpty() && !algumConhecido) {
             resumo = ResumoFinanceiro.INDETERMINADO;
         }
-        return new HistoricoFinanceiro(avaliados, resumo, DataDaIsencao.registrar(avaliados, entradasDeIsencaoNoFluxo),
+        return new HistoricoFinanceiro(avaliados, resumo, DataDaIsencao.registrar(avaliados, caminho.entradasDeIsencao()),
                 avisos, classificados);
+    }
+
+    /**
+     * Vale a pena ler a tramitação para este histórico (avaliado sem ela)? Só com guia (pode ser "da correção") ou com
+     * isenção sem data no lançamento (elo do fluxo); sem lançamento, ou só com isenções datadas, não muda nada.
+     */
+    public static boolean precisaDoCaminho(HistoricoFinanceiro semCaminho) {
+        return DataDaIsencao.precisaDoFluxo(semCaminho.lancamentos())
+                || semCaminho.lancamentos().stream().anyMatch(a -> a.numeroDaTaxa() != null);
     }
 
     /** Ativo e sem pagamento. */
