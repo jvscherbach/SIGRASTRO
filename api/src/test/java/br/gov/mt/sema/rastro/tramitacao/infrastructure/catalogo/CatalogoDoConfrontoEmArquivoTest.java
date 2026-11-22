@@ -54,11 +54,15 @@ class CatalogoDoConfrontoEmArquivoTest {
               - {codigo: FLUXO_ENCERRADO_SEM_STATUS, gravidade: ATENCAO, texto: a}
               - {codigo: CONCLUIDO_ANTES_DA_VERIFICACAO, gravidade: INFO, texto: b}
               - {codigo: SITUACAO_NAO_CONFERE, gravidade: ATENCAO, texto: "c {situacao}"}
+              - {codigo: FINAL_E_SITUACAO_DIVERGEM, gravidade: ATENCAO, texto: "i {situacao}"}
+              - {codigo: SITUACAO_ARQUIVADO_TEMPORARIAMENTE, gravidade: INFO, texto: j}
               - {codigo: EXPIRADO_NA_CORRECAO_LAC, gravidade: INFO, texto: d}
               - {codigo: VARIAS_INSTANCIAS, gravidade: ATENCAO, texto: e}
               - {codigo: EM_SUPORTE, gravidade: INFO, texto: f}
               - {codigo: ETAPA_NAO_MAPEADA, gravidade: ATENCAO, texto: g}
               - {codigo: SEM_INSTANCIA, gravidade: INFO, texto: h}
+              - {codigo: HISTORICO_APROXIMADO, gravidade: INFO, texto: k}
+              - {codigo: HISTORICO_TRUNCADO, gravidade: ATENCAO, texto: l}
             compatibilidade:
               procOutorgaAguaSupSub:
                 etapas:

@@ -152,6 +152,28 @@ class ReconciliarTest {
         assertThat(RECONCILIAR.reconciliar(encerradaEm(LAC, "Event_0x7hz1p"), Optional.of("ARQUIVADO_DEFINITIVAMENTE"))
                 .avisos()).isEmpty();
         assertThat(codigos(RECONCILIAR.reconciliar(encerradaEm(HIDRICO, "Event_1wiuc48"), Optional.of("EM_ANALISE"))))
-                .containsExactly(CodigoDoAviso.SITUACAO_NAO_CONFERE);
+                .containsExactly(CodigoDoAviso.FINAL_E_SITUACAO_DIVERGEM);
+    }
+
+    @Test
+    void final_divergente_tem_texto_neutro_com_o_valor() {
+        assertThat(RECONCILIAR.reconciliar(encerradaEm(LAC, "evtProcessoConcluido"), Optional.of("EM_CONFERENCIA"))
+                .avisos()).singleElement().satisfies(a -> {
+                    assertThat(a.codigo()).isEqualTo(CodigoDoAviso.FINAL_E_SITUACAO_DIVERGEM);
+                    assertThat(a.texto()).contains("'EM_CONFERENCIA'").contains("Vale o encerramento do fluxo");
+                    assertThat(a.gravidade()).isEqualTo(Aviso.Gravidade.ATENCAO);
+                });
+    }
+
+    @Test
+    void arquivado_temporariamente_gera_so_o_aviso_neutro_em_etapa_ou_final() {
+        for (PosicaoAtual posicao : List.of(ativaEm(HIDRICO, "taskAnalisarRequerimento", Set.of()),
+                encerradaEm(HIDRICO, "Event_1wiuc48"), encerradaEm(LAC, "Event_0x7hz1p"))) {
+            PosicaoConfrontada p = RECONCILIAR.reconciliar(posicao, Optional.of("ARQUIVADO_TEMPORARIAMENTE"));
+            assertThat(p.avisos()).singleElement().satisfies(a -> {
+                assertThat(a.codigo()).isEqualTo(CodigoDoAviso.SITUACAO_ARQUIVADO_TEMPORARIAMENTE);
+                assertThat(a.gravidade()).isEqualTo(Aviso.Gravidade.INFO);
+            });
+        }
     }
 }

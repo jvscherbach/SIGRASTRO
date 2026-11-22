@@ -1,0 +1,40 @@
+# Plano B (S8, bloco 5; docs/15, "Plano B"): eventos de SIGA2_LICENCIAMENTO.HISTORICO_REQUERIMENTO.EVENTO -> etapa
+# simplificada do catálogo (rastro/etapas/*.yml) ou marco de data. Só para requerimento SEM instância no Camunda
+# (2021/2022). O resultado é sempre "aproximado": sem ciclos, sem aceite, revisão e validação separados (caem na
+# análise) e sem responsável.
+#
+# Validado na subida: modelo e etapa que não existem no catálogo, evento repetido, item com 'etapa' e 'marco' ao mesmo
+# tempo (ou sem nenhum), marco desconhecido e campo desconhecido derrubam a subida. Evento que não está aqui é ignorado
+# e contado (sem erro).
+#
+# O significado de cada evento é HIPÓTESE pelo nome (NÃO CONFIRMADO, P41): conferir na homologação com requerimentos
+# reais de 2021/2022.
+# Marcos possíveis: PROTOCOLO, CONCLUSAO (os de REQUERIMENTO - abertura, cancelamento, expirações - vêm das colunas).
+
+procOutorgaAguaSupSub:
+  CRIACAO_REQUERIMENTO: {etapa: cadastro_do_requerimento}
+  AGUARDANDO_CONFERENCIA: {etapa: conferencia_dos_documentos}
+  CHECKLIST_APROVADO: {etapa: conferencia_dos_documentos}
+  CHECKLIST_REPROVADO: {etapa: conferencia_dos_documentos}
+  AGUARDANDO_PAGAMENTO_TAXA: {etapa: aguardando_pagamento}
+  PAGAMENTO_CONFIRMADO: {etapa: aguardando_pagamento}
+  PROTOCOLO: {marco: PROTOCOLO}
+  EM_ANALISE: {etapa: analise_do_processo}
+  # Revisão e validação não aparecem separadas no plano B: ficam na análise.
+  REVISAR_PARECER_TECNICO: {etapa: analise_do_processo}
+  VALIDAR_PARECER_TECNICO: {etapa: analise_do_processo}
+  TITULOS_EMITIDOS: {etapa: emissao_do_ato}
+  TITULACOES_DISPONIVEIS: {etapa: registro_do_comprovante_de_publicacao}
+  CONCLUSAO_REQUERIMENTO: {marco: CONCLUSAO}
+
+procLicenciamentoLac:
+  CRIACAO_REQUERIMENTO: {etapa: cadastro_do_requerimento}
+  AGUARDANDO_CONFERENCIA: {etapa: conferencia_dos_documentos}
+  CHECKLIST_APROVADO: {etapa: conferencia_dos_documentos}
+  CHECKLIST_REPROVADO: {etapa: conferencia_dos_documentos}
+  AGUARDANDO_PAGAMENTO_TAXA: {etapa: aguardando_pagamento}
+  PAGAMENTO_CONFIRMADO: {etapa: aguardando_pagamento}
+  PROTOCOLO: {marco: PROTOCOLO}
+  TITULOS_EMITIDOS: {etapa: conclusao}
+  TITULACOES_DISPONIVEIS: {etapa: conclusao}
+  CONCLUSAO_REQUERIMENTO: {marco: CONCLUSAO}

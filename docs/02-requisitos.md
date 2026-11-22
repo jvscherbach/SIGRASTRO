@@ -19,6 +19,10 @@
 | RF31 | Exibir a **posição atual** do requerimento no fluxo (Hídrico e LAC), em linguagem de negócio: etapa atual, desde quando, pontos em paralelo ("+N em paralelo"), complementação em andamento, "x de y" da multi-instância e, quando encerrado, o final ("Concluído", "Cancelado pelo cadastrante"...). Fluxo fora do catálogo: "não suportado"; sem instância: "sem instância"; Camunda fora do ar: "indisponível", sem derrubar o detalhe (`GET /requerimentos/{id}/posicao`, `GET /processos/{numero}/posicao`; docs/07, docs/15). |
 | RF32 | Exibir **com quem** está a etapa: nome do servidor (sem CPF, nunca), área do grupo, "Interessado (cadastrante)" ou "Sistema". O nome segue o RN12 e o parâmetro `RASTRO_MOSTRAR_NOME_RESPONSAVEL`. |
 | RF33 | Exibir os **avisos** do confronto entre a situação do Licenciamento e o fluxo (selo com texto, código estável e gravidade `INFO`/`ATENCAO`), sem alterar a posição (RN14). |
+| RF34 | **Histórico da tramitação** (S8): o caminho percorrido em etapas simplificadas, com entrada, saída e duração de cada uma, só do que de fato aconteceu (`GET /requerimentos/{id}/tramitacao`, `GET /processos/{numero}/tramitacao`). |
+| RF35 | **Com quem esteve** em cada etapa: pessoa ou papel, e os participantes da multi-instância com concluiu/pendente/encerrada sem ação. Sem CPF; nome pelo RN12 e `RASTRO_MOSTRAR_NOME_RESPONSAVEL`. |
+| RF36 | **Fluxograma simplificado** em linha reta, desenhado pelo front a partir das passagens (S8, blocos 8 a 10): só o que passou, voltas como novas caixas ("2ª passagem"), final como bola preta rotulada. |
+| RF37 | **Plano B**: requerimento sem instância no Camunda mostra uma linha do tempo **aproximada**, sempre marcada como tal e sem responsável; nunca substitui falha do Camunda (que responde `INDISPONIVEL`). |
 
 ### Documentos
 

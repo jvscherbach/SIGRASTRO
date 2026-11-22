@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import br.gov.mt.sema.rastro.tramitacao.application.PosicaoDoRequerimento;
+import br.gov.mt.sema.rastro.tramitacao.domain.AvaliarDesfecho;
 import br.gov.mt.sema.rastro.tramitacao.domain.Aviso;
 import br.gov.mt.sema.rastro.tramitacao.domain.ElementoDaPosicao;
 import br.gov.mt.sema.rastro.tramitacao.domain.Etapa;
@@ -26,7 +27,8 @@ public record PosicaoResponse(
         String numeroProcesso,
         @Schema(description = "Situação do Licenciamento; a etapa do fluxo prevalece sobre ela") SituacaoResponse situacaoLicenciamento,
         @Schema(description = "Rótulo do fluxo; vazio quando não suportado") String modelo,
-        @Schema(description = "ATIVO, ENCERRADO, SEM_INSTANCIA, NAO_SUPORTADO ou INDISPONIVEL") String estado,
+        @Schema(description = "ATIVO, ENCERRADO, CONCLUIDO (verificação da revisão = arquivamento do processo concluído), "
+                + "SEM_INSTANCIA, NAO_SUPORTADO ou INDISPONIVEL") String estado,
         EtapaResponse etapaAtual,
         List<EtapaResponse> emParalelo,
         ComplementacaoResponse complementacao,
@@ -39,22 +41,32 @@ public record PosicaoResponse(
     public static PosicaoResponse de(PosicaoDoRequerimento p) {
         PosicaoAtual posicao = p.posicao().posicao();
         boolean admin = p.idsTecnicos();
+        // P38 (D83): na verificação da revisão o processo está concluído (arquivamento), não "em andamento com alguém".
+        boolean concluida = posicao.concluidaNaVerificacao();
+        FinalResponse fim = posicao.fim().map(f -> new FinalResponse(f.rotulo(), posicao.encerradaEm().orElse(null),
+                admin ? f.idTecnico() : null)).orElse(null);
+        if (concluida) {
+            fim = new FinalResponse(AvaliarDesfecho.ROTULO_CONCLUIDO,
+                    posicao.principal().map(ElementoDaPosicao::desde).orElse(null), null);
+        }
         return new PosicaoResponse(
                 p.idRequerimento(),
                 p.numeroRequerimento(),
                 p.numeroProcesso(),
                 p.situacao().map(s -> new SituacaoResponse(s.codigo(), s.descricao())).orElse(null),
                 posicao.rotuloDoModelo().orElse(null),
-                posicao.estado().name(),
-                posicao.principal().map(e -> EtapaResponse.de(e, admin)).orElse(null),
+                concluida ? ESTADO_CONCLUIDO : posicao.estado().name(),
+                concluida ? null : posicao.principal().map(e -> EtapaResponse.de(e, admin)).orElse(null),
                 posicao.emParalelo().stream().map(e -> EtapaResponse.de(e, admin)).toList(),
                 posicao.complementacao().map(c -> new ComplementacaoResponse(c.quantidade(), c.desde())).orElse(null),
-                posicao.principal().flatMap(MultiInstanciaResponse::de).orElse(null),
+                concluida ? null : posicao.principal().flatMap(MultiInstanciaResponse::de).orElse(null),
                 p.posicao().avisos().stream().map(AvisoResponse::de).toList(),
-                posicao.fim().map(f -> new FinalResponse(f.rotulo(), posicao.encerradaEm().orElse(null),
-                        admin ? f.idTecnico() : null)).orElse(null),
+                fim,
                 admin ? posicao.idsNaoMapeados() : null);
     }
+
+    /** Estado só da posição: instância ativa na verificação da revisão (processo concluído, sem bola preta). */
+    public static final String ESTADO_CONCLUIDO = "CONCLUIDO";
 
     public record SituacaoResponse(String codigo, String descricao) {}
 

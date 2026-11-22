@@ -123,11 +123,22 @@ Credenciais ficam no arquivo de ambiente do servidor; a tela não as exibe nem e
 
 | Variável | Padrão | Faixa | Efeito |
 |---|---|---|---|
-| `RASTRO_MOSTRAR_NOME_RESPONSAVEL` | `true` (protótipo) | `true`/`false` | desligado, só a área e o papel, sem nome do servidor (nunca o CPF, em nenhum caso). Regra definitiva depende da SEMA (P32) |
+| `RASTRO_MOSTRAR_NOME_RESPONSAVEL` | `true` (protótipo) | `true`/`false` | desligado, só a área e o papel, sem nome do servidor (nunca o CPF, em nenhum caso). Vale também na tramitação completa (S8): passagens, participantes da multi-instância, signatários da emissão e, portanto, a linha do tempo e o fluxograma, que se desenham a partir das passagens; aplicado depois do cache (próxima leitura). Provado pela varredura `VarreduraSemNomeDoResponsavelHttpTest` (S8, bloco 11, todos os cenários e perfis). Regra definitiva depende da SEMA (P32) |
 | `RASTRO_MAX_NOMES_POR_EQUIPE` | 10 | 1 a 100 | participantes listados numa equipe; o resto aparece como "e mais N" |
 | `RASTRO_POSICAO_CACHE_SEGUNDOS` | 30 | 0 a 3600 | validade do cache da posição em memória; 0 desliga |
 
 Valor fora da faixa cai no padrão, com aviso no log.
+
+**Desempenho da tramitação** (S8, blocos 2 e 7; propriedades `rastro.tramitacao.*`; docs/15, "Desempenho, limites, cache e degradação"). **Só do ambiente**: valem a partir da subida e não estão na tela de Configurações (decisão do bloco 7: são proteções do Camunda de produção, ajustadas por quem opera o servidor, não pela tela).
+
+| Variável | Padrão | Faixa | Efeito |
+|---|---|---|---|
+| `RASTRO_TRAMITACAO_LIMITE_LINHAS` | 3000 | — | atividades do histórico lidas **por instância**, contadas depois do colapso das repetições; passando disso, a instância vem truncada (as primeiras) e sai o aviso `HISTORICO_TRUNCADO` |
+| `RASTRO_TRAMITACAO_CACHE_SEGUNDOS` | 60 | 0 a 3600 | validade da tramitação em cache (chave = requerimento + versão do catálogo); 0 desliga. `INDISPONIVEL` nunca entra |
+| `RASTRO_TRAMITACAO_TIMEOUT_SEGUNDOS` | 20 | 1 a 120 | tempo **total** de uma leitura da tramitação, contando a espera por vaga; estourado, `INDISPONIVEL` |
+| `RASTRO_CAMUNDA_LEITURAS_SIMULTANEAS` | 4 | 1 a 20 | leituras ao Camunda ao mesmo tempo nesta instância do Rastro, **somando posição e tramitação**; as demais esperam a vez (a posição, até o tempo limite de uma consulta) |
+
+O tempo limite de **cada** consulta continua sendo `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS`.
 
 ### Rastro (S7, bloco 10)
 

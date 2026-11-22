@@ -297,6 +297,37 @@ class TramitacaoHttpTest {
     }
 
     @Test
+    void verificacaoDaRevisaoEConcluidoSemEtapaEmAndamentoNemBolaPreta() throws Exception {
+        quandoLer(consultar, 7101, PosicoesDeTeste.naVerificacaoDaRevisao());
+        for (String usuario : List.of("operador.demo", "gestor.demo", "admin.demo")) {
+            String texto = corpo(obter(usuario, "/api/requerimentos/7101/posicao")
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.estado").value("CONCLUIDO"))
+                    .andExpect(jsonPath("$.etapaAtual").value(nullValue()))
+                    .andExpect(jsonPath("$.multiInstancia").value(nullValue()))
+                    .andExpect(jsonPath("$.final.rotulo").value("Concluído"))
+                    .andExpect(jsonPath("$.final.encerradoEm").value("2026-03-08T09:30:00"))
+                    .andExpect(jsonPath("$.final.idTecnico").doesNotExist())
+                    .andExpect(jsonPath("$.avisos[0].codigo").value("CONCLUIDO_ANTES_DA_VERIFICACAO"))
+                    .andExpect(jsonPath("$.avisos[0].gravidade").value("INFO")));
+            assertThat(texto).doesNotContain("Verificação da revisão").doesNotContain("taskVerificarRevisaoProcesso");
+        }
+    }
+
+    @Test
+    void nenhumaRespostaDeConsultaMencionaOMotorDeFluxoParaNenhumPerfil() throws Exception {
+        for (var posicao : List.of(PosicoesDeTeste.ativaComMultiInstancia(), PosicoesDeTeste.encerradaPorTaxa(),
+                PosicoesDeTeste.naVerificacaoDaRevisao(), PosicoesDeTeste.indisponivel(), PosicoesDeTeste.naoSuportado(),
+                PosicoesDeTeste.semInstancia())) {
+            quandoLer(consultar, 7101, posicao);
+            for (String usuario : List.of("operador.demo", "gestor.demo", "admin.demo")) {
+                assertThat(corpo(obter(usuario, "/api/requerimentos/7101/posicao")).toLowerCase())
+                        .as("posição de %s", usuario).doesNotContain("camunda");
+            }
+        }
+    }
+
+    @Test
     void camundaIndisponivelEh200ComOEstadoENaoErro() throws Exception {
         quandoLer(consultar, 7101, PosicoesDeTeste.indisponivel());
 

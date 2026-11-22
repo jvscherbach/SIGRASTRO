@@ -90,6 +90,21 @@ public final class PosicoesDeTeste {
         return new PosicaoConfrontada(posicao, Optional.of("EM_ANALISE"), List.of());
     }
 
+    /** Ativa na "Verificação da revisão do processo": arquivamento, o processo está concluído (P38, D83). */
+    public static PosicaoConfrontada naVerificacaoDaRevisao() {
+        ResponsavelDaEtapa equipe = new ResponsavelDaEtapa(ResponsavelDaEtapa.Tipo.EQUIPE, ResponsavelDaEtapa.EQUIPE,
+                Optional.of(AREA), Optional.empty(), List.of(), 0);
+        ElementoDaPosicao verificacao = new ElementoDaPosicao(Optional.of(etapa("verificacao_da_revisao_do_processo")),
+                "taskVerificarRevisaoProcesso", DESDE, false, List.of(), Optional.empty(), Optional.empty(), List.of(),
+                Optional.of(equipe));
+        PosicaoAtual posicao = new PosicaoAtual(EstadoDaPosicao.ATIVO, Optional.of(HIDRICO.chave()),
+                Optional.of(HIDRICO.rotulo()), Optional.of(verificacao), List.of(), Optional.empty(), Optional.empty(),
+                Optional.empty(), Optional.empty(), Set.of(), List.of(), Optional.of("ACTIVE"));
+        return new PosicaoConfrontada(posicao, Optional.of("CONCLUIDO"), List.of(
+                new Aviso(CodigoDoAviso.CONCLUIDO_ANTES_DA_VERIFICACAO,
+                        "Processo concluído; a verificação da revisão é só arquivamento.", Aviso.Gravidade.INFO)));
+    }
+
     /** Encerrada por taxa vencida, com o aviso de situação não atualizada. */
     public static PosicaoConfrontada encerradaPorTaxa() {
         FinalDoFluxo fim = HIDRICO.finais().stream().filter(f -> f.idTecnico().equals("Event_0h1oige")).findFirst()

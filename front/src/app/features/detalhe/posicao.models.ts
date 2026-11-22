@@ -3,7 +3,7 @@
  * Os campos só do Administrador (`idTecnico`, `processoFilho`, `final.idTecnico`, `idsNaoMapeados`) ficam de fora de
  * propósito: a tela nunca mostra id técnico.
  */
-export type EstadoDaPosicao = 'ATIVO' | 'ENCERRADO' | 'SEM_INSTANCIA' | 'NAO_SUPORTADO' | 'INDISPONIVEL';
+export type EstadoDaPosicao = 'ATIVO' | 'ENCERRADO' | 'CONCLUIDO' | 'SEM_INSTANCIA' | 'NAO_SUPORTADO' | 'INDISPONIVEL';
 
 export type TipoDeEtapa = 'TAREFA_HUMANA' | 'ESPERA' | 'AUTOMATICA' | 'EMISSAO';
 
@@ -104,6 +104,9 @@ export function resumirPosicao(p: PosicaoDoRequerimento): ResumoDaPosicao {
     }
     case 'ENCERRADO':
       return { ...base, texto: p.final?.rotulo ?? 'Encerrado', ponto: 'encerrado', estado: 'Encerrado' };
+    case 'CONCLUIDO':
+      // P38 (D83): verificação da revisão = arquivamento do processo concluído, não "em andamento com alguém".
+      return { ...base, texto: p.final?.rotulo ?? 'Concluído', ponto: 'encerrado', estado: 'Concluído' };
     case 'SEM_INSTANCIA':
       return { ...base, texto: 'Histórico detalhado indisponível', ponto: 'neutro', estado: 'Sem histórico detalhado' };
     case 'NAO_SUPORTADO':

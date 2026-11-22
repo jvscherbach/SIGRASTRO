@@ -41,4 +41,30 @@ class VarreduraSemNomeDoResponsavelHttpTest extends BaseVarreduraDaTramitacao {
                 .contains("Conferência de documentos (subterrânea)");
         soft.assertAll();
     }
+
+    /**
+     * S8, bloco 11: o mesmo na tramitação completa. Sem nome em passagens, participantes da multi-instância, signatários
+     * da emissão e, portanto, no que alimenta a linha do tempo e o fluxograma (o front desenha a partir de
+     * {@code passagens}; não há outra fonte de nome). Fica o papel.
+     */
+    @Test
+    void desligar_o_parametro_tira_os_nomes_da_tramitacao_completa() throws Exception {
+        SoftAssertions soft = new SoftAssertions();
+        for (String perfil : PERFIS) {
+            for (long id : requerimentosDaTramitacaoCompleta()) {
+                MockHttpServletResponse r = obter(perfil, "/api/requerimentos/" + id + "/tramitacao");
+                String onde = perfil + " /requerimentos/" + id + "/tramitacao";
+                String texto = corpo(r);
+                soft.assertThat(texto).as(onde).doesNotContain("Servidor Exemplo").doesNotContainPattern(NOME_PREENCHIDO);
+                varrer(soft, onde, texto, ADMIN.equals(perfil));
+            }
+            for (String processo : PROCESSOS_DA_TRAMITACAO) {
+                soft.assertThat(corpo(obter(perfil, "/api/processos/" + processo + "/tramitacao")))
+                        .as(perfil + " processo " + processo).doesNotContain("Servidor Exemplo");
+            }
+        }
+        String hc01 = corpo(obter(GESTOR, "/api/requerimentos/" + CenariosFicticiosDaS8.HC01 + "/tramitacao"));
+        soft.assertThat(hc01).as("papel continua").contains("\"papel\":\"Analista\"").contains("\"papel\":\"Signatário\"");
+        soft.assertAll();
+    }
 }

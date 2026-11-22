@@ -53,23 +53,61 @@ public final class Reconciliar {
         if (chave.isEmpty()) {
             return Optional.empty();
         }
-        Optional<CatalogoDoConfronto.RegraDaSituacao> regra = switch (posicao.estado()) {
+        return switch (posicao.estado()) {
             case ATIVO -> posicao.principal().flatMap(ElementoDaPosicao::etapa)
-                    .flatMap(e -> catalogo.daEtapa(chave.get(), e.id()));
-            case ENCERRADO -> posicao.fim().flatMap(f -> catalogo.doFinal(chave.get(), f.id()));
-            default -> Optional.empty();
+                    .flatMap(e -> confrontarEtapa(chave.get(), e.id(), situacao));
+            case ENCERRADO -> posicao.fim().flatMap(f -> confrontarFinal(chave.get(), f, situacao));
+            default -> situacao(situacao);
         };
-        return regra.flatMap(r -> aplicar(r, situacao));
     }
 
-    private static Optional<CodigoDoAviso> aplicar(CatalogoDoConfronto.RegraDaSituacao regra, String situacao) {
+    /**
+     * Situação × etapa ativa (S7, bloco 5): divergência conhecida, senão {@link CodigoDoAviso#SITUACAO_NAO_CONFERE} se a
+     * situação não está entre as aceitas. {@code ARQUIVADO_TEMPORARIAMENTE} (S8, bloco 4) vira o aviso neutro próprio.
+     */
+    public Optional<CodigoDoAviso> confrontarEtapa(String chaveDoModelo, String idDaEtapa, String situacao) {
+        return catalogo.daEtapa(chaveDoModelo, idDaEtapa)
+                .flatMap(r -> aplicar(r, situacao, CodigoDoAviso.SITUACAO_NAO_CONFERE))
+                .or(() -> situacao(situacao));
+    }
+
+    /**
+     * Situação × final (S8, bloco 4): o rótulo do final vem sempre do evento de fim; a situação só gera aviso. Divergência
+     * conhecida (taxa vencida sem atualizar a situação, expirado na correção do LAC), senão
+     * {@link CodigoDoAviso#FINAL_E_SITUACAO_DIVERGEM} fora das aceitas.
+     */
+    public Optional<CodigoDoAviso> confrontarFinal(String chaveDoModelo, FinalDoFluxo fim, String situacao) {
+        return catalogo.doFinal(chaveDoModelo, fim.id())
+                .flatMap(r -> aplicar(r, situacao, CodigoDoAviso.FINAL_E_SITUACAO_DIVERGEM))
+                .or(() -> situacao(situacao));
+    }
+
+    /** O aviso pronto (texto e gravidade do arquivo de confronto). */
+    public Aviso aviso(CodigoDoAviso codigo, String situacao) {
+        return catalogo.aviso(codigo, Objects.requireNonNullElse(situacao, ""));
+    }
+
+    private static Optional<CodigoDoAviso> aplicar(CatalogoDoConfronto.RegraDaSituacao regra, String situacao,
+            CodigoDoAviso divergencia) {
         CodigoDoAviso conhecida = regra.conhecidas().get(situacao);
         if (conhecida != null) {
             return Optional.of(conhecida);
         }
+        if (ARQUIVADO_TEMPORARIAMENTE.equals(situacao)) {
+            return Optional.of(CodigoDoAviso.SITUACAO_ARQUIVADO_TEMPORARIAMENTE);
+        }
         if (!regra.aceitas().isEmpty() && !regra.aceitas().contains(situacao)) {
-            return Optional.of(CodigoDoAviso.SITUACAO_NAO_CONFERE);
+            return Optional.of(divergencia);
         }
         return Optional.empty();
     }
+
+    /** Fora de qualquer tabela, só a situação que nada grava gera aviso (neutro). */
+    private static Optional<CodigoDoAviso> situacao(String situacao) {
+        return ARQUIVADO_TEMPORARIAMENTE.equals(situacao)
+                ? Optional.of(CodigoDoAviso.SITUACAO_ARQUIVADO_TEMPORARIAMENTE) : Optional.empty();
+    }
+
+    /** Regra técnica 8: nada no fluxo grava esta situação. */
+    static final String ARQUIVADO_TEMPORARIAMENTE = "ARQUIVADO_TEMPORARIAMENTE";
 }

@@ -62,7 +62,7 @@ class ConsultarPosicaoAtualTest {
     private final CacheEmMapa cache = new CacheEmMapa();
     private final ConsultarPosicaoAtual caso = new ConsultarPosicaoAtual(acesso, camunda, catalogo,
             new ResolverResponsavel(siga, CatalogoDeGruposDeTeste.padrao()), parametros, cache,
-            CatalogoDoConfrontoDeTeste.padrao());
+            CatalogoDoConfrontoDeTeste.padrao(), new LimiteDeLeiturasDoCamunda(parametros));
 
     /** Cache sem expiração: o teste controla só a validade (0 desliga). */
     private static final class CacheEmMapa implements CacheDaPosicao {

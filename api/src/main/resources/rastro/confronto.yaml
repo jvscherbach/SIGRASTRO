@@ -50,6 +50,12 @@ avisos:
   - codigo: SITUACAO_NAO_CONFERE
     gravidade: ATENCAO
     texto: A situação do SIGA ('{situacao}') não corresponde exatamente à etapa do fluxo. Vale a etapa do fluxo.
+  - codigo: FINAL_E_SITUACAO_DIVERGEM
+    gravidade: ATENCAO
+    texto: A situação do SIGA ('{situacao}') não corresponde ao encerramento do fluxo. Vale o encerramento do fluxo.
+  - codigo: SITUACAO_ARQUIVADO_TEMPORARIAMENTE
+    gravidade: INFO
+    texto: O SIGA mostra "arquivado temporariamente", situação que o fluxo não registra. Vale a etapa do fluxo.
   - codigo: EXPIRADO_NA_CORRECAO_LAC
     gravidade: INFO
     texto: O prazo da correção expirou. O SIGA mostra a mesma situação do prazo de cadastro expirado; vale o final do fluxo.
@@ -65,6 +71,14 @@ avisos:
   - codigo: SEM_INSTANCIA
     gravidade: INFO
     texto: Histórico detalhado indisponível para este requerimento.
+  # S8, bloco 5: texto fixo do prompt (o mesmo de HistoricoAproximado.SELO; um teste confere).
+  - codigo: HISTORICO_APROXIMADO
+    gravidade: INFO
+    texto: "Histórico aproximado: este requerimento é anterior ao registro detalhado do fluxo"
+  # S8, bloco 6: o limite de linhas por instância foi atingido; o que se mostra é o que coube.
+  - codigo: HISTORICO_TRUNCADO
+    gravidade: ATENCAO
+    texto: "Histórico incompleto: este requerimento tem registros demais e só parte do caminho é mostrada."
 
 # Por modelo (chave do Camunda): situações aceitas em cada etapa e em cada final, e divergências conhecidas
 # (situação -> aviso próprio, que vence o "não confere").

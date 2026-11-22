@@ -9,14 +9,22 @@ public enum CodigoDoAviso {
     FLUXO_ENCERRADO_SEM_STATUS(true),
     /** Situação CONCLUIDO com a instância em "Verificação da revisão" (arquivamento). */
     CONCLUIDO_ANTES_DA_VERIFICACAO(true),
-    /** Situação do Licenciamento fora das aceitas para a etapa (ou o final) do fluxo. */
+    /** Situação do Licenciamento fora das aceitas para a etapa do fluxo. */
     SITUACAO_NAO_CONFERE(false),
+    /** S8, bloco 4: situação do Licenciamento fora das aceitas para o final (evento de fim) do fluxo. */
+    FINAL_E_SITUACAO_DIVERGEM(false),
+    /** S8, bloco 4: situação {@code ARQUIVADO_TEMPORARIAMENTE}, que nada no fluxo grava (regra técnica 8); aviso neutro. */
+    SITUACAO_ARQUIVADO_TEMPORARIAMENTE(false),
     /** LAC: expirado na correção com a situação do expirado no cadastro. */
     EXPIRADO_NA_CORRECAO_LAC(true),
     VARIAS_INSTANCIAS(false),
     EM_SUPORTE(false),
     ETAPA_NAO_MAPEADA(false),
-    SEM_INSTANCIA(false);
+    SEM_INSTANCIA(false),
+    /** S8, bloco 5: plano B, linha do tempo aproximada (requerimento sem instância no Camunda). Selo fixo. */
+    HISTORICO_APROXIMADO(false),
+    /** S8, bloco 6: alguma instância passou do limite de linhas; o caminho mostrado é o que coube (incompleto). */
+    HISTORICO_TRUNCADO(false);
 
     private final boolean divergenciaConhecida;
 

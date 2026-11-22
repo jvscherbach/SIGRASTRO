@@ -8,6 +8,9 @@ final class ParametrosDoRastroDeTeste implements ParametrosDoRastro {
     volatile boolean mostrarNome = true;
     volatile int maximoDeNomes = 10;
     volatile int cacheSegundos;
+    volatile int cacheTramitacaoSegundos;
+    volatile int tramitacaoTimeoutSegundos = 20;
+    volatile int leiturasSimultaneas = 4;
 
     @Override
     public boolean mostrarNomeDoResponsavel() {
@@ -32,5 +35,20 @@ final class ParametrosDoRastroDeTeste implements ParametrosDoRastro {
     @Override
     public int camundaTimeoutSegundos() {
         return 10;
+    }
+
+    @Override
+    public int cacheDaTramitacaoSegundos() {
+        return cacheTramitacaoSegundos;
+    }
+
+    @Override
+    public int tramitacaoTimeoutSegundos() {
+        return tramitacaoTimeoutSegundos;
+    }
+
+    @Override
+    public int leiturasSimultaneasDoCamunda() {
+        return leiturasSimultaneas;
     }
 }

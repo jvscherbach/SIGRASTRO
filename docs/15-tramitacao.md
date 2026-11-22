@@ -152,7 +152,7 @@ Levantamentos 1 e 2, confirmadas em homologação e produção. Valem para todo 
 6. **Multi-instância** (`taskAceitarAtribuicao`, `taskAnalisarRequerimento`, `taskValidarParecerTecnico`, e as validações de signatários nas filhas): uma tarefa por analista/signatário. `ACT_RU_TASK.EXECUTION_ID_` **não é confiável**: use `PROC_INST_ID_` + `TASK_DEF_KEY_`. Na análise, um analista pedir correção encerra as demais tarefas do ciclo (elas ficam com `DELETE_REASON_` diferente de `completed`).
 7. **Complementação** é uma instância **independente** e **paralela** (`procGestaoComplementacao`, `BUSINESS_KEY_ = COMPLEMENTACAO.ID`, não altera `SITUACAO_PROCESSO`). Pode existir em qualquer fase da análise.
 8. **Situação do Licenciamento não é a etapa.** `REQUERIMENTO.SITUACAO_PROCESSO` tem 29 valores grosseiros e diverge do fluxo em casos conhecidos: `CONCLUIDO` é gravado **antes** de "Verificação da revisão"; "Pagamento Vencido 60 dias" da taxa inicial do Hídrico encerra a instância **sem atualizar** a situação (bug de origem: fica `AGUARDANDO_PAGAMENTO_DE_TAXAS`); no LAC "expirado na correção" usa a **mesma situação** do expirado no cadastro; `AGUARDANDO_EMISSAO_DE_TAXAS` cobre dois pontos do fluxo; nada grava `ARQUIVADO_TEMPORARIAMENTE`. A situação é usada para **confirmar** e para o plano B, nunca para derivar a etapa.
-9. **"Verificação da revisão do processo" (`taskVerificarRevisaoProcesso`) funciona como arquivamento:** o processo é considerado **concluído quando "Registrar comprovante de publicação" encerra**, a tarefa nunca é recriada na prática e a instância **fica ativa nela** (grupos `grpSurhRevisarDecisao*`). Não é "revisão em andamento com alguém".
+9. **"Verificação da revisão do processo" (`taskVerificarRevisaoProcesso`) funciona como arquivamento:** o processo é considerado **concluído quando "Registrar comprovante de publicação" encerra**, a tarefa nunca é recriada na prática e a instância **fica ativa nela** (grupos `grpSurhRevisarDecisao*`). Não é "revisão em andamento com alguém". **Na posição (P38, D83; S8 bloco 8):** a API devolve `estado: CONCLUIDO` (`PosicaoAtual.concluidaNaVerificacao()`), sem `etapaAtual`, com `final.rotulo = "Concluído"` e a data de entrada na verificação, **sem** evento de fim (sem bola preta) e mantendo o aviso neutro `CONCLUIDO_ANTES_DA_VERIFICACAO`. O domínio (`MontadorDaPosicao`, `PosicaoAtual`) não mudou: a etapa continua `verificacao_da_revisao_do_processo`; a tradução é do contrato HTTP (`PosicaoResponse`). Na tramitação, o mesmo fato é o `DesfechoDoCaminho` `CONCLUIDO` (`final.tipo = CONCLUIDO_NA_VERIFICACAO`).
 10. **Histórico:** etapa **percorrida** = atividade com `END_TIME_` e, se for tarefa, `DELETE_REASON_ = 'completed'`. Ruído a ignorar: tarefa **"Suporte"** (`Activity_0miwhxt`, grupo `suporte`), "Report Kafka", eventos de repetição por erro de API (colapsar repetições consecutivas de scripts) e `taskAnalisarReducaoTaxa` (ramo de redução provavelmente inativo). `historyLevel = 3`; no Hídrico o histórico só existe desde 02/2022 e, até 2022, há requerimentos **sem instância** (2021/2022: lacunas). **De 2023 em diante todo requerimento tem instância no Camunda.**
 11. **`statusConferencia`** (isento/taxavel/reprovado) é **sobrescrito** em 3 pontos: o valor final não é o da primeira passagem. Para classificar uma passagem, use a **rota seguida** (passou ou não pelo gateway de pagamento) ou o valor da época em `ACT_HI_DETAIL` (`TYPE_ = 'VariableUpdate'`). No Hídrico o gateway não tem ramo padrão.
 12. **Oracle:** `ORA-12704` (misturar `NVARCHAR2` e `VARCHAR2`: aplique `TO_CHAR` nos dois lados), `ORA-30482` (não existe `LISTAGG(DISTINCT)`), `ORA-32039` (CTE com nome de tabela real). Sem índice por `TASK_DEF_KEY_`/`ASSIGNEE_` em `ACT_HI_TASKINST`; `ACT_HI_ACTINST` tem ~1,5 milhão de linhas: consulte **sempre por `PROC_INST_ID_`** (barato). `LANCAMENTO_TAXA` e `HISTORICO_REQUERIMENTO` provavelmente sem índice em `ID_REQUERIMENTO`: sem varredura de tabela inteira.
@@ -208,6 +208,38 @@ Levantamentos 1 e 2, confirmadas em homologação e produção. Valem para todo 
 A tabela de **resultado esperado por cenário** (etapa, com quem, avisos) e a conferência na tela estão no roteiro [roteiros/s7-homologacao.md](roteiros/s7-homologacao.md), seção 1 (bloco 11).
 
 As situações são **hipóteses fictícias** coerentes com a lista do Apêndice A de docs/04 (P34); a tabela de compatibilidade situação × etapa é do bloco 5. Como criar um cenário novo: docs/13, "Dados fictícios de teste".
+
+### Cenários do caminho percorrido (S8, bloco 1; ids 8001 a 8199)
+
+Gravados por `CenariosFicticiosDaS8` (mesmo mecanismo: Oracle de teste + `CamundaFicticioBuilder`, script `07-historico-s8.sql` para `HISTORICO_REQUERIMENTO` e as datas de `REQUERIMENTO`). Os cenários da S7 (H01 a H21 etc.) **mantêm** o caminho mínimo e a posição atual; os da S8 trazem o caminho com início e fim reais, em `ACT_HI_ACTINST`, `ACT_HI_TASKINST`, `ACT_HI_PROCINST` (filhas e complementação), `ACT_HI_DETAIL` e `ACT_HI_VARINST` (lista branca). Responsáveis fictícios: conferência 02, atribuição 03, revisão do parecer 04, analistas e validadores 05 a 07, publicação 08, emissão (filhas) 09, verificação 10, suporte 12; cadastrante = interessado fictício. Tempos relativos a 02/03/2026 08:00. **Sequência abaixo = atividades encerradas em ordem; "ativo" = o que ficou aberto.** Legenda: `M(x)` = ciclo multi-instância de `x` (corpo + uma tarefa por participante); "taxável" = emissão da taxa → espera de pagamento → protocolo.
+
+| Cenário | Id | Fluxo | O que prova | Caminho (resumo) | Ativo / final |
+|---|---|---|---|---|---|
+| HC01 | 8001 | Hídrico | feliz taxável, concluído pela publicação | cadastro, conferência, taxa, pagamento, protocolo, atribuição, M(aceite), M(análise), revisão, M(validação), emissão (autorizações + portaria em paralelo), publicação | verificação da revisão (ativa = arquivado/concluído, regra 9) |
+| HC02 | 8002 | Hídrico | isento: sem emissão da taxa nem espera | cadastro, conferência (`isento`), protocolo (isenção confirmada), atribuição, M(aceite) | M(análise) |
+| HC03 | 8003 | Hídrico | conferência reprova e volta ao cadastro; `statusConferencia` regravado | cadastro, conferência (`reprovado`), cadastro (2ª), conferência (2ª, `taxavel`), taxa | espera de pagamento |
+| HC04 | 8004 | Hídrico | validação devolvida `RA` (volta à análise) e depois `RP` (volta à revisão) | … M(validação) `RA`, M(análise), revisão, M(validação) `RP`, revisão | M(validação) |
+| HC05 | 8005 | Hídrico | troca de analista na revisão e na validação: sempre volta à análise | M(análise), revisão (`isRevisaoAnalise`), M(análise), revisão, M(validação) (`isRevisaoAnalise`), M(análise) | revisão |
+| HC06 | 8006 | Hídrico | recusa no aceite (2 tarefas `deleted`) e redistribuição | atribuição, M(aceite, recusa), atribuição, M(aceite), M(análise), atribuição (redistribuição) | M(aceite) |
+| HC07 | 8007 | Hídrico | correção **com** nova taxa, retorno direto à análise | M(análise, pedido de correção), status da correção, correção, taxa (correção), pagamento (correção) | M(análise) |
+| HC08 | 8008 | Hídrico | correção **sem** nova taxa | M(análise, pedido de correção), status da correção, correção | M(análise) |
+| HC09 | 8009 | Hídrico | correção expirada segue para a análise (P40) | … correção `deleted`, evento de borda fictício | M(análise) |
+| HC10 | 8010 | Hídrico | um analista pede correção; 2 tarefas `deleted` | M(análise: 1 `completed`, 2 `deleted`), status da correção | correção (interessado) |
+| HC11 | 8011 | Hídrico | ruído: Suporte, "Report Kafka", script ×4, evento de repetição | cadastro, **Suporte**, conferência, **Report Kafka**, taxa ×4, **repetição por erro** | espera de pagamento |
+| HC12 | 8012 | Hídrico | emissão com 3 filhas, 1 devolvida (`isRevisaoParecer`), refeita | … M(validação), emissão (3, 1 devolvida), revisão, M(validação), emissão (3) | publicação |
+| HC13 | 8013 | Hídrico | `REVISAR` na verificação recria a emissão | … emissão, publicação, verificação (`REVISAR`), emissão | publicação |
+| HC14 | 8014 | Hídrico | complementação paralela concluída durante a análise (id 8814) | … M(análise) com `procGestaoComplementacao` encerrada em paralelo | revisão |
+| HC15 | 8015 | Hídrico | milhares de atividades (3.500 repetições do script): passa do limite padrão de 3.000 linhas | cadastro, conferência, taxa ×3.500 | espera de pagamento |
+| HF01 a HF04 | 8021 a 8024 | Hídrico | finais com histórico: `Event_1wiuc48` (concluído, depois da verificação), `Event_1kq2k0z`, `Event_0abm55w` (cadastro expirado), `Event_0h1oige` (situação `AGUARDANDO_PAGAMENTO_DE_TAXAS` mantida) | | final |
+| LC01 | 8051 | LAC | feliz: conferência, taxa, pagamento, termo, termo assinado, concluído | cadastro, conferência, taxa, pagamento, protocolo, termo, envio do termo, conclusão | final `evtProcessoConcluido` |
+| LC02 | 8052 | LAC | isento | cadastro, conferência, protocolo, termo | envio do termo assinado |
+| LC03 | 8053 | LAC | reprova, correção, volta à conferência, sem nova taxa na correção | cadastro, conferência, correção, conferência (2ª), taxa | espera de pagamento |
+| LF01 a LF05 | 8061 a 8065 | LAC | finais: `evtFimRequerimentoAPedidoCadastrante`, `evtEncerrarRequerimentoPrazoCadExpirado`, `evtEncerrarProcessoPrazoCorrecaoExpirado` (**mesma situação** do expirado no cadastro), `evtEncerrarProcessoFaltaPagto`, `Event_0x7hz1p` | | final |
+| PB01 | 8091 | Hídrico (2021) | plano B completo: 11 eventos de `HISTORICO_REQUERIMENTO`, datas de protocolo, `CONCLUIDO`, **sem instância** | `CRIACAO_REQUERIMENTO` … `CONCLUSAO_REQUERIMENTO` | — |
+| PB02 | 8092 | Hídrico (2021) | plano B com **evento desconhecido** (`EVENTO_FICTICIO_DESCONHECIDO`), expirado no cadastro | 4 eventos + `DATA_EXPIRACAO_REQUERIMENTO` | — |
+| PB03 | 8093 | Hídrico (2021) | plano B **sem nenhum evento** ("Sem detalhamento disponível") | só situação e datas | — |
+
+Regras das fixtures: `HISTORICO_REQUERIMENTO.CPF_USUARIO` existe (a tabela real a tem) com CPF fictício inválido, **para que o bloco 5 e a varredura do bloco 11 provem que o plano B nunca o lê**. Os cenários finais não têm "etapa ativa"; o evento de fim é a última atividade, com `START_TIME_` = `END_TIME_` = fim da instância. Hipóteses não confirmadas: P40. Testes: `CamundaFicticioBuilderCaminhoTest` (a sequência exata de cada cenário), `CamundaFicticioBuilderValidacaoTest` (o que o construtor recusa) e `DadosFicticiosDaS7Test` (nenhum CPF/CNPJ válido).
 
 ## Posição atual (bloco 3)
 
@@ -317,11 +349,15 @@ A **etapa do fluxo sempre prevalece** sobre a situação do Licenciamento (excet
 | `FLUXO_ENCERRADO_SEM_STATUS` | ATENÇÃO | Hídrico encerrado em `Event_0h1oige` (taxa não paga) com a situação `AGUARDANDO_PAGAMENTO_DE_TAXAS` (bug de origem, regra 8) | O fluxo foi encerrado por taxa não paga no prazo, mas o SIGA ainda mostra "aguardando pagamento". |
 | `CONCLUIDO_ANTES_DA_VERIFICACAO` | INFO | situação `CONCLUIDO` com a instância ativa em "Verificação da revisão" (regra 9) | Processo concluído; a verificação da revisão é só arquivamento. |
 | `SITUACAO_NAO_CONFERE` | ATENÇÃO | situação fora das aceitas para a etapa principal (ativa) ou para o final (encerrada) | A situação do SIGA ('X') não corresponde exatamente à etapa do fluxo. Vale a etapa do fluxo. |
+| `FINAL_E_SITUACAO_DIVERGEM` | ATENÇÃO | **S8, bloco 4:** situação fora das aceitas para o **final** (encerrada); antes era `SITUACAO_NAO_CONFERE`, que agora vale só para a etapa ativa | A situação do SIGA ('X') não corresponde ao encerramento do fluxo. Vale o encerramento do fluxo. |
+| `SITUACAO_ARQUIVADO_TEMPORARIAMENTE` | INFO | **S8, bloco 4:** situação `ARQUIVADO_TEMPORARIAMENTE`, que nada no fluxo grava (regra 8); vence o "não confere" | O SIGA mostra "arquivado temporariamente", situação que o fluxo não registra. Vale a etapa do fluxo. |
 | `EXPIRADO_NA_CORRECAO_LAC` | INFO | LAC encerrado em `evtEncerrarProcessoPrazoCorrecaoExpirado` com a situação do expirado no cadastro (regra 8) | O prazo da correção expirou. O SIGA mostra a mesma situação do prazo de cadastro expirado; vale o final do fluxo. |
 | `VARIAS_INSTANCIAS` | ATENÇÃO | mais de uma instância raiz (vale a mais recente) | Há mais de um fluxo para este requerimento; vale o mais recente. |
 | `EM_SUPORTE` | INFO | tarefa "Suporte" ativa | Em atendimento de suporte técnico. |
 | `ETAPA_NAO_MAPEADA` | ATENÇÃO | ponto ativo ou final fora do catálogo | O fluxo está num ponto que o Rastro ainda não sabe nomear. |
 | `SEM_INSTANCIA` | INFO | requerimento sem instância no Camunda | Histórico detalhado indisponível para este requerimento. |
+| `HISTORICO_APROXIMADO` | INFO | **S8, bloco 5:** a tramitação veio do plano B | Histórico aproximado: este requerimento é anterior ao registro detalhado do fluxo |
+| `HISTORICO_TRUNCADO` | ATENCAO | **S8, bloco 6:** alguma instância passou do limite de linhas; o caminho é o que coube | Histórico incompleto: este requerimento tem registros demais e só parte do caminho é mostrada. |
 
 O selo mostra o **texto** (não só cor ou ícone). `{situacao}` no texto é trocado pelo valor da situação. O "Taxa vencida" por data é da S9, não daqui.
 
@@ -329,9 +365,10 @@ O selo mostra o **texto** (não só cor ou ícone). `{situacao}` no texto é tro
 
 1. Ativa: confronta a situação com a **etapa principal** mapeada; encerrada: com o **final**. Sem instância, não suportado, indisponível, principal não mapeada ou situação ausente: **sem confronto** (não se acusa divergência sem base).
 2. Se a situação está entre as **divergências conhecidas** daquela etapa ou final (`conhecidas`), sai o aviso próprio (ele vence o "não confere").
-3. Senão, se a etapa ou o final tem lista de situações **aceitas** e a situação não está nela: `SITUACAO_NAO_CONFERE`.
-4. As marcas da leitura (`VARIAS_INSTANCIAS`, `EM_SUPORTE`, `ETAPA_NAO_MAPEADA`, `SEM_INSTANCIA`) viram os avisos de mesmo nome, depois dos do confronto.
-5. `INDISPONIVEL` leva a situação, quando ela já foi lida antes da falha.
+3. Senão, situação `ARQUIVADO_TEMPORARIAMENTE` (S8): `SITUACAO_ARQUIVADO_TEMPORARIAMENTE` (INFO), também fora de qualquer tabela.
+4. Senão, se a etapa ou o final tem lista de situações **aceitas** e a situação não está nela: `SITUACAO_NAO_CONFERE` (etapa) ou `FINAL_E_SITUACAO_DIVERGEM` (final; S8, bloco 4).
+5. As marcas da leitura (`VARIAS_INSTANCIAS`, `EM_SUPORTE`, `ETAPA_NAO_MAPEADA`, `SEM_INSTANCIA`) viram os avisos de mesmo nome, depois dos do confronto.
+6. `INDISPONIVEL` leva a situação, quando ela já foi lida antes da falha.
 
 ### Tabela de compatibilidade
 
@@ -343,6 +380,15 @@ Quando o SIGA corrigir o bug de origem da taxa vencida, a situação passa a `CA
 
 `GET /requerimentos/{id}/posicao` e `GET /processos/{numero}/posicao` (número com hífen: `7900-2022`); contrato, campos só do Administrador e erros em [docs/07, "Tramitação"](07-api.md#tramitação-s7). O caso de uso `AbrirPosicao` confere o acesso (requerimento pelo `VerificarAcessoAoRequerimento`; processo pela `BuscarRequerimentos` da consulta, uma vez), lê pelo `ConsultarPosicaoAtual`, aplica o **RN12** ao responsável (Operador sem nome) e registra o evento **`TRAMITACAO`** (grupo `DOCUMENTOS`; só usuário e números). Os ids técnicos só saem para o Administrador (`PoliticaDeAcesso.podeVerIdsTecnicosDoFluxo`). `INDISPONIVEL` é 200.
 
+### Tramitação completa (S8, bloco 6)
+
+`GET /requerimentos/{id}/tramitacao` e `GET /processos/{numero}/tramitacao` (contrato em [docs/07](07-api.md#tramitação-completa-s8-bloco-6)). O caso de uso `AbrirTramitacao` (`tramitacao.application`) é o par do `AbrirPosicao`: confere o acesso **antes** de montar (404, RN07 403; o processo, uma vez pela busca da consulta), chama o `MontarTramitacao.montar(id)`, aplica o **RN12** (`CaminhoReconstruido.semNomes()` para o Operador: nome some das passagens e dos participantes) e registra um evento **`TRAMITACAO`** por requerimento devolvido, com o detalhe `histórico <rótulo> <número>` (sem responsável, CPF nem id técnico). Acesso negado não registra; `INDISPONIVEL` registra.
+
+- **DTO** (`TramitacaoResponse`): passagens (etapa com id estável e rótulo, ciclo, ramo, entrada, saída, duração, atual, em paralelo, selo "processo concluído", motivo da volta com código e texto, `responsaveis[]` ou `participantes[]` na multi-instância, `atos[]`), complementações, taxa pela rota, final (`FINAL` = bola preta; `CONCLUIDO_NA_VERIFICACAO` = sem bola), avisos, `planoB` e `truncado`. O plano B **não tem campo de responsável**.
+- **Só para o Administrador** (campos que **não existem** para os demais): `passagens[].idTecnico`, `passagens[].repeticoes`, `final.idTecnico`, `idsNaoMapeados`, `diagnosticos`. A chave do modelo (`procOutorgaAguaSupSub`) nunca sai: o campo `modelo` é o rótulo.
+- **Aviso novo `HISTORICO_TRUNCADO`** (`ATENCAO`, texto em `confronto.yaml`): o `MontarTramitacao` o acrescenta quando o limite de linhas por instância foi atingido (`CaminhoReconstruido.truncado()`).
+- **Fora deste bloco:** cache da tramitação, tempo total, limite de concorrência e teste de carga (S8, bloco 7: seção "Desempenho, limites, cache e degradação"); matriz de acesso estendida com varredura de vazamento por cenário (bloco 11). A matriz por perfil das duas rotas já está no `MatrizDeAcessoTest`.
+
 ## Acesso, vazamento e resiliência (bloco 7)
 
 ### Matriz de acesso
@@ -350,6 +396,10 @@ Quando o SIGA corrigir o bug de origem da taxa vencida, a situação passa a `CA
 As duas rotas seguem a **regra vigente da consulta** (RN07): o Operador só vê a posição dos requerimentos em que é o interessado (403 `NAO_INTERESSADO` nos outros, 404 no inexistente, conferidos **antes** de ler o Camunda e sem registrar evento); Gestor (`OPERADOR_SIGILO`) e Administrador (`ADMIN`) veem todos; sem sessão, 401. No processo, o filtro do interessado é o da busca por número de processo. Exibição: nome do servidor só para Gestor e Administrador (RN12) e conforme o parâmetro; ids técnicos só para o Administrador. Provado por `MatrizDeAcessoTest` (rotas por perfil) e `TramitacaoHttpTest` (o que sai para cada perfil). O prompt cita `OPERADOR`, `OPERADOR_SIGILO` e `ADMINISTRADOR`: no projeto são `OPERADOR`, `OPERADOR_SIGILO` (rótulo "Gestor") e `ADMIN`.
 
 ### Varredura de vazamento ponta a ponta
+
+**S8, bloco 11 (tramitação completa):** as mesmas varreduras passaram a cobrir `GET /api/requerimentos/{id}/tramitacao` e `GET /api/processos/{numero}/tramitacao`, com o serviço inteiro contra o Oracle de teste, em **todos** os requerimentos fictícios das duas faixas (S7, 7000 a 7299; S8, 8000 a 8299: HC01 a HC15, HF01 a HF04, LC01 a LC03, LF01 a LF05, PB01 a PB03 e os criados pelos testes) × Operador, Gestor e Administrador, e o log. Zero CPF (solto, com e sem máscara, incluindo o `CPF_USUARIO` fictício do plano B), grupo técnico, chave, token ou coluna do Camunda; ids técnicos e os campos `idTecnico`, `repeticoes`, `idsNaoMapeados` e `diagnosticos` só para o Administrador; nenhum nome de servidor para o Operador; plano B com `aproximado` e sem nenhum responsável (`VarreduraDaTramitacaoHttpTest`). Com `RASTRO_MOSTRAR_NOME_RESPONSAVEL` desligado, nenhum nome em passagens, participantes ou signatários, para nenhum perfil, e o papel continua (`VarreduraSemNomeDoResponsavelHttpTest`). O plano B é provado também pelo SQL de fato emitido ao Oracle (`PlanoBSemResponsavelTest`: nunca `SERVIDOR`, `PESSOA`, CPF nem `ASSIGNEE_`; o caminho do Camunda, ao contrário, consulta `SERVIDOR` para o nome, o que mostra que a captura funciona) e pelo contrato `HistoricoAproximadoResponse` (nenhum campo de responsável, nome ou CPF). A matriz de acesso das rotas por perfil e sem login é a do bloco 6 (`MatrizDeAcessoTest`, `TramitacaoCompletaHttpTest`).
+
+**S7, bloco 7 (posição):**
 
 `VarreduraDaTramitacaoHttpTest` sobe o **serviço inteiro** com o datasource do SIGA apontado para o Oracle de teste (usuário de leitura; Testcontainers, nenhum sistema real) e chama as duas rotas para **todos** os requerimentos fictícios (7001 a 7103 e 7200 a 7205, hoje 37) com os **três perfis**. Resposta e log são varridos:
 
@@ -365,6 +415,175 @@ Zero ocorrências, nenhum 5xx; e a varredura não é vazia (o Gestor vê o nome,
 - **Camunda fora do ar** ou **tempo limite estourado**: a posição responde **200 com `INDISPONIVEL`** (com o modelo e a situação, se já lidos), nunca 5xx, e o **detalhe do requerimento** (`GET /requerimentos/{id}`) segue normal (`ResilienciaDaTramitacaoHttpTest`, com o caso de uso real e só a leitura do Camunda trocada).
 - **Consulta lenta não segura a thread além do limite:** toda consulta da posição e dos responsáveis recebe `setQueryTimeout(RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS)` (provado por proxy no `CamundaPosicaoJdbcTest`: 8 consultas, 8 tempos limite); o driver Oracle cancela a consulta (`ORA-01013`) e o caso de uso devolve `INDISPONIVEL`. Um servidor que **aceita a conexão e não responde** devolve a thread em menos de 5 s (tempo de conexão do pool; teste com um socket mudo local).
 - Sem SIGA configurado, cada porta tem o seu substituto (`PosicaoNaoConfigurada`, `ResponsaveisNaoConfigurados`): uma classe por porta, para que trocar uma por dublê nos testes não leve a outra.
+
+## Caminho percorrido: leitura do histórico (S8, bloco 2)
+
+Só leitura **crua**: a interpretação (etapas, ciclos, voltas, finais) é do bloco 3 em diante.
+
+| Peça | Onde | Papel |
+|---|---|---|
+| `CaminhoPercorrido` | `tramitacao.application.port` | porta: `lerCaminho(idRequerimento, chaveDoModelo)` devolve `CaminhoBruto`; falha de banco sai como exceção (quem chama transforma em `INDISPONIVEL`; o plano B **nunca** substitui uma falha) |
+| `CamundaPosicaoJdbc` | `integration.siga` | o **mesmo** componente de acesso da posição (R04); implementa a nova porta |
+| `CaminhoBruto` | `tramitacao.domain` | `instancias` (raiz, filhas, complementações), `instanciasRaiz`, `atividades` ordenadas, `variaveisDaEpoca`, `variaveisFinais`; `semInstancia()`, `raiz()`, `truncado()` |
+| `InstanciaDoHistorico` | `tramitacao.domain` | uma linha de `ACT_HI_PROCINST`: origem (`RAIZ`, `FILHA`, `COMPLEMENTACAO`), chave, início, fim, `END_ACT_ID_`, instância-mãe, `truncada` e quantas atividades vieram |
+| `AtividadeBruta` | `tramitacao.domain` | uma linha de `ACT_HI_ACTINST` com a tarefa de `ACT_HI_TASKINST` (`TarefaBruta`): ids, tipo, início, fim, `ASSIGNEE_` protegido, `CALL_PROC_INST_ID_` e o motivo da tarefa (`ABERTA`, `CONCLUIDA`, `EXCLUIDA`, `OUTRO`; o texto de `DELETE_REASON_` não sai) |
+| `VariavelBruta` | `tramitacao.domain` | variável da **lista branca** (`PERMITIDAS`: as seis do prompt); outro nome é recusado, e valor com cara de CPF ou com mais de 100 caracteres é descartado |
+
+### Consultas (no máximo 6 por requerimento; 1 sem instância)
+
+| # | Arquivo | O que lê |
+|---|---|---|
+| 1 | `instancias.sql` (a mesma da posição) | raiz mais recente (e quantas raízes há) |
+| 2 | `historico-filhas.sql` | `ACT_HI_PROCINST` com `SUPER_PROCESS_INSTANCE_ID_` = raiz, encerradas ou não (até 50) |
+| 3 | `historico-complementacoes.sql` | `COMPLEMENTACAO` do requerimento → `ACT_HI_PROCINST` `procGestaoComplementacao`, encerradas ou não (até 20) |
+| 4 | `historico-atividades.sql` | `ACT_HI_ACTINST` + `ACT_HI_TASKINST` (chave primária) de **todas** as instâncias, uma consulta, `IN` por `PROC_INST_ID_`, ordenada por início e id |
+| 5 | `historico-variaveis-epoca.sql` | `ACT_HI_DETAIL` (`VariableUpdate`), só os nomes da lista branca, até 2.000 |
+| 6 | `historico-variaveis-finais.sql` | `ACT_HI_VARINST`, só os nomes da lista branca, até 200 |
+
+Sem laço por linha (provado por `CaminhoPercorridoJdbcTest`, que conta os comandos preparados: 6 em HC01, HC12, HC14 e HC15; 1 nos PB). Parâmetros nomeados, `TO_CHAR` onde há `NVARCHAR2` em `CASE` (regra 12), nenhum `TO_NUMBER`. Tempo limite por consulta: o mesmo `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS`.
+
+- **Ordem:** `START_TIME_` e id da atividade (o id carrega um contador crescente por instância, então o empate de início sai na ordem de gravação). Ruído, repetições e tarefas encerradas sem ação **não são removidos aqui**.
+- **Ordem:** `START_TIME_` e id da atividade (o id carrega um contador crescente por instância, então o empate de início sai na ordem de gravação). Ruído e tarefas encerradas sem ação **não são removidos aqui**. **Desde o bloco 7**, repetições seguidas do mesmo `ACT_ID_` encerradas e sem tarefa (script repetido por erro) são **colapsadas no SQL** em primeira e última linha, com `AtividadeBruta.representa` dizendo quantas linhas cada uma vale (a reconstrução soma em `repeticoes`).
+- **Limite por instância:** `RASTRO_TRAMITACAO_LIMITE_LINHAS` (propriedade `rastro.tramitacao.limite-de-linhas`, padrão **3.000**), contado **depois do colapso** (bloco 7). A janela é `ROW_NUMBER() OVER (PARTITION BY PROC_INST_ID_ ...)`; a linha 3.001 só indica o excesso e é descartada. Se ainda passar, a instância fica `truncada` e vem **com as primeiras** atividades, na ordem de gravação, e a tramitação sai com o aviso `HISTORICO_TRUNCADO`. O HC15 (3.500 repetições) cabe depois do colapso. Teto teórico de linhas: 71 instâncias (1 raiz + 50 filhas + 20 complementações) × limite.
+- **Variáveis:** lidas da raiz **e das filhas** (a variável de decisão pode ficar numa filha: NÃO CONFIRMADO, P40). `TEXT_` e `LONG_` vêm separados: o Camunda guarda booleano em `LONG_` (0 ou 1), enquanto as fixtures da S8 gravam o texto `true`; o bloco 3 interpreta e confere (P40).
+- **NÃO CONFIRMADO (P40):** índice em `ACT_HI_PROCINST(SUPER_PROCESS_INSTANCE_ID_)` (se faltar, as consultas 2 são varreduras: recomendação de índice em P42); que `PARENT_ACT_INST_ID_` aponte para o corpo da multi-instância (as fixtures não o preenchem; o bloco 3 agrupa pelo corpo e, se faltar, por proximidade); o valor de `LONG_` dos booleanos reais.
+
+## Reconstrução do caminho (S8, bloco 3)
+
+`ReconstruirCaminho` (`tramitacao.domain`, função pura, sem banco) transforma o `CaminhoBruto` do bloco 2, com o modelo do catálogo e a identificação dos responsáveis (a mesma porta da S7, `IdentificacaoDosResponsaveis`; `ReconstruirCaminho.paraConsultar` lista os CPFs), em `CaminhoReconstruido`: lista ordenada de `PassagemPelaEtapa`, complementações ao lado, taxa do ramo principal e da correção, ids não mapeados, contagem de ignorados e diagnósticos. O final (bola preta) é do bloco 4; o plano B, do bloco 5.
+
+| Peça | Conteúdo |
+|---|---|
+| `PassagemPelaEtapa` | etapa (vazia = "Etapa não mapeada"), `ciclo`, `ramo`, `entrada`, `saida` (vazia = atual), `duracao()`, `responsaveis[]`, `multiInstancia`, `atos[]`, `motivoDaVolta`, `emParalelo`, `repeticoes` (diagnóstico), `processoConcluido` (selo da verificação da revisão); `semNomes()` aplica o parâmetro de nome |
+| `ResponsavelDaPassagem` | tipo, papel, nome (nunca CPF), início, fim e estado: `CONCLUIU`, `PENDENTE`, `ENCERRADA_SEM_ACAO` |
+| `AtoDaEmissao` | tipo (autorização, outros atos, certificado, portaria, não mapeado), início, fim, estado (`EMITIDO`, `NAO_CONCLUIDO`, `EM_ANDAMENTO`, `INDETERMINADO`); `ocorreu()` = emitido |
+| `MotivosDaVolta` / `MotivoDaVolta` | regras explícitas do motivo (tabela abaixo) |
+
+### Regras
+
+1. **Percorrida** = atividade com fim e, se tarefa, `completed`. Tarefa `deleted` ou com outro motivo **não** vira passagem (no ciclo multi-instância, ela aparece como participante "encerrada sem ação"). A atividade aberta é a passagem atual.
+2. **Ruído:** id ignorado pelo catálogo (Suporte, `Gateway_aguardando_emtx`, `taskAnalisarReducaoTaxa`) sai e é contado. Id fora do catálogo: se for **tarefa humana**, vira passagem "Etapa não mapeada"; senão (scripts, eventos, gateways, "Report Kafka", repetição por erro) sai do caminho e vai para `idsNaoMapeados` (só Administrador). O protocolo depois do pagamento (`taskGerarNumeroProtocolo` com passagem pela espera) fica nesse grupo: o rótulo dele continua NÃO CONFIRMADO (P33).
+3. **Repetições consecutivas** da mesma etapa viram uma passagem (`repeticoes` conta quantas atividades); por isso scripts repetidos por erro e os vários ids de uma etapa automática somem numa caixa só. **Duas tarefas humanas seguidas da mesma etapa** continuam duas passagens (a segunda é uma volta real).
+4. **Multi-instância:** uma passagem por ciclo, entre o início e o fim do corpo `<tarefa>#multiInstanceBody`; tarefas do mesmo id iniciadas dentro dele são os participantes. Sem corpo, as tarefas seguidas da etapa formam o ciclo. Ciclo encerrado sem nenhuma tarefa concluída não é percorrido.
+5. **Emissão:** `callActivity` seguidas da etapa "Emissão do ato" e as filhas ligadas por `CALL_PROC_INST_ID_` viram **uma** passagem, com um ato por filha; os responsáveis são os signatários das tarefas das filhas ("Signatário"). Filha sem a chamada lida (raiz truncada) vira emissão própria, pela data. Filha que termina sem `COMPLETED` (devolvida, P40) fica `NAO_CONCLUIDO`. O tipo do ato é pela chave do processo filho ou da chamada (as do levantamento 2, em `AtoDaEmissao.Tipo`).
+6. **Ciclo** = n-ésima passagem pela etapa (contagem por etapa, na ordem). **Em paralelo** = a passagem se sobrepõe no tempo (estritamente) a outra passagem ou a uma complementação.
+7. **Taxável × isento pela rota:** passou (ou está) numa espera do ramo principal = `TAXAVEL`; senão, passou por "Isenção confirmada" = `ISENTA`; senão `INDETERMINADA`. Correção: espera própria = `TAXAVEL`, sem ela = `SEM_NOVA_TAXA`. O último `statusConferencia` da época que seja `isento` ou `taxavel` só confirma; se discordar, a rota vence e sai `ROTA_DIVERGE_DO_STATUS` (só no diagnóstico).
+8. **Ramo da correção** vem do catálogo (C1 a C3). "Correção expirada" no Hídrico: a tarefa de correção `deleted` não conta, a passagem da correção fica com o que foi percorrido (o script de status) e o fluxo segue para a análise; não é final.
+9. **Verificação da revisão do processo** é passagem normal, com `processoConcluido = true` (regra técnica 9).
+
+### Motivos da volta
+
+O motivo só existe a partir do 2º ciclo. A regra olha a passagem **imediatamente anterior** e o **valor da época** das variáveis da lista branca entre a entrada da anterior e a entrada da volta (inclusive). Sem a rota e a variável exigidas, ou com duas decisões disputando a mesma volta: **sem motivo**.
+
+| Volta para | Passagem anterior | Exige | Motivo (`MotivoDaVolta`) |
+|---|---|---|---|
+| qualquer etapa do ramo principal | do ramo da correção | — | `CORRECAO_DO_REQUERIMENTO` ("depois da correção do requerimento") |
+| Cadastro | Conferência | `statusConferencia` = `reprovado` | `REPROVADO_NA_CONFERENCIA` |
+| Análise | Validação | `decisaoValidacaoParecerTecnico` = `RA` **ou** `isRevisaoAnalise` verdadeiro (não os dois) | `DEVOLVIDO_NA_VALIDACAO_PARA_ANALISE` ou `TROCA_DE_ANALISTA` |
+| Análise | Revisão do parecer | `isRevisaoAnalise` verdadeiro, sem `RA` | `TROCA_DE_ANALISTA` |
+| Revisão do parecer | Validação | `decisaoValidacaoParecerTecnico` = `RP`, sem troca | `DEVOLVIDO_NA_VALIDACAO_PARA_REVISAO` |
+| Revisão do parecer | Emissão do ato | `isRevisaoParecer` verdadeiro | `DEVOLVIDO_NA_EMISSAO` |
+| Emissão do ato | Verificação da revisão | `decisaoVerificarRevisao` = `REVISAR` | `REVISAR_NA_VERIFICACAO` |
+| Atribuição | Aceite | algum participante do aceite "encerrada sem ação" | `RECUSA_NO_ACEITE` |
+| Atribuição | Análise | — | `REDISTRIBUICAO` |
+
+"Verdadeiro" = `true` (texto) ou `1` (`LONG_`). Os valores comparam sem diferença de maiúsculas.
+
+**Conferência das hipóteses do P40 (bloco 3):** o BPMN e os levantamentos **não estão no repositório**, então nenhuma hipótese pôde ser confirmada aqui. Por isso: (a) os valores esperados das variáveis ficam num único lugar (`MotivosDaVolta`) e são **NÃO CONFIRMADOS**; (b) toda regra baseada em decisão exige rota **e** variável; (c) as duas regras só de rota (recusa no aceite, redistribuição) e a correção vêm do prompt (cenários HC06 e HC07 a HC09); (d) a correção expirada (P40 b) e a devolução da emissão como `INTERNALLY_TERMINATED` (P40 e) só mudam o estado mostrado, nunca criam passagem. Valor diferente na homologação = motivo vazio (não um motivo errado).
+
+Testes: `ReconstruirCaminhoComFixturesTest` (Docker: sequência exata de HC01 a HC15 e LC01 a LC03, motivos, emissão, correção, taxa, complementação, limite; propriedades em todos os HC, HF, LC e LF: nenhuma etapa futura, ordem por entrada, no máximo uma passagem atual, nenhum CPF) e `ReconstruirCaminhoTest` (sem Docker: ciclo sem corpo, repetições, tarefa excluída, etapa não mapeada, motivo vazio sem variável, decisões em conflito, variável fora da janela, booleano numérico, rota × status, isenção, parâmetro de nome).
+
+## Finais e divergências do final (S8, bloco 4)
+
+`AvaliarDesfecho` (`tramitacao.domain`, função pura) recebe o caminho cru e reconstruído, o modelo e a situação do Licenciamento e devolve `DesfechoDoCaminho`: estado (`SEM_INSTANCIA`, `EM_ANDAMENTO`, `CONCLUIDO`, `ENCERRADO`), final do catálogo, quando e avisos. O confronto reusa `Reconciliar` (mesmo arquivo `confronto.yaml`), agora com `confrontarEtapa` e `confrontarFinal` públicos.
+
+| Situação do caminho | Estado | Bola preta | Rótulo | Avisos |
+|---|---|---|---|---|
+| Instância encerrada com `END_ACT_ID_` no catálogo | `ENCERRADO` | sim | o do **evento de fim** (nunca da situação) | divergência conhecida do final, senão `FINAL_E_SITUACAO_DIVERGEM` fora das aceitas |
+| Encerrada com evento fora do catálogo | `ENCERRADO` | não | — | `ETAPA_NAO_MAPEADA` |
+| Ativa na verificação da revisão (regra 9) | `CONCLUIDO` (desde a entrada na verificação, que é o fim da publicação) | não | "Concluído" | `CONCLUIDO_ANTES_DA_VERIFICACAO` sempre; `SITUACAO_NAO_CONFERE` se a situação não é `CONCLUIDO` |
+| Ativa em outra etapa | `EM_ANDAMENTO` | não | — | (o confronto da etapa atual é o da posição) |
+| Sem instância | `SEM_INSTANCIA` | não | — | `SEM_INSTANCIA` (plano B, bloco 5) |
+
+- **Hídrico, taxa vencida (`Event_0h1oige`):** a situação fica como o Licenciamento diz (`AGUARDANDO_PAGAMENTO_DE_TAXAS`), o rótulo é "Encerrado por taxa não paga no prazo" e sai `FLUXO_ENCERRADO_SEM_STATUS`. "Taxa vencida" por data é da S9.
+- **LAC, expirado na correção:** mesma situação do expirado no cadastro; o rótulo vem do evento ("Expirado na correção") e sai `EXPIRADO_NA_CORRECAO_LAC`.
+- **`ARQUIVADO_TEMPORARIAMENTE`:** em qualquer estado, aviso `INFO` neutro, no lugar do "não confere".
+- **Sem situação lida:** nenhuma divergência é acusada.
+- **Rótulo do LAC `Event_0x7hz1p`:** o catálogo diz "Arquivado (termo não enviado no prazo)" (homologado na S7); o prompt da S8 lista "Arquivado". Mantido o do catálogo; o bloco 9 decide se a caixa usa a forma curta (decisão do responsável).
+- **Mudança de contrato da posição (S7):** um final com situação fora da tabela passa a dar `FINAL_E_SITUACAO_DIVERGEM` em vez de `SITUACAO_NAO_CONFERE` (o front não trata os códigos um a um: mostra o texto). A P38 (verificação = status "Concluído" na posição) **não** foi feita neste bloco.
+
+Testes: `AvaliarDesfechoTest` (sem Docker: todos os finais do Hídrico e do LAC, mesma situação com rótulos diferentes, combinação divergente, evento não mapeado, sem situação, arquivado temporariamente, verificação, em andamento, sem instância), `ReconciliarTest` (final divergente, arquivado temporariamente) e `DesfechoComFixturesTest` (Docker: HF01 a HF04, LC01, LF01 a LF05 com a situação gravada, HC01 concluído, em andamento, combinação divergente, PB01).
+
+## Plano B: histórico aproximado (S8, bloco 5)
+
+Para requerimento **sem instância** no Camunda (legado de 2021/2022; de 2023 em diante todo requerimento tem instância). **Dado aproximado nunca pode parecer exato.**
+
+| Peça | Onde | Papel |
+|---|---|---|
+| `MontarTramitacao` | `tramitacao.application` | escolhe a fonte: tipo fora do catálogo = `NAO_SUPORTADO`; caminho do Camunda; raiz inexistente = `SEM_INSTANCIA` e **só então** o plano B; **qualquer falha** (Camunda, plano B, leitura do requerimento) = `INDISPONIVEL`, **sem** tentar o plano B no lugar. Sem acesso, auditoria nem contrato HTTP (bloco 6), sem cache nem tempo total (bloco 7) |
+| `HistoricoDoLicenciamento` | `tramitacao.application.port` | porta do plano B; implementada em `CamundaPosicaoJdbc` (o mesmo componente de acesso, R04) com 2 consultas: `plano-b-requerimento.sql` (datas e situação, por chave primária) e `plano-b-eventos.sql` (`DATA_CADASTRO` e `EVENTO`, até 500; **nunca** `CPF_USUARIO`) |
+| `MapaDeEventosDoHistorico` | `tramitacao.domain` (porta) | evento → etapa do modelo ou marco; implementado por `MapaDeEventosEmArquivo` (`resources/rastro/eventos-historico.yaml`, validado na subida contra o catálogo: modelo e etapa existentes, `etapa` ou `marco` e só um, nome em maiúsculas, campo desconhecido é erro) |
+| `MontarHistoricoAproximado` | `tramitacao.domain` | função pura que monta `HistoricoAproximado` |
+| `HistoricoAproximado` | `tramitacao.domain` | `etapas` (etapa, entrada, saída aproximada, quantos eventos), `marcos` (abertura, protocolo, conclusão, cancelamento, expirações), situação, eventos ignorados e truncados; **sem campo de responsável**; `aproximado()` sempre verdadeiro |
+| `TramitacaoDoRequerimento` | `tramitacao.domain` | resultado completo: estado, modelo, situação, caminho e desfecho (Camunda) **ou** plano B, nunca os dois, e os avisos |
+
+Regras:
+
+1. Eventos em ordem de data; cada um vira, pelo mapa, uma etapa, um marco ou nada (desconhecido: ignorado e contado). Eventos seguidos da mesma etapa viram uma etapa; a mesma etapa mais adiante vira outra linha, **sem** número de ciclo nem motivo.
+2. **Sem** aceite, revisão e validação separados: `REVISAR_PARECER_TECNICO` e `VALIDAR_PARECER_TECNICO` caem na análise.
+3. Saída = entrada da etapa seguinte; a última fecha no primeiro marco de encerramento depois dela (conclusão, cancelamento, expiração), senão fica sem saída.
+4. Marcos: as colunas de `REQUERIMENTO` e os eventos `PROTOCOLO` e `CONCLUSAO_REQUERIMENTO`; um por tipo, a coluna vence o evento.
+5. Sem nenhuma etapa: "Sem detalhamento disponível" (`HistoricoAproximado.SEM_DETALHAMENTO`), com a situação e as datas.
+6. Aviso fixo `HISTORICO_APROXIMADO` (INFO): "Histórico aproximado: este requerimento é anterior ao registro detalhado do fluxo" (o mesmo texto de `HistoricoAproximado.SELO`; um teste confere). Sem fluxograma (o front, blocos 9 e 10).
+7. **Sem responsável:** o plano B não consulta `SERVIDOR` nem `PESSOA` e não lê `CPF_USUARIO` (as fixtures preenchem essa coluna justamente para provar isso).
+
+Mapa (`eventos-historico.yaml`, hipótese pelo nome, NÃO CONFIRMADO, P41):
+
+| Evento | Hídrico | LAC |
+|---|---|---|
+| `CRIACAO_REQUERIMENTO` | Cadastro do requerimento | Cadastro do requerimento |
+| `AGUARDANDO_CONFERENCIA`, `CHECKLIST_APROVADO`, `CHECKLIST_REPROVADO` | Conferência dos documentos | Conferência dos documentos |
+| `AGUARDANDO_PAGAMENTO_TAXA`, `PAGAMENTO_CONFIRMADO` | Aguardando pagamento | Aguardando pagamento |
+| `PROTOCOLO` | marco | marco |
+| `EM_ANALISE`, `REVISAR_PARECER_TECNICO`, `VALIDAR_PARECER_TECNICO` | Análise do processo | (ignorado) |
+| `TITULOS_EMITIDOS` | Emissão do ato | Conclusão |
+| `TITULACOES_DISPONIVEIS` | Registro do comprovante de publicação | Conclusão |
+| `CONCLUSAO_REQUERIMENTO` | marco | marco |
+
+O `HISTORICO_REQUERIMENTO` não tem índice conhecido em `ID_REQUERIMENTO` (R73): a consulta só roda para requerimento sem instância. Testes: `MontarHistoricoAproximadoTest`, `MapaDeEventosEmArquivoTest`, `MontarTramitacaoTest` (sem Docker: Camunda fora ou lento = `INDISPONIVEL` e o plano B nem é consultado; falha no plano B; não suportado; nome desligado; identificação falhando) e `PlanoBComFixturesTest` (Docker: PB01 a PB03, 2 consultas, nenhum CPF, SQL sem `CPF`, `SERVIDOR`, `PESSOA`).
+
+## Desempenho, limites, cache e degradação (S8, bloco 7)
+
+Protege o Camunda de produção. Tudo em memória, nada gravado no Oracle.
+
+| Peça | Onde | Papel |
+|---|---|---|
+| `LerTramitacao` | `tramitacao.application` | entre `AbrirTramitacao` (que já conferiu o acesso) e `MontarTramitacao`: cache, uma leitura por requerimento, tempo total e o parâmetro de nome depois do cache |
+| `CacheDaTramitacao` / `CacheDaTramitacaoEmMemoria` | porta / `infrastructure/memoria` | chave = id do requerimento + `CatalogoDeEtapas.versao()` (como a posição: mudou o catálogo, as duas deixam de servir o antigo), validade `RASTRO_TRAMITACAO_CACHE_SEGUNDOS`, teto de **500** entradas (acima dele saem as vencidas e, se não bastar, tudo); `INDISPONIVEL` **nunca** entra |
+| `LimiteDeLeiturasDoCamunda` | `tramitacao.application` | teto de leituras simultâneas ao Camunda nesta instância (`RASTRO_CAMUNDA_LEITURAS_SIMULTANEAS`), **compartilhado pela posição e pela tramitação** (lista da busca, outros requerimentos do processo, painel); sem vaga dentro da espera = `INDISPONIVEL` |
+
+Fluxo de uma leitura (`LerTramitacao.ler`):
+
+1. **Cache** (se a validade for maior que zero): achou, devolve. O valor guardado tem os nomes; o parâmetro `RASTRO_MOSTRAR_NOME_RESPONSAVEL` é aplicado **depois** (vale na próxima leitura) e o RN12 do Operador depois disso, em `AbrirTramitacao`. O CPF nunca entra no cache (sai na montagem).
+2. **Uma leitura por requerimento** (*single flight*): pedidos simultâneos do mesmo requerimento (e mesma versão do catálogo) esperam a mesma leitura, com ou sem cache. A leitura sai do "em andamento" **antes** de entregar o resultado: quem chega depois vai ao cache ou faz a própria leitura (nunca reaproveita um `INDISPONIVEL`).
+3. A leitura roda numa thread própria (até 32), com **vaga** no limite de leituras. Quem pediu espera no máximo o **tempo total** (`RASTRO_TRAMITACAO_TIMEOUT_SEGUNDOS`, contando a espera por vaga); estourado, `INDISPONIVEL` na hora. A leitura que ficou para trás termina sozinha (cada consulta tem o próprio tempo limite, `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS`) e ainda alimenta o cache.
+4. Tempo estourado, sem vaga, sem thread livre ou erro: `INDISPONIVEL`; o **plano B nunca substitui** a falha. O log leva só o id e o motivo (nunca a mensagem do driver).
+
+Na **posição** (S7), `ConsultarPosicaoAtual` passa a ler o Camunda com vaga no mesmo limite; a espera é o tempo limite de uma consulta. O resto da posição não muda (cache próprio, `RASTRO_POSICAO_CACHE_SEGUNDOS`).
+
+**Consultas por requerimento (máximo documentado e testado):** tramitação com instância, **8** (tipo e situação 1; caminho 6: instâncias, filhas, complementações, atividades, variáveis da época e finais; responsáveis 1, só se houver CPF); plano B, **4** (tipo 1, instâncias 1, plano B 2); tipo não suportado, **1**. Sem laço por linha. Posição (S7): 8.
+
+**Colapso de repetições antes do limite:** o SQL das atividades (`historico-atividades.sql`) junta, por "ilhas" (diferença entre a numeração geral e a numeração por `ACT_ID_`), as atividades seguidas do mesmo id encerradas e sem tarefa, deixando a primeira e a última; o limite de linhas é contado depois. Tarefas e atividades abertas nunca são colapsadas. Se ainda passar do limite: o que coube, com `HISTORICO_TRUNCADO`.
+
+Testes: `LerTramitacaoTest` (cache e validade, cache desligado, `INDISPONIVEL` fora do cache, versão do catálogo, 20 pedidos simultâneos = 1 leitura, com e sem cache, Camunda lento = `INDISPONIVEL` em menos de 1,8 s com tempo total de 1 s e a leitura tardia alimentando o cache, teto de leituras simultâneas, sem vaga = `INDISPONIVEL`, nome depois do cache), `LimiteDeLeiturasDoCamundaTest`, `CacheDaTramitacaoEmMemoriaTest`, `CaminhoPercorridoJdbcTest` (colapso: HC11 com 2 linhas valendo 4, HC15 com 3.500 repetições sem truncar e com a etapa atual; limite 3 trunca o HC15 depois do colapso) e `CargaDaTramitacaoTest` (Docker, pilha real: 200 leituras em sequência sem falha, sem truncar e com no máximo 8 consultas cada; 20 em paralelo sem passar de 3 conexões abertas ao mesmo tempo com o teto 3; 20 pedidos do mesmo requerimento com cache = uma leitura).
+
+**Recomendações de índice** (só documento: o usuário do Rastro é somente leitura; decisão da equipe do SIGA): ver P42 em [10](10-pendencias-e-riscos.md).
+
+## Roteiro de homologação (S8, bloco 12)
+
+[`roteiros/s8-homologacao.md`](roteiros/s8-homologacao.md): uma linha por cenário (HC01 a HC15, LC01 a LC03, HF01 a HF04, LF01 a LF05, PB01 a PB03), com a sequência esperada da linha do tempo, o final ou estado do fluxograma e a coluna **Tela** (`Não executado` enquanto não houver ambiente com SIGA fictício, R66). A seção 6 é a conferência com dados reais, feita pelo responsável fora do repositório, com marcadores no lugar de números.
+
+As sequências vêm de `ReconstruirCaminhoComFixturesTest` (sequência exata, motivos das voltas) e os finais de `CenariosFicticiosDaS8` e `DesfechoComFixturesTest`; o plano B, de `PlanoBComFixturesTest`. Continuam **NÃO CONFIRMADO** na tela: a linha sem caixas de HF03 e LF02 (cadastro expirado sem etapa percorrida) e a forma de exibir o início de HF01. As hipóteses de P40 e P41 seguem valendo para a homologação.
 
 ## Dependências do módulo
 

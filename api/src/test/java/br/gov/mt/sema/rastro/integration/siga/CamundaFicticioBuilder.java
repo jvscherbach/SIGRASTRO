@@ -1,23 +1,28 @@
 package br.gov.mt.sema.rastro.integration.siga;
 
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Pattern;
 
 import br.gov.mt.sema.rastro.tramitacao.domain.CatalogoDeEtapas;
 import br.gov.mt.sema.rastro.tramitacao.domain.Etapa;
 import br.gov.mt.sema.rastro.tramitacao.domain.IdIgnorado;
 import br.gov.mt.sema.rastro.tramitacao.domain.ModeloDeFluxo;
+import br.gov.mt.sema.rastro.tramitacao.domain.PapelDoResponsavel;
 import br.gov.mt.sema.rastro.tramitacao.domain.Ramo;
 import br.gov.mt.sema.rastro.tramitacao.domain.ResolucaoDeEtapa;
 import br.gov.mt.sema.rastro.tramitacao.domain.TipoDeEtapa;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 
 /**
  * Constrói requerimentos FICTÍCIOS com a instância do Camunda coerente, no recorte do SIGA dos testes (Oracle 23 Free por
@@ -30,10 +35,23 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
  * <p>Grava {@code REQUERIMENTO} e, se houver instância: {@code ACT_RE_PROCDEF}, {@code ACT_HI_PROCINST} (sempre, ativa ou
  * encerrada), e para a ativa {@code ACT_RU_EXECUTION}, {@code ACT_RU_TASK}, {@code ACT_RU_IDENTITYLINK},
  * {@code ACT_RU_EVENT_SUBSCR}, com {@code ACT_HI_ACTINST}/{@code ACT_HI_TASKINST} do que está aberto e do percurso dado em
- * {@link Processo#percorrendo}. O caminho histórico detalhado é da S8: aqui só o necessário para a posição atual.
+ * {@link Processo#percorrendo}.
+ *
+ * <p><b>Caminho histórico (S8, bloco 1).</b> {@link Processo#passou}, {@link Processo#passouPelaEspera},
+ * {@link Processo#voltouPara}, {@link Processo#passouEmCiclo}, {@link Processo#passouPelaEmissao} e os métodos de ruído
+ * gravam o caminho percorrido com início e fim reais em {@code ACT_HI_ACTINST}, {@code ACT_HI_TASKINST},
+ * {@code ACT_HI_PROCINST} (também as filhas e a complementação), {@code ACT_HI_DETAIL} e {@code ACT_HI_VARINST} (só a lista
+ * branca de variáveis, {@link #VARIAVEIS_PERMITIDAS}, nunca dado pessoal). É alternativa a {@code percorrendo}: um cenário
+ * usa um ou outro. A etapa ativa (ou o final) vem depois, por {@code naEtapa}/{@code comFilhas}/{@code encerradoEm}, e
+ * {@code desde} é o início da etapa ativa ou o fim da instância. O plano B (requerimento sem instância) usa
+ * {@link Processo#noHistoricoDoLicenciamento} e {@link Processo#comDatas}.
  *
  * <pre>{@code
  * camunda.processo(Fluxo.HIDRICO, 7007).naEtapa("taskAnalisarRequerimento").comAnalistas(3).desde(data).gravar();
+ * camunda.processo(Fluxo.HIDRICO, 8001)
+ *         .passou("taskCadastrarRequerimento", dias(0), dias(1))
+ *         .passouPelaEspera("gtwAguardarPagamento", dias(2), dias(4))
+ *         .naEtapa("taskAtribuirRequerimento").desde(dias(5)).gravar();
  * }</pre>
  *
  * Dados pessoais: CPFs inválidos de propósito ({@code 000000000NN}, NN diferente de 00) e nomes evidentes
@@ -82,6 +100,30 @@ public final class CamundaFicticioBuilder {
     public static final String EVENTO_DE_PAGAMENTO = "evtFicticioPagamentoConfirmado";
     public static final LocalDateTime DESDE_PADRAO = LocalDateTime.of(2026, 3, 2, 8, 0);
 
+    /**
+     * Variáveis do Camunda que o Rastro pode ler do histórico (lista branca do prompt da S8, bloco 3): nenhuma guarda dado
+     * pessoal. O construtor recusa qualquer outro nome, e valor com cara de CPF.
+     */
+    public static final Set<String> VARIAVEIS_PERMITIDAS = Set.of("decisaoValidacaoParecerTecnico", "revisarRequerimento",
+            "decisaoVerificarRevisao", "isRevisaoAnalise", "isRevisaoParecer", "statusConferencia");
+
+    /**
+     * Ruído sem id técnico levantado ("Report Kafka" e eventos de repetição por erro de API: NÃO CONFIRMADO, docs/15). Os
+     * ids são fictícios e evidentes; o Rastro os trata como "não mapeados", como faria com os reais.
+     */
+    public static final String REPORT_KAFKA_FICTICIO = "Activity_FicticioReportKafka";
+    public static final String REPETICAO_POR_ERRO_FICTICIA = "Event_FicticioRepeticaoPorErroDeApi";
+    public static final String CORRECAO_EXPIRADA_FICTICIA = "Event_FicticioCorrecaoExpirada";
+
+    private static final Pattern ONZE_DIGITOS = Pattern.compile("(?<![0-9])[0-9]{11}(?![0-9])");
+
+    private static final String SQL_ATIVIDADE = """
+            INSERT INTO SIGA2_CAMUNDA.ACT_HI_ACTINST
+                   (ID_, PROC_DEF_KEY_, PROC_DEF_ID_, ROOT_PROC_INST_ID_, PROC_INST_ID_, EXECUTION_ID_, ACT_ID_, TASK_ID_,
+                    CALL_PROC_INST_ID_, ACT_NAME_, ACT_TYPE_, ASSIGNEE_, START_TIME_, END_TIME_, SEQUENCE_COUNTER_)
+            VALUES (:id, :chave, :procDef, :raiz, :proc, :exec, :atividade, :tarefa, :chamada, :nome, :tipo, :assignee,
+                    :inicio, :fim, :seq)""";
+
     private final NamedParameterJdbcTemplate jdbc;
     private final CatalogoDeEtapas catalogo;
     private final AtomicLong sequencia = new AtomicLong();
@@ -103,8 +145,58 @@ public final class CamundaFicticioBuilder {
         return String.format("%011d", numero);
     }
 
+    /** Instante {@code n} dias depois de {@link #DESDE_PADRAO} (2026-03-02 08:00), para escrever caminhos legíveis. */
+    public static LocalDateTime dias(int n) {
+        return DESDE_PADRAO.plusDays(n);
+    }
+
+    /** Instante {@code n} dias e {@code horas} horas depois de {@link #DESDE_PADRAO}. */
+    public static LocalDateTime dias(int n, int horas) {
+        return DESDE_PADRAO.plusDays(n).plusHours(horas);
+    }
+
     public Processo processo(Fluxo fluxo, long idRequerimento) {
         return new Processo(fluxo, idRequerimento);
+    }
+
+    // --- caminho histórico (S8): passos guardados até o gravar()
+
+    private sealed interface Passo permits Simples, Ciclo, Emissao, Repeticao {
+        LocalDateTime inicio();
+
+        LocalDateTime fim();
+    }
+
+    /** Tarefa, espera ou automática com início e fim: uma linha em ACT_HI_ACTINST (e em ACT_HI_TASKINST se for tarefa). */
+    private record Simples(String id, String tipo, LocalDateTime inicio, LocalDateTime fim, String cpf, String motivo)
+            implements Passo {
+    }
+
+    /** Uma tarefa de ciclo multi-instância: {@code motivo} é o DELETE_REASON_ ({@code completed} ou {@code deleted}). */
+    private record Tarefa(String cpf, String motivo) {
+    }
+
+    private record Ciclo(String id, LocalDateTime inicio, LocalDateTime fim, List<Tarefa> tarefas) implements Passo {
+    }
+
+    private record Filha(String chave, boolean devolvida) {
+    }
+
+    private record Emissao(LocalDateTime inicio, LocalDateTime fim, List<Filha> filhas) implements Passo {
+    }
+
+    /** O mesmo script automático várias vezes seguidas (erro de API repetido). */
+    private record Repeticao(String id, int vezes, LocalDateTime inicio, LocalDateTime fim, long intervaloSegundos)
+            implements Passo {
+    }
+
+    private record Variavel(String nome, String valor, LocalDateTime quando) {
+    }
+
+    private record Evento(String evento, LocalDateTime quando) {
+    }
+
+    private record ComplementacaoConcluida(long id, LocalDateTime inicio, LocalDateTime fim) {
     }
 
     /** O que foi gravado, para o teste conferir contra o banco. */
@@ -144,6 +236,16 @@ public final class CamundaFicticioBuilder {
         private Long complementacao;
         private final List<String> percurso = new ArrayList<>();
         private boolean semInstancia;
+        private final List<Passo> historico = new ArrayList<>();
+        private final List<Variavel> variaveis = new ArrayList<>();
+        private final List<Evento> eventosDoLicenciamento = new ArrayList<>();
+        private final List<ComplementacaoConcluida> complementacoesConcluidas = new ArrayList<>();
+        private LocalDateTime abertura;
+        private LocalDateTime dataProtocolo;
+        private LocalDateTime dataCancelamento;
+        private LocalDateTime dataExpiracaoRequerimento;
+        private LocalDateTime dataExpiracaoProcesso;
+        private int filhasHistoricas;
 
         private Processo(Fluxo fluxo, long id) {
             this.fluxo = Objects.requireNonNull(fluxo);
@@ -296,18 +398,235 @@ public final class CamundaFicticioBuilder {
             return this;
         }
 
+        // --- caminho histórico (S8)
+
+        /**
+         * Etapa de uma tarefa só (ou automática) percorrida: {@code ACT_HI_ACTINST} com início e fim e, se for tarefa,
+         * {@code ACT_HI_TASKINST} com {@code DELETE_REASON_ = 'completed'}. O responsável padrão da tarefa humana é o
+         * cadastrante fictício (papel do interessado) ou o "Servidor Exemplo 01"; automáticas não têm responsável.
+         */
+        public Processo passou(String idTecnico, LocalDateTime inicio, LocalDateTime fim) {
+            return passou(idTecnico, inicio, fim, responsavelPadrao(idTecnico));
+        }
+
+        /** Como {@link #passou(String, LocalDateTime, LocalDateTime)}, com o responsável (CPF fictício) dado. */
+        public Processo passou(String idTecnico, LocalDateTime inicio, LocalDateTime fim, String cpf) {
+            intervalo(inicio, fim);
+            ResolucaoDeEtapa r = modelo().resolver(idTecnico, Set.of());
+            if (r instanceof ResolucaoDeEtapa.NaEtapa(Etapa e)) {
+                if (e.tipo() == TipoDeEtapa.EMISSAO || e.multiInstancia()) {
+                    throw new IllegalArgumentException(
+                            idTecnico + " é emissão ou multi-instância: use passouPelaEmissao ou passouEmCiclo");
+                }
+            } else if (!(r instanceof ResolucaoDeEtapa.Ignorado)) {
+                throw new IllegalArgumentException(idTecnico + " não é etapa nem id ignorado de " + modelo().chave());
+            }
+            String tipo = tipoNoHistorico(idTecnico);
+            historico.add(new Simples(idTecnico, tipo, inicio, fim, "userTask".equals(tipo) ? cpf : null, "completed"));
+            return this;
+        }
+
+        /**
+         * No caminho histórico, os ids que o catálogo agrupa numa etapa humana mas que são scripts ({@code taskAtualizar*},
+         * {@code taskUpdate*}, {@code taskGerar*}, {@code taskEmitirTaxa*}, {@code taskInformar*}, {@code taskMontar*}) são
+         * {@code serviceTask}: só tarefa humana tem linha em {@code ACT_HI_TASKINST}.
+         */
+        private String tipoNoHistorico(String idTecnico) {
+            if (idTecnico.matches("task(Atualizar|Update|Gerar|Informar|Montar|EmitirTaxa).*")) {
+                return "serviceTask";
+            }
+            return tipoDaAtividade(idTecnico);
+        }
+
+        /** Espera de pagamento (gateway por evento) já superada: precisa ser etapa do tipo espera. */
+        public Processo passouPelaEspera(String idTecnico, LocalDateTime inicio, LocalDateTime fim) {
+            if (!(modelo().resolver(idTecnico, Set.of()) instanceof ResolucaoDeEtapa.NaEtapa(Etapa e))
+                    || e.tipo() != TipoDeEtapa.ESPERA) {
+                throw new IllegalArgumentException(idTecnico + " não é espera de " + modelo().chave());
+            }
+            return passou(idTecnico, inicio, fim, null);
+        }
+
+        /** Volta: a etapa já tinha sido percorrida e algo veio depois dela (senão não é volta). */
+        public Processo voltouPara(String idTecnico, LocalDateTime inicio, LocalDateTime fim) {
+            exigirVolta(idTecnico);
+            return passou(idTecnico, inicio, fim);
+        }
+
+        /** Volta com responsável (CPF fictício) dado. */
+        public Processo voltouPara(String idTecnico, LocalDateTime inicio, LocalDateTime fim, String cpf) {
+            exigirVolta(idTecnico);
+            return passou(idTecnico, inicio, fim, cpf);
+        }
+
+        /**
+         * Ciclo multi-instância concluído: uma tarefa por CPF, todas {@code completed}, mais o corpo da multi-instância
+         * ({@code <tarefa>#multiInstanceBody}). Os CPFs são os fictícios de {@link #cpfDoServidor}.
+         */
+        public Processo passouEmCiclo(String idTecnico, LocalDateTime inicio, LocalDateTime fim, String... cpfs) {
+            List<Tarefa> tarefas = new ArrayList<>();
+            for (String cpf : cpfs) {
+                tarefas.add(new Tarefa(cpf, "completed"));
+            }
+            return ciclo(idTecnico, inicio, fim, tarefas);
+        }
+
+        /** Mesmo que {@link #passouEmCiclo}, marcado como volta (a etapa já tinha sido percorrida). */
+        public Processo voltouParaEmCiclo(String idTecnico, LocalDateTime inicio, LocalDateTime fim, String... cpfs) {
+            exigirVolta(idTecnico);
+            return passouEmCiclo(idTecnico, inicio, fim, cpfs);
+        }
+
+        /**
+         * Ciclo em que o primeiro CPF concluiu pedindo correção/recusando e as demais tarefas foram encerradas pela
+         * condição de término ({@code DELETE_REASON_ = 'deleted'}: não contam como percorridas, regra técnica 6).
+         */
+        public Processo passouEmCicloEncerradoPor(String idTecnico, LocalDateTime inicio, LocalDateTime fim, String cpfQueConcluiu,
+                String... cpfsEncerradosSemAcao) {
+            List<Tarefa> tarefas = new ArrayList<>();
+            tarefas.add(new Tarefa(cpfQueConcluiu, "completed"));
+            for (String cpf : cpfsEncerradosSemAcao) {
+                tarefas.add(new Tarefa(cpf, "deleted"));
+            }
+            return ciclo(idTecnico, inicio, fim, tarefas);
+        }
+
+        /**
+         * Emissão concluída: um callActivity e uma instância filha (encerrada) por chave ({@code procSurh*}), todas
+         * começando em {@code inicio} e terminando em momentos diferentes até {@code fim} (paralelas sobrepostas).
+         */
+        public Processo passouPelaEmissao(LocalDateTime inicio, LocalDateTime fim, String... chavesDasFilhas) {
+            return emissao(inicio, fim, null, chavesDasFilhas);
+        }
+
+        /** Emissão em que a filha {@code chaveDevolvida} foi devolvida (encerrada sem concluir; tarefa {@code deleted}). */
+        public Processo passouPelaEmissaoComDevolucao(LocalDateTime inicio, LocalDateTime fim, String chaveDevolvida,
+                String... outrasFilhas) {
+            return emissao(inicio, fim, Objects.requireNonNull(chaveDevolvida), outrasFilhas);
+        }
+
+        /** Tarefa "Suporte" (id de suporte do catálogo) concluída no meio do caminho: ruído a ignorar. */
+        public Processo passouPeloSuporte(LocalDateTime inicio, LocalDateTime fim) {
+            if (modelo().idsDeSuporte().isEmpty()) {
+                throw new IllegalStateException(modelo().chave() + " não tem tarefa de suporte no catálogo");
+            }
+            return passou(modelo().idsDeSuporte().iterator().next(), inicio, fim, cpfDoServidor(SERVIDORES));
+        }
+
+        /**
+         * O mesmo script automático {@code vezes} vezes seguidas, uma linha por tentativa, cada uma com {@code intervaloSegundos}
+         * (erro de API repetido, regra técnica 10). O id precisa ser etapa automática do catálogo.
+         */
+        public Processo scriptRepetido(String idTecnico, int vezes, LocalDateTime inicio, long intervaloSegundos) {
+            if (vezes < 2 || intervaloSegundos < 1) {
+                throw new IllegalArgumentException("repetição precisa de ao menos 2 vezes e 1 segundo de intervalo");
+            }
+            if (!(modelo().resolver(idTecnico, Set.of()) instanceof ResolucaoDeEtapa.NaEtapa(Etapa e))
+                    || e.tipo() != TipoDeEtapa.AUTOMATICA) {
+                throw new IllegalArgumentException(idTecnico + " não é etapa automática de " + modelo().chave());
+            }
+            LocalDateTime fim = inicio.plusSeconds(vezes * intervaloSegundos);
+            historico.add(new Repeticao(idTecnico, vezes, inicio, fim, intervaloSegundos));
+            return this;
+        }
+
+        /**
+         * Atividade que o catálogo não conhece, para ruído sem id técnico levantado ({@link #REPORT_KAFKA_FICTICIO},
+         * {@link #REPETICAO_POR_ERRO_FICTICIA}, {@link #CORRECAO_EXPIRADA_FICTICIA}). O id precisa levar "Ficticio" e não
+         * pode estar no catálogo; {@code tipoDoCamunda} é o {@code ACT_TYPE_} (ex.: {@code serviceTask}).
+         */
+        public Processo atividadeFicticia(String idFicticio, String tipoDoCamunda, LocalDateTime inicio, LocalDateTime fim) {
+            intervalo(inicio, fim);
+            if (!idFicticio.contains("Ficticio")) {
+                throw new IllegalArgumentException("id de atividade fictícia precisa conter \"Ficticio\"");
+            }
+            if (!(modelo().resolver(idFicticio, Set.of()) instanceof ResolucaoDeEtapa.NaoMapeado)) {
+                throw new IllegalArgumentException(idFicticio + " já é conhecido pelo catálogo de " + modelo().chave());
+            }
+            historico.add(new Simples(idFicticio, tipoDoCamunda, inicio, fim, null, "completed"));
+            return this;
+        }
+
+        /**
+         * Tarefa encerrada pela expiração do prazo (evento de borda), não concluída: {@code DELETE_REASON_ = 'deleted'}.
+         * NÃO CONFIRMADO como o Camunda real grava a expiração da correção (docs/15, P40): hipótese da fixture.
+         */
+        public Processo expirou(String idTecnico, LocalDateTime inicio, LocalDateTime fim) {
+            passou(idTecnico, inicio, fim);
+            Simples s = (Simples) historico.removeLast();
+            historico.add(new Simples(s.id(), s.tipo(), s.inicio(), s.fim(), s.cpf(), "deleted"));
+            return this;
+        }
+
+        /**
+         * Valor de uma variável do Camunda num instante ({@code ACT_HI_DETAIL}, e a última em {@code ACT_HI_VARINST}).
+         * Só a lista branca {@link #VARIAVEIS_PERMITIDAS}; valor com 11 dígitos seguidos é recusado.
+         */
+        public Processo variavel(String nome, String valor, LocalDateTime quando) {
+            if (!VARIAVEIS_PERMITIDAS.contains(nome)) {
+                throw new IllegalArgumentException("variável fora da lista branca: " + nome);
+            }
+            if (valor == null || ONZE_DIGITOS.matcher(valor).find()) {
+                throw new IllegalArgumentException("valor de variável nulo ou com cara de CPF");
+            }
+            variaveis.add(new Variavel(nome, valor, Objects.requireNonNull(quando)));
+            return this;
+        }
+
+        /** Complementação paralela já concluída (instância independente, {@value #CHAVE_COMPLEMENTACAO}, encerrada). */
+        public Processo complementacaoConcluida(long idDaComplementacao, LocalDateTime inicio, LocalDateTime fim) {
+            intervalo(inicio, fim);
+            complementacoesConcluidas.add(new ComplementacaoConcluida(idDaComplementacao, inicio, fim));
+            return this;
+        }
+
+        // --- plano B (S8): o que o Licenciamento guarda de um requerimento sem instância
+
+        /** Linha de {@code HISTORICO_REQUERIMENTO} (com {@code CPF_USUARIO} fictício e inválido, que o plano B nunca lê). */
+        public Processo noHistoricoDoLicenciamento(String evento, LocalDateTime quando) {
+            eventosDoLicenciamento.add(new Evento(Objects.requireNonNull(evento), Objects.requireNonNull(quando)));
+            return this;
+        }
+
+        /** Datas de {@code REQUERIMENTO} que o plano B usa; {@code null} deixa a coluna vazia. */
+        public Processo comDatas(LocalDateTime protocolo, LocalDateTime cancelamento, LocalDateTime expiracaoDoRequerimento,
+                LocalDateTime expiracaoDoProcesso) {
+            this.dataProtocolo = protocolo;
+            this.dataCancelamento = cancelamento;
+            this.dataExpiracaoRequerimento = expiracaoDoRequerimento;
+            this.dataExpiracaoProcesso = expiracaoDoProcesso;
+            return this;
+        }
+
+        /** {@code REQUERIMENTO.DATA_ABERTURA} quando não é derivada do caminho (ex.: requerimento sem instância). */
+        public Processo abertoEm(LocalDateTime quando) {
+            this.abertura = Objects.requireNonNull(quando);
+            return this;
+        }
+
         public Resultado gravar() {
             boolean comInstancia = fluxo.chave != null && !semInstancia;
             validar(comInstancia);
-            LocalDateTime inicio = desde.minusDays(percurso.size() + 1L);
-            gravarRequerimento(comInstancia ? inicio : desde);
+            LocalDateTime inicio = historico.isEmpty()
+                    ? desde.minusDays(percurso.size() + 1L)
+                    : historico.stream().map(Passo::inicio).min(Comparator.naturalOrder()).orElseThrow();
+            gravarRequerimento(abertura != null ? abertura : comInstancia ? inicio : desde);
+            gravarDoLicenciamento();
             if (!comInstancia) {
                 return new Resultado(id, null, false, 0, 0, 0, 0, false);
             }
             String pi = "fict-" + id;
             String procDef = procDef(modelo.chave(), modelo.rotulo());
             inserirHiProcinst(pi, Long.toString(id), modelo.chave(), procDef, inicio, null, pi);
-            gravarPercurso(pi, procDef, inicio);
+            if (historico.isEmpty()) {
+                gravarPercurso(pi, procDef, inicio);
+            } else {
+                gravarHistorico(pi, procDef);
+            }
+            gravarVariaveis(pi);
+            for (ComplementacaoConcluida c : complementacoesConcluidas) {
+                gravarComplementacaoConcluida(pi, c);
+            }
             if (fim != null) {
                 inserirAtividade(pi, procDef, modelo.chave(), pi, pi, fim, "noneEndEvent", null, null, null, desde, desde);
                 jdbc.update("""
@@ -322,10 +641,23 @@ public final class CamundaFicticioBuilder {
 
         private void validar(boolean comInstancia) {
             if (!comInstancia) {
-                if (etapa != null || fim != null || suporte || complementacao != null || !filhas.isEmpty()) {
-                    throw new IllegalStateException("requerimento sem instância não tem etapa, final nem filhas");
+                if (etapa != null || fim != null || suporte || complementacao != null || !filhas.isEmpty()
+                        || !historico.isEmpty() || !variaveis.isEmpty() || !complementacoesConcluidas.isEmpty()) {
+                    throw new IllegalStateException(
+                            "requerimento sem instância não tem etapa, final, filhas, caminho nem variáveis");
                 }
                 return;
+            }
+            if (!historico.isEmpty() && !percurso.isEmpty()) {
+                throw new IllegalStateException("use percorrendo(...) OU o caminho histórico (passou...), não os dois");
+            }
+            if (historico.isEmpty() && !variaveis.isEmpty()) {
+                throw new IllegalStateException("variável sem caminho histórico: grave o caminho com passou(...)");
+            }
+            LocalDateTime ultimoFim = historico.stream().map(Passo::fim).max(Comparator.naturalOrder()).orElse(null);
+            if (ultimoFim != null && ultimoFim.isAfter(desde)) {
+                throw new IllegalStateException("o caminho termina depois do início da etapa ativa (ou do fim da instância): "
+                        + "ajuste desde(...)");
             }
             boolean ativa = etapa != null || suporte;
             if (fim != null && (ativa || complementacao != null)) {
@@ -334,7 +666,7 @@ public final class CamundaFicticioBuilder {
             if (fim == null && !ativa) {
                 throw new IllegalStateException("cenário sem etapa ativa: use naEtapa, comFilhas, comTarefaDeSuporte ou encerradoEm");
             }
-            if (etapa != null && !etapa.aceitaPercurso(Set.copyOf(percurso))) {
+            if (etapa != null && !etapa.aceitaPercurso(idsPercorridos())) {
                 throw new IllegalStateException("etapa " + etapa.id() + " não vale com o percurso dado (ex.: isenção com "
                         + "passagem pelo gateway de pagamento)");
             }
@@ -344,6 +676,113 @@ public final class CamundaFicticioBuilder {
             if (concluidos < 0 || concluidos >= analistas) {
                 throw new IllegalStateException("concluidos deve ficar entre 0 e analistas - 1");
             }
+        }
+
+        /** Ids técnicos já percorridos: o percurso mínimo da S7 ou, no caminho histórico, as atividades dos passos. */
+        private Set<String> idsPercorridos() {
+            if (historico.isEmpty()) {
+                return Set.copyOf(percurso);
+            }
+            Set<String> ids = new java.util.HashSet<>();
+            for (Passo p : historico) {
+                switch (p) {
+                    case Simples s -> ids.add(s.id());
+                    case Ciclo c -> ids.add(c.id());
+                    case Repeticao r -> ids.add(r.id());
+                    case Emissao e -> {
+                        Etapa emissao = etapaDaEmissao(e);
+                        ids.addAll(emissao.idsTecnicos());
+                    }
+                }
+            }
+            return ids;
+        }
+
+        private Etapa etapaDaEmissao(Emissao e) {
+            return ((ResolucaoDeEtapa.NaEtapa) modelo().resolverProcessoFilho(e.filhas().getFirst().chave())).etapa();
+        }
+
+        private void intervalo(LocalDateTime inicio, LocalDateTime fim) {
+            if (inicio == null || fim == null || fim.isBefore(inicio)) {
+                throw new IllegalArgumentException("passo precisa de início e fim, com o fim depois do início");
+            }
+        }
+
+        /** Responsável padrão da tarefa humana: cadastrante fictício (interessado) ou o Servidor Exemplo 01; outras, ninguém. */
+        private String responsavelPadrao(String idTecnico) {
+            String tipo = tipoDaAtividade(idTecnico);
+            if (!"userTask".equals(tipo)) {
+                return null;
+            }
+            if (modelo().resolver(idTecnico, Set.of()) instanceof ResolucaoDeEtapa.NaEtapa(Etapa e)
+                    && e.responsavel() == PapelDoResponsavel.INTERESSADO) {
+                return CPF_DO_INTERESSADO;
+            }
+            return cpfDoServidor(1);
+        }
+
+        private void exigirVolta(String idTecnico) {
+            if (!(modelo().resolver(idTecnico, Set.of()) instanceof ResolucaoDeEtapa.NaEtapa(Etapa alvo))) {
+                throw new IllegalArgumentException(idTecnico + " não é etapa de " + modelo().chave());
+            }
+            for (int i = 0; i < historico.size() - 1; i++) {
+                if (etapaDoPasso(historico.get(i)).filter(alvo::equals).isPresent()) {
+                    return; // já passou por ela e há passo depois: é volta
+                }
+            }
+            throw new IllegalStateException(idTecnico + " não é volta: a etapa ainda não tinha sido percorrida antes de outra");
+        }
+
+        private java.util.Optional<Etapa> etapaDoPasso(Passo passo) {
+            return switch (passo) {
+                case Simples s -> etapaPorId(s.id());
+                case Ciclo c -> etapaPorId(c.id());
+                case Repeticao r -> etapaPorId(r.id());
+                case Emissao e -> java.util.Optional.of(etapaDaEmissao(e));
+            };
+        }
+
+        private java.util.Optional<Etapa> etapaPorId(String idTecnico) {
+            return modelo().resolver(idTecnico, Set.of()) instanceof ResolucaoDeEtapa.NaEtapa(Etapa e)
+                    ? java.util.Optional.of(e) : java.util.Optional.empty();
+        }
+
+        private Processo ciclo(String idTecnico, LocalDateTime inicio, LocalDateTime fim, List<Tarefa> tarefas) {
+            intervalo(inicio, fim);
+            if (!(modelo().resolver(idTecnico, Set.of()) instanceof ResolucaoDeEtapa.NaEtapa(Etapa e)) || !e.multiInstancia()) {
+                throw new IllegalArgumentException(idTecnico + " não é etapa multi-instância de " + modelo().chave());
+            }
+            if (tarefas.isEmpty()) {
+                throw new IllegalArgumentException("ciclo sem nenhuma tarefa");
+            }
+            historico.add(new Ciclo(idTecnico, inicio, fim, List.copyOf(tarefas)));
+            return this;
+        }
+
+        private Processo emissao(LocalDateTime inicio, LocalDateTime fim, String chaveDevolvida, String... outras) {
+            intervalo(inicio, fim);
+            List<Filha> filhasDaEmissao = new ArrayList<>();
+            if (chaveDevolvida != null) {
+                filhasDaEmissao.add(new Filha(chaveDevolvida, true));
+            }
+            for (String chave : outras) {
+                filhasDaEmissao.add(new Filha(chave, false));
+            }
+            if (filhasDaEmissao.isEmpty()) {
+                throw new IllegalArgumentException("informe ao menos uma filha");
+            }
+            Etapa emissao = null;
+            for (Filha f : filhasDaEmissao) {
+                if (!(modelo().resolverProcessoFilho(f.chave()) instanceof ResolucaoDeEtapa.NaEtapa(Etapa e))) {
+                    throw new IllegalArgumentException("filha " + f.chave() + " fora do catálogo de " + modelo().chave());
+                }
+                if (emissao != null && !emissao.equals(e)) {
+                    throw new IllegalArgumentException("filhas de etapas diferentes");
+                }
+                emissao = e;
+            }
+            historico.add(new Emissao(inicio, fim, List.copyOf(filhasDaEmissao)));
+            return this;
         }
 
         private void definirEtapa(Etapa encontrada, String idTecnico) {
@@ -391,6 +830,156 @@ public final class CamundaFicticioBuilder {
                 }
                 inserirAtividade(pi, procDef, modelo.chave(), pi, pi, idTecnico, tipo, tarefa, null, null, comeco, termino);
             }
+        }
+
+        /** Datas de REQUERIMENTO do plano B e linhas de HISTORICO_REQUERIMENTO (a tabela do plano B). */
+        private void gravarDoLicenciamento() {
+            if (dataProtocolo != null || dataCancelamento != null || dataExpiracaoRequerimento != null
+                    || dataExpiracaoProcesso != null) {
+                jdbc.update("""
+                        UPDATE SIGA2_LICENCIAMENTO.REQUERIMENTO
+                        SET    DATA_PROTOCOLO_PROCESSO = :protocolo, DATA_CANCELAMENTO = :cancelamento,
+                               DATA_EXPIRACAO_REQUERIMENTO = :expReq, DATA_EXPIRACAO_PROCESSO = :expProc
+                        WHERE  ID = :id""", new MapSqlParameterSource().addValue("id", id)
+                        .addValue("protocolo", carimbo(dataProtocolo)).addValue("cancelamento", carimbo(dataCancelamento))
+                        .addValue("expReq", carimbo(dataExpiracaoRequerimento))
+                        .addValue("expProc", carimbo(dataExpiracaoProcesso)));
+            }
+            long ordem = 0;
+            for (Evento e : eventosDoLicenciamento) {
+                jdbc.update("""
+                        INSERT INTO SIGA2_LICENCIAMENTO.HISTORICO_REQUERIMENTO
+                               (ID, ID_REQUERIMENTO, DATA_CADASTRO, EVENTO, CPF_USUARIO)
+                        VALUES (:id, :requerimento, :quando, :evento, :cpf)""", new MapSqlParameterSource()
+                        .addValue("id", id * 100 + ++ordem).addValue("requerimento", id)
+                        .addValue("quando", Timestamp.valueOf(e.quando())).addValue("evento", e.evento())
+                        .addValue("cpf", cpfDoServidor(3)));
+            }
+        }
+
+        private void gravarHistorico(String pi, String procDef) {
+            for (Passo passo : historico) {
+                switch (passo) {
+                    case Simples s -> gravarSimples(pi, procDef, s);
+                    case Ciclo c -> gravarCiclo(pi, procDef, c);
+                    case Emissao e -> gravarEmissao(pi, procDef, e);
+                    case Repeticao r -> gravarRepeticao(pi, procDef, r);
+                }
+            }
+        }
+
+        private void gravarSimples(String pi, String procDef, Simples s) {
+            String tarefa = null;
+            if ("userTask".equals(s.tipo())) {
+                tarefa = pi + "-t" + sequencia.incrementAndGet();
+                inserirHiTarefa(tarefa, s.id(), modelo.chave(), procDef, pi, pi, pi, s.cpf(), s.inicio(), s.fim(), s.motivo());
+            }
+            inserirAtividade(pi, procDef, modelo.chave(), pi, pi, s.id(), s.tipo(), tarefa, null, s.cpf(), s.inicio(), s.fim());
+        }
+
+        private void gravarCiclo(String pi, String procDef, Ciclo c) {
+            String corpo = pi + "-mi" + sequencia.incrementAndGet();
+            inserirAtividade(pi, procDef, modelo.chave(), pi, corpo, c.id() + "#multiInstanceBody", "multiInstanceBody", null,
+                    null, null, c.inicio(), c.fim());
+            Duration total = Duration.between(c.inicio(), c.fim());
+            long concluidas = c.tarefas().stream().filter(t -> "completed".equals(t.motivo())).count();
+            long vistas = 0;
+            for (Tarefa t : c.tarefas()) {
+                LocalDateTime termino = c.fim();
+                if ("completed".equals(t.motivo())) {
+                    vistas++;
+                    termino = c.inicio().plus(total.multipliedBy(vistas).dividedBy(concluidas));
+                }
+                String tarefa = pi + "-t" + sequencia.incrementAndGet();
+                inserirHiTarefa(tarefa, c.id(), modelo.chave(), procDef, pi, pi, corpo, t.cpf(), c.inicio(), termino,
+                        t.motivo());
+                inserirAtividade(pi, procDef, modelo.chave(), pi, corpo, c.id(), "userTask", tarefa, null, t.cpf(), c.inicio(),
+                        termino);
+            }
+        }
+
+        private void gravarEmissao(String pi, String procDef, Emissao e) {
+            Etapa emissao = etapaDaEmissao(e);
+            Duration total = Duration.between(e.inicio(), e.fim());
+            int n = e.filhas().size();
+            for (int i = 0; i < n; i++) {
+                Filha f = e.filhas().get(i);
+                LocalDateTime termino = e.inicio().plus(total.multipliedBy(i + 1L).dividedBy(n));
+                String chamada = emissao.idsTecnicos().get(emissao.processosFilhos().indexOf(f.chave()));
+                String ci = pi + "-hfilha-" + (++filhasHistoricas);
+                String titulo = Long.toString(id * 1000 + filhasHistoricas);
+                String procDefFilha = procDef(f.chave(), f.chave() + " (FICTÍCIO)");
+                inserirAtividade(pi, procDef, modelo.chave(), pi, pi, chamada, "callActivity", null, ci, null, e.inicio(),
+                        termino);
+                inserirHiProcinst(ci, titulo, f.chave(), procDefFilha, e.inicio(), pi, pi);
+                String tarefa = ci + "-t" + sequencia.incrementAndGet();
+                String cpf = cpfDoServidor(9);
+                inserirHiTarefa(tarefa, TAREFA_DA_FILHA, f.chave(), procDefFilha, pi, ci, ci, cpf, e.inicio(), termino,
+                        f.devolvida() ? "deleted" : "completed");
+                inserirAtividade(ci, procDefFilha, f.chave(), pi, ci, TAREFA_DA_FILHA, "userTask", tarefa, null, cpf,
+                        e.inicio(), termino);
+                encerrarInstancia(ci, termino, null, f.devolvida() ? "INTERNALLY_TERMINATED" : "COMPLETED",
+                        f.devolvida() ? "devolvida da emissão (FICTÍCIO)" : null);
+            }
+        }
+
+        private void gravarRepeticao(String pi, String procDef, Repeticao r) {
+            SqlParameterSource[] linhas = new SqlParameterSource[r.vezes()];
+            String corpo = pi + "-rep" + sequencia.incrementAndGet();
+            for (int i = 0; i < r.vezes(); i++) {
+                LocalDateTime comeco = r.inicio().plusSeconds(i * r.intervaloSegundos());
+                linhas[i] = parametrosDaAtividade(pi, procDef, modelo.chave(), pi, corpo, r.id(), "serviceTask", null, null,
+                        null, comeco, comeco.plusSeconds(r.intervaloSegundos()));
+            }
+            jdbc.batchUpdate(SQL_ATIVIDADE, linhas);
+        }
+
+        private void gravarVariaveis(String pi) {
+            List<Variavel> ordenadas = variaveis.stream().sorted(Comparator.comparing(Variavel::quando)).toList();
+            for (Variavel v : ordenadas) {
+                long n = sequencia.incrementAndGet();
+                jdbc.update("""
+                        INSERT INTO SIGA2_CAMUNDA.ACT_HI_DETAIL
+                               (ID_, TYPE_, PROC_DEF_KEY_, PROC_INST_ID_, EXECUTION_ID_, NAME_, VAR_TYPE_, TIME_, TEXT_,
+                                SEQUENCE_COUNTER_)
+                        VALUES (:id, 'VariableUpdate', :chave, :pi, :pi, :nome, 'string', :quando, :valor, :seq)""",
+                        new MapSqlParameterSource().addValue("id", pi + "-d" + n).addValue("chave", modelo.chave())
+                                .addValue("pi", pi).addValue("nome", v.nome()).addValue("quando", Timestamp.valueOf(v.quando()))
+                                .addValue("valor", v.valor()).addValue("seq", n));
+            }
+            // ACT_HI_VARINST guarda só o valor final de cada variável.
+            java.util.Map<String, Variavel> finais = new java.util.LinkedHashMap<>();
+            ordenadas.forEach(v -> finais.put(v.nome(), v));
+            for (Variavel v : finais.values()) {
+                jdbc.update("""
+                        INSERT INTO SIGA2_CAMUNDA.ACT_HI_VARINST
+                               (ID_, PROC_DEF_KEY_, PROC_INST_ID_, EXECUTION_ID_, NAME_, VAR_TYPE_, TEXT_, CREATE_TIME_, STATE_)
+                        VALUES (:id, :chave, :pi, :pi, :nome, 'string', :valor, :quando, 'CREATED')""",
+                        new MapSqlParameterSource().addValue("id", pi + "-v" + sequencia.incrementAndGet())
+                                .addValue("chave", modelo.chave()).addValue("pi", pi).addValue("nome", v.nome())
+                                .addValue("valor", v.valor()).addValue("quando", Timestamp.valueOf(v.quando())));
+            }
+        }
+
+        private void gravarComplementacaoConcluida(String pi, ComplementacaoConcluida c) {
+            jdbc.update("""
+                    INSERT INTO SIGA2_LICENCIAMENTO.COMPLEMENTACAO (ID, ID_REQUERIMENTO, DATA_INICIO, DATA_ENTREGA, SITUACAO)
+                    VALUES (:id, :requerimento, :inicio, :entrega, 'CONCLUIDA_FICTICIA')""",
+                    new MapSqlParameterSource().addValue("id", c.id()).addValue("requerimento", id)
+                            .addValue("inicio", Timestamp.valueOf(c.inicio())).addValue("entrega", Timestamp.valueOf(c.fim())));
+            String ce = pi + "-compl-" + c.id();
+            String procDefC = procDef(CHAVE_COMPLEMENTACAO, "Complementação (FICTÍCIO)");
+            inserirHiProcinst(ce, Long.toString(c.id()), CHAVE_COMPLEMENTACAO, procDefC, c.inicio(), null, ce);
+            String tarefa = ce + "-t" + sequencia.incrementAndGet();
+            inserirHiTarefa(tarefa, TAREFA_DA_COMPLEMENTACAO, CHAVE_COMPLEMENTACAO, procDefC, ce, ce, ce, CPF_DO_INTERESSADO,
+                    c.inicio(), c.fim(), "completed");
+            inserirAtividade(ce, procDefC, CHAVE_COMPLEMENTACAO, ce, ce, TAREFA_DA_COMPLEMENTACAO, "userTask", tarefa, null,
+                    CPF_DO_INTERESSADO, c.inicio(), c.fim());
+            encerrarInstancia(ce, c.fim(), null, "COMPLETED", null);
+        }
+
+        private Timestamp carimbo(LocalDateTime quando) {
+            return quando == null ? null : Timestamp.valueOf(quando);
         }
 
         private Resultado gravarAtiva(String pi, String procDef) {
@@ -609,19 +1198,33 @@ public final class CamundaFicticioBuilder {
 
     private void inserirAtividade(String proc, String procDef, String chave, String raiz, String exec, String atividade,
             String tipo, String tarefa, String chamada, String cpf, LocalDateTime inicio, LocalDateTime termino) {
+        jdbc.update(SQL_ATIVIDADE, parametrosDaAtividade(proc, procDef, chave, raiz, exec, atividade, tipo, tarefa, chamada,
+                cpf, inicio, termino));
+    }
+
+    /** Id com seis dígitos: a ordem textual dos ids é a ordem de gravação (o caminho tem milhares de linhas). */
+    private MapSqlParameterSource parametrosDaAtividade(String proc, String procDef, String chave, String raiz, String exec,
+            String atividade, String tipo, String tarefa, String chamada, String cpf, LocalDateTime inicio,
+            LocalDateTime termino) {
+        long n = sequencia.incrementAndGet();
+        return new MapSqlParameterSource()
+                .addValue("id", String.format("%s-a%06d", proc, n)).addValue("chave", chave)
+                .addValue("procDef", procDef).addValue("raiz", raiz).addValue("proc", proc).addValue("exec", exec)
+                .addValue("atividade", atividade).addValue("tarefa", tarefa).addValue("chamada", chamada)
+                .addValue("nome", atividade + " (FICTÍCIO)").addValue("tipo", tipo).addValue("assignee", cpf)
+                .addValue("inicio", Timestamp.valueOf(inicio))
+                .addValue("fim", termino == null ? null : Timestamp.valueOf(termino))
+                .addValue("seq", n);
+    }
+
+    /** Marca a instância (filha, complementação) como encerrada em {@code quando}. */
+    private void encerrarInstancia(String instancia, LocalDateTime quando, String atividadeFinal, String estado,
+            String motivo) {
         jdbc.update("""
-                INSERT INTO SIGA2_CAMUNDA.ACT_HI_ACTINST
-                       (ID_, PROC_DEF_KEY_, PROC_DEF_ID_, ROOT_PROC_INST_ID_, PROC_INST_ID_, EXECUTION_ID_, ACT_ID_, TASK_ID_,
-                        CALL_PROC_INST_ID_, ACT_NAME_, ACT_TYPE_, ASSIGNEE_, START_TIME_, END_TIME_, SEQUENCE_COUNTER_)
-                VALUES (:id, :chave, :procDef, :raiz, :proc, :exec, :atividade, :tarefa, :chamada, :nome, :tipo, :assignee,
-                        :inicio, :fim, :seq)""",
-                new MapSqlParameterSource()
-                        .addValue("id", proc + "-a" + sequencia.incrementAndGet()).addValue("chave", chave)
-                        .addValue("procDef", procDef).addValue("raiz", raiz).addValue("proc", proc).addValue("exec", exec)
-                        .addValue("atividade", atividade).addValue("tarefa", tarefa).addValue("chamada", chamada)
-                        .addValue("nome", atividade + " (FICTÍCIO)").addValue("tipo", tipo).addValue("assignee", cpf)
-                        .addValue("inicio", Timestamp.valueOf(inicio))
-                        .addValue("fim", termino == null ? null : Timestamp.valueOf(termino))
-                        .addValue("seq", sequencia.get()));
+                UPDATE SIGA2_CAMUNDA.ACT_HI_PROCINST
+                SET    END_TIME_ = :fim, END_ACT_ID_ = :atividade, STATE_ = :estado, DELETE_REASON_ = :motivo
+                WHERE  ID_ = :pi""", new MapSqlParameterSource().addValue("fim", Timestamp.valueOf(quando))
+                .addValue("atividade", atividadeFinal).addValue("estado", estado).addValue("motivo", motivo)
+                .addValue("pi", instancia));
     }
 }

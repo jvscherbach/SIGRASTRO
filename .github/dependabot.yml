@@ -22,6 +22,16 @@ updates:
       npm-patch-minor:
         update-types: [minor, patch]
 
+  # S8, bloco 6: o servidor MCP (tools/mcp-rastro) também tem package-lock e dependências de produção.
+  - package-ecosystem: npm
+    directory: /tools/mcp-rastro
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      npm-mcp-patch-minor:
+        update-types: [minor, patch]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

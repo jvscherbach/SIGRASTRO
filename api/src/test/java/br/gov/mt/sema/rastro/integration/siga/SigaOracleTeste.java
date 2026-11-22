@@ -39,15 +39,20 @@ final class SigaOracleTeste {
     /** Cenários fictícios da S7 (Camunda e Licenciamento), gravados ao subir; ids em {@link CenariosFicticiosDaS7}. */
     static final Map<String, CamundaFicticioBuilder.Resultado> CENARIOS_S7;
 
+    /** Cenários fictícios do caminho percorrido da S8 (HC, LC, PB), ids 8001 a 8199 em {@link CenariosFicticiosDaS8}. */
+    static final Map<String, CamundaFicticioBuilder.Resultado> CENARIOS_S8;
+
     static {
         ORACLE.start();
         try (Connection conexao = DriverManager.getConnection(ORACLE.getJdbcUrl(), "system", ORACLE.getPassword())) {
             for (String script : new String[] {"01-recorte.sql", "02-dados.sql", "03-dados-s11.sql", "04-documentos-s2.sql",
-                    "05-pessoas-s4.sql", "06-camunda-s7.sql"}) {
+                    "05-pessoas-s4.sql", "06-camunda-s7.sql", "07-historico-s8.sql"}) {
                 ScriptUtils.executeSqlScript(conexao,
                         new EncodedResource(new ClassPathResource("sql/siga/" + script), "UTF-8"));
             }
-            CENARIOS_S7 = Map.copyOf(CenariosFicticiosDaS7.carregar(construtorDeCenarios(conexao)));
+            CamundaFicticioBuilder construtor = construtorDeCenarios(conexao);
+            CENARIOS_S7 = Map.copyOf(CenariosFicticiosDaS7.carregar(construtor));
+            CENARIOS_S8 = Map.copyOf(CenariosFicticiosDaS8.carregar(construtor));
         } catch (SQLException e) {
             throw new IllegalStateException("Falha ao preparar o recorte do SIGA para teste", e);
         }
@@ -61,7 +66,8 @@ final class SigaOracleTeste {
 
     /**
      * Construtor de cenários com escrita (usuário {@code system}), para o teste que precisa de um cenário próprio além dos
-     * da S7. Use ids fora das faixas já ocupadas (7000 a 7199 são da S7). Feche o datasource ao terminar.
+     * da S7 e da S8. Use ids fora das faixas já ocupadas (7000 a 7299 são da S7 e dos testes dela; 8000 a 8199 são da S8;
+     * os testes da S8 usam a partir de 8200). Feche o datasource ao terminar.
      */
     static HikariDataSource dataSourceAdministrador() {
         HikariConfig config = new HikariConfig();

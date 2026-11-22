@@ -74,6 +74,15 @@ jobs:
         run: >-
           node --test .claude/hooks/guarda-bash.test.mjs .claude/hooks/guarda-arquivos.test.mjs
           .claude/hooks/varrer-dados.test.mjs .claude/hooks/vazamento.test.mjs
+      # Servidor MCP do Rastro (S6; pendência fechada na S8, bloco 6): mesmo critério das guardas, aqui porque este job sempre
+      # roda e tools/ não entra no filtro de "código". Usa o Node do runner (engines >=20), só dependências de produção na
+      # auditoria; segundos, sem recurso novo nem pago.
+      - name: Servidor MCP, instalar dependências (tools/mcp-rastro)
+        run: npm --prefix tools/mcp-rastro ci
+      - name: Servidor MCP, testes
+        run: npm --prefix tools/mcp-rastro test
+      - name: Servidor MCP, auditoria das dependências de produção (alta ou crítica falha)
+        run: npm --prefix tools/mcp-rastro audit --omit=dev --audit-level=high
 
   api:
     name: api
