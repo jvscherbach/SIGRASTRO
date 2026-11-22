@@ -2,6 +2,9 @@ package br.gov.mt.sema.rastro.integration.siga;
 
 import static br.gov.mt.sema.rastro.integration.siga.CenariosFicticiosDaS9.FALSOS_DO_FIN14;
 import static br.gov.mt.sema.rastro.integration.siga.CenariosFicticiosDaS9.FIN01;
+import static br.gov.mt.sema.rastro.integration.siga.CenariosFicticiosDaS9.FIN02;
+import static br.gov.mt.sema.rastro.integration.siga.CenariosFicticiosDaS9.FIN03;
+import static br.gov.mt.sema.rastro.integration.siga.CenariosFicticiosDaS9.FIN04;
 import static br.gov.mt.sema.rastro.integration.siga.CenariosFicticiosDaS9.FIN05;
 import static br.gov.mt.sema.rastro.integration.siga.CenariosFicticiosDaS9.FIN06;
 import static br.gov.mt.sema.rastro.integration.siga.CenariosFicticiosDaS9.FIN07;
@@ -26,8 +29,14 @@ import java.util.stream.LongStream;
 
 import javax.sql.DataSource;
 
+import br.gov.mt.sema.rastro.financeiro.domain.AvaliarSituacao;
+import br.gov.mt.sema.rastro.financeiro.domain.AvisoFinanceiro;
 import br.gov.mt.sema.rastro.financeiro.domain.ClassificarValidade;
 import br.gov.mt.sema.rastro.financeiro.domain.CodigoDoAvisoFinanceiro;
+import br.gov.mt.sema.rastro.financeiro.domain.HistoricoFinanceiro;
+import br.gov.mt.sema.rastro.financeiro.domain.LancamentoAvaliado;
+import br.gov.mt.sema.rastro.financeiro.domain.ResumoFinanceiro;
+import br.gov.mt.sema.rastro.financeiro.domain.SituacaoFinanceira;
 import br.gov.mt.sema.rastro.financeiro.domain.Inconsistencia;
 import br.gov.mt.sema.rastro.financeiro.domain.Lancamento;
 import br.gov.mt.sema.rastro.financeiro.domain.LancamentoMantido;
@@ -58,6 +67,9 @@ class LancamentosDoSigaJdbcTest {
     /** Cenários próprios deste teste (fora da faixa 9001 a 9199 da S9). */
     private static final long STATUS_DESCONHECIDO = 9201;
     private static final long PAGA_SEM_DADOS = 9202;
+    /** Bloco 3: vencimentos com hora, nas bordas do dia (23:30 de ontem e 23:30 de hoje). */
+    private static final long VENCE_ONTEM_23H30 = 9203;
+    private static final long VENCE_HOJE_23H30 = 9204;
 
     private static final List<String> SQL_ENVIADO = new CopyOnWriteArrayList<>();
     private static final List<Integer> TEMPOS_LIMITE = new CopyOnWriteArrayList<>();
@@ -99,6 +111,16 @@ class LancamentosDoSigaJdbcTest {
             construtor.processo(Fluxo.HIDRICO, PAGA_SEM_DADOS).situacao("EM_ANALISE").semInstancia()
                     .abertoEm(LocalDateTime.of(2026, 3, 2, 8, 0)).desde(LocalDateTime.of(2026, 3, 10, 8, 0))
                     .comLancamentoBruto("PAGA").emitidoEm(LocalDateTime.of(2026, 3, 4, 9, 0)).gravar();
+            construtor.processo(Fluxo.HIDRICO, VENCE_ONTEM_23H30).situacao("EM_ANALISE").semInstancia()
+                    .abertoEm(LocalDateTime.of(2026, 3, 2, 8, 0)).desde(LocalDateTime.of(2026, 3, 10, 8, 0))
+                    .comLancamentoBruto("AGUARDANDO_PAGAMENTO").comDar("FICT-9203")
+                    .emitidoEm(LocalDateTime.of(2026, 3, 4, 9, 0))
+                    .vencendoEm(CenariosFicticiosDaS9.ONTEM.atTime(23, 30)).gravar();
+            construtor.processo(Fluxo.HIDRICO, VENCE_HOJE_23H30).situacao("EM_ANALISE").semInstancia()
+                    .abertoEm(LocalDateTime.of(2026, 3, 2, 8, 0)).desde(LocalDateTime.of(2026, 3, 10, 8, 0))
+                    .comLancamentoBruto("AGUARDANDO_PAGAMENTO").comDar("FICT-9204")
+                    .emitidoEm(LocalDateTime.of(2026, 3, 4, 9, 0))
+                    .vencendoEm(CenariosFicticiosDaS9.HOJE.atTime(23, 30)).gravar();
         }
     }
 
@@ -210,6 +232,76 @@ class LancamentosDoSigaJdbcTest {
                 .extracting(LancamentoMantido::inconsistencias).asInstanceOf(
                         org.assertj.core.api.InstanceOfAssertFactories.collection(Inconsistencia.class))
                 .containsExactlyInAnyOrder(Inconsistencia.SEM_DAR, Inconsistencia.PAGA_SEM_DATA_DE_PAGAMENTO);
+    }
+
+    // ---- bloco 3: situação, vencimento por data e ciclos, lidos do Oracle ----
+
+    private static HistoricoFinanceiro historico(long id) {
+        return AvaliarSituacao.avaliar(classificado(id), CenariosFicticiosDaS9.RELOGIO);
+    }
+
+    private static List<CodigoDoAvisoFinanceiro> codigosDosAvisos(HistoricoFinanceiro h) {
+        return h.avisos().stream().map(AvisoFinanceiro::codigo).toList();
+    }
+
+    @Test
+    void fin01_a_fin04_resumo_e_aviso_de_taxa_vencida() {
+        assertThat(historico(FIN01).resumo()).isEqualTo(ResumoFinanceiro.QUITADO);
+        assertThat(historico(FIN02).resumo()).isEqualTo(ResumoFinanceiro.EM_ABERTO);
+        HistoricoFinanceiro fin03 = historico(FIN03);
+        assertThat(fin03.resumo()).isEqualTo(ResumoFinanceiro.VENCIDO);
+        assertThat(fin03.lancamentos().getFirst().situacao()).as("a situação do SIGA não é trocada")
+                .isEqualTo(SituacaoFinanceira.AGUARDANDO_PAGAMENTO);
+        assertThat(fin03.avisos()).extracting(AvisoFinanceiro::texto).containsExactly("Taxa vencida em 19/03/2026.");
+        HistoricoFinanceiro fin04 = historico(FIN04);
+        assertThat(fin04.resumo()).isEqualTo(ResumoFinanceiro.VENCIDO);
+        assertThat(codigosDosAvisos(fin04)).isEmpty();
+    }
+
+    @Test
+    void vencimentos_em_torno_de_hoje() {
+        assertThat(historico(CenariosFicticiosDaS9.VENCE_ONTEM).resumo()).isEqualTo(ResumoFinanceiro.VENCIDO);
+        assertThat(historico(CenariosFicticiosDaS9.VENCE_HOJE).resumo()).isEqualTo(ResumoFinanceiro.EM_ABERTO);
+        assertThat(historico(CenariosFicticiosDaS9.VENCE_AMANHA).resumo()).isEqualTo(ResumoFinanceiro.EM_ABERTO);
+        assertThat(AvaliarSituacao.avaliar(classificado(CenariosFicticiosDaS9.VENCE_HOJE),
+                CenariosFicticiosDaS9.RELOGIO_NA_VIRADA_UTC).resumo()).as("01:30 UTC do dia 21 ainda é dia 20 em Cuiabá")
+                .isEqualTo(ResumoFinanceiro.EM_ABERTO);
+    }
+
+    @Test
+    void timestamp_do_oracle_vira_data_sem_deslocar_o_dia_em_qualquer_fuso_da_jvm() {
+        java.util.TimeZone original = java.util.TimeZone.getDefault();
+        try {
+            for (String fuso : List.of("UTC", "Asia/Tokyo", "Pacific/Kiritimati", "America/Cuiaba")) {
+                java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(fuso));
+                HistoricoFinanceiro ontem = historico(VENCE_ONTEM_23H30);
+                HistoricoFinanceiro hoje = historico(VENCE_HOJE_23H30);
+                assertThat(ontem.lancamentos().getFirst().venceEm()).as(fuso).contains(CenariosFicticiosDaS9.ONTEM);
+                assertThat(ontem.resumo()).as(fuso).isEqualTo(ResumoFinanceiro.VENCIDO);
+                assertThat(hoje.lancamentos().getFirst().venceEm()).as(fuso).contains(CenariosFicticiosDaS9.HOJE);
+                assertThat(hoje.resumo()).as(fuso).isEqualTo(ResumoFinanceiro.EM_ABERTO);
+            }
+        } finally {
+            java.util.TimeZone.setDefault(original);
+        }
+    }
+
+    @Test
+    void fin11_e_fin12_ciclos_por_ordem_de_emissao() {
+        HistoricoFinanceiro fin11 = historico(CenariosFicticiosDaS9.FIN11);
+        assertThat(fin11.lancamentos()).extracting(a -> a.rotulo().orElseThrow()).containsExactly("1ª taxa", "2ª taxa");
+        assertThat(fin11.resumo()).isEqualTo(ResumoFinanceiro.EM_ABERTO);
+        HistoricoFinanceiro fin12 = historico(CenariosFicticiosDaS9.FIN12);
+        assertThat(fin12.lancamentos()).extracting(LancamentoAvaliado::situacao)
+                .containsExactly(SituacaoFinanceira.PAGA, SituacaoFinanceira.ISENTA);
+        assertThat(fin12.resumo()).isEqualTo(ResumoFinanceiro.QUITADO);
+    }
+
+    @Test
+    void fin14_dez_falsos_nao_pesam_no_resumo() {
+        HistoricoFinanceiro h = historico(FIN14);
+        assertThat(h.lancamentos()).hasSize(1);
+        assertThat(h.resumo()).isEqualTo(ResumoFinanceiro.EM_ABERTO);
     }
 
     // ---- consultas ----

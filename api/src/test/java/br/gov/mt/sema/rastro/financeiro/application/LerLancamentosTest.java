@@ -38,14 +38,24 @@ class LerLancamentosTest {
 
     @Test
     void do_requerimento_aplica_a_regra_de_validade() {
-        var c = new LerLancamentos(porta).doRequerimento(10);
+        var c = new LerLancamentos(porta, java.time.Clock.systemUTC()).doRequerimento(10);
         assertThat(c.mantidos()).extracting(m -> m.lancamento().id()).containsExactly(2L);
         assertThat(c.ignoradosPorMotivo()).containsEntry(MotivoDoIgnorado.FALSO_SEM_DAR, 1);
     }
 
     @Test
+    void historico_usa_o_relogio_do_projeto() {
+        var historico = new LerLancamentos(porta, java.time.Clock.systemUTC()).historicoEmLote(List.of(10L, 20L));
+        assertThat(lotesPedidos).hasSize(1);
+        assertThat(historico.get(10L).resumo())
+                .isEqualTo(br.gov.mt.sema.rastro.financeiro.domain.ResumoFinanceiro.QUITADO);
+        assertThat(historico.get(20L).resumo())
+                .isEqualTo(br.gov.mt.sema.rastro.financeiro.domain.ResumoFinanceiro.SEM_TAXA);
+    }
+
+    @Test
     void lote_devolve_todo_id_pedido_numa_chamada() {
-        var lote = new LerLancamentos(porta).emLote(List.of(10L, 20L, 10L));
+        var lote = new LerLancamentos(porta, java.time.Clock.systemUTC()).emLote(List.of(10L, 20L, 10L));
         assertThat(lotesPedidos).hasSize(1);
         assertThat(lote).containsOnlyKeys(10L, 20L);
         assertThat(lote.get(10L).mantidos()).hasSize(1);

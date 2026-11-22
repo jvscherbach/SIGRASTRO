@@ -611,6 +611,36 @@ Testes: `LerTramitacaoTest` (cache e validade, cache desligado, `INDISPONIVEL` f
 
 As sequências vêm de `ReconstruirCaminhoComFixturesTest` (sequência exata, motivos das voltas) e os finais de `CenariosFicticiosDaS8` e `DesfechoComFixturesTest`; o plano B, de `PlanoBComFixturesTest`. Continuam **NÃO CONFIRMADO** na tela: a linha sem caixas de HF03 e LF02 (cadastro expirado sem etapa percorrida) e a forma de exibir o início de HF01. As hipóteses de P40 e P41 seguem valendo para a homologação.
 
+## Financeiro: lançamentos de taxa (S9)
+
+Módulo `financeiro`, independente do Camunda (funciona sem instância e com o Camunda fora do ar). Decisão de base: D85 ([09](09-decisoes.md)); pontos abertos: P43 e R75 ([10](10-pendencias-e-riscos.md)).
+
+### Leitura e regra de validade (bloco 2)
+
+Uma consulta (`sql/siga/financeiro/lancamentos.sql`, só em `integration.siga.LancamentosDoSigaJdbc`) por requerimento e uma a cada 500 no lote, com limite por requerimento, `FETCH FIRST` e tempo limite. `ClassificarValidade` ignora `CANCELADA` sem DAR (`FALSO_SEM_DAR`) e `AGUARDANDO_EMISSAO` com `TAXA_ISENTA = 1` (`RUIDO_ISENTO_AGUARDANDO`); mantém com `LANCAMENTO_INCONSISTENTE` o status desconhecido, `PAGA` sem pagamento e o status que exige DAR sem DAR. Ordem: emissão (sem data no fim) e id.
+
+### Situação, taxa vencida por data e ciclos (bloco 3)
+
+`AvaliarSituacao` avalia os lançamentos mantidos **um a um** (nada é somado) com o `Clock` do projeto.
+
+- **Situação** (`SituacaoFinanceira`) é o `STATUS` como o SIGA grava, nunca trocado: `EMITINDO` (`AGUARDANDO_EMISSAO`), `AGUARDANDO_PAGAMENTO`, `PAGA`, `VENCIDA`, `ISENTA`, `CANCELADA` e `DESCONHECIDA` (status fora do enum; não entra no resumo).
+- **Taxa vencida:** lançamento ativo (`DATA_FIM` nula) e sem `DATA_PAGAMENTO`, e (a) `AGUARDANDO_PAGAMENTO` **sem inconsistência** com a **data** de vencimento anterior a hoje, ou (b) `STATUS = VENCIDA` (a marca do SIGA vale como está). Vencer **hoje** ainda não é vencida; sem data de vencimento, nada se afirma. Só (a) ganha o aviso `TAXA_VENCIDA` ("Taxa vencida em dd/mm/aaaa."), sem trocar a situação: quando a taxa é paga ou o SIGA passa a marcar `VENCIDA`, o aviso some sozinho.
+- **Datas** (`CalendarioDeCuiaba`, um só lugar): hoje = data de Cuiabá no instante do relógio, ignorado o fuso do relógio e da JVM; a data de uma coluna do SIGA é só a parte da data do relógio de parede de Cuiabá (sem conversão de fuso), então 23:30 continua no mesmo dia.
+- **Peso de cada lançamento no resumo:** vencida → `VENCIDO`; `EMITINDO`/`AGUARDANDO_PAGAMENTO` ativo → `EM_ABERTO`; `PAGA` → `QUITADO`; `ISENTA` → `ISENTO`; `CANCELADA`, aberto já encerrado e `VENCIDA` paga ou encerrada → não pesam.
+- **Resumo** (`ResumoFinanceiro`) = o de maior precedência entre os pesos: **`VENCIDO` > `EM_ABERTO` > `QUITADO` > `ISENTO` > `SEM_TAXA`**. Sem lançamento mantido (ou só os que não pesam), `SEM_TAXA`. Se **todos** os mantidos têm status desconhecido, `INDETERMINADO` (o Rastro não afirma "sem taxa" sem saber). Os ignorados nunca entram (provado por propriedade em `AvaliarSituacaoTest`).
+- **Ciclos:** as guias (todo lançamento menos isenção e status desconhecido) são numeradas por ordem de emissão, "1ª taxa", "2ª taxa"; a etiqueta "da correção" é do bloco 5.
+- **Valores** em `BigDecimal`, como gravados; ausente é "não informado" (`Optional` vazio), nunca zero.
+
+| Cenário | Situação dos lançamentos | Resumo | Aviso |
+|---|---|---|---|
+| FIN01 | `PAGA` (1ª taxa) | `QUITADO` | — |
+| FIN02 | `AGUARDANDO_PAGAMENTO`, vence amanhã | `EM_ABERTO` | — |
+| FIN03 | `AGUARDANDO_PAGAMENTO`, venceu ontem | `VENCIDO` | `TAXA_VENCIDA` ("Taxa vencida em 19/03/2026.") |
+| FIN04 | `VENCIDA` | `VENCIDO` | — |
+| FIN11 | `PAGA` (1ª taxa), `AGUARDANDO_PAGAMENTO` no prazo (2ª taxa) | `EM_ABERTO` | — |
+| FIN12 | `PAGA` (1ª taxa), `ISENTA` | `QUITADO` | — |
+| FIN14 | `AGUARDANDO_PAGAMENTO` (os 10 falsos não aparecem) | `EM_ABERTO` | — |
+
 ## Dependências do módulo
 
 `tramitacao` não depende de `documento` nem de `dossie` (`ArchitectureTest`); o reuso do que `consulta` oferece é **só por porta**. O domínio não conhece YAML nem Spring (`ArchitectureTest`, regra `dominio_da_tramitacao_sem_yaml`). O SQL contra `SIGA2_CAMUNDA` e `SIGA2_LICENCIAMENTO` fica em `integration.siga` (bloco 3), como todo SQL do SIGA.
