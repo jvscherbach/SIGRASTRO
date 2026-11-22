@@ -219,6 +219,12 @@ let instancias = 0;
           }
         }
 
+        @if (comTaxaVencida(p) && p.situacaoLicenciamento; as s) {
+          <p class="onde-situacao">
+            <span class="muted">Situação no Licenciamento: </span><b>{{ s.descricao }}</b>
+          </p>
+        }
+
         @if (p.avisos.length) {
           <ul class="onde-avisos" aria-label="Avisos sobre a posição">
             @for (a of p.avisos; track a.codigo) {
@@ -263,6 +269,7 @@ let instancias = 0;
     .onde-avisos li.atencao { background: var(--amber-bg); color: var(--amber); }
     .onde-avisos .icon { width: 16px; height: 16px; flex: none; margin-top: 2px; }
     .onde-texto { margin: 0; font-size: 14px; }
+    .onde-situacao { margin: 10px 0 0; font-size: 14px; overflow-wrap: anywhere; }
     .onde-aviso-geral { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
     .onde-aviso-geral p { margin: 0; }
     .onde-esqueleto { display: grid; gap: 10px; }
@@ -303,6 +310,14 @@ export class OndeEstaAgoraComponent {
       untracked(() => this.carregar());
     });
     inject(DestroyRef).onDestroy(() => this.assinatura?.unsubscribe());
+  }
+
+  /**
+   * S9, bloco 9: com o aviso "Taxa vencida" (o SIGA ainda não marca a taxa como vencida), a situação do Licenciamento
+   * aparece ao lado, **como está**, para o aviso fazer sentido; nunca troca o texto da situação.
+   */
+  protected comTaxaVencida(p: PosicaoDoRequerimento): boolean {
+    return p.avisos.some((a) => a.codigo === 'TAXA_VENCIDA');
   }
 
   protected rotuloDoTipo(etapa: EtapaDaPosicao): string {

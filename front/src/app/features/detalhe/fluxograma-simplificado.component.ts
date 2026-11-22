@@ -88,6 +88,12 @@ let instancias = 0;
           <span class="caixa-detalhe">{{ c.detalhe }}</span>
         }
         <span class="caixa-data">{{ c.entrada }}</span>
+        @if (c.financeiro) {
+          <span class="caixa-fin">{{ c.financeiro }}</span>
+        }
+        @if (c.taxaVencida) {
+          <span class="caixa-vencida"><span class="icone-estado" aria-hidden="true">!</span>Taxa vencida</span>
+        }
         <span class="caixa-estado">
           <span class="icone-estado" aria-hidden="true">{{ icone(c) }}</span>{{ c.textoDoEstado }}@if (c.concluido) {<span> · Processo concluído</span>}
         </span>
@@ -113,6 +119,8 @@ let instancias = 0;
     .caixa-rotulo { font-weight: 700; font-size: 13px; line-height: 1.25; }
     .caixa-passagem { font-weight: 600; text-decoration: underline; }
     .caixa-detalhe, .caixa-data { color: var(--muted); }
+    .caixa-fin { font-weight: 600; }
+    .caixa-vencida { justify-self: start; margin-top: 2px; padding: 1px 6px; border: 2px solid var(--red); border-radius: 6px; color: var(--red); font-weight: 700; }
     .caixa-estado { margin-top: 2px; font-weight: 600; }
     .icone-estado { display: inline-block; width: 1.3em; }
     .dica { display: none; position: absolute; left: 0; top: calc(100% + 6px); z-index: 5; min-width: 190px; max-width: 260px; padding: 8px 10px;
@@ -131,6 +139,7 @@ let instancias = 0;
     }
     @media print {
       .caixa { break-inside: avoid; background: #fff !important; }
+      .caixa-vencida { border-color: #000; color: #000; border-style: double; border-width: 4px; }
       .dica { display: none !important; }
       .bola circle { fill: #000; }
     }

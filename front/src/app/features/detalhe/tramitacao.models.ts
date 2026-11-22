@@ -36,6 +36,31 @@ export interface AtoDaPassagem {
   ocorreu: boolean;
 }
 
+export type TipoDeMarcaFinanceira =
+  | 'EMITIDA_EM'
+  | 'NUMERO_DAR'
+  | 'VENCE_EM'
+  | 'PAGA_EM'
+  | 'TAXA_VENCIDA'
+  | 'ISENTO_DE_TAXA'
+  | 'DA_CORRECAO';
+
+/**
+ * Marca financeira ao lado de uma passagem (S9, bloco 5; `passagens[].marcasFinanceiras`, docs/07): só fatos lidos do
+ * lançamento de taxa. Vazia sem caminho exato (plano B, Camunda fora) e sem lançamento casado: a tela nunca inventa marca.
+ */
+export interface MarcaFinanceira {
+  tipo: TipoDeMarcaFinanceira;
+  /** Texto da API ("Emitida em", "Vence em", "Isento de Taxa"...). */
+  rotulo: string;
+  /** Data pura (aaaa-mm-dd); vazia quando a marca não é de data. */
+  data: string | null;
+  /** Só no DAR: o número. */
+  valor: string | null;
+  /** Só no "Isento de Taxa": a data é provisória. */
+  dataAConfirmar: boolean;
+}
+
 export interface PassagemDaTramitacao {
   etapa: EtapaDaPassagem;
   /** 1 na primeira passagem pela etapa; 2, 3... nas voltas. */
@@ -52,6 +77,8 @@ export interface PassagemDaTramitacao {
   responsaveis: ResponsavelDaPassagem[];
   participantes: ResponsavelDaPassagem[];
   atos: AtoDaPassagem[];
+  /** S9: ausente (respostas antigas) equivale a vazia. */
+  marcasFinanceiras?: MarcaFinanceira[];
 }
 
 export interface AvisoDaTramitacao {
@@ -106,12 +133,42 @@ export function ehAutomatica(p: PassagemDaTramitacao): boolean {
   return p.etapa.tipo === 'AUTOMATICA';
 }
 
+/** As marcas financeiras da passagem (vazia quando a API não mandou). */
+export function marcasDe(p: PassagemDaTramitacao): MarcaFinanceira[] {
+  return p.marcasFinanceiras ?? [];
+}
+
 /**
  * Passagens que a lista mostra. Com "ocultar etapas automáticas" ligado, saem as automáticas, **menos** a etapa atual
- * (nunca esconder onde o requerimento está). A lista completa continua a um clique.
+ * (nunca esconder onde o requerimento está) e **menos** as que trazem marca financeira (a "Emissão da taxa" e a "Isenção
+ * confirmada" são automáticas, mas é nelas que a data, o DAR e o "Isento de Taxa" aparecem; S9, bloco 9). A lista completa
+ * continua a um clique.
  */
 export function passagensVisiveis(passagens: PassagemDaTramitacao[], ocultarAutomaticas: boolean): PassagemDaTramitacao[] {
-  return ocultarAutomaticas ? passagens.filter((p) => !ehAutomatica(p) || p.atual) : passagens;
+  return ocultarAutomaticas ? passagens.filter((p) => !ehAutomatica(p) || p.atual || marcasDe(p).length > 0) : passagens;
+}
+
+/**
+ * Texto de uma marca ("Emitida em 04/03/2026", "DAR FICT-0001", "Taxa vencida em 19/03/2026", "Isento de Taxa em
+ * 04/03/2026"). A data entra como data pura (nunca desloca o dia). O "Isento de Taxa" sem data diz "data não registrada";
+ * a nota "data a confirmar" é de `marcaPedeConfirmacao`.
+ */
+export function textoDaMarca(m: MarcaFinanceira, formatarData: (iso: string | null) => string): string {
+  switch (m.tipo) {
+    case 'NUMERO_DAR':
+      return m.valor ? `DAR ${m.valor}` : 'DAR';
+    case 'DA_CORRECAO':
+      return m.rotulo || 'da correção';
+    case 'ISENTO_DE_TAXA':
+      return m.data ? `${m.rotulo} em ${formatarData(m.data)}` : `${m.rotulo} — data não registrada`;
+    default:
+      return m.data ? `${m.rotulo} ${m.tipo === 'TAXA_VENCIDA' ? 'em ' : ''}${formatarData(m.data)}` : m.rotulo;
+  }
+}
+
+/** O "Isento de Taxa" com data que não é a do lançamento: a tela acrescenta "data a confirmar". */
+export function marcaPedeConfirmacao(m: MarcaFinanceira): boolean {
+  return m.tipo === 'ISENTO_DE_TAXA' && m.dataAConfirmar && m.data !== null;
 }
 
 export const ROTULO_DO_ESTADO_DO_PARTICIPANTE: Record<EstadoDoParticipante, string> = {
