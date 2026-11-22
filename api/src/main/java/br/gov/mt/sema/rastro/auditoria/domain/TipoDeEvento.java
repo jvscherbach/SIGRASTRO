@@ -11,6 +11,8 @@ public enum TipoDeEvento {
     GEOMETRIAS(GrupoDeEvento.DOCUMENTOS, "Geometrias baixadas"),
     /** Posição na tramitação (S7, bloco 6): só usuário e números; nunca o responsável pela etapa nem CPF. */
     TRAMITACAO(GrupoDeEvento.DOCUMENTOS, "Posição na tramitação"),
+    /** Histórico financeiro (S9, bloco 6): só usuário e números; nunca valor, número de DAR nem CPF. */
+    FINANCEIRO(GrupoDeEvento.DOCUMENTOS, "Histórico financeiro"),
     LOGIN(GrupoDeEvento.ACESSOS, "Acesso"),
     PERFIL(GrupoDeEvento.ACESSOS, "Troca de perfil"),
     USUARIO(GrupoDeEvento.ACESSOS, "Usuário alterado"),

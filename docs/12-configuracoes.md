@@ -146,6 +146,7 @@ O tempo limite de **cada** consulta continua sendo `RASTRO_CAMUNDA_TIMEOUT_SEGUN
 |---|---|---|---|
 | `RASTRO_FINANCEIRO_LIMITE_LANCAMENTOS` | 200 | 1 a 1000 | lançamentos de taxa lidos **por requerimento** (em ordem de emissão); passando disso, os mais recentes ficam de fora e sai o aviso `LANCAMENTOS_ALEM_DO_LIMITE` |
 | `RASTRO_FINANCEIRO_TIMEOUT_SEGUNDOS` | 10 | 1 a 120 | tempo limite de **cada** consulta a `LANCAMENTO_TAXA` (uma por requerimento; no lote, uma a cada 500), aplicado em cada `Statement` (`LancamentosDoSigaJdbc`), separado do da tramitação |
+| `RASTRO_MOSTRAR_VALORES` (`rastro.financeiro.mostrar-valores`) | `true` | `true`/`false` | **valor, desconto e UPF** nas respostas do financeiro (S9, bloco 6), lido a cada consulta e válido para todos os perfis; desligado, os três **não existem** em nenhuma resposta e o número do DAR continua. Dinheiro público de pessoas e empresas: a regra definitiva depende da SEMA (docs/10). O bloco 10 o leva à aba Rastro (efeito imediato) |
 
 ### Rastro (S7, bloco 10)
 

@@ -11,4 +11,13 @@ public interface ParametrosDoFinanceiro {
 
     /** {@code RASTRO_FINANCEIRO_TIMEOUT_SEGUNDOS}: tempo limite de cada consulta a {@code LANCAMENTO_TAXA}. */
     int consultaTimeoutSegundos();
+
+    /**
+     * {@code RASTRO_MOSTRAR_VALORES} (S9, bloco 6): valor, desconto e UPF saem nas respostas. Desligado, não saem em
+     * nenhuma resposta, para nenhum perfil; o número do DAR continua. Dinheiro público de pessoas e empresas: a regra
+     * definitiva é da SEMA (docs/10). O padrão aqui serve aos dublês de teste; a aplicação lê do ambiente.
+     */
+    default boolean mostrarValores() {
+        return true;
+    }
 }

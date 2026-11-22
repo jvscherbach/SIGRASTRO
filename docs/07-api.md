@@ -160,6 +160,25 @@ Por porta (`tramitacao.application.port.FinanceiroDoRequerimento`, implementada 
 - **Posição:** com o resumo financeiro `VENCIDO`, `avisos[]` ganha, no fim, `TAXA_VENCIDA` (`ATENCAO`): "Taxa vencida em dd/mm/aaaa." e, quando vencida só pela data (o SIGA ainda mostra "aguardando pagamento"), "O SIGA ainda não marca a taxa como vencida; o Rastro compara a data de vencimento com hoje.". Junto com `FLUXO_ENCERRADO_SEM_STATUS` os dois aparecem. Na lista do processo o financeiro é lido numa só consulta em lote.
 - **Tramitação:** cada `passagens[]` ganha `marcasFinanceiras[]` (`tipo`: `EMITIDA_EM`, `NUMERO_DAR`, `VENCE_EM`, `PAGA_EM`, `TAXA_VENCIDA`, `ISENTO_DE_TAXA` ou `DA_CORRECAO`; `rotulo`; `data` (data pura); `valor` (só o número do DAR); `dataAConfirmar` (só no "Isento de Taxa" de data provisória)). Vazia sem lançamento casado, no plano B e com o Camunda fora. Regras de casamento em docs/15.
 
+## Financeiro (S9, bloco 6)
+
+As taxas emitidas, o número do DAR, o vencimento, o pagamento, a isenção e a taxa vencida (docs/15, "Financeiro"). Controller `financeiro.api.FinanceiroController`, caso de uso `financeiro.application.AbrirFinanceiro`. Funciona também sem instância no Camunda (plano B) e com o Camunda fora do ar (perde só o rótulo "da correção" e a data de apoio da isenção).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/requerimentos/{id}/financeiro` | Histórico financeiro do requerimento. |
+| `GET` | `/processos/{numero}/financeiro` | Um histórico por requerimento vinculado ao processo (1:N), em lista, no mesmo contrato. `{numero}` com hífen, como na posição; até 100 requerimentos. |
+
+**Contrato (`FinanceiroResponse`):** `idRequerimento`, `numeroRequerimento`, `numeroProcesso`; `estado` (`ATIVO` ou `INDISPONIVEL`); `resumo` (`SEM_TAXA`, `ISENTO`, `EM_ABERTO`, `QUITADO`, `VENCIDO` ou `INDETERMINADO`; vazio quando `INDISPONIVEL`); `mostraValores` (valor, desconto e UPF saem nesta resposta); `lancamentos[]`; `isencoes[]`; `avisos[]` (`codigo`, `texto`, `gravidade` `INFO`/`ATENCAO`; `TAXA_VENCIDA`, `LANCAMENTO_INCONSISTENTE`, `LANCAMENTOS_ALEM_DO_LIMITE`).
+
+**`lancamentos[]`** (só os válidos pela regra de validade, na ordem de emissão): `ordem`, `rotulo` (`1ª taxa`, `2ª taxa` ou `Taxa da correção`; vazio na isenção e no status desconhecido), `situacao` (a do Licenciamento, como está: `EMITINDO`, `AGUARDANDO_PAGAMENTO`, `PAGA`, `VENCIDA`, `ISENTA`, `CANCELADA`, `DESCONHECIDA`), `vencida`, `vencidaPorData` (o SIGA ainda não a marcou: só esta ganha o aviso), `inconsistente`, `emitidaEm`, `venceEm`, `pagaEm` (data pura, fuso de Cuiabá), `numeroDar`, e, com o parâmetro de valores ligado, `valor`, `desconto`, `upf` (ausente é "não informado", nunca zero).
+
+**`isencoes[]`** ("Isento de Taxa", uma por isenção, em ordem): `texto`, `ordem` (do lançamento isento), `data` (cadeia de apoio **provisória**, docs/15; vazia quando nenhuma fonte a tem) e `dataAConfirmar` (a data não é a do próprio lançamento).
+
+- **Só para o Administrador:** `lancamentos[].idTecnico`, `statusProcessado`, `passouPelaReaprovacaoDaCorrecao` (semântica não confirmada, nunca regra), `inconsistencias[]`; `isencoes[].origemDaData` e `naoProcessado`; e `ignoradosPorMotivo` (`FALSO_SEM_DAR`, `RUIDO_ISENTO_AGUARDANDO`). Para os demais perfis os campos **não existem** no JSON. **Nunca saem:** a chave do arquivo da guia, a mensagem e a titulação (o Rastro não as lê), CPF, token.
+- **Valores:** `RASTRO_MOSTRAR_VALORES` (docs/12, padrão ligado no protótipo) é lido a cada consulta e vale para todos os perfis: desligado, `valor`, `desconto` e `upf` não existem em nenhuma resposta; o número do DAR continua.
+- **Degradação:** banco do SIGA fora do ar, lento ou não configurado **depois** do acesso conferido = **200** `INDISPONIVEL`, nunca 5xx (e a consulta é registrada). Erros como na posição (403 `NAO_INTERESSADO`, 404 `NAO_ENCONTRADO`, 401; 503 `SIGA_INDISPONIVEL` só quando o acesso não pode ser conferido). O financeiro não afeta a tramitação nem os documentos, e o inverso.
+
 ## Documentos
 
 | Método | Rota | Descrição |
@@ -400,6 +419,8 @@ Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **
 | `GET /processos/{numero}/posicao` (S7) | sessão | ✓ | ✓ | ✓ | como a busca por número de processo: filtro na consulta; nenhum dele e o número existe: 403; não existe: 404 | — | — | `restricaoDoUsuarioAtual` (pela busca da consulta); exibição como na linha acima |
 | `GET /requerimentos/{id}/tramitacao` (S8) | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler o Camunda; negado não registra evento) | — | — | `exigirAcessoAoRequerimento`; nome do servidor só para Ge e Ad (`podeVerResponsavelTarefa`, RN12); ids técnicos e diagnóstico só para Ad (`podeVerIdsTecnicosDoFluxo`) |
 | `GET /processos/{numero}/tramitacao` (S8) | sessão | ✓ | ✓ | ✓ | como a busca por número de processo: filtro na consulta; nenhum dele e o número existe: 403; não existe: 404 | — | — | `restricaoDoUsuarioAtual` (pela busca da consulta); exibição como na linha acima |
+| `GET /requerimentos/{id}/financeiro` (S9) | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler os lançamentos; negado não registra evento) | — | — | `exigirAcessoAoRequerimento`; ids de lançamento e diagnóstico só para Ad (`podeVerIdsTecnicosDoFluxo`); valores conforme `RASTRO_MOSTRAR_VALORES`, para todos |
+| `GET /processos/{numero}/financeiro` (S9) | sessão | ✓ | ✓ | ✓ | como a busca por número de processo: filtro na consulta; nenhum dele e o número existe: 403; não existe: 404 | — | — | `restricaoDoUsuarioAtual` (pela busca da consulta); exibição como na linha acima |
 | `GET /tramitacao/parametros` (S7) | sessão | ✓ | ✓ | ✓ | — | — | — | nenhuma: só números de comportamento da tela (`posicoesSimultaneas`), sem credencial nem dado de negócio |
 | `GET /requerimentos/{id}/documentos` | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler os documentos e de chamar o SCORP) | listados para todos; para o Op, mascarados e bloqueados; geometria sigilosa não aparece para o Op (só `totais.geometriasOmitidas`) | — | `exigirAcessoAoRequerimento`, `podeAcessarDocumento`, `mascararTitulo` |
 | `GET /documentos/{origem}/{id}/conteudo?requerimento=` | sessão | ✓ | ✓ | ✓ | 403/404 do requerimento; origem e id fora do requerimento: 404 | 403 | — | `exigirAcessoAoRequerimento`, `exigirAcessoAoDocumento` (a cada requisição, mesmo com cache) |
@@ -463,6 +484,7 @@ O registro dos eventos é feito pelo próprio back-end nas rotas de consulta, co
 | `GET /dossies/{id}/arquivo` com `disposicao=attachment` | `DOWNLOAD` | Arquivo lido por inteiro, em nome de quem baixou (sessão) ou de quem pediu o ticket. Pré-visualização (`inline`), download interrompido e ticket recusado não registram. |
 | `GET /requerimentos/{id}/geometrias/arquivo` | `GEOMETRIAS` | ZIP lido por inteiro. |
 | `GET /requerimentos/{id}/tramitacao`, `GET /processos/{numero}/tramitacao` (S8) | `TRAMITACAO` | Tramitação devolvida, inclusive `INDISPONIVEL` e plano B; detalhe "histórico" + identificação do requerimento; no processo, um evento por requerimento devolvido. Só usuário e números: nunca o responsável nem CPF. |
+| `GET /requerimentos/{id}/financeiro`, `GET /processos/{numero}/financeiro` (S9) | `FINANCEIRO` | Histórico financeiro devolvido, inclusive `INDISPONIVEL`; detalhe "financeiro" + identificação do requerimento; no processo, um evento por requerimento devolvido. Só usuário e números: **nunca** valor, número de DAR, situação da taxa nem CPF. |
 | `GET /requerimentos/{id}/posicao`, `GET /processos/{numero}/posicao` (S7) | `TRAMITACAO` | Posição devolvida, inclusive `INDISPONIVEL`; no processo, um evento por requerimento devolvido. Só usuário e números: nunca o responsável pela etapa nem CPF. |
 
 ## Configurações

@@ -22,10 +22,13 @@ class ParametrosDoFinanceiroDoAmbiente implements ParametrosDoFinanceiro {
 
     private final int limiteDeLancamentos;
     private final int consultaTimeoutSegundos;
+    private final boolean mostrarValores;
 
     ParametrosDoFinanceiroDoAmbiente(
             @Value("${rastro.financeiro.limite-de-lancamentos:" + LIMITE_PADRAO + "}") int limiteDeLancamentos,
-            @Value("${rastro.financeiro.timeout-segundos:" + TIMEOUT_PADRAO + "}") int consultaTimeoutSegundos) {
+            @Value("${rastro.financeiro.timeout-segundos:" + TIMEOUT_PADRAO + "}") int consultaTimeoutSegundos,
+            @Value("${rastro.financeiro.mostrar-valores:true}") boolean mostrarValores) {
+        this.mostrarValores = mostrarValores;
         this.limiteDeLancamentos = faixa("RASTRO_FINANCEIRO_LIMITE_LANCAMENTOS", limiteDeLancamentos, 1, LIMITE_MAXIMO,
                 LIMITE_PADRAO);
         this.consultaTimeoutSegundos = faixa("RASTRO_FINANCEIRO_TIMEOUT_SEGUNDOS", consultaTimeoutSegundos, 1,
@@ -48,5 +51,10 @@ class ParametrosDoFinanceiroDoAmbiente implements ParametrosDoFinanceiro {
     @Override
     public int consultaTimeoutSegundos() {
         return consultaTimeoutSegundos;
+    }
+
+    @Override
+    public boolean mostrarValores() {
+        return mostrarValores;
     }
 }
