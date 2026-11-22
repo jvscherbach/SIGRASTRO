@@ -159,6 +159,11 @@ rastro:
     posicao-cache-segundos: ${RASTRO_POSICAO_CACHE_SEGUNDOS:30}
     # Posições que a tela pede ao mesmo tempo (lista da busca e processo), 1 a 20. Editável em Configurações › Rastro.
     posicoes-simultaneas: ${RASTRO_POSICOES_SIMULTANEAS:4}
+  # Financeiro (S9): lançamentos de taxa lidos por requerimento (1 a 1000; passando disso, aviso) e tempo limite (s) de
+  # cada consulta a LANCAMENTO_TAXA (1 a 120).
+  financeiro:
+    limite-de-lancamentos: ${RASTRO_FINANCEIRO_LIMITE_LANCAMENTOS:200}
+    timeout-segundos: ${RASTRO_FINANCEIRO_TIMEOUT_SEGUNDOS:10}
   agendamento:
     enabled: ${AGENDAMENTO_ENABLED:true}
     limpeza-dossie: PT5M

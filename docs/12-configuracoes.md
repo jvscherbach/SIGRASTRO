@@ -140,6 +140,13 @@ Valor fora da faixa cai no padrão, com aviso no log.
 
 O tempo limite de **cada** consulta continua sendo `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS`.
 
+**Leitura do financeiro** (S9, bloco 2; propriedades `rastro.financeiro.*`; `config.ParametrosDoFinanceiroDoAmbiente`). Por enquanto **só do ambiente** (valem a partir da subida); o bloco 10 da S9 os leva à aba Rastro. Valor fora da faixa cai no padrão, com aviso no log.
+
+| Variável | Padrão | Faixa | Efeito |
+|---|---|---|---|
+| `RASTRO_FINANCEIRO_LIMITE_LANCAMENTOS` | 200 | 1 a 1000 | lançamentos de taxa lidos **por requerimento** (em ordem de emissão); passando disso, os mais recentes ficam de fora e sai o aviso `LANCAMENTOS_ALEM_DO_LIMITE` |
+| `RASTRO_FINANCEIRO_TIMEOUT_SEGUNDOS` | 10 | 1 a 120 | tempo limite de **cada** consulta a `LANCAMENTO_TAXA` (uma por requerimento; no lote, uma a cada 500), aplicado em cada `Statement` (`LancamentosDoSigaJdbc`), separado do da tramitação |
+
 ### Rastro (S7, bloco 10)
 
 Aba **Rastro** das Configurações (só Administrador; RN08, `PERFIL_SEM_PERMISSAO` para os demais), com os parâmetros da tramitação. Como nas demais abas, editar não grava: as alterações saem no "Salvar alterações", num **único evento `CONFIG` com antes e depois**. O padrão vem da variável de ambiente; a tela sobrepõe (em memória, some ao reiniciar). **Credenciais não aparecem** na aba.

@@ -32,6 +32,8 @@ Regras adicionadas na S5 (bloco 2): (f) `auditoria` não depende de `consulta`, 
 
 Regras adicionadas na S7 (bloco 1): (i) o módulo `tramitacao` entra na lista de módulos de negócio (todas as regras de camada valem para ele); (j) `tramitacao` não depende de `documento` nem de `dossie`; (k) `tramitacao.domain` não depende de `org.yaml..` nem de `org.springframework..` (o catálogo de etapas é lido em `tramitacao.infrastructure.catalogo`).
 
+Regras adicionadas na S9 (bloco 2): (l) o módulo `financeiro` entra na lista de módulos de negócio; (m) `financeiro` não depende de `documento` nem de `dossie`; (n) `financeiro.domain` não depende de `org.springframework..`.
+
 Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTest test` (não precisa de Docker). O teste ignora pacotes vazios e passa a inspecioná-los quando recebem classes.
 
 ## Contratos internos usados no Rastro
@@ -56,11 +58,13 @@ Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTes
 | `tramitacao` (S7) | `VerificarAcessoAoRequerimento` (existe + RN07, antes da posição) | `consulta.application` |
 | `integration.siga` (S7) | portas `PosicaoNoFluxo` e `IdentificacaoDosResponsaveis` (`CamundaPosicaoJdbc`) | `tramitacao.application.port` |
 | `config` (S7) | `ParametrosDoRastro` (variáveis de ambiente; a tela vem no bloco 10) | `tramitacao.application.port` |
+| `integration.siga` (S9) | porta `LancamentosDoRequerimento` (`LancamentosDoSigaJdbc`, único leitor de `LANCAMENTO_TAXA`) | `financeiro.application.port` |
+| `config` (S9) | `ParametrosDoFinanceiro` (variáveis de ambiente; a tela vem no bloco 10) | `financeiro.application.port` |
 | `integration.licenciamento` | porta `ArquivosDoRepositorio` | `dossie.application.port` |
 | `dossie.infrastructure` | portas `ValidadorDePdf`, `MontadorDoDossie`, `RepositorioDePedidos`, `FilaDeGeracao` | `dossie.application.port` |
 | `config` | `ParametrosDoDossie` (variáveis de ambiente; a S5 troca) | `dossie.application.port` |
 
-Dependências previstas entre módulos de negócio: `documento` → `consulta`, `acesso`; `dossie` → `documento`, `consulta`, `acesso`. Não há ciclo (o `ArchitectureTest` fiscaliza). `consulta` não depende de `documento` nem de `dossie`. `tramitacao` (S7) → `consulta` e `acesso`, só por porta ou caso de uso publicado; nunca `documento` nem `dossie`. O SQL do Camunda e do Licenciamento que ela consome fica em `integration.siga`, atrás de portas de `tramitacao.application`.
+Dependências previstas entre módulos de negócio: `documento` → `consulta`, `acesso`; `dossie` → `documento`, `consulta`, `acesso`. Não há ciclo (o `ArchitectureTest` fiscaliza). `consulta` não depende de `documento` nem de `dossie`. `tramitacao` (S7) → `consulta` e `acesso`, só por porta ou caso de uso publicado; nunca `documento` nem `dossie`. O SQL do Camunda e do Licenciamento que ela consome fica em `integration.siga`, atrás de portas de `tramitacao.application`. `financeiro` (S9) não depende de `documento` nem de `dossie`; da `tramitacao`, só por porta (S9, blocos 4 e 5); o SQL de `LANCAMENTO_TAXA` fica em `integration.siga`, atrás de `financeiro.application.port`.
 
 **Nunca são contrato interno:** DTO HTTP de outro módulo, entidade JPA de outro módulo, repository concreto de outro módulo, DTO de integração externa.
 

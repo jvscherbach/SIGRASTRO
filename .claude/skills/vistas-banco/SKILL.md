@@ -40,6 +40,7 @@ Pacote raiz `br.gov.mt.sema.rastro` (antes `br.gov.mt.sema.vistas`; renomeado na
 | `auditoria` | registro (somente inclusão) e consulta de eventos de documentos e de acessos |
 | `configuracao` | parâmetros administráveis |
 | `tramitacao` | posição do requerimento no fluxo do Camunda (etapa atual, desde quando, com quem) pelo catálogo de etapas em YAML (`resources/rastro/etapas/`); não depende de `documento` nem de `dossie` (S7, docs/15) |
+| `financeiro` | histórico financeiro do requerimento (S9): lançamentos de taxa (`LANCAMENTO_TAXA`, porta `LancamentosDoRequerimento`), regra de validade, situação, vencimento por data e isenção; não depende de `documento` nem de `dossie`; da `tramitacao`, só por porta |
 | `integration.siga` | **único** lugar que conhece tabelas, colunas, SQL e enums do banco do SIGA |
 | `integration.licenciamento` | cliente da API de arquivos do Licenciamento (`/api/arquivo/{chave}`) |
 | `integration.scorp` | cliente do SCORP (documentos pessoais de interessado, representantes e responsáveis técnicos) |
