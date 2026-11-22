@@ -579,6 +579,12 @@ Testes: `LerTramitacaoTest` (cache e validade, cache desligado, `INDISPONIVEL` f
 
 **Recomendações de índice** (só documento: o usuário do Rastro é somente leitura; decisão da equipe do SIGA): ver P42 em [10](10-pendencias-e-riscos.md).
 
+## Roteiro de homologação (S8, bloco 12)
+
+[`roteiros/s8-homologacao.md`](roteiros/s8-homologacao.md): uma linha por cenário (HC01 a HC15, LC01 a LC03, HF01 a HF04, LF01 a LF05, PB01 a PB03), com a sequência esperada da linha do tempo, o final ou estado do fluxograma e a coluna **Tela** (`Não executado` enquanto não houver ambiente com SIGA fictício, R66). A seção 6 é a conferência com dados reais, feita pelo responsável fora do repositório, com marcadores no lugar de números.
+
+As sequências vêm de `ReconstruirCaminhoComFixturesTest` (sequência exata, motivos das voltas) e os finais de `CenariosFicticiosDaS8` e `DesfechoComFixturesTest`; o plano B, de `PlanoBComFixturesTest`. Continuam **NÃO CONFIRMADO** na tela: a linha sem caixas de HF03 e LF02 (cadastro expirado sem etapa percorrida) e a forma de exibir o início de HF01. As hipóteses de P40 e P41 seguem valendo para a homologação.
+
 ## Dependências do módulo
 
 `tramitacao` não depende de `documento` nem de `dossie` (`ArchitectureTest`); o reuso do que `consulta` oferece é **só por porta**. O domínio não conhece YAML nem Spring (`ArchitectureTest`, regra `dominio_da_tramitacao_sem_yaml`). O SQL contra `SIGA2_CAMUNDA` e `SIGA2_LICENCIAMENTO` fica em `integration.siga` (bloco 3), como todo SQL do SIGA.
