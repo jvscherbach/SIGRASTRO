@@ -241,6 +241,32 @@ Gravados por `CenariosFicticiosDaS8` (mesmo mecanismo: Oracle de teste + `Camund
 
 Regras das fixtures: `HISTORICO_REQUERIMENTO.CPF_USUARIO` existe (a tabela real a tem) com CPF fictício inválido, **para que o bloco 5 e a varredura do bloco 11 provem que o plano B nunca o lê**. Os cenários finais não têm "etapa ativa"; o evento de fim é a última atividade, com `START_TIME_` = `END_TIME_` = fim da instância. Hipóteses não confirmadas: P40. Testes: `CamundaFicticioBuilderCaminhoTest` (a sequência exata de cada cenário), `CamundaFicticioBuilderValidacaoTest` (o que o construtor recusa) e `DadosFicticiosDaS7Test` (nenhum CPF/CNPJ válido).
 
+### Cenários do financeiro (S9, bloco 1; ids 9001 a 9199)
+
+`CenariosFicticiosDaS9`, carregados por `SigaOracleTeste` depois dos da S8 (script `08-financeiro-s9.sql`: `SIGA2_LICENCIAMENTO.LANCAMENTO_TAXA`; **tipos das colunas NÃO CONFIRMADOS**, só a lista de colunas e o enum de `STATUS` vêm do prompt). Número do requerimento `<id>/2026`, DAR fictício `FICT-nnnn` (o construtor recusa outro prefixo), `CHAVE_GED`, `MENSAGEM` e `ID_TITULACAO` **sempre nulos**. "Hoje" dos testes: `HOJE` = 2026-03-20 (Cuiabá) = `dias(18)`; `RELOGIO` fixo em 10h de Cuiabá e `RELOGIO_NA_VIRADA_UTC` (01:30Z do dia seguinte, ainda "hoje" em Cuiabá). A API fluente é `processo.comLancamento(PAGA).comDar("FICT-0001").emitidoEm(...).vencendoEm(...).pagoEm(...)`, e `.comLancamento(...)` encadeia o próximo; também vale para requerimento sem instância e, sem lançamento, o requerimento fica sem taxa.
+
+| Código | Id | Cenário | Lançamentos (válidos em **negrito**) | Camunda |
+|---|---|---|---|---|
+| FIN01 | 9001 | taxa paga | **`PAGA`**, DAR, emitida dia 2, vence dia 12, paga dia 5 | análise (como o HC01 até aí) |
+| FIN02 | 9002 | aguardando, no prazo | **`AGUARDANDO_PAGAMENTO`**, DAR, vence **amanhã** | espera de pagamento |
+| FIN03 | 9003 | aguardando **vencido por data** | **`AGUARDANDO_PAGAMENTO`** (o status ainda é aguardando), DAR, venceu **ontem** | espera de pagamento |
+| FIN04 | 9004 | já `VENCIDA` | **`VENCIDA`**, DAR | espera de pagamento |
+| FIN05 | 9005 | isento | **`ISENTA`** sem DAR, `TAXA_ISENTA = 1`, processado `P` | atribuição (como o HC02) |
+| FIN06 | 9006 | isento, processado `N` | **`ISENTA`** sem DAR, processado `N` | atribuição |
+| FIN07 | 9007 | cancelada sem DAR + válido | `CANCELADA` sem DAR (**falso**, ignorar) e **`AGUARDANDO_PAGAMENTO`** com DAR | espera de pagamento |
+| FIN08 | 9008 | cancelada com DAR | **`CANCELADA`** com DAR e `DATA_FIM` (dia 6) | espera de pagamento |
+| FIN09 | 9009 | aguardando emissão | **`AGUARDANDO_EMISSAO`** sem DAR | espera de pagamento |
+| FIN10 | 9010 | ruído | `AGUARDANDO_EMISSAO` com `TAXA_ISENTA = 1` (**ignorar**, docs/10) | espera de pagamento |
+| FIN11 | 9011 | taxa inicial paga + taxa da correção aguardando | **`PAGA`** (emitida dia 2) e **`AGUARDANDO_PAGAMENTO`** (emitida dia 14, **depois** de entrar na correção no dia 12; `PASSOU_POR_REAPROV_TAXA_CORREC = 1`, só diagnóstico) | espera do pagamento da correção (HC07 parado na espera) |
+| FIN12 | 9012 | pago que virou isento na correção | **`PAGA`** com DAR e depois **`ISENTA`** (dia 14); os dois à vista (o destaque é da S11) | espera do pagamento da correção |
+| FIN13 | 9013 | sem lançamento | nenhum | espera de pagamento |
+| FIN14 | 9014 | volume | 10 `CANCELADA` sem DAR (**falsos**) e **1 `AGUARDANDO_PAGAMENTO`** | espera de pagamento |
+| FIN15 | 9015 | o H18 da S7 com taxa vencida por data | **`AGUARDANDO_PAGAMENTO`**, DAR, venceu ontem | **encerrada** em `Event_0h1oige`, situação `AGUARDANDO_PAGAMENTO_DE_TAXAS` |
+| FIN16 | 9016 | **sem instância** (plano B) com taxa paga | **`PAGA`**, DAR | nenhuma |
+| VENCE_ONTEM, VENCE_HOJE, VENCE_AMANHA | 9101 a 9103 | apoio aos testes de data | **`AGUARDANDO_PAGAMENTO`** vencendo ontem, **hoje** e amanhã | espera de pagamento |
+
+Os `VENCE_*` ficam fora da numeração FIN01 a FIN16 do roteiro. Vencimento gravado à meia-noite (a hora real da coluna é **NÃO CONFIRMADA**; `vencendoEm(LocalDateTime)` grava com hora para provar que a conversão para data não desloca o dia). Testes: `CenariosFicticiosDaS9Test` (Docker: o que cada cenário grava, colunas proibidas nulas, DAR fictício, usuário de leitura sem escrita), `CamundaFicticioBuilderFinanceiroValidacaoTest` (sem Docker: recusa de DAR sem prefixo, relógio de teste) e `DadosFicticiosDaS7Test` (varre os arquivos novos).
+
 ## Posição atual (bloco 3)
 
 ### Peças
