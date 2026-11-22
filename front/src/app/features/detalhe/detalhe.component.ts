@@ -16,6 +16,7 @@ import { DetalheApiService } from './detalhe-api.service';
 import { Requerimento, Responsavel } from './detalhe.models';
 import { ObjetoDoRequerimentoComponent } from './objeto-do-requerimento.component';
 import { OndeEstaAgoraComponent } from './onde-esta-agora.component';
+import { FinanceiroComponent } from './financeiro.component';
 import { TramitacaoComponent } from './tramitacao.component';
 import { RequerimentosDoProcessoComponent } from './requerimentos-do-processo.component';
 
@@ -32,6 +33,7 @@ import { RequerimentosDoProcessoComponent } from './requerimentos-do-processo.co
     DocumentosSecaoComponent,
     OndeEstaAgoraComponent,
     TramitacaoComponent,
+    FinanceiroComponent,
     RequerimentosDoProcessoComponent,
   ],
   templateUrl: './detalhe.component.html',

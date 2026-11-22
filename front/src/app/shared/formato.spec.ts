@@ -3,6 +3,7 @@ import {
   formatarCpfCnpj,
   formatarData,
   formatarDataHora,
+  formatarReais,
   mascararCpfCnpj,
   mascararNumero,
   minutosAte,
@@ -145,5 +146,19 @@ describe('duracaoLegivel', () => {
     expect(duracaoLegivel(NaN)).toBe('');
     expect(duracaoLegivel(null)).toBe('');
     expect(duracaoLegivel(undefined)).toBe('');
+  });
+});
+
+describe('formatarReais', () => {
+  it('formata em reais, com milhar, vírgula e espaço comum depois do R$', () => {
+    expect(formatarReais(1250.5)).toBe('R$ 1.250,50');
+    expect(formatarReais(0)).toBe('R$ 0,00');
+    expect(formatarReais(980)).toBe('R$ 980,00');
+  });
+
+  it('ausente ou inválido é vazio, nunca R$ 0,00', () => {
+    expect(formatarReais(null)).toBe('');
+    expect(formatarReais(undefined)).toBe('');
+    expect(formatarReais(NaN)).toBe('');
   });
 });

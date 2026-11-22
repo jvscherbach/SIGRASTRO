@@ -180,3 +180,16 @@ export function formatarTamanho(bytes: number | null | undefined): string {
   }
   return `${(bytes / (1024 * 1024)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB`;
 }
+
+const REAIS = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+/**
+ * "R$ 1.250,50" (S9). Valor ausente ou inválido é vazio: nunca vira "R$ 0,00" (ausente é "não informado", e quem mostra
+ * escolhe o texto). O espaço depois do "R$" é um espaço comum, para o texto ser estável.
+ */
+export function formatarReais(valor: number | null | undefined): string {
+  if (valor === null || valor === undefined || !Number.isFinite(valor)) {
+    return '';
+  }
+  return REAIS.format(valor).replace(/ /g, ' ');
+}
