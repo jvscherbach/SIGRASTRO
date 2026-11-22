@@ -392,6 +392,51 @@ class LancamentosDoSigaJdbcTest {
         }
     }
 
+    /**
+     * Bloco 7: banco que aceita a conexão e nunca responde (servidor mudo) não segura a thread além do limite; a falha
+     * sobe como exceção de acesso a dados, que o caso de uso transforma em {@code INDISPONIVEL}.
+     */
+    @Test
+    void servidor_mudo_nao_segura_a_thread_alem_do_limite() throws Exception {
+        try (java.net.ServerSocket mudo = new java.net.ServerSocket(0, 50, java.net.InetAddress.getLoopbackAddress())) {
+            Thread aceitador = Thread.ofVirtual().start(() -> {
+                List<java.net.Socket> abertos = new java.util.ArrayList<>();
+                try {
+                    while (!mudo.isClosed()) {
+                        abertos.add(mudo.accept()); // aceita e nunca responde
+                    }
+                } catch (java.io.IOException fim) {
+                    abertos.forEach(s -> {
+                        try {
+                            s.close();
+                        } catch (java.io.IOException ignorada) {
+                            // fechando
+                        }
+                    });
+                }
+            });
+            com.zaxxer.hikari.HikariConfig config = new com.zaxxer.hikari.HikariConfig();
+            config.setJdbcUrl("jdbc:oracle:thin:@//127.0.0.1:" + mudo.getLocalPort() + "/MUDO");
+            config.setUsername("x");
+            config.setPassword("x");
+            config.setConnectionTimeout(1000);
+            config.setInitializationFailTimeout(-1);
+            config.setMinimumIdle(0);
+            config.setMaximumPoolSize(1);
+            try (HikariDataSource lento = new HikariDataSource(config)) {
+                LancamentosDoSigaJdbc semResposta = new LancamentosDoSigaJdbc(new NamedParameterJdbcTemplate(lento), 1, 200);
+                long inicio = System.nanoTime();
+                assertThatThrownBy(() -> semResposta.lerDoRequerimento(FIN01)).isInstanceOf(DataAccessException.class);
+                assertThatThrownBy(() -> semResposta.lerEmLote(List.of(FIN01, FIN05)))
+                        .isInstanceOf(DataAccessException.class);
+                assertThat(java.time.Duration.ofNanos(System.nanoTime() - inicio))
+                        .isLessThan(java.time.Duration.ofSeconds(10));
+            }
+            mudo.close();
+            aceitador.join(java.time.Duration.ofSeconds(5));
+        }
+    }
+
     /** Guarda cada SQL preparado (uma consulta) e cada tempo limite aplicado a ele. */
     private static DataSource contando(DataSource alvo) {
         ClassLoader cl = LancamentosDoSigaJdbcTest.class.getClassLoader();

@@ -164,6 +164,9 @@ rastro:
   financeiro:
     limite-de-lancamentos: ${RASTRO_FINANCEIRO_LIMITE_LANCAMENTOS:200}
     timeout-segundos: ${RASTRO_FINANCEIRO_TIMEOUT_SEGUNDOS:10}
+    # S9, bloco 6: valor, desconto e UPF nas respostas (o DAR sempre sai). Ligado no protótipo; regra definitiva da SEMA.
+    # S9, bloco 7: ligado aqui à variável RASTRO_MOSTRAR_VALORES (antes só a propriedade funcionava).
+    mostrar-valores: ${RASTRO_MOSTRAR_VALORES:true}
   agendamento:
     enabled: ${AGENDAMENTO_ENABLED:true}
     limpeza-dossie: PT5M
