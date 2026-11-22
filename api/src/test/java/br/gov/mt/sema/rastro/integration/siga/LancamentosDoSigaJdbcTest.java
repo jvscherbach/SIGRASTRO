@@ -298,6 +298,24 @@ class LancamentosDoSigaJdbcTest {
     }
 
     @Test
+    void fin05_fin06_fin12_isento_de_taxa_com_a_data_do_lancamento() {
+        HistoricoFinanceiro fin05 = historico(FIN05);
+        HistoricoFinanceiro fin06 = historico(FIN06);
+        HistoricoFinanceiro fin12 = historico(CenariosFicticiosDaS9.FIN12);
+        assertThat(fin05.isencoes()).singleElement().satisfies(r -> {
+            assertThat(r.data()).contains(CamundaFicticioBuilder.dias(2).toLocalDate());
+            assertThat(r.origemDaData()).isEqualTo(br.gov.mt.sema.rastro.financeiro.domain.OrigemDaData.LANCAMENTO);
+            assertThat(r.naoProcessado()).isFalse();
+        });
+        assertThat(fin05.resumo()).isEqualTo(ResumoFinanceiro.ISENTO);
+        assertThat(fin06.isencoes()).singleElement().satisfies(r -> assertThat(r.naoProcessado()).isTrue());
+        assertThat(fin06.resumo()).isEqualTo(ResumoFinanceiro.ISENTO);
+        assertThat(fin12.isencoes()).singleElement()
+                .satisfies(r -> assertThat(r.data()).contains(CamundaFicticioBuilder.dias(14).toLocalDate()));
+        assertThat(fin12.lancamentos()).hasSize(2);
+    }
+
+    @Test
     void fin14_dez_falsos_nao_pesam_no_resumo() {
         HistoricoFinanceiro h = historico(FIN14);
         assertThat(h.lancamentos()).hasSize(1);

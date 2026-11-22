@@ -578,3 +578,14 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 - **"Hoje" e datas num só lugar** (`financeiro.domain.CalendarioDeCuiaba`): o `Clock` do projeto, lido no fuso `America/Cuiaba` qualquer que seja o fuso do relógio ou da JVM; colunas do SIGA viram data sem conversão de fuso.
 - **Ciclos:** guias numeradas por emissão ("1ª taxa", "2ª taxa"); isenção e status desconhecido não recebem número; "da correção" é do bloco 5.
 **Consequência:** `AvaliarSituacao` e `HistoricoFinanceiro` em `financeiro.domain`; `LerLancamentos.historico`/`historicoEmLote` com o `Clock`. Provado por `AvaliarSituacaoTest` (virada do dia, fusos UTC, Cuiabá e Tóquio, precedência, propriedade dos ignorados) e `LancamentosDoSigaJdbcTest` (FIN01 a FIN04, FIN11, FIN12, FIN14, vencimentos ontem/hoje/amanhã e `TIMESTAMP` às 23:30 lido com a JVM em quatro fusos). Detalhe em docs/15, "Financeiro".
+
+## D87 — Financeiro: "Isento de Taxa" por isenção, com data de uma cadeia de apoio provisória (S9, bloco 4)
+
+**Contexto:** cada vez que o requerimento passou por um ponto de verificação de isenção/taxa e o resultado foi isenção, o Rastro mostra "Isento de Taxa" com a data. Não se sabe qual coluna dá essa data nos dados reais.
+**Decisão (do responsável, no prompt da S9; detalhes do bloco 4):**
+- Uma entrada **"Isento de Taxa"** por lançamento `ISENTA` válido, em ordem (várias quando o requerimento foi isento mais de uma vez).
+- **Cadeia de apoio PROVISÓRIA**, num só lugar (`financeiro.domain.DataDaIsencao.CADEIA`): `DATA_EMISSAO` do lançamento → entrada da passagem "Isenção confirmada" do caminho **exato** da tramitação (S8) → sem data. Cada entrada traz a `origemDaData` (`LANCAMENTO`, `FLUXO`, `AUSENTE`); fora de `LANCAMENTO`, a tela marca "data a confirmar".
+- **A tramitação entra só por porta** (`financeiro.application.port.PassagensDeIsencao`, ligada ao caso de uso `LerTramitacao` em `financeiro.infrastructure.tramitacao`) e só quando há isenção sem `DATA_EMISSAO`; nunca no lote. Plano B (aproximado), tramitação indisponível ou falha pulam o elo, sem erro.
+- **Nada é adivinhado:** isenção e passagem são pareadas por ordem só quando as quantidades batem.
+- "Pago que virou isento" fica para a S11; aqui os dois lançamentos aparecem em ordem. `STATUS_PROCESSADO = N` só marca o diagnóstico.
+**Consequência:** a homologação da S9 fecha a cadeia (P44); mudar a ordem ou tirar um elo é mudar só a constante. Provado por `DataDaIsencaoTest`, `LerLancamentosIsencaoTest`, `PassagensDeIsencaoPelaTramitacaoTest` e `LancamentosDoSigaJdbcTest` (FIN05, FIN06, FIN12).

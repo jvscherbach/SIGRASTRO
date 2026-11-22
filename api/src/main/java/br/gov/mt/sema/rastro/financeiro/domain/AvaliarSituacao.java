@@ -2,6 +2,7 @@ package br.gov.mt.sema.rastro.financeiro.domain;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,7 +30,17 @@ public final class AvaliarSituacao {
     private AvaliarSituacao() {
     }
 
+    /** Sem o elo do fluxo: a data do "Isento de Taxa" vem só do lançamento (ou fica ausente). */
     public static HistoricoFinanceiro avaliar(LancamentosClassificados classificados, Clock relogio) {
+        return avaliar(classificados, relogio, List.of());
+    }
+
+    /**
+     * @param entradasDeIsencaoNoFluxo entradas das passagens "Isenção confirmada" (bloco 4; vazia quando a tramitação não
+     *                                 foi lida), para a cadeia de apoio de {@link DataDaIsencao}
+     */
+    public static HistoricoFinanceiro avaliar(LancamentosClassificados classificados, Clock relogio,
+            List<LocalDateTime> entradasDeIsencaoNoFluxo) {
         LocalDate hoje = CalendarioDeCuiaba.hoje(relogio);
         List<LancamentoAvaliado> avaliados = new ArrayList<>();
         List<AvisoFinanceiro> avisos = new ArrayList<>(classificados.avisos());
@@ -59,7 +70,8 @@ public final class AvaliarSituacao {
         if (!avaliados.isEmpty() && !algumConhecido) {
             resumo = ResumoFinanceiro.INDETERMINADO;
         }
-        return new HistoricoFinanceiro(avaliados, resumo, avisos, classificados);
+        return new HistoricoFinanceiro(avaliados, resumo, DataDaIsencao.registrar(avaliados, entradasDeIsencaoNoFluxo),
+                avisos, classificados);
     }
 
     /** Ativo e sem pagamento. */

@@ -641,6 +641,26 @@ Uma consulta (`sql/siga/financeiro/lancamentos.sql`, só em `integration.siga.La
 | FIN12 | `PAGA` (1ª taxa), `ISENTA` | `QUITADO` | — |
 | FIN14 | `AGUARDANDO_PAGAMENTO` (os 10 falsos não aparecem) | `EM_ABERTO` | — |
 
+### "Isento de Taxa" e a data (bloco 4) — regra PROVISÓRIA
+
+Para cada lançamento `ISENTA` válido, uma entrada **"Isento de Taxa"** (`RegistroDeIsencao`), em ordem; requerimento isento mais de uma vez (cadastro e correção) tem várias. **Qual coluna dá a data é decisão provisória** (D87; P44, a validar com dados reais na homologação). A data sai da **cadeia de apoio**, configurada num só lugar, a constante `DataDaIsencao.CADEIA`:
+
+1. `LANCAMENTO`: `DATA_EMISSAO` do lançamento `ISENTA`;
+2. `FLUXO`: entrada da passagem **"Isenção confirmada"** (`isencao_confirmada`) do caminho **exato** da tramitação (S8), pela porta `PassagensDeIsencao` (adaptador `financeiro.infrastructure.tramitacao`, sobre o caso de uso `LerTramitacao`, com o cache e os limites dele). Plano B (aproximado), tramitação indisponível, tipo não suportado ou falha: o elo é pulado;
+3. `AUSENTE`: "data não registrada".
+
+- Cada entrada traz `origemDaData` (`LANCAMENTO`, `FLUXO`, `AUSENTE`) para o diagnóstico e para a nota **"data a confirmar"** na tela quando não for `LANCAMENTO`.
+- **Pareamento com o fluxo:** a k-ésima isenção (por emissão) usa a k-ésima passagem (por entrada) **só quando as quantidades batem**; com quantidades diferentes, o elo do fluxo é pulado (não se adivinha qual passagem é de qual lançamento).
+- **A tramitação só é lida quando muda alguma coisa:** no detalhe, só se há isenção sem `DATA_EMISSAO`; no lote (lista da busca), nunca.
+- **"Pago que virou isento"** (S11) não é tratado aqui: os dois lançamentos aparecem, em ordem (FIN12).
+- `STATUS_PROCESSADO = N` num `ISENTA`: sem tratamento especial; só a marca `naoProcessado` no diagnóstico (P44).
+
+| Cenário | "Isento de Taxa" | Origem da data |
+|---|---|---|
+| FIN05 | 1 entrada, data da emissão | `LANCAMENTO` |
+| FIN06 | 1 entrada, data da emissão; marca "não processado" no diagnóstico | `LANCAMENTO` |
+| FIN12 | 1 entrada (a da correção), depois da taxa paga | `LANCAMENTO` |
+
 ## Dependências do módulo
 
 `tramitacao` não depende de `documento` nem de `dossie` (`ArchitectureTest`); o reuso do que `consulta` oferece é **só por porta**. O domínio não conhece YAML nem Spring (`ArchitectureTest`, regra `dominio_da_tramitacao_sem_yaml`). O SQL contra `SIGA2_CAMUNDA` e `SIGA2_LICENCIAMENTO` fica em `integration.siga` (bloco 3), como todo SQL do SIGA.
