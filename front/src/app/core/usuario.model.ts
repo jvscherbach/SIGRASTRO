@@ -6,10 +6,11 @@ export interface Permissoes {
   acessarConfiguracoes: boolean;
   restritoAoInteressado: boolean;
   verResponsavelTarefa: boolean;
+  verPainel: boolean;
 }
 
 /** Permissão de /auth/me que libera uma tela e o item de menu dela (RN08). */
-export type PermissaoDeTela = keyof Pick<Permissoes, 'verAuditoriaAcessos' | 'acessarConfiguracoes'>;
+export type PermissaoDeTela = keyof Pick<Permissoes, 'verAuditoriaAcessos' | 'acessarConfiguracoes' | 'verPainel'>;
 
 export interface Usuario {
   login: string;

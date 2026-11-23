@@ -35,6 +35,13 @@ export const routes: Routes = [
         data: { crumb: ['Dossiês gerados'] },
       },
       {
+        path: 'painel',
+        loadComponent: () => import('./features/painel/painel.component').then((m) => m.PainelComponent),
+        canActivate: [permissaoGuard],
+        title: 'Painel · SIGRASTRO',
+        data: { permissao: 'verPainel', crumb: ['Painel'] },
+      },
+      {
         path: 'auditoria/documentos',
         loadComponent: () => import('./features/auditoria/auditoria.component').then((m) => m.AuditoriaComponent),
         title: 'Auditoria de documentos · SIGRASTRO',

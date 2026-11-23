@@ -1,0 +1,57 @@
+/* Painel do Gestor (S10, bloco 7): gráficos em HTML, CSS e SVG, só com tokens. A informação nunca depende só de cor. */
+.painel-grafico{display:grid;gap:10px;min-width:0}
+.painel-selo,.painel-mensagem{display:flex;align-items:flex-start;gap:8px;margin:0 0 8px;padding:9px 12px;border-radius:10px;font-size:.875rem;line-height:1.45;background:var(--paper);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.painel-selo .icon,.painel-mensagem .icon{flex:none;width:17px;height:17px;margin-top:2px}
+.painel-selo.aviso{background:var(--marker-tint);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--marker)}
+.painel-selo.erro{background:var(--bad-tint);color:var(--bad);box-shadow:inset 0 0 0 1.5px var(--bad)}
+.painel-legenda{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.8125rem;color:var(--ink)}
+.painel-legenda span{display:inline-flex;align-items:center;gap:8px}
+.amostra{display:inline-block;width:18px;height:12px;border-radius:2px;border:1.5px solid var(--ink)}
+.amostra.protocolados{background:var(--trail)}
+.amostra.concluidos{background:repeating-linear-gradient(45deg,var(--surface) 0 3px,var(--ok) 3px 6px)}
+
+.painel-svg{width:100%;height:auto;max-height:340px;display:block}
+.painel-svg .barra{stroke:var(--ink);stroke-width:1.2}
+.painel-svg .barra.protocolados{fill:var(--trail)}
+.painel-svg .hachura-fundo{fill:var(--surface)}
+.painel-svg .hachura-traco{fill:var(--ok)}
+.painel-svg .eixo{stroke:var(--ink);stroke-width:1.2}
+.painel-svg .grade{stroke:var(--line);stroke-width:1;stroke-dasharray:3 3}
+.painel-svg text{fill:var(--ink);font:600 11px var(--body)}
+.painel-svg .eixo-texto{fill:var(--slate);font-weight:500}
+.painel-svg .eixo-texto.mes{fill:var(--ink);font-size:12px;text-transform:capitalize}
+
+.barras-h{display:grid;gap:8px;min-width:0}
+.barra-h{display:grid;grid-template-columns:minmax(120px,38%) 1fr auto;align-items:center;gap:10px;min-width:0}
+.barra-h .rotulo{display:flex;align-items:center;gap:6px;min-width:0;font-size:.875rem;overflow-wrap:anywhere}
+.barra-h .rotulo .icon{flex:none;width:16px;height:16px;color:var(--trail-deep)}
+.barra-h .trilho{display:block;height:16px;border-radius:4px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line);overflow:hidden}
+.barra-h .enchimento{display:block;height:100%;min-width:0;background:var(--trail);border-right:2px solid var(--ink)}
+.barra-h.sem-nome .enchimento{background:var(--l2)}
+.barra-h .valor{min-width:3ch;text-align:right;font:700 .9375rem var(--body);font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:no-preference){.barra-h .enchimento{transition:width .3s ease}}
+
+.linhas-a-parte{list-style:none;margin:6px 0 0;padding:10px 0 0;border-top:1px dashed var(--line-strong);display:grid;gap:4px;font-size:.875rem}
+.linhas-a-parte li{display:flex;justify-content:space-between;gap:12px}
+
+.tabela-rolavel{overflow-x:auto;max-width:100%}
+.painel-tabela{width:100%;border-collapse:collapse;font-size:.875rem}
+.painel-tabela th,.painel-tabela td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;overflow-wrap:anywhere}
+.painel-tabela thead th{background:var(--paper);font-weight:700}
+.painel-tabela .num{text-align:right;font-variant-numeric:tabular-nums}
+.painel-tabela tfoot th,.painel-tabela tfoot td{border-top:2px solid var(--ink);font-weight:700}
+.painel-tabela tbody th{font-weight:500}
+
+@media (max-width:480px){
+  .barra-h{grid-template-columns:1fr auto;grid-template-areas:"r v" "t t"}
+  .barra-h .rotulo{grid-area:r}
+  .barra-h .valor{grid-area:v}
+  .barra-h .trilho{grid-area:t}
+}
+
+@media print{
+  .painel-grafico .btn,.painel-cabecalho .btn{display:none}
+  .painel-svg .barra,.barra-h .enchimento,.amostra,.painel-svg .hachura-traco,.painel-svg .hachura-fundo{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  .painel-svg .barra.protocolados,.barra-h .enchimento{fill:var(--ink);background:var(--ink)}
+  .painel-grafico{break-inside:avoid}
+}
