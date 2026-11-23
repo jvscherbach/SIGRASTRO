@@ -40,15 +40,13 @@ input:focus,select:focus{outline:3px solid var(--marker);outline-offset:1px;bord
 .btn.lime:hover{background:var(--marker-tint)}
 .btn.quiet{background:transparent;color:var(--trail-deep)}
 .btn.quiet:hover{background:var(--trail-tint)}
-.btn.danger{background:var(--bad);color:var(--surface);box-shadow:none}
-.btn.danger:hover{background:var(--bad);filter:brightness(.85)}
 .btn.sm{min-height:32px;padding:6px 12px;font-size:.8125rem;border-radius:8px}
 .btn[disabled]{opacity:.45;cursor:not-allowed}
 .btn .icon{width:17px;height:17px}
 .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:transparent;color:var(--slate)}
 .icon-btn:hover{background:var(--trail-tint);color:var(--trail-deep)}
-.link-btn,.linkbtn{white-space:nowrap;background:transparent;color:var(--trail-deep);font-size:.8125rem;font-weight:600;display:inline-flex;gap:6px;align-items:center;padding:6px 4px;text-decoration:underline;text-underline-offset:3px}
-.link-btn:hover,.linkbtn:hover{color:var(--trail)}
+.link-btn{white-space:nowrap;background:transparent;color:var(--trail-deep);font-size:.8125rem;font-weight:600;display:inline-flex;gap:6px;align-items:center;padding:6px 4px;text-decoration:underline;text-underline-offset:3px}
+.link-btn:hover{color:var(--trail)}
 .link-btn .icon{width:16px;height:16px}
 
 /* tags */
@@ -76,8 +74,6 @@ input[type=text],input[type=password],input[type=search],input[type=number],inpu
 .hint{font-size:.8125rem;color:var(--slate);font-weight:400;display:flex;gap:6px;align-items:center}
 .hint .icon{width:14px;height:14px}
 .hint button{background:transparent;color:var(--trail-deep);font-weight:700;padding:0;font-size:.8125rem;text-decoration:underline}
-.erro-campo,.msg-erro{color:var(--bad);font-size:.8125rem;font-weight:600}
-.msg-erro{margin-top:10px}
 
 /* alertas e notas */
 .alert{display:flex;gap:12px;align-items:flex-start;border-radius:12px;font-size:.875rem;padding:12px 16px;background:var(--bad-tint);color:var(--bad);box-shadow:inset 0 0 0 1px var(--line);margin-top:14px}
@@ -140,13 +136,6 @@ input[type=checkbox]:disabled{cursor:not-allowed}
 .toast.erro{background:var(--bad)}
 .toast-acao{margin-left:14px;background:transparent;border:1px solid var(--surface);color:var(--surface);border-radius:6px;padding:3px 10px;font:inherit;font-weight:700;cursor:pointer}
 .toast-acao:hover{background:var(--on-ink-hover)}
-
-/* diálogo (folha sobreposta) */
-.veil{position:fixed;inset:0;background:var(--veil);z-index:80;display:grid;place-items:center;padding:16px}
-.dlg{background:var(--surface);border-radius:16px;max-width:760px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.4)}
-.dlg header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:20px 24px 12px}
-.dlg header h2{font-size:1.25rem;word-break:break-word}
-.dlg .body{padding:0 24px 24px}
 
 /* estado vazio */
 .empty{text-align:center;padding:36px 24px;color:var(--slate)}

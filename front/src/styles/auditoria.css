@@ -59,7 +59,6 @@
 .cfg-usuarios select{border:1px solid var(--line-strong);border-radius:8px;padding:0 8px;font-size:12px;background:var(--surface);height:34px;color:var(--ink)}
 .cfg-confirma{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;background:var(--marker-tint);border:1px solid var(--line-strong);border-radius:10px;padding:10px 14px;font-size:13px}
 .cfg-campo-erro{color:var(--bad);font-size:11px}
-.cfg-em-construcao{padding:30px 15px}
 
 /* configurações: parâmetros, barra de pendências e conexões */
 .cfg-parametros{display:grid;gap:12px}

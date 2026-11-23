@@ -14,30 +14,8 @@
      Contraste medido em styles/contraste.spec.ts. */
   --on-ink:#FFFFFF; --on-ink-soft:rgba(255,255,255,.78); --on-ink-line:rgba(255,255,255,.4);
   --on-ink-track:rgba(255,255,255,.25); --on-ink-hover:rgba(255,255,255,.15); --on-ink-faint:rgba(255,255,255,.08);
-  --veil:rgba(0,0,0,.5); --headline-bg:rgba(251,246,228,.92); --glass-bg:rgba(255,255,255,.86); --glass-line:rgba(255,255,255,.95);
+  --veil:rgba(0,0,0,.5); --headline-bg:rgba(251,246,228,.92);
 
-  /* APELIDOS TEMPORÁRIOS de compatibilidade (R2, bloco 3). Removidos no bloco 16. */
-  --black:var(--ink);
-  --forest:var(--trail-deep);
-  --olive:var(--trail);
-  --lime:var(--marker);
-  --mint:var(--marker-tint);
-  --green:var(--trail-deep);
-  --green-h:var(--trail);
-  --sidebar:var(--ink);
-  --side-hover:var(--trail-deep);
-  --side-active:var(--trail);
-  --muted:var(--slate);
-  --bg:var(--paper);
-  --soft:var(--trail-tint);
-  --soft-2:var(--paper);
-  --amber:var(--warn);
-  --amber-bg:var(--marker-tint);
-  --red:var(--bad);
-  --red-bg:var(--bad-tint);
-  --blue:var(--slate);
-  --blue-bg:var(--paper);
-  --radius:var(--r);
 }
 
 /* Escala tipográfica base */

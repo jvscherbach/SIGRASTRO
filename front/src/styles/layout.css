@@ -14,13 +14,6 @@
 .who .sair:hover{color:var(--on-ink)}
 .perfil-chip{padding:2px 10px;border:1px solid var(--on-ink-line);border-radius:999px;font-size:.75rem;color:var(--on-ink);white-space:nowrap}
 
-/* mantidos até o bloco 8 (o login atual ainda usa .brand) */
-.brand{display:flex;gap:10px;align-items:center;height:76px;padding:0 24px;text-decoration:none;color:var(--on-ink)}
-.brand img{width:45px;height:40px;object-fit:contain;filter:brightness(1.25)}
-.brand b{font-size:23px;letter-spacing:.8px}
-.brand-nome{display:flex;flex-direction:column;gap:2px;line-height:1.1}
-.brand-nome small{font-size:10px;font-weight:400;letter-spacing:0;opacity:.8;max-width:150px;white-space:normal}
-
 /* indicador da geração do dossiê (barra do topo) */
 .ind-dossie{display:flex;align-items:center;gap:2px;min-width:0;max-width:340px;background:var(--on-ink-faint);border:1px solid var(--on-ink-line);border-radius:9px;color:var(--on-ink)}
 .ind-dossie[data-tipo="decisao"]{background:var(--warn);border-color:var(--marker)}
