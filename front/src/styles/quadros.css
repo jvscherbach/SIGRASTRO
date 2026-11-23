@@ -17,7 +17,7 @@
 .dash-pill{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.95);border-radius:11px;padding:0 13px;height:42px;color:var(--ink);box-shadow:0 4px 14px rgba(0,0,0,.08);font-size:12px;font-weight:600;white-space:nowrap}
 .dash-pill .icon{width:17px;height:17px}
 .glass{background:rgba(255,255,255,.86);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.95);border-radius:16px;padding:20px 24px 22px;box-shadow:0 10px 30px rgba(0,0,0,.1)}
-.glass-title{display:flex;align-items:center;gap:10px;font-weight:650;font-size:14px;margin-bottom:16px}
+.glass-title,.panel-title{display:flex;align-items:center;gap:10px;font-weight:650;font-size:14px;margin-bottom:16px}
 .coin{width:30px;height:30px;border-radius:50%;background:var(--trail-tint);color:var(--trail-deep);display:grid;place-items:center;flex-shrink:0}
 .coin .icon{width:17px;height:17px}
 .glass-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:auto}
@@ -44,7 +44,8 @@
 .empty .tile-icon{margin:0 auto 12px}
 
 /* busca, atalhos e cartões de objeto (consulta e detalhe) */
-.search-card{max-width:760px;margin-top:auto}
+.search-card{max-width:760px;margin-top:auto;box-shadow:0 0 0 1px var(--line),0 10px 30px rgba(0,0,0,.12)}
+.search-card:focus-within{box-shadow:0 0 0 3px var(--marker),0 10px 30px rgba(0,0,0,.12)}
 /* Espaço do alerta da busca: altura FIXA (cabe um alerta de até duas linhas), invisível quando vazio. Com min-height o
    alerta de duas linhas (margem + caixa passavam de 56px) empurrava o cartão e o quadro inteiro crescia. */
 .hint-perfil{margin-top:12px;height:30px;line-height:15px;align-items:flex-start;overflow:hidden}
@@ -54,12 +55,17 @@
 .seg{display:inline-flex;background:var(--paper);border-radius:var(--r);padding:4px;gap:3px}
 .seg button{border-radius:7px;background:transparent;color:var(--slate);font-size:.9375rem;padding:8px 16px;font-weight:600}
 .seg button.on,.seg button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.15)}
-.tile-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.tile{display:grid;grid-template-columns:46px minmax(0,1fr);gap:12px;align-items:start;text-align:left;background:var(--surface);box-shadow:0 0 0 1px var(--line);border-radius:13px;padding:15px;color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.05);transition:transform .15s,border-color .15s}
-.tile:hover{box-shadow:0 0 0 2px var(--trail);transform:translateY(-1px)}
-.tile b{font-size:13px;display:block;font-weight:650}
-.tile small{display:block;color:var(--muted);font-size:11px;margin-top:4px}
-.tile .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+/* "Consultados por último": trilha vertical (linha tracejada com um círculo por item) */
+.rec-list{list-style:none;margin:0;padding:0}
+.rec-list li{position:relative;padding:0 0 0 30px}
+.rec-list li::before{content:"";position:absolute;left:8px;top:0;bottom:0;border-left:2px dashed var(--line-strong)}
+.rec-list li:last-child::before{bottom:50%}
+.rec-list li::after{content:"";position:absolute;left:2px;top:50%;width:14px;height:14px;margin-top:-7px;border-radius:50%;background:var(--paper);border:3px solid var(--trail)}
+.tile{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;align-items:center;width:100%;text-align:left;margin:4px 0;padding:14px 16px;background:var(--surface);color:var(--ink);border-radius:12px;box-shadow:0 0 0 1px var(--line)}
+.tile:hover{box-shadow:0 0 0 2px var(--trail)}
+.tile b{font-family:var(--display);font-size:1.0625rem;font-weight:700}
+.tile small{color:var(--slate);font-size:.9375rem}
+@media(max-width:640px){.tile{grid-template-columns:1fr}}
 /* objeto do requerimento: cartões só com dados, sem altura fixa, com a mesma altura na linha */
 .objeto-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px;align-items:stretch}
 .objeto-card{border:1px solid var(--line);border-radius:13px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.05);min-width:0}
