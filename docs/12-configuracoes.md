@@ -227,9 +227,9 @@ Cada parâmetro tem uma **classe de aplicação** e uma faixa. O valor do ambien
 - **Exige reinício:** o valor é lido só na subida. Fica pendente e registrado no evento, mas o valor em vigor não muda. **Como as sobreposições somem ao reiniciar, para valer de fato é preciso alterar a variável de ambiente** (R56).
 - **Fora da tela:** credenciais, URLs, diretórios, `SCORP_SIGILO_PADRAO` (decisão da área, P30), `DOSSIE_ESPACO_MINIMO_MB` e os demais limites técnicos. "Orientação automática" está na tabela de Conversão, mas não existe como parâmetro no código.
 
-## Parâmetros do painel (S10, bloco 4)
+## Parâmetros do painel (S10, blocos 4 e 5)
 
-Parâmetros `rastro.painel*` (classe **imediato**: lidos a cada ciclo de atualização, valem na próxima). Neste bloco vêm do ambiente (`RASTRO_PAINEL_*`; fora da faixa cai no padrão, com aviso no log); a tela de Configurações os sobrepõe no bloco 5.
+Parâmetros `rastro.painel*` (classe **imediato**: lidos a cada ciclo de atualização, valem na próxima). O padrão vem do ambiente (`RASTRO_PAINEL_*`; fora da faixa cai no padrão, com aviso no log). **Desde o bloco 5** os cinco estão no `CatalogoDeParametros`, na seção **Rastro** das Configurações (só Administrador; Operador e Gestor recebem 403 `PERFIL_SEM_PERMISSAO`): editar gera **um único evento `CONFIG` com antes e depois**, e `ParametrosDoPainelDoAmbiente` lê o valor a cada ciclo (sobre `ParametrosEmVigor`). O ano aceita `0` ou 2000 a 2100 (1 a 1999 é recusado com 400).
 
 | Parâmetro | Variável | Faixa | Padrão |
 |---|---|---|---|

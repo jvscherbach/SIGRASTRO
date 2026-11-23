@@ -13,6 +13,8 @@ public enum TipoDeEvento {
     TRAMITACAO(GrupoDeEvento.DOCUMENTOS, "Posição na tramitação"),
     /** Histórico financeiro (S9, bloco 6): só usuário e números; nunca valor, número de DAR nem CPF. */
     FINANCEIRO(GrupoDeEvento.DOCUMENTOS, "Histórico financeiro"),
+    /** Painel do Gestor (S10, bloco 5): consulta e atualização manual; só o ano e o estado, nunca nome de servidor. */
+    PAINEL(GrupoDeEvento.DOCUMENTOS, "Painel do Gestor"),
     LOGIN(GrupoDeEvento.ACESSOS, "Acesso"),
     PERFIL(GrupoDeEvento.ACESSOS, "Troca de perfil"),
     USUARIO(GrupoDeEvento.ACESSOS, "Usuário alterado"),

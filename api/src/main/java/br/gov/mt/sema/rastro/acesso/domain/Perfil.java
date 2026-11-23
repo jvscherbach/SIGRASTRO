@@ -3,9 +3,9 @@ package br.gov.mt.sema.rastro.acesso.domain;
 /** Perfis e permissões conforme a matriz de docs/12-configuracoes.md. */
 public enum Perfil {
 
-    OPERADOR("Operador", false, false, false, true, false),
-    OPERADOR_SIGILO("Gestor", true, false, false, false, true),
-    ADMIN("Administrador", true, true, true, false, true);
+    OPERADOR("Operador", false, false, false, true, false, false),
+    OPERADOR_SIGILO("Gestor", true, false, false, false, true, true),
+    ADMIN("Administrador", true, true, true, false, true, true);
 
     private final String rotulo;
     private final boolean verSigilosos;
@@ -13,9 +13,11 @@ public enum Perfil {
     private final boolean acessarConfiguracoes;
     private final boolean restritoAoInteressado;
     private final boolean verResponsavelTarefa;
+    private final boolean verPainel;
 
     Perfil(String rotulo, boolean verSigilosos, boolean verAuditoriaAcessos, boolean acessarConfiguracoes,
-            boolean restritoAoInteressado, boolean verResponsavelTarefa) {
+            boolean restritoAoInteressado, boolean verResponsavelTarefa, boolean verPainel) {
+        this.verPainel = verPainel;
         this.rotulo = rotulo;
         this.verSigilosos = verSigilosos;
         this.verAuditoriaAcessos = verAuditoriaAcessos;
@@ -56,5 +58,10 @@ public enum Perfil {
     /** O nome do responsável pela tarefa atual é visível só para Gestor e Administrador (RN12). */
     public boolean podeVerResponsavelTarefa() {
         return verResponsavelTarefa;
+    }
+
+    /** O painel do Gestor (S10) é só de Gestor e Administrador. */
+    public boolean podeVerPainel() {
+        return verPainel;
     }
 }

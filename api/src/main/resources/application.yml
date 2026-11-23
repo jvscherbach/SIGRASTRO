@@ -167,6 +167,14 @@ rastro:
     # S9, bloco 6: valor, desconto e UPF nas respostas (o DAR sempre sai). Ligado no protótipo; regra definitiva da SEMA.
     # S9, bloco 7: ligado aqui à variável RASTRO_MOSTRAR_VALORES (antes só a propriedade funcionava).
     mostrar-valores: ${RASTRO_MOSTRAR_VALORES:true}
+  # Painel do Gestor (S10): ano (0 = corrente), intervalo da atualização, teto de requerimentos, tempo limite total e
+  # intervalo mínimo da atualização manual. Editáveis em Configurações › Rastro (classe imediato).
+  painel:
+    ano: ${RASTRO_PAINEL_ANO:0}
+    atualizacao-minutos: ${RASTRO_PAINEL_ATUALIZACAO_MINUTOS:30}
+    limite-requerimentos: ${RASTRO_PAINEL_LIMITE_REQUERIMENTOS:3000}
+    timeout-segundos: ${RASTRO_PAINEL_TIMEOUT_SEGUNDOS:60}
+    intervalo-minimo-manual-segundos: ${RASTRO_PAINEL_INTERVALO_MINIMO_MANUAL_SEGUNDOS:120}
   agendamento:
     enabled: ${AGENDAMENTO_ENABLED:true}
     limpeza-dossie: PT5M

@@ -27,6 +27,15 @@
 | RF39 | **Taxa vencida**: aviso "Taxa vencida em dd/mm/aaaa" calculado **por data** (o SIGA não marca a taxa como vencida quando o prazo passa), sem trocar a situação do Licenciamento (RN16). |
 | RF40 | **Isento de Taxa**: uma entrada por isenção, com a data (cadeia de apoio provisória) ou a nota "data a confirmar". |
 
+### Painel do Gestor (S10)
+
+| ID | Requisito |
+|---|---|
+| RF41 | **Painel** (`GET /painel`, só Gestor e Administrador): protocolados × concluídos por mês no ano considerado, fila por etapa e carga por responsável. O ano vem de `rastro.painelAno` (0 = ano corrente em Cuiabá) e a tela sempre o diz. A unidade é o **requerimento**. |
+| RF42 | O painel lê um **instantâneo em memória**, refeito por leitura periódica e limitada do SIGA e do Camunda; **nenhuma requisição** consulta o SIGA nem o Camunda. Estados `PREPARANDO`, `PRONTO`, `DESATUALIZADO` (mostra o último bom) e `INDISPONIVEL`. |
+| RF43 | **Atualização manual** (`POST /painel/atualizacao`), limitada por um intervalo mínimo: antes dele, 429 `ATUALIZACAO_RECENTE` com o tempo que falta. |
+| RN17 | **Contagem do painel** (S10): conta-se `REQUERIMENTO.ID`; base = protocolados no ano (coluna `DATA_PROTOCOLO_PROCESSO`, provisória); concluídos pelo mês de `DATA_ALTERACAO` (aproximado, provisório). Um requerimento em etapas paralelas conta uma vez em cada; a complementação não vira linha; "Fora do catálogo", "Sem instância" e "Etapa não mapeada" aparecem à parte. Só o nome do servidor (RN12), nunca CPF. |
+
 ### Documentos
 
 | ID | Requisito |

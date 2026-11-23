@@ -49,6 +49,12 @@ public final class CatalogoDeParametros {
     public static final String RASTRO_MOSTRAR_VALORES = "rastro.mostrarValores";
     public static final String RASTRO_FINANCEIRO_LIMITE = "rastro.financeiroLimiteLancamentos";
     public static final String RASTRO_FINANCEIRO_TIMEOUT = "rastro.financeiroTimeoutSegundos";
+    /** S10, bloco 5: parâmetros do painel do Gestor, lidos a cada ciclo de atualização (valem no próximo). */
+    public static final String RASTRO_PAINEL_ANO = "rastro.painelAno";
+    public static final String RASTRO_PAINEL_ATUALIZACAO = "rastro.painelAtualizacaoMinutos";
+    public static final String RASTRO_PAINEL_LIMITE = "rastro.painelLimiteRequerimentos";
+    public static final String RASTRO_PAINEL_TIMEOUT = "rastro.painelTimeoutSegundos";
+    public static final String RASTRO_PAINEL_INTERVALO_MANUAL = "rastro.painelIntervaloMinimoManualSegundos";
 
     private static final String DOSSIE = "DOSSIE";
     private static final String CONVERSAO = "CONVERSAO";
@@ -98,7 +104,13 @@ public final class CatalogoDeParametros {
             // S9, bloco 10. Valores de taxas são dinheiro público de pessoas e empresas: a regra definitiva é da SEMA (docs/10).
             booleano(RASTRO_MOSTRAR_VALORES, "Mostrar valores das taxas (valor, desconto e UPF)", RASTRO, "rastro.financeiro.mostrar-valores", true, IMEDIATO),
             inteiro(RASTRO_FINANCEIRO_LIMITE, "Limite de lançamentos de taxa por requerimento", RASTRO, "rastro.financeiro.limite-de-lancamentos", 200, 1, 1000, IMEDIATO),
-            inteiro(RASTRO_FINANCEIRO_TIMEOUT, "Tempo limite da consulta financeira (s)", RASTRO, "rastro.financeiro.timeout-segundos", 10, 1, 120, IMEDIATO));
+            inteiro(RASTRO_FINANCEIRO_TIMEOUT, "Tempo limite da consulta financeira (s)", RASTRO, "rastro.financeiro.timeout-segundos", 10, 1, 120, IMEDIATO),
+            // S10, bloco 5. O ano 0 é "ano corrente" (fuso de Cuiabá); a faixa 2000 a 2100 é conferida também em AnoDoPainel.
+            inteiro(RASTRO_PAINEL_ANO, "Painel: ano considerado (0 = ano corrente)", RASTRO, "rastro.painel.ano", 0, 0, 2100, IMEDIATO),
+            inteiro(RASTRO_PAINEL_ATUALIZACAO, "Painel: atualização automática (min)", RASTRO, "rastro.painel.atualizacao-minutos", 30, 5, 1440, IMEDIATO),
+            inteiro(RASTRO_PAINEL_LIMITE, "Painel: teto de requerimentos por atualização", RASTRO, "rastro.painel.limite-requerimentos", 3000, 100, 20000, IMEDIATO),
+            inteiro(RASTRO_PAINEL_TIMEOUT, "Painel: tempo limite da atualização (s)", RASTRO, "rastro.painel.timeout-segundos", 60, 10, 300, IMEDIATO),
+            inteiro(RASTRO_PAINEL_INTERVALO_MANUAL, "Painel: intervalo mínimo da atualização manual (s)", RASTRO, "rastro.painel.intervalo-minimo-manual-segundos", 120, 30, 3600, IMEDIATO));
 
     private CatalogoDeParametros() {
     }
