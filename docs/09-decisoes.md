@@ -601,3 +601,14 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 - **"Da correção":** emissão depois da entrada no ramo de correção; sem caminho exato, vale "1ª taxa", "2ª taxa".
 - **Sem leitura por linha:** a lista do processo lê o financeiro em lote; o indicador da busca (`IndicadoresFinanceiros`) também, sem tramitação. A tramitação completa entrega o caminho já lido ao financeiro (o Camunda não é lido de novo).
 **Consequência:** a resposta da tramitação ganhou `passagens[].marcasFinanceiras` e a posição pode ter o aviso `TAXA_VENCIDA` (docs/07). Casamentos e ids de etapa em docs/15; pontos a conferir em P45.
+
+## D89 — Commit automático: exceção estreita à regra "só o responsável commita" (A1, blocos 1 e 2)
+
+**Contexto:** prompts longos (a R2 tem 18 blocos) param a cada bloco para o responsável revisar e commitar. O responsável decidiu automatizar o commit por bloco, com uma sessão orquestrando os agentes, num projeto pessoal.
+**Decisão:**
+- **Um só caminho de commit para os agentes:** `node .claude/scripts/commit-bloco.mjs --bloco <N> --mensagem .claude/tmp/commit-msg.txt`, chamado pelo agente `commitador`. O script é a trava: confere argumentos, branch `auto/*`, identidade do Git, marca de testes, mensagem (tira coautoria), caminhos proibidos e dados reais antes de commitar (docs/claude-code/hooks.md).
+- **A guarda-bash libera só esse texto exato** (depois de `trim`, sem nenhum outro caractere). `git commit`, `git push`, `git add`, `gh` e qualquer outra forma de chamar o script continuam bloqueados; o `permissions.deny` de `git commit`, `git push` e `gh` continua, e o `permissions.allow` ganhou só a regra desse comando (para o `commitador` não parar pedindo aprovação).
+- **Nunca há envio ao remoto:** o responsável revisa a branch e faz o envio e o PR à mão.
+- **Commits no nome do responsável**, sem `Co-Authored-By`, sem `Claude-Session` e sem "Generated with" (decisão dele): `attribution` vazio no `.claude/settings.json`, e o script ainda remove essas linhas se aparecerem.
+- **O `.claude/` que sustenta a trava é protegido:** nenhum agente grava em `.claude/scripts/`, `.claude/hooks/`, `.claude/agents/`, `.claude/commands/` nem em `.claude/settings.json`/`settings.local.json` (ler pode; `.claude/tmp/` é livre). Subagente nunca é liberado; a sessão principal só com o marcador `~/.rastro/liberar-construcao-claude`, criado e apagado **à mão pelo responsável** para construir as guardas.
+**Consequência:** a revisão bloco a bloco passa a ser feita no PR. Riscos e limites em R77. Fora do modo automático, a regra permanente "só o responsável commita" continua valendo.

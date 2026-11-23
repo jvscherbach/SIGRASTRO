@@ -42,6 +42,25 @@ O comando **não** corrige código, **não** faz commit e **não** roda nada que
 
 **Evidência da S6:** [../progresso/verificacao-s6.md](../progresso/verificacao-s6.md) (execução única, no estado do bloco 8).
 
+## Agentes do modo automático (A1, bloco 3)
+
+Quatro agentes usados pelo comando `/orquestrar` (ver D89): três **executores**, um por modelo, e o `commitador`.
+
+| Arquivo | Modelo | Ferramentas | Papel |
+|---|---|---|---|
+| `.claude/agents/executor-haiku.md` | `haiku` | `Read, Write, Edit, Glob, Grep, Bash` | Executa **um** bloco atribuído a Haiku; não commita |
+| `.claude/agents/executor-sonnet.md` | `sonnet` | idem | Executa **um** bloco atribuído a Sonnet; não commita |
+| `.claude/agents/executor-opus.md` | `opus` | idem | Executa **um** bloco atribuído a Opus; não commita |
+| `.claude/agents/commitador.md` | `haiku` | `Read, Bash` | Roda só o `commit-bloco` e devolve a saída |
+
+**Executores.** O corpo é **idêntico** nos três (só `name`, `description` e `model` mudam; o teste confere). Recebem o caminho do prompt, o número do bloco, `SESSÃO: <X>` e `MODO: AUTOMÁTICO`. Leem o prompt inteiro e só o bloco pedido; se o bloco não for do modelo indicado ou já estiver concluído, devolvem `PARADA: bloco N não é meu`. Rodam **só os testes ligados ao bloco** (a suíte completa só se o bloco pedir, uma vez). Terminando verdes, gravam `.claude/tmp/commit-msg.txt` e `.claude/tmp/bloco-<N>.json` (`direcionados`, `completa` ou `nao-se-aplica`) e devolvem o relatório `BLOCO N CONCLUÍDO`; com falha ou dúvida, `PARADA: <motivo>` e **sem** marca de testes. Não editam `.claude/` (a guarda bloqueia subagentes ali, exceto `.claude/tmp/`).
+
+**`commitador`.** Sem `Write` nem `Edit`. Roda **só** `node .claude/scripts/commit-bloco.mjs --bloco <N> --mensagem .claude/tmp/commit-msg.txt` (a única regra de `permissions.allow`). Se o script falhar, devolve `FALHA DO COMMIT:` com o texto do erro, sem variações e sem usar `git`.
+
+**Teste automatizado:** `node --test .claude/hooks/agentes-orquestracao.test.mjs` confere nomes, `model`, `tools`, corpo idêntico dos três executores, ausência de ferramenta de escrita no `commitador` e que nenhum dos quatro cita publicação remota.
+
+**Teste manual (o responsável roda no bloco 6):** com `docs/prompts/exemplo-orquestracao.md` e o roteiro `docs/roteiros/a1-homologacao.md`. Agentes novos só carregam em **sessão nova**.
+
 ## Como estender
 
 - **Novo agente:** crie `.claude/agents/<nome>.md` com o cabeçalho (`name`, `description`, `tools` e `model`) e o corpo com papel, entrada, limites e **formato de resposta** fixo. Dê só as ferramentas de que ele precisa (menos é mais seguro) e repita as regras do projeto no corpo.

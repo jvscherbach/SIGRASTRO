@@ -4,6 +4,8 @@
 !.env.*.example
 # Configuração pessoal do Claude Code (a do projeto, .claude/settings.json, é versionada)
 .claude/settings.local.json
+# Mensagem e marca de testes dos executores do modo automático (A1): lidas e apagadas pelo commit-bloco, nunca versionadas
+.claude/tmp/
 # Segredos fora do projeto (S6.1, bloco 2; docs/claude-code/segredos.md): nunca versionar, mesmo se copiados para cá
 **/.rastro/**
 .rastro/

@@ -16,9 +16,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { caminhoDeSegredo, principal } from './comum.mjs';
+import { caminhoClaudeProtegido, caminhoDeSegredo, construcaoLiberada, principal } from './comum.mjs';
 
 const FERRAMENTAS = new Set(['Read', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'Grep', 'Glob']);
+const ESCRITA = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
+export const REGRA_CLAUDE_ARQUIVOS =
+  'Bloqueado pela guarda do projeto (regra: nenhum agente altera `.claude/scripts/`, `.claude/hooks/`, ' +
+  '`.claude/agents/`, `.claude/commands/` nem `.claude/settings.json`/`settings.local.json`; ler pode). Gravar em ' +
+  '`.claude/tmp/` é permitido. Para construir as guardas, só o responsável libera a sessão principal ' +
+  '(docs/claude-code/hooks.md, "Proteção do .claude/").';
 const AMOSTRAS = ['.env', '.env.local', '.env.producao', 'mapa-local.csv'];
 const LIMITE_DA_VARREDURA = 40_000;
 
@@ -195,7 +201,31 @@ function avaliarBuscaEmPasta(ferramenta, dados, cwd) {
   return segredos.length ? REGRA_PASTA : null;
 }
 
-export function avaliar(entrada) {
+/**
+ * A1, bloco 2: o caminho de escrita é de uma pasta ou arquivo protegido do `.claude/` (como escrito, normalizado, ou o
+ * destino real de um link, inclusive de uma pasta-mãe que é link quando o arquivo ainda não existe).
+ */
+export function escritaClaudeProtegida(valor, cwd) {
+  if (caminhoClaudeProtegido(valor)) return true;
+  const absoluto = normalizar(valor, cwd);
+  if (caminhoClaudeProtegido(absoluto)) return true;
+  for (const alvo of [absoluto, path.dirname(absoluto)]) {
+    try {
+      const real = fs.realpathSync.native(alvo);
+      const completo = alvo === absoluto ? real : path.join(real, path.basename(absoluto));
+      if (caminhoClaudeProtegido(completo)) return true;
+      break;
+    } catch {
+      // não existe (ainda): tenta a pasta-mãe; sem ela, vale o nome
+    }
+  }
+  return false;
+}
+
+/**
+ * @param {object} [opcoes] `marcador`: caminho do marcador de liberação (só os testes trocam)
+ */
+export function avaliar(entrada, opcoes = {}) {
   const ferramenta = entrada.tool_name;
   if (!FERRAMENTAS.has(ferramenta)) {
     return null;
@@ -205,6 +235,13 @@ export function avaliar(entrada) {
     throw new TypeError('tool_input ausente');
   }
   const cwd = typeof entrada.cwd === 'string' && entrada.cwd ? entrada.cwd : process.env.CLAUDE_PROJECT_DIR || process.cwd();
+  if (ESCRITA.has(ferramenta)) {
+    const caminhos = ['file_path', 'notebook_path'].map((c) => dados[c]).filter((v) => typeof v === 'string' && v);
+    if (caminhos.some((c) => escritaClaudeProtegida(c, cwd))
+        && !construcaoLiberada(entrada, ...(opcoes.marcador ? [opcoes.marcador] : []))) {
+      return REGRA_CLAUDE_ARQUIVOS;
+    }
+  }
   // No Grep, `pattern` é a expressão procurada (texto), não caminho: só `path` e `glob` contam.
   const campos = ferramenta === 'Grep' ? ['path', 'glob'] : ['file_path', 'notebook_path', 'path', 'pattern'];
   for (const campo of campos) {

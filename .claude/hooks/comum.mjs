@@ -6,6 +6,9 @@
 // Falha segura: erro interno da própria guarda (JSON inválido, exceção) nunca trava a sessão. Escreve um aviso curto
 // em stderr e sai com código 1 (não bloqueante). Só o que casa com uma regra bloqueia (código 2).
 
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const BLOQUEAR = 2;
@@ -124,4 +127,89 @@ export function caminhoDeSegredo(valor) {
     return false; // ".envrc", ".environment" etc. não são o arquivo de segredos do projeto
   }
   return !nome.endsWith('.example');
+}
+
+// --- pastas do Claude Code protegidas contra escrita (A1, bloco 2)
+
+/**
+ * Marcador da liberação de construção: o RESPONSÁVEL cria este arquivo à mão (vazio) para uma sessão principal poder
+ * alterar as guardas, os scripts, os agentes, os comandos e as configurações do Claude Code, e o apaga ao terminar.
+ * Fica em `~/.rastro/`, pasta que as guardas e o `permissions.deny` já proíbem o Claude de ler, criar ou listar.
+ */
+export const MARCADOR_DE_LIBERACAO = path.join(os.homedir(), '.rastro', 'liberar-construcao-claude');
+
+/**
+ * A escrita em `.claude/` protegido está liberada? Só na sessão principal (a entrada do hook de um subagente traz
+ * `agent_id`/`agent_type`, e subagente NUNCA é liberado) e só com o marcador presente.
+ */
+export function construcaoLiberada(entrada, marcador = MARCADOR_DE_LIBERACAO) {
+  if (entrada && (entrada.agent_id || entrada.agent_type)) return false;
+  try {
+    return fs.statSync(marcador).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/** `.claude` (a pasta), `.claude/{scripts,hooks,agents,commands}/` e `.claude/settings{,.local}.json`, em qualquer lugar. */
+const CLAUDE_PROTEGIDO =
+  /(^|[/=:@<>])\.claude(\/+(scripts|hooks|agents|commands)(\/|$)|\/+settings(\.local)?\.json$|\/*$)/;
+/** Nome curto 8.3 do Windows (`CLAUDE~1`): na dúvida, protegido. */
+const NOME_CURTO = /(^|[/=:@<>])claude~\d/;
+
+function normalizarCaminho(valor) {
+  const limpo = valor.replace(/^['"`]+|['"`;,)]+$/g, '').trim().replace(/\\/g, '/').toLowerCase();
+  return limpo ? path.posix.normalize(limpo) : limpo;
+}
+
+/** O caminho (ou um trecho de comando como `x=caminho`, `>caminho`) é de uma pasta ou arquivo protegido do `.claude/`. */
+export function caminhoClaudeProtegido(valor) {
+  if (typeof valor !== 'string' || !valor) return false;
+  const bruto = valor.replace(/\\/g, '/').toLowerCase();
+  const normalizado = normalizarCaminho(valor);
+  return [bruto, normalizado].some((t) => CLAUDE_PROTEGIDO.test(t) || NOME_CURTO.test(t));
+}
+
+/** Amostras do que está protegido: um curinga que alcance uma delas é tratado como protegido. */
+const AMOSTRAS_PROTEGIDAS = [
+  '.claude', '.claude/hooks', '.claude/hooks/guarda-bash.mjs', '.claude/scripts/commit-bloco.mjs',
+  '.claude/agents/commitador.md', '.claude/commands/orquestrar.md', '.claude/settings.json',
+  '.claude/settings.local.json',
+];
+export const AMOSTRA_DO_SCRIPT = '.claude/scripts/commit-bloco.mjs';
+
+function regexDoCuringa(curinga) {
+  let fonte = '';
+  for (let i = 0; i < curinga.length; i++) {
+    const c = curinga[i];
+    // `**` atravessa pastas; `*` não, mas alcança nomes com ponto (na dúvida, como o `dotglob`).
+    if (c === '*' && curinga[i + 1] === '*') {
+      fonte += '.*';
+      i++;
+    } else if (c === '*') fonte += '[^/]*';
+    else if (c === '?') fonte += '[^/]';
+    else if (c === '[') {
+      const fim = curinga.indexOf(']', i + 1);
+      if (fim < 0) return null;
+      fonte += `[${curinga.slice(i + 1, fim).replace(/^!/, '^').replace(/\\/g, '\\\\')}]`;
+      i = fim;
+    } else fonte += c.replace(/[.+^${}()|\\]/g, '\\$&');
+  }
+  try {
+    return new RegExp(`^${fonte}$`, 'i');
+  } catch {
+    return null;
+  }
+}
+
+/** Curinga (`*`, `?`, `[..]`) que pode alcançar uma amostra protegida (ou a dada), também a partir de qualquer pasta. */
+export function curingaAlcancaClaude(valor, amostras = AMOSTRAS_PROTEGIDAS) {
+  if (typeof valor !== 'string' || !/[*?[]/.test(valor)) return false;
+  const partes = normalizarCaminho(valor).split('/');
+  for (let k = 0; k < partes.length; k++) {
+    const regex = regexDoCuringa(partes.slice(k).join('/'));
+    if (!regex) return true; // não dá para conferir
+    if (amostras.some((a) => regex.test(a))) return true;
+  }
+  return false;
 }
