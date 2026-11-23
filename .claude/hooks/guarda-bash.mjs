@@ -21,7 +21,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { caminhoDeSegredo, principal } from './comum.mjs';
+import {
+  AMOSTRA_DO_SCRIPT, caminhoClaudeProtegido, caminhoDeSegredo, construcaoLiberada, curingaAlcancaClaude, principal,
+} from './comum.mjs';
 
 // --- vocabulário
 
@@ -130,6 +132,148 @@ export const REGRA_COMPOSE_CONFIG =
   'Bloqueado pela guarda do projeto (regra: `docker compose config` resolve o `.env.local` e imprime os valores). ' +
   'Use `docker compose ... config --quiet` (só valida) ou `config --services` (só nomes), por exemplo ' +
   '`docker compose --env-file .env.local.example -f compose.yaml -f compose.local.yaml -f compose.verificacao.yaml config --services`.';
+
+// --- A1, bloco 2: a única exceção de commit e a proteção do `.claude/`
+
+/**
+ * O ÚNICO comando que commita (pelo script, que é a trava; docs/claude-code/hooks.md). Comparado com o comando inteiro
+ * depois de `trim`, do início ao fim: um espaço entre as palavras, nenhum outro caractere, nenhum argumento a mais.
+ */
+export const COMANDO_COMMIT_BLOCO =
+  /^node \.claude\/scripts\/commit-bloco\.mjs --bloco [0-9]{1,3} --mensagem \.claude\/tmp\/commit-msg\.txt$/;
+/** Rodar os testes dos scripts e das guardas cita o nome do script, mas não o executa. */
+const TESTES_DOS_SCRIPTS = /^node --test( [A-Za-z0-9_./-]+\.test\.mjs)+$/;
+/** Só leem (com `.claude/` protegido citado, continuam permitidos se não houver redirecionamento de escrita). */
+const SOMENTE_LEITURA = new Set(['cat', 'head', 'tail', 'less', 'more', 'wc', 'ls', 'dir', 'stat', 'file', 'grep',
+  'egrep', 'fgrep', 'rg', 'diff', 'cmp', 'get-content', 'gc', 'type', 'select-string', 'sls', 'get-childitem', 'gci',
+  'test-path', 'test', '[', '[[', 'git']);
+const NODES = new Set(['node', 'nodejs', 'bun', 'deno']);
+
+export const REGRA_COMMIT_BLOCO =
+  'Bloqueado pela guarda do projeto (regra: o commit automático só existe pelo comando exato ' +
+  '`node .claude/scripts/commit-bloco.mjs --bloco <N> --mensagem .claude/tmp/commit-msg.txt`, sozinho, sem nada antes ' +
+  'nem depois, e só o agente commitador o usa). Qualquer outra forma de chamar o script fica bloqueada; para ver o ' +
+  'código, use Read; para os testes, `node --test .claude/scripts/commit-bloco.test.mjs`.';
+export const REGRA_CLAUDE =
+  'Bloqueado pela guarda do projeto (regra: nenhum agente altera `.claude/scripts/`, `.claude/hooks/`, ' +
+  '`.claude/agents/`, `.claude/commands/` nem `.claude/settings.json`/`settings.local.json`; ler pode, com `cat`, ' +
+  '`grep`, `sed -n` ou Read). Gravar a mensagem e a marca do bloco em `.claude/tmp/` é permitido. Para construir as ' +
+  'guardas, só o responsável libera a sessão principal (docs/claude-code/hooks.md, "Proteção do .claude/").';
+
+/**
+ * A palavra cita (ou alcança por curinga) uma pasta ou arquivo protegido do `.claude/`. O curinga conta fora de aspas
+ * e também entre aspas quando a palavra parece caminho (sem espaço: `"**\/*.mjs"` passado a uma ferramenta que expande).
+ * `[`, `[[`, `]` e `]]` sozinhos são o comando de teste, não curinga.
+ */
+function citaClaude(palavra, amostras) {
+  const texto = palavra.texto;
+  const conferirCuringa = (palavra.curinga || !/\s/.test(texto)) && !/^(\[\[?|\]\]?)$/.test(texto);
+  return variacoes(texto).some((v) => v.split(/\s+/).some((w) => (amostras ? false : caminhoClaudeProtegido(w))
+    || (conferirCuringa && curingaAlcancaClaude(w, amostras))));
+}
+
+const REDIRECIONAMENTO_INOFENSIVO = /^(\d?>&\d|&?\d?>{1,2}(\/dev\/null|\$null|nul))$/i;
+
+/** Há escrita por redirecionamento (`>`, `>>`, `&>`, `1>arquivo`), fora de `2>&1` e de `>/dev/null`. */
+function redirecionaEscrita(ps) {
+  for (let i = 0; i < ps.length; i++) {
+    const t = ps[i].texto;
+    if (!t.includes('>')) continue;
+    if (REDIRECIONAMENTO_INOFENSIVO.test(t)) continue;
+    // `2>&1`: o separador de trechos parte no `&` e sobra `2>` no fim do trecho (o destino é outro descritor).
+    if (/^\d?>$/.test(t) && i === ps.length - 1) continue;
+    if (/^&?\d?>{1,2}$/.test(t) && /^(\/dev\/null|\$null|nul)$/i.test(ps[i + 1]?.texto ?? '')) {
+      i++;
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
+/**
+ * `node --test [--test-reporter=x] <arquivos .test.mjs>` (com `2>&1` opcional): roda testes, não executa o script.
+ * Recebe os argumentos depois do programa.
+ */
+function ehTesteNode(args) {
+  const resto = args.filter((a, k) => !REDIRECIONAMENTO_INOFENSIVO.test(a.texto)
+    && !(/^\d?>$/.test(a.texto) && k === args.length - 1));
+  const opcoes = resto.filter((a) => a.texto.startsWith('-')).map((a) => a.texto);
+  const arquivos = resto.filter((a) => !a.texto.startsWith('-'));
+  return opcoes.includes('--test') && opcoes.every((o) => o === '--test' || /^--test-reporter=[a-z]+$/.test(o))
+    && arquivos.length > 0 && arquivos.every((a) => !a.expande && /^[A-Za-z0-9_./-]+\.test\.mjs$/.test(a.texto));
+}
+
+/** Programa que só lê o que cita (sem redirecionamento de escrita). */
+function somenteLeitura(nome, args, ps) {
+  if (redirecionaEscrita(ps)) return false;
+  if (SOMENTE_LEITURA.has(nome)) return true;
+  const textos = args.map((a) => a.texto);
+  if (nome === 'sed') {
+    if (textos.some((t) => /^-[a-zA-Z]*i/.test(t) || /^--in-place/.test(t))) return false;
+    const scripts = textos.filter((t, k) => !t.startsWith('-') && (k === 0 || textos[k - 1] === '-e' || textos[k - 1] === '-n'
+      || !textos.slice(0, k).some((x) => !x.startsWith('-'))));
+    return scripts.length > 0 && /^[0-9]+(,([0-9]+|\$))?p$|^\$p$/.test(scripts[0]);
+  }
+  if (nome === 'find') return !textos.some((t) => /^-(delete|exec|execdir|ok|okdir|fprint0?|fprintf|fls)$/.test(t));
+  if (NODES.has(nome)) {
+    // `--test` roda testes; `--check` só confere a sintaxe; `--test-reporter=x` muda o formato da saída.
+    const opcoes = textos.filter((t) => t.startsWith('-'));
+    const arquivos = textos.filter((t) => !t.startsWith('-'));
+    if (opcoes.length && opcoes.every((t) => t === '--test' || t === '--check' || /^--test-reporter=[a-z]+$/.test(t))) {
+      return arquivos.length > 0 && (opcoes.includes('--test') || opcoes.includes('--check'));
+    }
+    // `node <script do .claude/>`: roda uma guarda; script de fora com `.claude/` no argumento poderia gravar lá.
+    return textos.length > 0 && !textos[0].startsWith('-') && caminhoClaudeProtegido(textos[0]);
+  }
+  return false;
+}
+
+/** Regras do `.claude/` para um trecho (ps já em palavras; `inicio` é o programa). */
+function avaliarClaude(ps, inicio, contexto) {
+  const nome = inicio < ps.length ? programa(ps[inicio].texto) : '';
+  const args = ps.slice(inicio + 1);
+  // 1) Executar qualquer coisa de `.claude/scripts/` fora do comando exato (que nem chega aqui) ou dos testes.
+  if (NODES.has(nome)) {
+    const k = args.findIndex((a) => !a.texto.startsWith('-'));
+    const script = k >= 0 ? args[k] : null;
+    if (script && !ehTesteNode(args) && (/\.claude\/+scripts\//i.test(script.texto.replace(/\\/g, '/'))
+        || citaClaude(script, [AMOSTRA_DO_SCRIPT]))) {
+      return REGRA_COMMIT_BLOCO;
+    }
+    if (script && script.expande && args.some((a) => /commit|bloco|\.claude/i.test(a.texto))) return REGRA_COMMIT_BLOCO;
+  }
+  // 2) Escrever em `.claude/` protegido: só a sessão principal liberada pelo responsável.
+  if (contexto.liberado) return null;
+  if (ps.some((p) => citaClaude(p)) && !somenteLeitura(nome, args, ps)) return REGRA_CLAUDE;
+  return null;
+}
+
+/** O comando cita o script do commit (também com aspas, barras invertidas ou `$'..'` no meio do nome). */
+export function citaCommitBloco(comando) {
+  const semAspas = comando.replace(/\$'/g, "'").replace(/['"`]/g, '').toLowerCase();
+  // Duas leituras da barra invertida: escape (`commit-bl\oco`) e separador do Windows (`.claude\scripts\commit-b*`).
+  return [semAspas.replace(/\\/g, ''), semAspas.replace(/\\/g, '/')]
+    .some((t) => /commit.?bloco|scripts\/+commit|commit-b[*?[]/.test(t));
+}
+
+/** Todos os trechos do comando só leem (para ler ou procurar no script sem executá-lo). */
+function comandoSoLe(comando) {
+  for (const trecho of trechosDetalhados(comando)) {
+    const ps = palavrasDetalhadas(trecho.texto);
+    if (!ps.length || /^\d+$/.test(trecho.texto)) continue; // `1` que sobra de `2>&1` partido no `&`
+    const inicio = inicioDoComando(ps);
+    if (inicio >= ps.length) return false;
+    const nome = programa(ps[inicio].texto);
+    const args = ps.slice(inicio + 1);
+    if (NODES.has(nome)) {
+      if (redirecionaEscrita(ps) || !ehTesteNode(args)) return false;
+      continue;
+    }
+    if (!somenteLeitura(nome, args, ps)) return false;
+  }
+  return true;
+}
 
 // --- leitura do comando
 
@@ -614,8 +758,18 @@ function avaliarLeitor(nome, args, contexto, trecho) {
   return null;
 }
 
-/** Regras de um único trecho; devolve a mensagem de bloqueio ou nulo. */
+/**
+ * Regras de um único trecho; devolve a mensagem de bloqueio ou nulo. As regras antigas respondem primeiro (a mensagem
+ * delas é a mais útil); depois, as da A1 (script do commit fora do comando exato e escrita no `.claude/` protegido).
+ */
 function avaliarTrecho(trecho, contexto, profundidade) {
+  const antiga = avaliarTrechoSemA1(trecho, contexto, profundidade);
+  if (antiga) return antiga;
+  const ps = palavrasDetalhadas(trecho.texto);
+  return ps.length ? avaliarClaude(ps, inicioDoComando(ps), contexto) : null;
+}
+
+function avaliarTrechoSemA1(trecho, contexto, profundidade) {
   const ps = palavrasDetalhadas(trecho.texto);
   if (!ps.length) return null;
   const textos = ps.map((p) => p.texto);
@@ -857,6 +1011,7 @@ export function avaliarTexto(texto, contexto = {}, profundidade = 0, powershell 
     cwd: contexto.cwd || process.env.CLAUDE_PROJECT_DIR || process.cwd(),
     raiz: contexto.raiz || process.env.CLAUDE_PROJECT_DIR || contexto.cwd || process.cwd(),
     powershell: powershell || contexto.powershell,
+    liberado: contexto.liberado === true,
   };
   const { texto: semEmbutidos, embutidos } = separarDocumentosEmbutidos(neutralizarConferencias(texto));
   // Antes de dividir em trechos (que separa nas chaves): expansão de chaves, `${env:X}` lida e xargs/parallel com
@@ -956,14 +1111,25 @@ export function avaliarTexto(texto, contexto = {}, profundidade = 0, powershell 
   return null;
 }
 
-/** Entrada do hook: só olha `tool_input.command` das ferramentas de shell. */
-export function avaliar(entrada) {
+/**
+ * Entrada do hook: só olha `tool_input.command` das ferramentas de shell.
+ * @param {object} [opcoes] `marcador`: caminho do marcador de liberação (só os testes trocam)
+ */
+export function avaliar(entrada, opcoes = {}) {
   const ferramenta = entrada.tool_name;
   if (ferramenta !== 'Bash' && ferramenta !== 'PowerShell') return null;
   const comando = entrada.tool_input && entrada.tool_input.command;
   if (typeof comando !== 'string') throw new TypeError('tool_input.command ausente');
+  // A1: a única exceção de commit. Exatamente este texto, sem nada antes nem depois; nenhuma outra regra se aplica
+  // porque não há outro caractere para esconder algo. Qualquer outra forma que cite o script é bloqueada, exceto
+  // rodar os testes e só ler o arquivo.
+  if (COMANDO_COMMIT_BLOCO.test(comando.trim())) return null;
+  if (citaCommitBloco(comando) && !TESTES_DOS_SCRIPTS.test(comando.trim()) && !comandoSoLe(comando)) {
+    return REGRA_COMMIT_BLOCO;
+  }
   const cwd = typeof entrada.cwd === 'string' && entrada.cwd ? entrada.cwd : undefined;
-  return avaliarTexto(comando, { cwd }, 0, ferramenta === 'PowerShell');
+  const liberado = construcaoLiberada(entrada, ...(opcoes.marcador ? [opcoes.marcador] : []));
+  return avaliarTexto(comando, { cwd, liberado }, 0, ferramenta === 'PowerShell');
 }
 
 principal(import.meta.url, 'guarda-bash', avaliar);

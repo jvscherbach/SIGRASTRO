@@ -23,7 +23,8 @@ Remova a entrada do hook em `.claude/settings.json` (o bloco com o `matcher` cor
 ## Como rodar os testes
 
 ```bash
-node --test .claude/hooks/guarda-bash.test.mjs .claude/hooks/guarda-arquivos.test.mjs .claude/hooks/varrer-dados.test.mjs .claude/hooks/vazamento.test.mjs
+node --test .claude/hooks/guarda-bash.test.mjs .claude/hooks/guarda-arquivos.test.mjs .claude/hooks/varrer-dados.test.mjs .claude/hooks/vazamento.test.mjs .claude/hooks/guarda-commit-bloco.test.mjs
+node --test .claude/scripts/commit-bloco.test.mjs
 ```
 
 (No Node 22 também vale `node --test ".claude/hooks/*.test.mjs"`.) Os testes usam só entradas simuladas: nenhum commit é tentado e nenhum segredo é lido. O CI roda o mesmo comando no job `mudancas`, que sempre executa (docs/13).

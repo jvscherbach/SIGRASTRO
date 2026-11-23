@@ -73,7 +73,7 @@ jobs:
       - name: Testes das guardas do Claude Code (.claude/hooks)
         run: >-
           node --test .claude/hooks/guarda-bash.test.mjs .claude/hooks/guarda-arquivos.test.mjs
-          .claude/hooks/varrer-dados.test.mjs .claude/hooks/vazamento.test.mjs
+          .claude/hooks/varrer-dados.test.mjs .claude/hooks/vazamento.test.mjs .claude/hooks/guarda-commit-bloco.test.mjs
       # Script do commit automático (A1, bloco 1): testes em repositórios Git temporários, com o git e o Node do runner.
       - name: Testes dos scripts do Claude Code (.claude/scripts)
         run: node --test .claude/scripts/*.test.mjs
