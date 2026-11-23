@@ -1,6 +1,6 @@
 # 03 — Arquitetura
 
-> Nome do produto: **Rastro** (antes "SIGA Vistas"). O módulo do dossiê é o **Vistas**. Desde a Fase 2 da R1 (bloco 5) o pacote é `br.gov.mt.sema.rastro`, o artefato `rastro-api` e as propriedades `rastro.*` (o prefixo antigo `vistas.*` vale como alias, D74). Variáveis `VISTAS_*`, schemas e o diretório `/var/tmp/vistas` não mudaram ([01](01-visao-geral.md)).
+> Nome do produto: **SIGRASTRO** (antes "Rastro" e, antes, "SIGA Vistas"). O módulo do dossiê é o **Vistas**. Desde a Fase 2 da R1 (bloco 5) o pacote é `br.gov.mt.sema.rastro`, o artefato `rastro-api` e as propriedades `rastro.*` (o prefixo antigo `vistas.*` vale como alias, D74). Variáveis `VISTAS_*`, schemas e o diretório `/var/tmp/vistas` não mudaram ([01](01-visao-geral.md)).
 
 ## Visão geral
 

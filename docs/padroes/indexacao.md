@@ -31,7 +31,7 @@ A auditoria é a tabela de maior escrita. Cada índice extra custa em toda inclu
 
 ## 4. Leitura do SIGA
 
-Índices no banco do SIGA não são nossos. Se uma consulta do Rastro ficar lenta, levar o plano de execução ao DBA do SIGA; nunca criar índice lá por conta própria.
+Índices no banco do SIGA não são nossos. Se uma consulta do SIGRASTRO ficar lenta, levar o plano de execução ao DBA do SIGA; nunca criar índice lá por conta própria.
 
 ## Monitoramento
 

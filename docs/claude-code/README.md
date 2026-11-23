@@ -1,11 +1,11 @@
-# Ferramentas do Claude Code no Rastro
+# Ferramentas do Claude Code no SIGRASTRO
 
 O repositório traz configuração do próprio Claude Code, versionada, que serve de **guarda de segurança** do projeto: as regras permanentes do [`CLAUDE.md`](../../CLAUDE.md) (só `git diff`, nada de `.env.local`, nada de `down -v`, nenhum dado pessoal real) deixam de depender só da instrução e passam a ser conferidas por código a cada ação. Tudo é **gratuito**, em Node.js (que o projeto já tem por causa do Angular) e sem build. Os hooks não têm dependência; o servidor MCP usa o SDK oficial e o `zod`, com versão fixa e licença MIT (docs/13).
 
 | Ferramenta | Onde | O que faz | Estado |
 |---|---|---|---|
 | **Hooks (guardas)** | [`.claude/settings.json`](../../.claude/settings.json), [`.claude/hooks/`](../../.claude/hooks/) | Bloqueiam git além de `git diff`, `gh`, apagar volumes, ler arquivo de segredo, despejar variáveis de ambiente; avisam quando um arquivo gravado tem CPF/CNPJ válido, token ou chave privada | S6, bloco 6 e S6.1 (postura "na dúvida, bloqueia", camadas e corpus com isca) — [hooks.md](hooks.md), [segredos.md](segredos.md) |
-| **Servidor MCP `rastro`** | [`.mcp.json`](../../.mcp.json), [`tools/mcp-rastro/`](../../tools/mcp-rastro/) | Consultas somente leitura ao Rastro local em modo de demonstração, com saída mascarada | S6, bloco 7 — [mcp.md](mcp.md) |
+| **Servidor MCP `rastro`** | [`.mcp.json`](../../.mcp.json), [`tools/mcp-rastro/`](../../tools/mcp-rastro/) | Consultas somente leitura ao SIGRASTRO local em modo de demonstração, com saída mascarada | S6, bloco 7 — [mcp.md](mcp.md) |
 | **Subagentes e `/verificar-sprint`** | `.claude/agents/`, `.claude/commands/` | Revisão de segurança, execução de testes e conferência das docs, em paralelo; relatório em `docs/progresso/verificacao-s<N>.md` | S6, bloco 8 — [agentes.md](agentes.md) |
 | **Modo automático: `/orquestrar`** | `.claude/commands/orquestrar.md`, `.claude/agents/executor-*.md`, `commitador.md`, `.claude/scripts/commit-bloco.mjs` | Roda um prompt bloco a bloco (executor por modelo, commit pelo `commit-bloco`), só em branch `auto/*`, sem envio remoto | A1, blocos 1 a 4 — [agentes.md](agentes.md), [hooks.md](hooks.md) |
 

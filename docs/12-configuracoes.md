@@ -117,7 +117,7 @@ Credenciais ficam no arquivo de ambiente do servidor; a tela não as exibe nem e
 
 **`CONEXAO_TESTE_TIMEOUT_SEGUNDOS`** (S6, padrão **15**; antes 5 s fixos): tempo limite de conexão e de leitura de cada chamada do teste, mostrado na aba antes de testar e no resultado ("120 ms (limite 15 s)"). O teste inteiro tem teto de 2 × o valor + 5 s (duas chamadas e a espera). Variável de ambiente, fora da tela.
 
-**`RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS`** (S7, bloco 3, padrão **10**; propriedade `rastro.tramitacao.camunda-timeout-segundos`): tempo limite de **cada** consulta da posição atual ao Camunda (até 7 por requerimento, docs/15). Estourado, a posição responde `INDISPONIVEL` e o resto do detalhe segue. Vale só para a tramitação; as demais consultas do SIGA continuam só com `SIGA_DB_READ_TIMEOUT_MS`. Desde o bloco 10, editável em Configurações › Rastro (ver abaixo).
+**`RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS`** (S7, bloco 3, padrão **10**; propriedade `rastro.tramitacao.camunda-timeout-segundos`): tempo limite de **cada** consulta da posição atual ao Camunda (até 7 por requerimento, docs/15). Estourado, a posição responde `INDISPONIVEL` e o resto do detalhe segue. Vale só para a tramitação; as demais consultas do SIGA continuam só com `SIGA_DB_READ_TIMEOUT_MS`. Desde o bloco 10, editável em Configurações › SIGRASTRO (ver abaixo).
 
 **Responsável e cache da posição** (S7, bloco 4; propriedades `rastro.tramitacao.*`, lidas a cada consulta, classe "imediato"; docs/15, "Responsável"):
 
@@ -136,11 +136,11 @@ Valor fora da faixa cai no padrão, com aviso no log.
 | `RASTRO_TRAMITACAO_LIMITE_LINHAS` | 3000 | — | atividades do histórico lidas **por instância**, contadas depois do colapso das repetições; passando disso, a instância vem truncada (as primeiras) e sai o aviso `HISTORICO_TRUNCADO` |
 | `RASTRO_TRAMITACAO_CACHE_SEGUNDOS` | 60 | 0 a 3600 | validade da tramitação em cache (chave = requerimento + versão do catálogo); 0 desliga. `INDISPONIVEL` nunca entra |
 | `RASTRO_TRAMITACAO_TIMEOUT_SEGUNDOS` | 20 | 1 a 120 | tempo **total** de uma leitura da tramitação, contando a espera por vaga; estourado, `INDISPONIVEL` |
-| `RASTRO_CAMUNDA_LEITURAS_SIMULTANEAS` | 4 | 1 a 20 | leituras ao Camunda ao mesmo tempo nesta instância do Rastro, **somando posição e tramitação**; as demais esperam a vez (a posição, até o tempo limite de uma consulta) |
+| `RASTRO_CAMUNDA_LEITURAS_SIMULTANEAS` | 4 | 1 a 20 | leituras ao Camunda ao mesmo tempo nesta instância do SIGRASTRO, **somando posição e tramitação**; as demais esperam a vez (a posição, até o tempo limite de uma consulta) |
 
 O tempo limite de **cada** consulta continua sendo `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS`.
 
-**Leitura do financeiro** (S9, bloco 2; propriedades `rastro.financeiro.*`; `config.ParametrosDoFinanceiroDoAmbiente`). O padrão vem do ambiente (valor fora da faixa cai no padrão, com aviso no log); **desde o bloco 10 da S9 os três parâmetros do financeiro são editáveis na aba Rastro** (ver "Financeiro na aba Rastro", abaixo).
+**Leitura do financeiro** (S9, bloco 2; propriedades `rastro.financeiro.*`; `config.ParametrosDoFinanceiroDoAmbiente`). O padrão vem do ambiente (valor fora da faixa cai no padrão, com aviso no log); **desde o bloco 10 da S9 os três parâmetros do financeiro são editáveis na aba SIGRASTRO** (ver "Financeiro na aba SIGRASTRO", abaixo).
 
 | Variável | Padrão | Faixa | Efeito |
 |---|---|---|---|
@@ -148,7 +148,7 @@ O tempo limite de **cada** consulta continua sendo `RASTRO_CAMUNDA_TIMEOUT_SEGUN
 | `RASTRO_FINANCEIRO_TIMEOUT_SEGUNDOS` | 10 | 1 a 120 | tempo limite de **cada** consulta a `LANCAMENTO_TAXA` (uma por requerimento; no lote, uma a cada 500), aplicado em cada `Statement` (`LancamentosDoSigaJdbc`), separado do da tramitação |
 | `RASTRO_MOSTRAR_VALORES` (`rastro.financeiro.mostrar-valores`) | `true` | `true`/`false` | **valor, desconto e UPF** nas respostas do financeiro (S9, bloco 6), lido a cada consulta e válido para todos os perfis; desligado, os três **não existem** em nenhuma resposta e o número do DAR continua. Dinheiro público de pessoas e empresas: a regra definitiva depende da SEMA (docs/10). Editável na aba Rastro desde o bloco 10 (efeito imediato, ver "Financeiro na aba Rastro"). **Bloco 7:** a variável passou a ser ligada à propriedade no `application.yml` (antes só a propriedade funcionava; a variável era ignorada), e a negação é provada pela variável em todos os cenários e perfis (`VarreduraSemValoresHttpTest`) |
 
-### Rastro (S7, bloco 10)
+### Aba Rastro (S7, bloco 10)
 
 Aba **Rastro** das Configurações (só Administrador; RN08, `PERFIL_SEM_PERMISSAO` para os demais), com os parâmetros da tramitação. Como nas demais abas, editar não grava: as alterações saem no "Salvar alterações", num **único evento `CONFIG` com antes e depois**. O padrão vem da variável de ambiente; a tela sobrepõe (em memória, some ao reiniciar). **Credenciais não aparecem** na aba.
 
@@ -157,7 +157,7 @@ Aba **Rastro** das Configurações (só Administrador; RN08, `PERFIL_SEM_PERMISS
 | Mostrar o nome do responsável (`rastro.mostrarNomeResponsavel`) | `RASTRO_MOSTRAR_NOME_RESPONSAVEL` (`true`) | `true`/`false` | imediato | desligado, só área e papel (P32; o Operador nunca vê o nome, RN12) |
 | Validade do cache da posição (`rastro.posicaoCacheSegundos`) | `RASTRO_POSICAO_CACHE_SEGUNDOS` (30) | 0 a 3600 | imediato | 0 desliga |
 | Máximo de nomes por equipe (`rastro.maxNomesPorEquipe`) | `RASTRO_MAX_NOMES_POR_EQUIPE` (10) | 1 a 100 | imediato | o resto vira "e mais N" |
-| Posições consultadas ao mesmo tempo (`rastro.posicoesSimultaneas`) | `RASTRO_POSICOES_SIMULTANEAS` (4) | 1 a 20 | imediato (no front: ao abrir o Rastro de novo) | limite da fila de posições da tela (busca e processo) |
+| Posições consultadas ao mesmo tempo (`rastro.posicoesSimultaneas`) | `RASTRO_POSICOES_SIMULTANEAS` (4) | 1 a 20 | imediato (no front: ao abrir o SIGRASTRO de novo) | limite da fila de posições da tela (busca e processo) |
 | Tempo limite das consultas ao fluxo (`rastro.camundaTimeoutSegundos`) | `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS` (10) | 1 a 120 | imediato (próxima leitura) | cada consulta da posição ao Camunda e o teste de conexão do Camunda |
 
 - **"Imediato" vale na próxima leitura:** o back-end lê cada valor a cada consulta (`ParametrosDoRastroDoAmbiente` sobre `ParametrosEmVigor`); o tempo limite do Camunda é aplicado em cada `Statement` (`CamundaPosicaoJdbc`), sem reiniciar.
@@ -187,9 +187,9 @@ Variáveis de ambiente, fora da tela:
 | Variável | Onde | Padrão | O que faz |
 |---|---|---|---|
 | `RASTRO_MODO` | serviço (`api`) | `padrao` | `demonstracao` declara o modo em `GET /api/estado`, **só** se SIGA, API de arquivos e SCORP estiverem vazios. O `compose.verificacao.yaml` liga |
-| `RASTRO_MCP_URL` | servidor MCP (ambiente do processo do Claude Code) | `http://localhost:8080` (porta do front no `compose.local.yaml`) | base do Rastro local; host diferente de `localhost`, `127.0.0.1` e `host.docker.internal` é recusado |
+| `RASTRO_MCP_URL` | servidor MCP (ambiente do processo do Claude Code) | `http://localhost:8080` (porta do front no `compose.local.yaml`) | base do SIGRASTRO local; host diferente de `localhost`, `127.0.0.1` e `host.docker.internal` é recusado |
 | `RASTRO_MCP_USUARIO` / `RASTRO_MCP_SENHA` | servidor MCP | sem padrão | usuário de demonstração; nunca lidos do `.env.local` |
-| `RASTRO_MCP_TIMEOUT_MS` | servidor MCP | 10000 | tempo limite de cada pedido ao Rastro |
+| `RASTRO_MCP_TIMEOUT_MS` | servidor MCP | 10000 | tempo limite de cada pedido ao SIGRASTRO |
 
 ### Auditoria
 

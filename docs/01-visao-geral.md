@@ -2,9 +2,9 @@
 
 ## Produto, módulos e fases
 
-O produto se chama **Rastro**: um complemento de consulta ao SIGA Licenciamento (protótipo). Ele reúne consultas sobre o requerimento ou processo: onde está, por onde passou, histórico financeiro e, mais adiante, painel do Gestor. Cada parte é um **módulo**. O primeiro é o **Vistas**, que gera o dossiê da Vista do Processo. Os próximos previstos são "Tramitação", "Taxas" e "Painel" (decisão D73).
+O produto se chama **SIGRASTRO**: um complemento de consulta ao SIGA Licenciamento (protótipo). Ele reúne consultas sobre o requerimento ou processo: onde está, por onde passou, histórico financeiro e, mais adiante, painel do Gestor. Cada parte é um **módulo**. O primeiro é o **Vistas**, que gera o dossiê da Vista do Processo. Os próximos previstos são "Tramitação", "Taxas" e "Painel" (decisão D73).
 
-- Não usar "SIGA Rastro" nem "Rastro SIGA". O nome antigo, "SIGA Vistas", aparece só em documentos históricos (prompts, progresso e roteiros homologados) e nas decisões antigas.
+- Não usar "SIGA SIGRASTRO" nem "SIGRASTRO SIGA". Os nomes antigos, "Rastro" e "SIGA Vistas", aparecem só em documentos históricos (prompts, progresso e roteiros homologados) e nas decisões antigas.
 - "Vista do Processo" é a funcionalidade do SIGA Licenciamento. "Vistas do Processo" é o rótulo do módulo nas telas e no PDF.
 
 **Escopo em fases da renomeação (R1):**

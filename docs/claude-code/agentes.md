@@ -1,6 +1,6 @@
 # Subagentes e o comando `/verificar-sprint`
 
-Orquestração **mínima** do Claude Code no Rastro (S6, bloco 8): um comando dispara três subagentes em paralelo e consolida o resultado num relatório. Tudo é gratuito, é só Markdown versionado e não tem build. Os hooks de [hooks.md](hooks.md) valem também para os subagentes: eles não conseguem rodar `git` além de `git diff`, abrir `.env.local` nem derrubar volumes.
+Orquestração **mínima** do Claude Code no SIGRASTRO (S6, bloco 8): um comando dispara três subagentes em paralelo e consolida o resultado num relatório. Tudo é gratuito, é só Markdown versionado e não tem build. Os hooks de [hooks.md](hooks.md) valem também para os subagentes: eles não conseguem rodar `git` além de `git diff`, abrir `.env.local` nem derrubar volumes.
 
 | Arquivo | Papel |
 |---|---|

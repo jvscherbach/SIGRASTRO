@@ -1,8 +1,8 @@
 # 15 — Tramitação
 
-Módulo `tramitacao` do Rastro (S7 em diante): dado um requerimento, mostrar **em que etapa ele está agora, desde quando e com quem**, em linguagem que não exige conhecer o Camunda. O Rastro só **lê e mostra**: o SIGA segue na análise e na decisão.
+Módulo `tramitacao` do SIGRASTRO (S7 em diante): dado um requerimento, mostrar **em que etapa ele está agora, desde quando e com quem**, em linguagem que não exige conhecer o Camunda. O SIGRASTRO só **lê e mostra**: o SIGA segue na análise e na decisão.
 
-O serviço é usado em **processos jurídicos**: dado cruzado errado é pior do que dado ausente. Onde a fonte é ambígua, o Rastro **diz que não sabe** (selo de aviso ou "Etapa não mapeada"), em vez de adivinhar.
+O serviço é usado em **processos jurídicos**: dado cruzado errado é pior do que dado ausente. Onde a fonte é ambígua, o SIGRASTRO **diz que não sabe** (selo de aviso ou "Etapa não mapeada"), em vez de adivinhar.
 
 Escopo por sprint: **S7** posição atual; **S8** histórico, "com quem esteve em cada etapa" e fluxograma; **S9** taxas, DAR e pagamentos. Prompt da S7: [`prompts/S7-tramitacao-onde-esta-e-com-quem.md`](prompts/S7-tramitacao-onde-esta-e-com-quem.md); progresso em [`progresso/s7.md`](progresso/s7.md).
 
@@ -16,7 +16,7 @@ Registradas em [09](09-decisoes.md) (D82).
 - **Responsável:** tarefa com `ASSIGNEE_` → nome do servidor (`SERVIDOR`, por CPF); tarefa de grupo → **área** pelo arquivo de grupos (bloco 4); tarefa do interessado → "Interessado (cadastrante)"; sistema → "Sistema". **CPF nunca sai.** O nome do servidor aparece conforme `RASTRO_MOSTRAR_NOME_RESPONSAVEL` (padrão ligado **no protótipo**; a regra definitiva depende de aprovação da SEMA, P32 em [10](10-pendencias-e-riscos.md)).
 - **"Verificação da revisão" = concluído/arquivado** (regra técnica 9): etapa exibida com o selo "Processo concluído".
 - **Leitura direta por `PROC_INST_ID_`**, sem tabela de apoio. **Cache curto em memória** (TTL `RASTRO_POSICAO_CACHE_SEGUNDOS`, padrão 30; 0 desliga). Tabela de apoio fica para o painel do Gestor.
-- **Camunda indisponível ou lento não derruba o Rastro:** a posição responde `INDISPONIVEL` (com a situação do Licenciamento, se houver) e o resto do detalhe continua.
+- **Camunda indisponível ou lento não derruba o SIGRASTRO:** a posição responde `INDISPONIVEL` (com a situação do Licenciamento, se houver) e o resto do detalhe continua.
 - **Em memória** onde houver estado (cache, auditoria); nada é gravado no Oracle.
 
 ## Catálogo de etapas
@@ -81,7 +81,7 @@ Qualquer problema derruba a subida com **todos** os problemas numa só mensagem 
 - **Id técnico fora do catálogo não é erro**: resolve para `NaoMapeado` ("Etapa não mapeada"; o id técnico só aparece para o Administrador, bloco 6).
 - **Chave de modelo desconhecida** (Trifásico, LAS, que não estão em produção) resolve para `NaoSuportado`: "Fluxo ainda não suportado pelo Rastro", sem erro. O mesmo vale para `modeloDaInstancia` com instância desconhecida.
 - **Ids ignorados** resolvem para `Ignorado`, nunca para etapa.
-- **Condição de percurso:** "Isenção confirmada" (`taskGerarNumeroProtocolo`) só vale quando a instância **não** passou pelo gateway de pagamento. Com passagem, o Rastro não inventa rótulo: resolve para `NaoMapeado` (rótulo da geração de protocolo depois do pagamento **NÃO CONFIRMADO**; decidir com o responsável).
+- **Condição de percurso:** "Isenção confirmada" (`taskGerarNumeroProtocolo`) só vale quando a instância **não** passou pelo gateway de pagamento. Com passagem, o SIGRASTRO não inventa rótulo: resolve para `NaoMapeado` (rótulo da geração de protocolo depois do pagamento **NÃO CONFIRMADO**; decidir com o responsável).
 - **Instâncias filhas** de emissão resolvem pela chave de definição (`resolverProcessoFilho`).
 
 ### Conteúdo inicial (fonte: levantamento 2)
@@ -308,7 +308,7 @@ Sem instância ou encerrada: 2 consultas; tipo não suportado: 1. O bloco 4 acre
 3. **Ativa:** cada ponto ativo vira um `ElementoDaPosicao`:
    - **tarefas da raiz**, agrupadas por id técnico; etapa multi-instância vira **um** ponto com "x de y"; "desde" = criação da tarefa, marcado como **"desde a última entrada nesta etapa"** (a tarefa é recriada a cada volta);
    - **cada filha** de emissão é um ponto próprio (duas filhas = principal + "+1 em paralelo"), com as tarefas da filha (signatários) e "desde" = início da filha;
-   - **execuções** paradas fora de tarefa: espera só se **confirmada** por assinatura de evento ("desde" = criação da assinatura); sem assinatura, o Rastro não supõe e mostra "Etapa não mapeada". Automática parada: "desde" = início da atividade aberta. A chamada (`callActivity`) já mostrada pela filha e a execução de uma tarefa já listada não duplicam;
+   - **execuções** paradas fora de tarefa: espera só se **confirmada** por assinatura de evento ("desde" = criação da assinatura); sem assinatura, o SIGRASTRO não supõe e mostra "Etapa não mapeada". Automática parada: "desde" = início da atividade aberta. A chamada (`callActivity`) já mostrada pela filha e a execução de uma tarefa já listada não duplicam;
    - id **ignorado** de ruído some; id **desconhecido** vira ponto "Etapa não mapeada" (`idsNaoMapeados`, só para o Administrador).
 4. **Principal:** a de menor ordem do ramo principal; sem ela, a de menor ordem da correção; sem nenhuma mapeada, a não mapeada mais antiga. Empate de ordem: o mais antigo, e depois a ordem da leitura (que o SQL fixa). O resto vai para "em paralelo". A complementação fica **à parte** (quantidade e desde quando).
 5. **Suporte** (`Activity_0miwhxt`): nunca é posição. Sem outro ponto mapeado, a principal é a **última etapa real percorrida** (a encerrada mais recente que está no catálogo e não é ignorada), **sem "desde"** (não se sabe desde quando ela está parada); `emSuporteDesde` guarda o início da tarefa de suporte. Sempre com a marca `EM_SUPORTE`.
@@ -380,7 +380,7 @@ A **etapa do fluxo sempre prevalece** sobre a situação do Licenciamento (excet
 | `EXPIRADO_NA_CORRECAO_LAC` | INFO | LAC encerrado em `evtEncerrarProcessoPrazoCorrecaoExpirado` com a situação do expirado no cadastro (regra 8) | O prazo da correção expirou. O SIGA mostra a mesma situação do prazo de cadastro expirado; vale o final do fluxo. |
 | `VARIAS_INSTANCIAS` | ATENÇÃO | mais de uma instância raiz (vale a mais recente) | Há mais de um fluxo para este requerimento; vale o mais recente. |
 | `EM_SUPORTE` | INFO | tarefa "Suporte" ativa | Em atendimento de suporte técnico. |
-| `ETAPA_NAO_MAPEADA` | ATENÇÃO | ponto ativo ou final fora do catálogo | O fluxo está num ponto que o Rastro ainda não sabe nomear. |
+| `ETAPA_NAO_MAPEADA` | ATENÇÃO | ponto ativo ou final fora do catálogo | O fluxo está num ponto que o SIGRASTRO ainda não sabe nomear. |
 | `SEM_INSTANCIA` | INFO | requerimento sem instância no Camunda | Histórico detalhado indisponível para este requerimento. |
 | `HISTORICO_APROXIMADO` | INFO | **S8, bloco 5:** a tramitação veio do plano B | Histórico aproximado: este requerimento é anterior ao registro detalhado do fluxo |
 | `HISTORICO_TRUNCADO` | ATENCAO | **S8, bloco 6:** alguma instância passou do limite de linhas; o caminho é o que coube | Histórico incompleto: este requerimento tem registros demais e só parte do caminho é mostrada. |
@@ -400,7 +400,7 @@ O selo mostra o **texto** (não só cor ou ícone). `{situacao}` no texto é tro
 
 Em `confronto.yaml`, por chave do modelo, cada etapa e cada final com `aceitas` (e `conhecidas`, quando há divergência documentada). `AGUARDANDO_EMISSAO_DE_TAXAS` é aceita em **duas** etapas do Hídrico (taxa inicial e taxa da correção). A lista das 29 situações (docs/04, Apêndice A) fica no próprio arquivo, e a subida falha com situação desconhecida, código de aviso desconhecido ou sem texto, modelo, etapa ou final inexistentes no catálogo de etapas, divergência apontando para aviso que não é de divergência, ou campo desconhecido. Todas as etapas e finais dos dois modelos têm entrada (teste). A tabela é uma **hipótese** montada a partir das regras técnicas e dos nomes das situações: **NÃO CONFIRMADA** (P37), conferir na homologação.
 
-Quando o SIGA corrigir o bug de origem da taxa vencida, a situação passa a `CANCELADO_POR_FALTA_DE_PAGAMENTO` (aceita no final) e o aviso `FLUXO_ENCERRADO_SEM_STATUS` **desaparece sozinho**, sem mudança no Rastro.
+Quando o SIGA corrigir o bug de origem da taxa vencida, a situação passa a `CANCELADO_POR_FALTA_DE_PAGAMENTO` (aceita no final) e o aviso `FLUXO_ENCERRADO_SEM_STATUS` **desaparece sozinho**, sem mudança no SIGRASTRO.
 
 ## API e auditoria (bloco 6)
 
@@ -603,7 +603,7 @@ Na **posição** (S7), `ConsultarPosicaoAtual` passa a ler o Camunda com vaga no
 
 Testes: `LerTramitacaoTest` (cache e validade, cache desligado, `INDISPONIVEL` fora do cache, versão do catálogo, 20 pedidos simultâneos = 1 leitura, com e sem cache, Camunda lento = `INDISPONIVEL` em menos de 1,8 s com tempo total de 1 s e a leitura tardia alimentando o cache, teto de leituras simultâneas, sem vaga = `INDISPONIVEL`, nome depois do cache), `LimiteDeLeiturasDoCamundaTest`, `CacheDaTramitacaoEmMemoriaTest`, `CaminhoPercorridoJdbcTest` (colapso: HC11 com 2 linhas valendo 4, HC15 com 3.500 repetições sem truncar e com a etapa atual; limite 3 trunca o HC15 depois do colapso) e `CargaDaTramitacaoTest` (Docker, pilha real: 200 leituras em sequência sem falha, sem truncar e com no máximo 8 consultas cada; 20 em paralelo sem passar de 3 conexões abertas ao mesmo tempo com o teto 3; 20 pedidos do mesmo requerimento com cache = uma leitura).
 
-**Recomendações de índice** (só documento: o usuário do Rastro é somente leitura; decisão da equipe do SIGA): ver P42 em [10](10-pendencias-e-riscos.md).
+**Recomendações de índice** (só documento: o usuário do SIGRASTRO é somente leitura; decisão da equipe do SIGA): ver P42 em [10](10-pendencias-e-riscos.md).
 
 ## Roteiro de homologação (S8, bloco 12)
 
@@ -627,7 +627,7 @@ Uma consulta (`sql/siga/financeiro/lancamentos.sql`, só em `integration.siga.La
 - **Taxa vencida:** lançamento ativo (`DATA_FIM` nula) e sem `DATA_PAGAMENTO`, e (a) `AGUARDANDO_PAGAMENTO` **sem inconsistência** com a **data** de vencimento anterior a hoje, ou (b) `STATUS = VENCIDA` (a marca do SIGA vale como está). Vencer **hoje** ainda não é vencida; sem data de vencimento, nada se afirma. Só (a) ganha o aviso `TAXA_VENCIDA` ("Taxa vencida em dd/mm/aaaa."), sem trocar a situação: quando a taxa é paga ou o SIGA passa a marcar `VENCIDA`, o aviso some sozinho.
 - **Datas** (`CalendarioDeCuiaba`, um só lugar): hoje = data de Cuiabá no instante do relógio, ignorado o fuso do relógio e da JVM; a data de uma coluna do SIGA é só a parte da data do relógio de parede de Cuiabá (sem conversão de fuso), então 23:30 continua no mesmo dia.
 - **Peso de cada lançamento no resumo:** vencida → `VENCIDO`; `EMITINDO`/`AGUARDANDO_PAGAMENTO` ativo → `EM_ABERTO`; `PAGA` → `QUITADO`; `ISENTA` → `ISENTO`; `CANCELADA`, aberto já encerrado e `VENCIDA` paga ou encerrada → não pesam.
-- **Resumo** (`ResumoFinanceiro`) = o de maior precedência entre os pesos: **`VENCIDO` > `EM_ABERTO` > `QUITADO` > `ISENTO` > `SEM_TAXA`**. Sem lançamento mantido (ou só os que não pesam), `SEM_TAXA`. Se **todos** os mantidos têm status desconhecido, `INDETERMINADO` (o Rastro não afirma "sem taxa" sem saber). Os ignorados nunca entram (provado por propriedade em `AvaliarSituacaoTest`).
+- **Resumo** (`ResumoFinanceiro`) = o de maior precedência entre os pesos: **`VENCIDO` > `EM_ABERTO` > `QUITADO` > `ISENTO` > `SEM_TAXA`**. Sem lançamento mantido (ou só os que não pesam), `SEM_TAXA`. Se **todos** os mantidos têm status desconhecido, `INDETERMINADO` (o SIGRASTRO não afirma "sem taxa" sem saber). Os ignorados nunca entram (provado por propriedade em `AvaliarSituacaoTest`).
 - **Ciclos:** as guias (todo lançamento menos isenção e status desconhecido) são numeradas por ordem de emissão, "1ª taxa", "2ª taxa"; a etiqueta "da correção" é do bloco 5.
 - **Valores** em `BigDecimal`, como gravados; ausente é "não informado" (`Optional` vazio), nunca zero.
 
@@ -665,7 +665,7 @@ Para cada lançamento `ISENTA` válido, uma entrada **"Isento de Taxa"** (`Regis
 
 **Direção das dependências:** `financeiro` → `tramitacao`, nunca o contrário (sem ciclo, ArchUnit). A tramitação declara a porta `FinanceiroDoRequerimento` (em `tramitacao.application.port`), que o financeiro implementa (`financeiro.infrastructure.tramitacao.FinanceiroParaATramitacao`); o financeiro lê a tramitação pela própria porta `CaminhoDaTramitacao` (sobre `LerTramitacao`). A porta só **acrescenta** e é tolerante: falha do financeiro = nada acrescentado.
 
-- **Aviso `TAXA_VENCIDA` na posição** (`AbrirPosicao`, depois do cache): resumo `VENCIDO` → aviso no fim da lista, "Taxa vencida em dd/mm/aaaa." (texto em `confronto.yaml`, `AvisoDeTaxaVencida`), com a explicação "O SIGA ainda não marca a taxa como vencida; o Rastro compara a data de vencimento com hoje." **só** quando vencida pela data. Etapa, situação e os outros avisos não mudam (prova: `FinanceiroNaTramitacaoHttpTest` compara o JSON da posição com e sem o aviso). Com `FLUXO_ENCERRADO_SEM_STATUS` (FIN15/H18), os dois aparecem: um explica o fim do fluxo, o outro a taxa. Lista do processo: uma leitura em lote para todos. Data do aviso = vencimento da taxa vencida mais recente.
+- **Aviso `TAXA_VENCIDA` na posição** (`AbrirPosicao`, depois do cache): resumo `VENCIDO` → aviso no fim da lista, "Taxa vencida em dd/mm/aaaa." (texto em `confronto.yaml`, `AvisoDeTaxaVencida`), com a explicação "O SIGA ainda não marca a taxa como vencida; o SIGRASTRO compara a data de vencimento com hoje." **só** quando vencida pela data. Etapa, situação e os outros avisos não mudam (prova: `FinanceiroNaTramitacaoHttpTest` compara o JSON da posição com e sem o aviso). Com `FLUXO_ENCERRADO_SEM_STATUS` (FIN15/H18), os dois aparecem: um explica o fim do fluxo, o outro a taxa. Lista do processo: uma leitura em lote para todos. Data do aviso = vencimento da taxa vencida mais recente.
 - **Etiqueta "da correção"** (`LancamentoAvaliado.daCorrecao`): guia emitida **depois** da entrada na primeira passagem do ramo de correção; rótulo "Taxa da correção" no lugar de "Nª taxa". Sem caminho exato, vale a numeração.
 - **Marcas nas passagens** (`MarcarPassagens`; `marcasFinanceiras[]` de cada passagem na resposta da tramitação), só no caminho exato. Ids de etapa fixos em `CaminhoDoFluxo` (mudou o catálogo, mudar lá):
   - `emissao_da_taxa` / `emissao_da_taxa_correcao`: "Emitida em", "DAR" e "da correção" de cada guia casada. A guia é casada com a **última** passagem de emissão cuja **data** de entrada é igual ou anterior à **data** de emissão (`DATA_EMISSAO` pode vir sem hora); emitida antes de qualquer emissão, não é casada.

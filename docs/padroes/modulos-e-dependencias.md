@@ -36,7 +36,7 @@ Regras adicionadas na S9 (bloco 2): (l) o módulo `financeiro` entra na lista de
 
 Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTest test` (não precisa de Docker). O teste ignora pacotes vazios e passa a inspecioná-los quando recebem classes.
 
-## Contratos internos usados no Rastro
+## Contratos internos usados no SIGRASTRO
 
 | Consumidor | Contrato publicado por | Exemplo |
 |---|---|---|

@@ -1,6 +1,6 @@
 # 13 — Padrões técnicos
 
-Rastro é um serviço externo ao SIGA Licenciamento que consulta requerimentos e processos, lista os documentos e gera o dossiê em PDF em ordem cronológica. Este documento resume as **regras técnicas** que o código e o banco devem seguir. O detalhamento de cada tema está em [`padroes/`](padroes/). As mesmas regras estão empacotadas como skill do Claude Code (`vistas-banco`), para uso durante a implementação.
+SIGRASTRO é um serviço externo ao SIGA Licenciamento que consulta requerimentos e processos, lista os documentos e gera o dossiê em PDF em ordem cronológica. Este documento resume as **regras técnicas** que o código e o banco devem seguir. O detalhamento de cada tema está em [`padroes/`](padroes/). As mesmas regras estão empacotadas como skill do Claude Code (`vistas-banco`), para uso durante a implementação.
 
 Pontos que moldam todas as regras abaixo:
 
@@ -71,7 +71,7 @@ O dono é o módulo que define o **significado de negócio**. Ex.: "quais docume
 ### Padrão de banco (schema próprio e leitura do SIGA)
 
 - [`padroes/nomenclatura.md`](padroes/nomenclatura.md) — objetos em português e MAIÚSCULO; arquivo de migration em inglês.
-- [`padroes/tipos-dados.md`](padroes/tipos-dados.md) — tipos por natureza do dado, com exemplos do Rastro.
+- [`padroes/tipos-dados.md`](padroes/tipos-dados.md) — tipos por natureza do dado, com exemplos do SIGRASTRO.
 - [`padroes/normalizacao.md`](padroes/normalizacao.md) — 3FN e o caso do "retrato" gravado na auditoria.
 - [`padroes/indexacao.md`](padroes/indexacao.md) — índices de FK e dos filtros reais de auditoria e fila.
 - [`padroes/documentacao.md`](padroes/documentacao.md) — `COMMENT ON`, dicionário de dados em HTML e MER em `docs/database/` (obrigatórios a cada migration), colunas do SIGA consumidas.
