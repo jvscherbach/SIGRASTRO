@@ -1,7 +1,9 @@
 /**
  * Histórico financeiro do requerimento (S9; `GET /api/requerimentos/{id}/financeiro`, docs/07 "Financeiro"). Os campos só do
  * Administrador (`idTecnico`, `statusProcessado`, `passouPelaReaprovacaoDaCorrecao`, `inconsistencias`, `origemDaData`,
- * `naoProcessado`, `ignoradosPorMotivo`) ficam de fora de propósito: a tela nunca mostra id técnico nem diagnóstico.
+ * `naoProcessado`, `ignoradosPorMotivo`) ficam de fora de propósito: o detalhe do requerimento nunca mostra id técnico nem
+ * diagnóstico. Só o painel "Diagnóstico do financeiro" das Configurações (S9, bloco 10) lê `ignoradosPorMotivo` e
+ * `origemDaData`, e nada além de contagens e da origem da data (`DiagnosticoDoFinanceiro` em `configuracoes/`).
  */
 export type EstadoDoFinanceiro = 'ATIVO' | 'INDISPONIVEL';
 

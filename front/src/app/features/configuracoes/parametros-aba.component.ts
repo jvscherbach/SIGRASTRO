@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 
 import { IconeComponent } from '../../shared/icone.component';
 import { GrupoDeParametro } from './configuracoes.models';
+import { DiagnosticoFinanceiroComponent } from './diagnostico-financeiro.component';
 import { ParametroCampoComponent } from './parametro-campo.component';
 import { ParametrosStore } from './parametros-store.service';
 
@@ -15,7 +16,7 @@ const PREFIXO_ORIGEM = 'dossie.origem.';
 @Component({
   selector: 'app-parametros-aba',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconeComponent, ParametroCampoComponent],
+  imports: [IconeComponent, ParametroCampoComponent, DiagnosticoFinanceiroComponent],
   templateUrl: './parametros-aba.component.html',
 })
 export class ParametrosAbaComponent {

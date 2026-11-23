@@ -17,7 +17,9 @@
         <span>
           Posição na tramitação. O CPF do responsável nunca aparece, em nenhum valor; o nome do servidor depende de
           aprovação da SEMA (pendência P32). O Operador nunca vê o nome (RN12). Credenciais do banco não ficam aqui.
-          As posições simultâneas valem ao abrir o Rastro de novo.
+          As posições simultâneas valem ao abrir o Rastro de novo. Os parâmetros das taxas (valores, limite e tempo limite)
+          valem na próxima leitura; os valores das taxas são dinheiro público de pessoas e empresas, e a regra definitiva
+          depende da SEMA.
         </span>
       </div>
     }
@@ -47,5 +49,9 @@
 
   @if (!gerais().length && !origens().length) {
     <div class="empty"><h3>Nenhum parâmetro nesta seção</h3></div>
+  }
+
+  @if (grupo() === 'RASTRO') {
+    <app-diagnostico-financeiro />
   }
 }
