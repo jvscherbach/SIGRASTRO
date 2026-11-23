@@ -46,7 +46,9 @@
 .search-card:focus-within{box-shadow:0 0 0 2px var(--ink),0 0 0 5px var(--marker),0 10px 30px rgba(0,0,0,.12)}
 /* Espaço do alerta da busca: altura FIXA (cabe um alerta de até duas linhas), invisível quando vazio. Com min-height o
    alerta de duas linhas (margem + caixa passavam de 56px) empurrava o cartão e o quadro inteiro crescia. */
+/* Aviso do perfil: reserva 2 linhas (30px) em tela larga e 4 linhas (60px) até 640px, com folga para fontes que quebram diferente (CI/Linux). */
 .hint-perfil{margin-top:12px;height:30px;line-height:15px;align-items:flex-start;overflow:hidden}
+@media(max-width:640px){.hint-perfil{height:60px}}
 .search-feedback{height:76px;overflow:hidden}
 .search-feedback .alert{margin-top:14px}
 .search-feedback .alert span{min-width:0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
