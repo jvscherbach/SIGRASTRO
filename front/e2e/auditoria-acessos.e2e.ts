@@ -86,13 +86,10 @@ test('Administrador abre Auditoria pelo menu (item único) e a tela de acessos c
   await expect(page.locator('.top .nav a', { hasText: 'Auditoria' })).toHaveCount(1);
   await expect(page.locator('.top .nav a', { hasText: 'Acessos' })).toHaveCount(0);
 
-  // as abas "Documentos" e "Acessos" entram na tela no bloco 12; até lá, a rota é aberta pela URL
+  // as abas "Documentos" e "Acessos" ficam no topo da tela (R2, bloco 12); a aba Acessos leva à rota de acessos
   await page.locator('.top .nav a', { hasText: 'Auditoria' }).click();
   await expect(page).toHaveURL(/\/auditoria\/documentos$/);
-  await page.evaluate(() => {
-    history.pushState({}, '', '/auditoria/acessos');
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  });
+  await page.locator('.sub-tabs a', { hasText: 'Acessos' }).click();
 
   await expect(page).toHaveURL(/\/auditoria\/acessos$/);
   await expect(page.getByRole('heading', { name: 'Auditoria de acessos' })).toBeVisible();
