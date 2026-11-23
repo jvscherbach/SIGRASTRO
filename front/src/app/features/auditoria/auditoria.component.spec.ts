@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, provideRouter } from '@angular/router';
 import { Subject, of, throwError } from 'rxjs';
 
 import { AuthService } from '../../core/auth.service';
@@ -75,6 +75,8 @@ describe('AuditoriaComponent', () => {
     TestBed.configureTestingModule({
       imports: [AuditoriaComponent],
       providers: [
+        // antes dos mocks: o provideRouter também registra ActivatedRoute, e o mock precisa vencer
+        provideRouter([]),
         { provide: AuditoriaApiService, useValue: api },
         { provide: AuthService, useValue: { usuario: signal(usuario(perfil)).asReadonly() } },
         { provide: ActivatedRoute, useValue: { snapshot: { data: { grupo } } } },
@@ -115,6 +117,33 @@ describe('AuditoriaComponent', () => {
     expect(raiz.querySelector('[data-ind="usuarios"] b')!.textContent).toBe('3');
     expect(texto()).toContain('Neste protótipo, os registros ficam na memória e somem ao reiniciar o serviço.');
     expect(raiz.querySelector('button[aria-pressed="true"]')!.textContent).toContain('Últimos 7 dias');
+  });
+
+  it('abas Documentos e Acessos: Acessos só com a permissão verAuditoriaAcessos, e a aba atual marcada', () => {
+    abrir('OPERADOR_SIGILO');
+    const abasOperador = Array.from(raiz.querySelectorAll<HTMLAnchorElement>('.sub-tabs a'));
+    expect(abasOperador.map((a) => a.textContent!.trim())).toEqual(['Documentos']);
+    expect(abasOperador[0].getAttribute('aria-current')).toBe('page');
+    expect(abasOperador[0].getAttribute('href')).toBe('/auditoria/documentos');
+  });
+
+  it('o Administrador vê a aba Acessos e, na visão de documentos, ela não fica marcada', () => {
+    abrir('ADMIN', 'documentos');
+    const abas = Array.from(raiz.querySelectorAll<HTMLAnchorElement>('.sub-tabs a'));
+    const acessos = abas.find((a) => a.textContent!.trim() === 'Acessos')!;
+
+    expect(abas.map((a) => a.textContent!.trim())).toEqual(['Documentos', 'Acessos']);
+    expect(acessos.getAttribute('href')).toBe('/auditoria/acessos');
+    expect(acessos.hasAttribute('aria-current')).toBe(false);
+    expect(abas[0].getAttribute('aria-current')).toBe('page');
+  });
+
+  it('na visão de acessos, a aba Acessos fica marcada como página atual', () => {
+    abrir('ADMIN', 'acessos');
+    const abas = Array.from(raiz.querySelectorAll<HTMLAnchorElement>('.sub-tabs a'));
+
+    expect(abas.find((a) => a.textContent!.trim() === 'Acessos')!.getAttribute('aria-current')).toBe('page');
+    expect(abas[0].hasAttribute('aria-current')).toBe(false);
   });
 
   it('data e hora com o código do evento, processo e destaque lateral só nos sigilosos', () => {

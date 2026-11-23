@@ -4,6 +4,7 @@ import { Subscription } from 'rxjs';
 
 import { mensagemDoErro } from '../../core/mensagens-erro';
 import { formatarDataHora } from '../../shared/formato';
+import { FocoPresoDirective } from '../../shared/foco-preso.directive';
 import { IconeComponent } from '../../shared/icone.component';
 import { AuditoriaApiService } from './auditoria-api.service';
 import { EventoDetalhado, GrupoDeAuditoria, ROTULO_DO_PERFIL } from './auditoria.models';
@@ -16,7 +17,7 @@ import { EventoDetalhado, GrupoDeAuditoria, ROTULO_DO_PERFIL } from './auditoria
 @Component({
   selector: 'app-auditoria-detalhe',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconeComponent],
+  imports: [IconeComponent, FocoPresoDirective],
   templateUrl: './auditoria-detalhe.component.html',
   host: { '(document:keydown.escape)': 'fechar.emit()' },
 })

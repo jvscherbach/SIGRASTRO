@@ -21,7 +21,7 @@ interface Medida {
 async function medir(page: Page): Promise<Medida> {
   return page.evaluate(() => {
     const quadro = document.querySelector('.dash-hero')!.getBoundingClientRect();
-    const cena = document.querySelector('.dash-scene svg')!.getBoundingClientRect();
+    const cena = document.querySelector('img.dash-scene')!.getBoundingClientRect();
     return { quadro: quadro.height, ilustracao: { largura: cena.width, altura: cena.height } };
   });
 }
@@ -34,7 +34,7 @@ for (const tela of TELAS) {
       const api = await simularApi(page);
       await page.goto('/consulta');
       await page.locator('.dash-hero').waitFor();
-      await page.locator('.dash-scene svg').waitFor();
+      await page.locator('img.dash-scene').waitFor();
       return api;
     }
 

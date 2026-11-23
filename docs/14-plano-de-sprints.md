@@ -43,6 +43,10 @@ Objetivo do protótipo: comprovar, com processos reais, que (1) os processos que
 
 > **Lista incompleta:** S10 e S11 têm escopo definido (bloco 11 da S9), mas ainda não têm prompt escrito. O índice dos prompts está em [prompts/INDICE.md](prompts/INDICE.md); a ordem acima vem dos prompts existentes em `docs/prompts/` (R1, S6, S7, S8, S9, A1). Completar quando S10 e S11 tiverem prompt.
 
+## R2 — Refatoração do front para o SIGRASTRO
+
+Prompt: [R2-refatorar-front-sigrastro.md](prompts/R2-refatorar-front-sigrastro.md), **18 blocos** (OPUS, SONNET e HAIKU). Andamento em [progresso/r2.md](progresso/r2.md). Só `front/` e documentação: nome SIGRASTRO, marca (escudo árvore-vida), tema único Cerrado, barra superior com navegação horizontal, fontes locais, login novo, trilha no detalhe, testes e acessibilidade. Decisões D90 e D91, riscos R79 e R80. Guia visual em [design/sigrastro/LEIA-ME.md](design/sigrastro/LEIA-ME.md); roteiro do responsável em [roteiros/r2-homologacao.md](roteiros/r2-homologacao.md). **Situação:** blocos 1 a 17 feitos; falta o bloco 18 (nome visível nos documentos vivos) e a homologação pelo responsável.
+
 ## R1 — Renomeação para Rastro
 
 Prompt: [R1-renomeacao-rastro.md](prompts/R1-renomeacao-rastro.md). Andamento por bloco em [progresso/r1.md](progresso/r1.md). Decisões D73 (nome e fases), D74 (pacote e propriedades com alias) e D75 (chaves do navegador com migração). Roteiro de conferência: [roteiros/r1-homologacao.md](roteiros/r1-homologacao.md).
@@ -130,7 +134,7 @@ Aceite:
 | Tipos | `ACT_RU_TASK.ASSIGNEE_` é `NVARCHAR2(510)`; `PESSOA.CPF_CNPJ` é `VARCHAR2(20)`; `SERVIDOR.CPF` é `VARCHAR2(11)` |
 | Outorga (6023/2025) | Tipo do requerimento, objetivo, tipo, finalidade e atividade conferem com o SIGA; prioridade "Atendimento normal" confere; responsável aparece **só com o nome** |
 | Outorga com prioridade (4162/2026) | 2 objetivos, finalidade/atividade e o critério "Pessoa com idade igual ou superior a 60 anos" conferem com o SIGA |
-| Licenciamento (3040/2022, LAC) | Atividade confere; **diverge no Objetivo:** o SIGA mostra "LAC" e o Rastro mostra "—" (ver P20); o grupo da atividade aparecia junto da atividade (corrigido na S2, A2) |
+| Licenciamento (3040/2022, LAC) | Atividade confere; **diverge no Objetivo:** o SIGA mostra "LAC" e o SIGRASTRO mostra "—" (ver P20); o grupo da atividade aparecia junto da atividade (corrigido na S2, A2) |
 | Número repetido (445/2022) | Lista os 2 requerimentos com o aviso |
 | Busca por CPF/CNPJ | Totais da tela iguais ao `SELECT COUNT(*)` na base de desenvolvimento (8 e 2) |
 | Quadro do topo | **Ainda mudava de tamanho** (corrigido na S2, A1, com medição automática) |
@@ -374,7 +378,7 @@ Aceite:
 
 Entregas:
 - Execução de todos os casos de `casos-de-teste.md`, com resultado, tempo e páginas de cada dossiê.
-- Comparativo: Vista atual do SIGA × Rastro para os mesmos processos (gera/não gera, planilhas incluídas, documentos listados).
+- Comparativo: Vista atual do SIGA × SIGRASTRO para os mesmos processos (gera/não gera, planilhas incluídas, documentos listados).
 - Ajustes finais de usabilidade e correções.
 - Material de apresentação: problema, solução, demonstração, evidências e pedidos (Pandora ou credencial de serviço, ambiente no SIGA, schema próprio Oracle 19c).
 - Atualização de `10-pendencias-e-riscos.md` com o que fica para a versão definitiva.

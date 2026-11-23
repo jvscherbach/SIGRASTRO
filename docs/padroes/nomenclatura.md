@@ -1,6 +1,6 @@
 # Nomenclatura (padrão em português)
 
-Vale para o **schema próprio** do Rastro. O banco do SIGA tem nomes próprios que não alteramos; nas consultas, eles são usados como estão.
+Vale para o **schema próprio** do SIGRASTRO. O banco do SIGA tem nomes próprios que não alteramos; nas consultas, eles são usados como estão.
 
 ## Arquivo de migration ≠ objetos dentro dela
 
@@ -26,7 +26,7 @@ Nunca traduzir o nome do arquivo, nunca deixar tabela/coluna em inglês.
 
 ## Por tipo de objeto
 
-| Objeto | Padrão | Exemplo no Rastro |
+| Objeto | Padrão | Exemplo no SIGRASTRO |
 |---|---|---|
 | Tabela | Substantivo singular | `AUDITORIA_EVENTO`, `DOSSIE_PEDIDO`, `USUARIO` |
 | PK | `ID_<TABELA>` | `ID_DOSSIE_PEDIDO` |

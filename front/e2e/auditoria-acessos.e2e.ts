@@ -81,11 +81,15 @@ async function abrir(page: Page, usuario: UsuarioSimulado, rota = '/auditoria/ac
 
 test.use({ viewport: { width: 1280, height: 900 } });
 
-test('Administrador vê o item Acessos no menu e abre a tela com indicadores de acessos', async ({ page }) => {
+test('Administrador abre Auditoria pelo menu (item único) e a tela de acessos com indicadores', async ({ page }) => {
   const c = await abrir(page, ADMIN, '/consulta');
-  await expect(page.locator('.sidebar .nav-item', { hasText: 'Acessos' })).toBeVisible();
+  await expect(page.locator('.top .nav a', { hasText: 'Auditoria' })).toHaveCount(1);
+  await expect(page.locator('.top .nav a', { hasText: 'Acessos' })).toHaveCount(0);
 
-  await page.locator('.sidebar .nav-item', { hasText: 'Acessos' }).click();
+  // as abas "Documentos" e "Acessos" ficam no topo da tela (R2, bloco 12); a aba Acessos leva à rota de acessos
+  await page.locator('.top .nav a', { hasText: 'Auditoria' }).click();
+  await expect(page).toHaveURL(/\/auditoria\/documentos$/);
+  await page.locator('.sub-tabs a', { hasText: 'Acessos' }).click();
 
   await expect(page).toHaveURL(/\/auditoria\/acessos$/);
   await expect(page.getByRole('heading', { name: 'Auditoria de acessos' })).toBeVisible();
@@ -106,7 +110,7 @@ for (const [nome, usuario] of [
 ] as const) {
   test(`${nome}: sem o item no menu e, digitando a URL, volta à Consulta sem chamar a auditoria`, async ({ page }) => {
     const c = await abrir(page, usuario, '/consulta');
-    await expect(page.locator('.sidebar .nav-item', { hasText: 'Acessos' })).toHaveCount(0);
+    await expect(page.locator('.top .nav a', { hasText: 'Acessos' })).toHaveCount(0);
 
     await page.evaluate(() => {
       history.pushState({}, '', '/auditoria/acessos');

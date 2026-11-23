@@ -1,101 +1,32 @@
-<div class="shell" [class.collapsible]="recolhido()" [class.mobile-open]="menuMobileAberto()">
-  <div class="mobile-veil" (click)="menuMobileAberto.set(false)"></div>
-
-  <aside class="sidebar" aria-label="Menu principal">
-    <a class="brand" routerLink="/consulta"><img src="assets/img/logo-sema.png" alt="" /><span class="brand-nome"><b>RASTRO</b><small>consulta ao SIGA Licenciamento (protótipo)</small></span></a>
-    <div class="side-content">
-      @for (secao of menu(); track secao.rotulo; let primeira = $first) {
-        @if (!primeira) {
-          <div class="side-sep"></div>
-        }
-        <div class="side-label">{{ secao.rotulo }}</div>
+<div class="shell">
+  <header class="top">
+    <a class="logo" routerLink="/consulta" aria-label="SIGRASTRO, início"><app-marca /></a>
+    <nav class="nav" aria-label="Principal">
+      @for (secao of menu(); track secao.rotulo) {
         @for (item of secao.itens; track item.rotulo) {
-          @if (item.filhos) {
-            <button
-              type="button"
-              class="nav-item"
-              [class.nav-recolhido]="!auditoriaAberta()"
-              [attr.aria-expanded]="auditoriaAberta()"
-              (click)="auditoriaAberta.set(!auditoriaAberta())"
-            >
-              <app-icone [nome]="item.icone" /><span>{{ item.rotulo }}</span
-              ><app-icone nome="down" class="nav-chev" />
-            </button>
-            @if (auditoriaAberta()) {
-              <nav class="subnav" [attr.aria-label]="item.rotulo">
-                @for (filho of item.filhos; track filho.rotulo) {
-                  <a class="nav-item" [routerLink]="filho.rota" routerLinkActive="active"
-                    ><span>{{ filho.rotulo }}</span></a
-                  >
-                }
-              </nav>
-            }
-          } @else {
-            <a class="nav-item" [routerLink]="item.rota" routerLinkActive="active">
-              <app-icone [nome]="item.icone" /><span>{{ item.rotulo }}</span>
-            </a>
-          }
+          <a [routerLink]="item.rota" [attr.aria-current]="ativo(item) ? 'page' : null">
+            <app-icone [nome]="item.icone" /><span>{{ item.rotulo }}</span>
+          </a>
         }
       }
-    </div>
-    <img class="watermark" src="assets/img/brasao-mt.png" alt="" aria-hidden="true" />
-    <div class="side-bottom">SEMA · Mato Grosso<br /><span style="opacity: 0.65">v0.1.0 · protótipo</span></div>
-  </aside>
-
-  <header class="topbar">
-    <div class="row">
-      <button type="button" class="icon-btn" aria-label="Abrir ou recolher menu" (click)="alternarMenu()">
-        <app-icone nome="menu" />
-      </button>
-      <span class="crumb-top">
-        Vistas do Processo
-        @for (parte of trilha(); track $index; let ultima = $last) {
-          / @if (ultima) {
-            <strong>{{ parte }}</strong>
-          } @else {
-            {{ parte }}
-          }
-        }
-      </span>
-    </div>
-    <app-indicador-dossie />
-    @if (usuario(); as u) {
-      <div class="user">
-        <button
-          type="button"
-          class="user-btn"
-          aria-haspopup="true"
-          [attr.aria-expanded]="menuUsuarioAberto()"
-          (click)="alternarMenuUsuario($event)"
-        >
-          <span class="avatar">{{ iniciais() }}</span>
-          <span
-            ><b>{{ u.nome }}</b
-            ><small>{{ u.perfilDescricao }}</small></span
-          >
-          <app-icone nome="down" />
-        </button>
-        <div class="user-menu" [class.open]="menuUsuarioAberto()" (click)="$event.stopPropagation()">
-          <div class="label">Conectado como</div>
-          <div style="padding: 4px 10px 8px">
-            <b>{{ u.nome }}</b>
-            <small class="muted" style="display: block">{{ u.perfilDescricao }} · {{ u.login }}</small>
-          </div>
-          <hr />
-          <button type="button" (click)="sair()"><app-icone nome="logout" />Sair</button>
+    </nav>
+    <div class="top-dir">
+      <app-indicador-dossie />
+      @if (usuario(); as u) {
+        <div class="who">
+          <span class="perfil-chip">{{ u.perfilDescricao }}</span>
+          <span class="who-nome">{{ u.nome }}</span>
+          <b class="avatar" aria-hidden="true">{{ iniciais() }}</b>
+          <button type="button" class="sair" (click)="sair()">Sair</button>
         </div>
-      </div>
-    }
+      }
+    </div>
   </header>
 
-  <main class="main">
+  <main>
     <router-outlet />
-    <footer class="page-footer">
-      <span>Rastro · Complemento de consulta ao SIGA Licenciamento (protótipo)</span>
-      <span>SEMA-MT · STI / CSTI · dados fictícios</span>
-    </footer>
   </main>
-@if (acompanhamento.gavetaAberta()) {
-  <app-gaveta-dossie />
-}
+  @if (acompanhamento.gavetaAberta()) {
+    <app-gaveta-dossie />
+  }
 </div>

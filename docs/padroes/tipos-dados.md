@@ -2,7 +2,7 @@
 
 Cada coluna com o tipo mais restrito que represente o domínio. Tipos Oracle compatíveis com 19c (ambiente final) e 23 Free (desenvolvimento). Não usar tipos exclusivos do 23, como `BOOLEAN` em coluna.
 
-| Natureza | Tipo | Exemplo no Rastro |
+| Natureza | Tipo | Exemplo no SIGRASTRO |
 |---|---|---|
 | Identificador técnico | `NUMBER(12) GENERATED ALWAYS AS IDENTITY` | `ID_AUDITORIA_EVENTO` (volume alto de eventos) |
 | Identificador de pedido exposto na API | `VARCHAR2(36)` com UUID | `CODIGO` de `DOSSIE_PEDIDO` (evita IDs sequenciais adivinháveis) |

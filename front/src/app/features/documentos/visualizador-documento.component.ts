@@ -16,6 +16,7 @@ import { Subscription } from 'rxjs';
 
 import { mensagemDoCodigo, mensagemDoErro } from '../../core/mensagens-erro';
 import { baixarBlob } from '../../shared/arquivo-local';
+import { FocoPresoDirective } from '../../shared/foco-preso.directive';
 import { IconeComponent } from '../../shared/icone.component';
 import { ConteudoApiService, LIMITE_DO_BLOB_MB } from './documentos-api.service';
 import { classeDaExtensao, selecionavel } from './documentos.logic';
@@ -40,7 +41,7 @@ const CODIGOS_SEM_CONVERSAO = new Set([
 @Component({
   selector: 'app-visualizador-documento',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconeComponent],
+  imports: [IconeComponent, FocoPresoDirective],
   templateUrl: './visualizador-documento.component.html',
 })
 export class VisualizadorDocumentoComponent implements OnInit {

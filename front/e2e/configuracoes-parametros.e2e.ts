@@ -218,12 +218,12 @@ test('sair da tela com pendência pede confirmação: cancelar fica, confirmar s
     void (aceitar ? dialogo.accept() : dialogo.dismiss());
   });
 
-  await page.locator('.sidebar .nav-item', { hasText: 'Consulta' }).first().click();
+  await page.locator('.top .nav a', { hasText: 'Consulta' }).first().click();
   await expect(page).toHaveURL(/\/configuracoes$/);
   expect(mensagens[0]).toContain('alterações de parâmetros que ainda não foram salvas');
 
   aceitar = true;
-  await page.locator('.sidebar .nav-item', { hasText: 'Consulta' }).first().click();
+  await page.locator('.top .nav a', { hasText: 'Consulta' }).first().click();
   await expect(page).toHaveURL(/\/consulta$/);
 });
 
@@ -235,7 +235,7 @@ test('sem pendência, sair não pergunta nada', async ({ page }) => {
     void d.dismiss();
   });
 
-  await page.locator('.sidebar .nav-item', { hasText: 'Consulta' }).first().click();
+  await page.locator('.top .nav a', { hasText: 'Consulta' }).first().click();
 
   await expect(page).toHaveURL(/\/consulta$/);
   expect(perguntou).toBe(false);

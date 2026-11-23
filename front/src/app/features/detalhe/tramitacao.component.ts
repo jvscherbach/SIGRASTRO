@@ -248,18 +248,22 @@ let instancias = 0;
     .tram { min-height: 96px; }
     .tram-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; margin-bottom: 10px; }
     .tram-head h2 { display: flex; align-items: center; gap: 10px; }
-    .tram-head h2 .icon { color: var(--olive); width: 23px; height: 23px; }
+    .tram-head h2 .icon { color: var(--trail); width: 23px; height: 23px; }
     .tram-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
-    .btn:focus-visible, .tram-filtro input:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
+    .btn:focus-visible, .tram-filtro input:focus-visible { outline: 2px solid var(--trail-deep); outline-offset: 2px; }
     .tram-filtro { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin-bottom: 12px; font-size: 13px; }
     .tram-filtro label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
     .tram-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
-    .tram-item { padding: 12px 0 12px 14px; border-left: 3px solid var(--line); margin-left: 4px; display: grid; gap: 4px; }
-    .tram-item.atual { border-left-color: #6cc51a; }
-    .tram-item.correcao { margin-left: 22px; border-left-color: var(--amber); }
+    .tram-item { position: relative; padding: 12px 0 14px 28px; border-left: 2px solid var(--trail); margin-left: 7px; display: grid; gap: 4px; }
+    .tram-item::before { content: ""; position: absolute; left: -9px; top: 14px; width: 16px; height: 16px; border-radius: 50%; background: var(--trail); box-shadow: 0 0 0 4px var(--trail-tint); }
+    .tram-item:last-child { border-left-color: transparent; }
+    .tram-item.atual { border-left-style: dashed; }
+    .tram-item.atual::before { left: -12px; top: 11px; width: 22px; height: 22px; background: var(--marker); border: 4px solid var(--ink); box-shadow: none; }
+    .tram-item.correcao { margin-left: 29px; border-left-color: var(--warn); }
+    .tram-item.correcao::before { background: var(--warn); box-shadow: 0 0 0 4px var(--marker-tint); }
     .tram-titulo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; overflow-wrap: anywhere; }
-    .tram-volta { margin: 0; font-size: 13px; font-weight: 600; color: var(--amber); }
-    .tram-datas { margin: 0; display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 13px; color: var(--muted); }
+    .tram-volta { margin: 0; font-size: 13px; font-weight: 600; color: var(--warn); }
+    .tram-datas { margin: 0; display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 13px; color: var(--slate); }
     .tram-quem { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
     .tram-pessoas, .tram-atos, .tram-marcos, .tram-avisos { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 6px; }
     .tram-pessoas li, .tram-atos li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 13px; }
@@ -271,20 +275,20 @@ let instancias = 0;
     .tram-compl { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; margin: 12px 0 0; }
     .tram-compl .icon { width: 16px; height: 16px; flex: none; margin-top: 2px; }
     .tram-final { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 14px 0 0; font-size: 15px; }
-    .tram-final .icon { width: 18px; height: 18px; color: var(--forest); }
-    .tram-selo { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; background: var(--amber-bg); color: var(--amber); font-size: 13px; font-weight: 600; }
+    .tram-final .icon { width: 18px; height: 18px; color: var(--trail-deep); }
+    .tram-selo { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; background: var(--marker-tint); color: var(--warn); font-size: 13px; font-weight: 600; }
     .tram-texto { margin: 0; font-size: 14px; }
     .tram-situacao { margin: 0 0 10px; font-size: 14px; }
     .tram-nota { margin: 10px 0 0; font-size: 12px; }
     .tram-avisos { margin-top: 14px; }
     .tram-avisos li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; padding: 8px 10px; border-radius: 8px; }
-    .tram-avisos li.info { background: var(--blue-bg); color: var(--blue); }
-    .tram-avisos li.atencao { background: var(--amber-bg); color: var(--amber); }
+    .tram-avisos li.info { background: var(--trail-tint); color: var(--trail-deep); }
+    .tram-avisos li.atencao { background: var(--marker-tint); color: var(--warn); }
     .tram-avisos .icon { width: 16px; height: 16px; flex: none; margin-top: 2px; }
     .tram-aviso-geral { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
     .tram-aviso-geral p { margin: 0; }
     .tram-esqueleto { display: grid; gap: 10px; }
-    .osso { display: block; height: 14px; width: 60%; border-radius: 6px; background: var(--soft); }
+    .osso { display: block; height: 14px; width: 60%; border-radius: 6px; background: var(--trail-tint); }
     .osso.grande { height: 24px; width: 40%; }
     .osso.curto { width: 30%; }
   `,

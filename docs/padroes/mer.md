@@ -2,7 +2,7 @@
 
 ## Abstrato (conceitual)
 
-Entidades do Rastro: Usuário, Perfil, Parâmetro, Pedido de dossiê, Documento do pedido, Evento de auditoria, Documento do evento, Alteração do evento. Entidades **externas** (do SIGA): Requerimento, Processo, Interessado, Documento, Tarefa. Notação de Chen; sem tipos nem constraints.
+Entidades do SIGRASTRO: Usuário, Perfil, Parâmetro, Pedido de dossiê, Documento do pedido, Evento de auditoria, Documento do evento, Alteração do evento. Entidades **externas** (do SIGA): Requerimento, Processo, Interessado, Documento, Tarefa. Notação de Chen; sem tipos nem constraints.
 
 Usar o abstrato para decidir com a área se algo é entidade ou atributo (ex.: "perfil" é atributo do usuário enquanto os perfis forem fixos).
 
@@ -12,7 +12,7 @@ Nomes de `nomenclatura.md`, tipos de `tipos-dados.md`. Agrupar visualmente por m
 
 - N:N vira associativa (`DOSSIE_PEDIDO_DOCUMENTO`).
 - Relação com o SIGA é **lógica** (coluna com ID, sem FK), sempre tracejada no diagrama.
-- Relação entre módulos do Rastro também é lógica quando cruza módulos (ex.: `AUDITORIA_EVENTO.LOGIN_USUARIO` não tem FK para `USUARIO`: o evento sobrevive à exclusão/alteração do usuário).
+- Relação entre módulos do SIGRASTRO também é lógica quando cruza módulos (ex.: `AUDITORIA_EVENTO.LOGIN_USUARIO` não tem FK para `USUARIO`: o evento sobrevive à exclusão/alteração do usuário).
 
 ## Como desenhar
 

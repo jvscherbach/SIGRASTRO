@@ -110,24 +110,24 @@ let instancias = 0;
     .fluxo { padding: 10px 0 4px; }
     .fluxo-linha, .faixa-linha { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px 4px; }
     .no { display: flex; align-items: center; gap: 4px; min-width: 0; }
-    .seta { width: 22px; height: 12px; flex: none; color: var(--muted); }
+    .seta { width: 22px; height: 12px; flex: none; color: var(--slate); }
     .caixa { position: relative; display: grid; gap: 2px; width: 148px; max-width: 100%; padding: 8px 10px; border-radius: 10px;
-      border: 2px solid var(--forest); background: #fff; color: inherit; font-size: 12px; overflow-wrap: anywhere; }
-    .caixa:focus-visible { outline: 3px solid var(--forest); outline-offset: 2px; }
-    .caixa.atual { border-width: 4px; background: var(--soft); }
-    .caixa.aguardando { border-style: dashed; border-color: var(--amber); background: var(--amber-bg); }
+      border: 2px solid var(--trail-deep); background: var(--surface); color: inherit; font-size: 12px; overflow-wrap: anywhere; }
+    .caixa:focus-visible { outline: 3px solid var(--trail-deep); outline-offset: 2px; }
+    .caixa.atual { border-width: 4px; border-color: var(--ink); background: var(--marker-tint); }
+    .caixa.aguardando { border-style: dashed; border-color: var(--warn); background: var(--marker-tint); }
     .caixa-rotulo { font-weight: 700; font-size: 13px; line-height: 1.25; }
     .caixa-passagem { font-weight: 600; text-decoration: underline; }
-    .caixa-detalhe, .caixa-data { color: var(--muted); }
+    .caixa-detalhe, .caixa-data { color: var(--slate); }
     .caixa-fin { font-weight: 600; }
-    .caixa-vencida { justify-self: start; margin-top: 2px; padding: 1px 6px; border: 2px solid var(--red); border-radius: 6px; color: var(--red); font-weight: 700; }
+    .caixa-vencida { justify-self: start; margin-top: 2px; padding: 1px 6px; border: 2px solid var(--bad); border-radius: 6px; color: var(--bad); font-weight: 700; }
     .caixa-estado { margin-top: 2px; font-weight: 600; }
     .icone-estado { display: inline-block; width: 1.3em; }
     .dica { display: none; position: absolute; left: 0; top: calc(100% + 6px); z-index: 5; min-width: 190px; max-width: 260px; padding: 8px 10px;
-      border-radius: 8px; background: #1f2a1f; color: #fff; font-size: 12px; font-weight: 400; box-shadow: 0 6px 18px rgba(0, 0, 0, .25); }
+      border-radius: 8px; background: var(--ink); color: var(--surface); font-size: 12px; font-weight: 400; box-shadow: 0 6px 18px rgba(0, 0, 0, .25); }
     .dica span { display: block; }
     .caixa:hover .dica, .caixa:focus .dica, .caixa:focus-visible .dica { display: block; }
-    .faixa-quadro { padding: 6px 8px 8px; border: 2px dotted var(--amber); border-radius: 12px; }
+    .faixa-quadro { padding: 6px 8px 8px; border: 2px dotted var(--warn); border-radius: 12px; }
     .faixa-rotulo { margin: 0 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
     .no.final { flex-direction: column; align-items: center; gap: 2px; padding: 0 6px; }
     .final-rotulo { font-weight: 700; font-size: 13px; text-align: center; max-width: 150px; overflow-wrap: anywhere; }

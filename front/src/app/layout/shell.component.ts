@@ -1,22 +1,21 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRouteSnapshot, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 
 import { AuthService } from '../core/auth.service';
 import { IconeComponent } from '../shared/icone.component';
-import { TrilhaService } from '../shared/trilha.service';
+import { MarcaComponent } from '../shared/marca.component';
 import { AcompanhamentoDeDossieService } from '../features/documentos/acompanhamento-dossie.service';
 import { GavetaDossieComponent } from '../features/documentos/gaveta-dossie.component';
 import { IndicadorDossieComponent } from '../features/documentos/indicador-dossie.component';
-import { menuDasPermissoes } from './menu';
+import { ItemMenu, itemAtivo, menuDasPermissoes } from './menu';
 
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconeComponent, IndicadorDossieComponent, GavetaDossieComponent],
+  imports: [RouterOutlet, RouterLink, IconeComponent, MarcaComponent, IndicadorDossieComponent, GavetaDossieComponent],
   templateUrl: './shell.component.html',
-  host: { '(document:click)': 'menuUsuarioAberto.set(false)', '(document:keydown.escape)': 'menuUsuarioAberto.set(false)' },
 })
 export class ShellComponent {
   private readonly auth = inject(AuthService);
@@ -34,54 +33,22 @@ export class ShellComponent {
       .join(''),
   );
 
-  protected readonly recolhido = signal(false);
-  protected readonly menuMobileAberto = signal(false);
-  protected readonly menuUsuarioAberto = signal(false);
-  protected readonly auditoriaAberta = signal(true);
-  private readonly complemento = inject(TrilhaService).complemento;
-  private readonly trilhaDaRota = signal<string[]>([]);
-  protected readonly trilha = computed(() => this.complemento() ?? this.trilhaDaRota());
+  private readonly url = signal(this.router.url);
 
   constructor() {
-    this.trilhaDaRota.set(trilhaDa(this.router.routerState.snapshot.root));
     this.router.events
       .pipe(
         filter((evento) => evento instanceof NavigationEnd),
         takeUntilDestroyed(inject(DestroyRef)),
       )
-      .subscribe(() => {
-        this.trilhaDaRota.set(trilhaDa(this.router.routerState.snapshot.root));
-        this.menuMobileAberto.set(false);
-      });
+      .subscribe((evento) => this.url.set(evento.urlAfterRedirects));
   }
 
-  protected alternarMenu(): void {
-    if (window.innerWidth <= 820) {
-      this.menuMobileAberto.update((aberto) => !aberto);
-    } else {
-      this.recolhido.update((recolhido) => !recolhido);
-    }
-  }
-
-  protected alternarMenuUsuario(evento: Event): void {
-    evento.stopPropagation();
-    this.menuUsuarioAberto.update((aberto) => !aberto);
+  protected ativo(item: ItemMenu): boolean {
+    return itemAtivo(item, this.url());
   }
 
   protected sair(): void {
     this.auth.logout().subscribe(() => void this.router.navigate(['/login']));
   }
-}
-
-function trilhaDa(raiz: ActivatedRouteSnapshot): string[] {
-  let atual: ActivatedRouteSnapshot | null = raiz;
-  let trilha: string[] = [];
-  while (atual) {
-    const crumb = atual.data['crumb'] as string[] | undefined;
-    if (crumb) {
-      trilha = crumb;
-    }
-    atual = atual.firstChild;
-  }
-  return trilha;
 }

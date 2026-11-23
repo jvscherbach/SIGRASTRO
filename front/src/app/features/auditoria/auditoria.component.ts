@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 
 import { AuthService } from '../../core/auth.service';
@@ -36,7 +36,7 @@ const FILTRO_INICIAL: FiltroDeAuditoria = { periodo: '7d', texto: '', tipo: '', 
 @Component({
   selector: 'app-auditoria',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [QuadroTopoComponent, FolhaSobrepostaComponent, IconeComponent, AuditoriaDetalheComponent],
+  imports: [QuadroTopoComponent, FolhaSobrepostaComponent, IconeComponent, AuditoriaDetalheComponent, RouterLink],
   templateUrl: './auditoria.component.html',
 })
 export class AuditoriaComponent implements OnInit {
@@ -69,6 +69,8 @@ export class AuditoriaComponent implements OnInit {
   );
   /** O Operador vê os eventos dos seus processos, de qualquer usuário (RN07). */
   protected readonly restritoAoInteressado = computed(() => this.auth.usuario()?.permissoes.restritoAoInteressado ?? false);
+  /** Só a aba visual: a aba "Acessos" aparece com a permissão `verAuditoriaAcessos`; a rota continua protegida pelo guarda. */
+  protected readonly podeVerAcessos = computed(() => this.auth.usuario()?.permissoes.verAuditoriaAcessos ?? false);
   protected readonly titulo = this.ehDocumentos ? 'Auditoria de documentos' : 'Auditoria de acessos';
   protected readonly descricao = this.ehDocumentos
     ? 'Consultas, visualizações, dossiês, falhas e downloads de documentos.'

@@ -66,11 +66,11 @@
   </div>
 
   <div class="cfg-param-meta" [id]="idDe(p, '-ajuda')">
-    <span class="tag" [class.lime]="p.classeDeAplicacao === 'IMEDIATO'" [class.blue]="p.classeDeAplicacao === 'PROXIMA_GERACAO'" [class.amber]="p.classeDeAplicacao === 'EXIGE_REINICIO'" [attr.title]="explicacao[p.classeDeAplicacao]">
+    <span class="tag" [class.ok]="p.classeDeAplicacao === 'IMEDIATO'" [class.warn]="p.classeDeAplicacao === 'EXIGE_REINICIO'" [attr.title]="explicacao[p.classeDeAplicacao]">
       {{ rotuloDaClasse[p.classeDeAplicacao] }}
     </span>
     @if (p.pendenteDeReinicio) {
-      <span class="tag amber">Pendente de reinício</span>
+      <span class="tag warn">Pendente de reinício</span>
     }
     @if (p.sobreposto) {
       <span class="tag gray">Alterado nesta sessão</span>

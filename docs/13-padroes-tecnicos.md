@@ -1,6 +1,6 @@
 # 13 — Padrões técnicos
 
-Rastro é um serviço externo ao SIGA Licenciamento que consulta requerimentos e processos, lista os documentos e gera o dossiê em PDF em ordem cronológica. Este documento resume as **regras técnicas** que o código e o banco devem seguir. O detalhamento de cada tema está em [`padroes/`](padroes/). As mesmas regras estão empacotadas como skill do Claude Code (`vistas-banco`), para uso durante a implementação.
+SIGRASTRO é um serviço externo ao SIGA Licenciamento que consulta requerimentos e processos, lista os documentos e gera o dossiê em PDF em ordem cronológica. Este documento resume as **regras técnicas** que o código e o banco devem seguir. O detalhamento de cada tema está em [`padroes/`](padroes/). As mesmas regras estão empacotadas como skill do Claude Code (`vistas-banco`), para uso durante a implementação.
 
 Pontos que moldam todas as regras abaixo:
 
@@ -71,7 +71,7 @@ O dono é o módulo que define o **significado de negócio**. Ex.: "quais docume
 ### Padrão de banco (schema próprio e leitura do SIGA)
 
 - [`padroes/nomenclatura.md`](padroes/nomenclatura.md) — objetos em português e MAIÚSCULO; arquivo de migration em inglês.
-- [`padroes/tipos-dados.md`](padroes/tipos-dados.md) — tipos por natureza do dado, com exemplos do Rastro.
+- [`padroes/tipos-dados.md`](padroes/tipos-dados.md) — tipos por natureza do dado, com exemplos do SIGRASTRO.
 - [`padroes/normalizacao.md`](padroes/normalizacao.md) — 3FN e o caso do "retrato" gravado na auditoria.
 - [`padroes/indexacao.md`](padroes/indexacao.md) — índices de FK e dos filtros reais de auditoria e fila.
 - [`padroes/documentacao.md`](padroes/documentacao.md) — `COMMENT ON`, dicionário de dados em HTML e MER em `docs/database/` (obrigatórios a cada migration), colunas do SIGA consumidas.
@@ -105,6 +105,21 @@ O dono é o módulo que define o **significado de negócio**. Ex.: "quais docume
 | `org.apache.poi:poi-ooxml` | 5.4.1 | Apache 2.0 | **teste** | documentos Office sintéticos (inclusive criptografados) |
 | LibreOffice (`libreoffice-writer-nogui`, `libreoffice-calc-nogui`, Ubuntu 24.04) | do repositório da distribuição | MPL 2.0 | imagem da `api` | conversor |
 | Fontes `fonts-liberation`, `fonts-dejavu-core`, `fonts-crosextra-carlito`, `fonts-crosextra-caladea` | do repositório da distribuição | SIL OFL 1.1 / licença livre do DejaVu | imagem da `api` | acentuação e métrica compatível com Arial, Times, Calibri e Cambria |
+
+### Dependências do front (R2)
+
+| Dependência | Versão | Licença | Escopo | Motivo |
+|---|---|---|---|---|
+| `@fontsource/bricolage-grotesque` | 5.3.0 (fixa) | SIL OFL 1.1 | produção | fonte dos títulos do SIGRASTRO (pesos 500 e 700, subconjunto latino), servida localmente |
+| `@fontsource/instrument-sans` | 5.3.0 (fixa) | SIL OFL 1.1 | produção | fonte do corpo (pesos 400, 500, 600 e 700, subconjunto latino), servida localmente |
+
+As fontes entram pelo npm e são empacotadas no build, com `font-display: swap`: o front não chama serviço de terceiros (Google Fonts) em tempo de execução. `npm audit --omit=dev` em 0.
+
+### e2e de layout e tema e capturas das telas (R2, bloco 15)
+
+- **`front/e2e/layout-e-tema.e2e.ts`** entra no `npm --prefix front run e2e` (e no job `e2e` do CI) e cobre as telas principais (login, consulta, detalhe, dossiês, auditoria de documentos e de acessos, configurações): sem rolagem horizontal da página em 390, 768, 1280 e 1920 px; login centralizado (2 px) em 1920 e 1280, fundo `#12302B`, escudo e nome; navegação com um único `aria-current="page"`, Auditoria como item único, Configurações só com a permissão e Operador sem Acessos nem Configurações; em 390 px, rótulos da navegação só para leitor de tela; tema único (sem aba Aparência, sem seletor de tema ou bioma, paisagem `cerrado.svg` decorativa na faixa); zero erro de console; nenhuma marca antiga ("SEMA · Mato Grosso", "brasão", "consulta ao SIGA Licenciamento") nem requisição fora do próprio front (Google Fonts incluído). Só o arquivo: `npx --prefix front playwright test e2e/layout-e-tema.e2e.ts` (a partir de `front/`: `npx playwright test e2e/layout-e-tema.e2e.ts`).
+- A API desse e2e é `front/e2e/simulacao-completa.ts`: responde com sucesso a tudo o que as telas principais pedem ao abrir, com dados fictícios, e lista os caminhos sem simulação (o teste exige lista vazia). **Tela nova ou endpoint novo numa tela principal exige atualizar a simulação.**
+- **Capturas:** `npm --prefix front run capturas` (configuração própria `front/playwright.capturas.config.ts`, arquivo `e2e/capturas.captura.ts`, fora do `npm run e2e`) fotografa a página inteira de cada tela principal em 1920 e 390 px, com movimento reduzido, em `front/test-results/capturas/<tela>-<largura>.png`, para comparar com o protótipo (`docs/design/sigrastro/referencia/A3-trilha-funcional.html`). `front/test-results/` está no `.gitignore` (imagens não são versionadas) e o `npm run e2e` limpa essa pasta ao começar: gere as capturas depois dele.
 
 ## Integração contínua
 

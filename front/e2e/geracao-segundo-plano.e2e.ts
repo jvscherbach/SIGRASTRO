@@ -104,12 +104,12 @@ test('clicar fora da gaveta durante a geração minimiza: o indicador avança, a
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
   // indicador na barra do topo, e o quadro do topo não muda de altura
-  const indicador = page.locator('.topbar .ind-dossie');
+  const indicador = page.locator('.top .ind-dossie');
   await expect(indicador).toContainText('Gerando dossiê');
   expect(await alturaDoQuadro(page)).toBe(alturaSem);
 
   // navega por outra tela: o indicador acompanha
-  await page.locator('.sidebar').getByRole('link', { name: /Consulta/ }).first().click();
+  await page.locator('.top .nav').getByRole('link', { name: /Consulta/ }).first().click();
   await expect(page).toHaveURL(/\/consulta$/);
   await expect(indicador).toBeVisible();
 
@@ -132,7 +132,7 @@ test('Esc minimiza e o indicador reabre a gaveta no mesmo pedido', async ({ page
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.locator('.topbar .ind-abrir').click();
+  await page.locator('.top .ind-abrir').click();
 
   await expect(page.getByRole('dialog', { name: /Gerando dossiê/ })).toBeVisible();
   expect(c.postsConcluidos).toBe(1);
@@ -147,7 +147,7 @@ test('fechar durante o envio do POST: o pedido é criado e acompanhado', async (
 
   await page.locator('.scrim').click({ position: { x: 5, y: 5 } });
 
-  await expect(page.locator('.topbar .ind-dossie')).toBeVisible();
+  await expect(page.locator('.top .ind-dossie')).toBeVisible();
   await expect.poll(() => c.postsConcluidos).toBe(1);
   await expect.poll(() => c.consultas, { timeout: 10_000 }).toBeGreaterThan(0);
   expect(c.deletes).toBe(0);
@@ -161,7 +161,7 @@ test('parada à espera de decisão com a gaveta fechada: aviso e indicador em de
   await page.keyboard.press('Escape');
 
   await expect(page.locator('.toast', { hasText: 'precisa da sua decisão' })).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('.topbar .ind-dossie[data-tipo="decisao"]')).toBeVisible();
+  await expect(page.locator('.top .ind-dossie[data-tipo="decisao"]')).toBeVisible();
   await page.locator('.toast').getByRole('button', { name: 'Abrir' }).click();
   await expect(page.getByRole('dialog', { name: /Documentos com problema/ })).toBeVisible();
 });
@@ -198,9 +198,8 @@ test('sair da aplicação encerra o acompanhamento: o indicador some e nenhuma c
   await page.getByRole('button', { name: 'Gerar dossiê' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.locator('.topbar .ind-dossie')).toBeVisible();
+  await expect(page.locator('.top .ind-dossie')).toBeVisible();
 
-  await page.locator('.user-btn').click();
   await page.getByRole('button', { name: 'Sair' }).click();
   await expect(page).toHaveURL(/\/login/);
   const consultas = c.consultas;
@@ -218,11 +217,11 @@ test.describe('celular', () => {
     await page.getByRole('button', { name: 'Gerar dossiê' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.locator('.topbar .ind-dossie')).toBeVisible();
+    await expect(page.locator('.top .ind-dossie')).toBeVisible();
 
     const rolagem = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(rolagem).toBeLessThanOrEqual(0);
-    const caixa = await page.locator('.topbar .ind-dossie').boundingBox();
+    const caixa = await page.locator('.top .ind-dossie').boundingBox();
     expect(caixa!.x + caixa!.width).toBeLessThanOrEqual(390);
   });
 });

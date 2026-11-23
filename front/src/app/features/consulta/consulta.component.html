@@ -1,17 +1,17 @@
 <section aria-label="Consulta">
   <app-quadro-topo
-    titulo="Localize o requerimento. Monte o dossiê."
-    descricao="Consulte um requerimento ou processo do SIGA Licenciamento, veja a situação e a tarefa atual e escolha os documentos que entram na vista."
+    titulo="Consulta"
+    descricao="Busque pelo número do processo ou do requerimento, pelo CPF/CNPJ ou pelo nome do interessado."
   >
-    <form class="glass search-card" (submit)="consultar($event)" novalidate>
-      <div class="glass-title"><span class="coin"><app-icone nome="search" /></span>Informe um ou mais critérios de pesquisa</div>
+    <form class="panel search-card" (submit)="consultar($event)" novalidate>
+      <div class="panel-title"><span class="coin"><app-icone nome="search" /></span>Informe um ou mais critérios de pesquisa</div>
       <div class="field-grid">
         <div class="field full">
           <label for="consulta-numero">Pesquisar por</label>
           <div class="row wrap">
-            <div class="seg" role="radiogroup" aria-label="Tipo de pesquisa">
-              <button type="button" role="radio" [attr.aria-checked]="tipo() === 'REQUERIMENTO'" [class.on]="tipo() === 'REQUERIMENTO'" (click)="escolherTipo('REQUERIMENTO')">Requerimento</button>
-              <button type="button" role="radio" [attr.aria-checked]="tipo() === 'PROCESSO'" [class.on]="tipo() === 'PROCESSO'" (click)="escolherTipo('PROCESSO')">Processo</button>
+            <div class="seg" role="group" aria-label="Tipo de pesquisa">
+              <button type="button" [attr.aria-pressed]="tipo() === 'REQUERIMENTO'" [class.on]="tipo() === 'REQUERIMENTO'" (click)="escolherTipo('REQUERIMENTO')">Requerimento</button>
+              <button type="button" [attr.aria-pressed]="tipo() === 'PROCESSO'" [class.on]="tipo() === 'PROCESSO'" (click)="escolherTipo('PROCESSO')">Processo</button>
             </div>
             <div class="input-icon" style="flex: 1; min-width: 200px">
               <app-icone nome="plan" />
@@ -137,23 +137,22 @@
       <section aria-label="Consultados recentemente">
         <div class="dash-sec-head">
           <div>
-            <h2><app-icone nome="clock" />Consultados recentemente</h2>
+            <h2><app-icone nome="clock" />Consultados por último</h2>
             <p>Atalhos para o que você abriu neste navegador.</p>
           </div>
         </div>
-        <div class="tile-grid">
+        <ul class="rec-list">
           @for (recente of recentes(); track recente.id) {
-            <button type="button" class="tile" (click)="abrir(recente.id)">
-              <span class="tile-icon"><app-icone nome="license" /></span>
-              <span>
+            <li>
+              <button type="button" class="tile" (click)="abrir(recente.id)">
                 <b>{{ recente.titulo }}</b>
                 @if (recente.situacao) {
                   <small>{{ recente.situacao }}</small>
                 }
-              </span>
-            </button>
+              </button>
+            </li>
           }
-        </div>
+        </ul>
       </section>
     } @else {
       <div class="empty">

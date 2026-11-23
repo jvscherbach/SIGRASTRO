@@ -496,6 +496,22 @@ describe('ConsultaComponent', () => {
       expect(router.navigate).toHaveBeenCalledWith(['/consulta/requerimentos', 7]);
     });
 
+    it('os recentes formam a trilha vertical "Consultados por último"', () => {
+      localStorage.setItem('rastro.recentes.u.demo', JSON.stringify([{ id: 7, rotulo: 'Processo 2825/2025' }]));
+      const raiz = criar();
+
+      expect(texto(raiz)).toContain('Consultados por último');
+      expect(raiz.querySelectorAll('ul.rec-list > li > button.tile').length).toBe(1);
+    });
+
+    it('o tipo de pesquisa é um controle segmentado com aria-pressed', () => {
+      const raiz = criar();
+      const botoes = raiz.querySelectorAll<HTMLButtonElement>('.seg button');
+
+      expect(botoes[0].getAttribute('aria-pressed')).not.toBeNull();
+      expect(Array.from(botoes).filter((b) => b.getAttribute('aria-pressed') === 'true').length).toBe(1);
+    });
+
     it('dois requerimentos do mesmo processo aparecem desempatados, com a situação em texto pequeno', () => {
       localStorage.setItem(
         'rastro.recentes.u.demo',

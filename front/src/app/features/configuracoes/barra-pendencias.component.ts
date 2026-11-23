@@ -15,7 +15,7 @@ import { ParametrosStore } from './parametros-store.service';
   imports: [IconeComponent],
   template: `
     @if (store.resumo(); as r) {
-      <div class="cfg-resumo note lime" role="status">
+      <div class="cfg-resumo note ok" role="status">
         <app-icone nome="check" />
         <div>
           @if (r.mudancas.length) {
@@ -46,7 +46,7 @@ import { ParametrosStore } from './parametros-store.service';
         <span class="cfg-barra-contagem">
           <b>{{ store.quantidadePendente() }}</b> {{ store.quantidadePendente() === 1 ? 'alteração pendente' : 'alterações pendentes' }}
           @if (Object.keys(store.errosPorNome()).length) {
-            <span class="tag red">Há campos com erro</span>
+            <span class="tag bad">Há campos com erro</span>
           }
         </span>
         <span class="row">

@@ -4,6 +4,13 @@
   </app-quadro-topo>
 
   <app-folha-sobreposta>
+    <nav class="sub-tabs aud-abas" aria-label="Visões da auditoria">
+      <a routerLink="/auditoria/documentos" [attr.aria-current]="ehDocumentos ? 'page' : null">Documentos</a>
+      @if (podeVerAcessos()) {
+        <a routerLink="/auditoria/acessos" [attr.aria-current]="ehDocumentos ? null : 'page'">Acessos</a>
+      }
+    </nav>
+
     <div class="note amber aud-memoria" role="note">
       <app-icone nome="info" />
       <span>Neste protótipo, os registros ficam na memória e somem ao reiniciar o serviço.</span>
