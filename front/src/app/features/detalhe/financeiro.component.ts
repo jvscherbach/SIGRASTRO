@@ -158,6 +158,8 @@ let instancias = 0;
   styles: `
     :host { display: block; margin-bottom: 22px; }
     .fin { min-height: 96px; }
+    /* Reserva a altura do esqueleto (24 + 14 + 10): o aviso curto de erro não encolhe a seção e não puxa o resto da página. */
+    .fin-corpo { min-height: 48px; }
     .fin-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; margin-bottom: 10px; }
     .fin-head h2 { display: flex; align-items: center; gap: 10px; }
     .fin-head h2 .icon { color: var(--trail); width: 23px; height: 23px; }
