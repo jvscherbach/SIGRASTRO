@@ -106,6 +106,15 @@ O dono é o módulo que define o **significado de negócio**. Ex.: "quais docume
 | LibreOffice (`libreoffice-writer-nogui`, `libreoffice-calc-nogui`, Ubuntu 24.04) | do repositório da distribuição | MPL 2.0 | imagem da `api` | conversor |
 | Fontes `fonts-liberation`, `fonts-dejavu-core`, `fonts-crosextra-carlito`, `fonts-crosextra-caladea` | do repositório da distribuição | SIL OFL 1.1 / licença livre do DejaVu | imagem da `api` | acentuação e métrica compatível com Arial, Times, Calibri e Cambria |
 
+### Dependências do front (R2)
+
+| Dependência | Versão | Licença | Escopo | Motivo |
+|---|---|---|---|---|
+| `@fontsource/bricolage-grotesque` | 5.3.0 (fixa) | SIL OFL 1.1 | produção | fonte dos títulos do SIGRASTRO (pesos 500 e 700, subconjunto latino), servida localmente |
+| `@fontsource/instrument-sans` | 5.3.0 (fixa) | SIL OFL 1.1 | produção | fonte do corpo (pesos 400, 500, 600 e 700, subconjunto latino), servida localmente |
+
+As fontes entram pelo npm e são empacotadas no build, com `font-display: swap`: o front não chama serviço de terceiros (Google Fonts) em tempo de execução. `npm audit --omit=dev` em 0.
+
 ## Integração contínua
 
 A pipeline roda no GitHub Actions (`.github/`). **Ela só valida e publica imagens: não há deploy** (D51). Nenhuma credencial do SIGA, da API de arquivos ou do SCORP entra nela, nem como secret; o único secret usado é o `GITHUB_TOKEN`, no login do GHCR. As variáveis que ativam os testes de fumaça (`SIGA_SMOKE`, `ARQUIVOS_SMOKE`) não são definidas, então esses testes ficam pulados.
