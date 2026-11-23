@@ -612,3 +612,13 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 - **Commits no nome do responsável**, sem `Co-Authored-By`, sem `Claude-Session` e sem "Generated with" (decisão dele): `attribution` vazio no `.claude/settings.json`, e o script ainda remove essas linhas se aparecerem.
 - **O `.claude/` que sustenta a trava é protegido:** nenhum agente grava em `.claude/scripts/`, `.claude/hooks/`, `.claude/agents/`, `.claude/commands/` nem em `.claude/settings.json`/`settings.local.json` (ler pode; `.claude/tmp/` é livre). Subagente nunca é liberado; a sessão principal só com o marcador `~/.rastro/liberar-construcao-claude`, criado e apagado **à mão pelo responsável** para construir as guardas.
 **Consequência:** a revisão bloco a bloco passa a ser feita no PR. Riscos e limites em R77. Fora do modo automático, a regra permanente "só o responsável commita" continua valendo.
+
+## D90 — R2: nome SIGRASTRO, marca própria, tema único Cerrado e fontes locais
+
+**Contexto:** o front nasceu de um *starter* de terceiros (verde e limão, menu lateral, brasão do Estado). O responsável aprovou um protótipo funcional com identidade própria (`docs/design/sigrastro/`).
+**Decisão:**
+- **Nome visível definitivo: SIGRASTRO**, escrito como uma palavra, em maiúsculas. "Rastro" continua nos identificadores técnicos (pacote, artefatos, `rastro.*`, containers). O SIGRASTRO é um complemento de consulta, não um sistema oficial do SIGA (D73 continua valendo).
+- **Marca:** escudo árvore-vida e o nome com "SIG" em peso 500 e "RASTRO" em 700. Nenhum brasão do Estado nem logo da SEMA no front. A frase "Acompanhamento de processos de licenciamento ambiental" só aparece no login.
+- **Tema único Cerrado**, com tokens todos em `:root` (`front/src/styles/tokens.css`), sem seletor de tema, sem aba Aparência; Pantanal e Amazônia ficam de fora. Cor só por token; apelidos dos tokens antigos são temporários e saem no bloco 16.
+- **Fontes locais** (Bricolage Grotesque e Instrument Sans, via `@fontsource`, OFL-1.1): nenhuma chamada a terceiros em tempo de execução.
+**Consequência:** só `front/` e a documentação mudam; `api/`, rotas, permissões e regras de negócio não mudam.

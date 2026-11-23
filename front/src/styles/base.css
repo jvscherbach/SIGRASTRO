@@ -1,6 +1,6 @@
 /* Base: reset, tipografia, botões e tags */
 *{box-sizing:border-box}
-body{margin:0;font-family:Inter,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5}
+body{margin:0}
 button,input,select{font:inherit}
 button{cursor:pointer;border:0}
 button:disabled{opacity:.45;cursor:not-allowed}

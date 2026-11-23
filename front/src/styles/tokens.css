@@ -1,8 +1,41 @@
-/* Tokens do protótipo (docs/prototipo/siga-vistas-prototipo.html). Tema claro apenas. */
+/* Tokens do SIGRASTRO: tema único Cerrado (docs/design/sigrastro/). Cores só por token. */
 :root{
-  --black:#020203;--forest:#183509;--olive:#548b0a;--lime:#79d900;--mint:#d3f8d3;
-  --green:#1f420c;--green-h:#2b5a10;--ink:#141d0f;--sidebar:#10260a;--side-hover:#1b3a10;--side-active:#24491a;
-  --muted:#626d5c;--bg:#f3f6f0;--line:#e1e8dc;--soft:#eef8ea;--soft-2:#f7faf4;
-  --amber:#7a5414;--amber-bg:#fbf4e4;--red:#a33131;--red-bg:#fdf0ef;--blue:#2f5f82;--blue-bg:#eef4f9;
-  --radius:16px;--side:260px
+  --ok:#1C7A4D; --ok-tint:#DDF1E6; --warn:#8A5A00; --bad:#B3261E; --bad-tint:#FBE4E2;
+  --display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif; --body:'Instrument Sans','Segoe UI',system-ui,sans-serif; --r:10px;
+  /* Cerrado: tema único */
+  --paper:#EDECE5; --surface:#FFFFFF; --ink:#2A1C12; --slate:#665A4E; --line:#D6D1C6; --line-strong:#B9AFA0;
+  --trail:#A8431A; --trail-deep:#7F300F; --trail-tint:#F6E3D8; --marker:#E8B712; --marker-tint:#FBF0C6;
+  --sky1:#F4E3B8; --sky2:#FBF4DC; --l1:#D9B77A; --l2:#B9803F; --l3:#8A4A1F; --sun:#E8B712; --contour:#A8431A;
+
+  /* Curvas de nível do fundo (SVG 520x520, traço --contour = %23A8431A, opacidade .08) */
+  --contour-img:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='520' fill='none' stroke='%23A8431A' stroke-opacity='.08'%3E%3Cpath d='M-20 380C80 300 140 340 220 260S360 120 540 180'/%3E%3Cpath d='M-20 420C90 340 150 380 230 300S370 160 540 220'/%3E%3Cpath d='M-20 460C100 380 160 420 240 340S380 200 540 260'/%3E%3Cpath d='M-20 100C60 60 150 90 210 40S330-10 540 40'/%3E%3Cpath d='M-20 140C70 100 160 130 220 80S340 30 540 80'/%3E%3C/svg%3E");
+
+  /* APELIDOS TEMPORÁRIOS de compatibilidade (R2, bloco 3). Removidos no bloco 16. */
+  --black:var(--ink);
+  --forest:var(--trail-deep);
+  --olive:var(--trail);
+  --lime:var(--marker);
+  --mint:var(--marker-tint);
+  --green:var(--trail-deep);
+  --green-h:var(--trail);
+  --sidebar:var(--ink);
+  --side-hover:var(--trail-deep);
+  --side-active:var(--trail);
+  --muted:var(--slate);
+  --bg:var(--paper);
+  --soft:var(--trail-tint);
+  --soft-2:var(--paper);
+  --amber:var(--warn);
+  --amber-bg:var(--marker-tint);
+  --red:var(--bad);
+  --red-bg:var(--bad-tint);
+  --blue:var(--slate);
+  --blue-bg:var(--paper);
+  --radius:var(--r);
+  --side:260px; /* largura do menu lateral, sai no bloco 6 */
 }
+
+/* Escala tipográfica base */
+html{font-size:16px}
+body{background-color:var(--paper);background-image:var(--contour-img);background-attachment:fixed;color:var(--ink);font:400 1rem/1.5 var(--body)}
+h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:-.02em;line-height:1.1}
