@@ -12,9 +12,9 @@ tbody tr.bloqueado td:not(:first-child){opacity:.62}
 .selbar b{font-size:20px;color:var(--surface);margin-right:4px}
 .selbar .facts{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;align-items:center}
 .selbar .btn.quiet{color:var(--line)}
-.selbar .btn.quiet:hover{background:rgba(255,255,255,.1)}
+.selbar .btn.quiet:hover{background:var(--on-ink-hover)}
 
-.scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);z-index:100;display:flex;justify-content:flex-end}
+.scrim{position:fixed;inset:0;background:var(--veil);backdrop-filter:blur(3px);z-index:100;display:flex;justify-content:flex-end}
 .drawer{width:min(560px,100%);height:100%;background:var(--surface);box-shadow:-12px 0 40px rgba(0,0,0,.2);display:flex;flex-direction:column}
 .d-head{padding:24px 26px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:15px;justify-content:space-between}
 .d-head h2{font-size:20px}
@@ -54,7 +54,7 @@ tbody tr.bloqueado td:not(:first-child){opacity:.62}
 .step.off .tx b{text-decoration:line-through}
 .decisao-botoes{justify-content:flex-end;gap:8px}
 /* Modal de visualização (S3) */
-.vis-fundo{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);z-index:100}
+.vis-fundo{position:fixed;inset:0;background:var(--veil);backdrop-filter:blur(3px);z-index:100}
 .visualizador{min-height:0}
 .visualizador .vis-titulo{display:flex;align-items:center;gap:12px;min-width:0}
 .visualizador .vis-titulo h2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

@@ -8,13 +8,13 @@
 .dash-hero-inner{position:relative;z-index:1;padding:20px 24px 62px;display:flex;flex-direction:column;gap:22px}
 .dash-hero.tall .dash-hero-inner{min-height:390px}
 .dash-hero-top{display:flex;justify-content:space-between;gap:24px;align-items:flex-start}
-.dash-headline{background:rgba(251,246,228,.92);padding:14px 20px 16px;border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,.12);max-width:min(100%,460px)}
+.dash-headline{background:var(--headline-bg);padding:14px 20px 16px;border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,.12);max-width:min(100%,460px)}
 .dash-headline h1{font-size:2.25rem;line-height:1.1;letter-spacing:-.02em;color:var(--ink);font-weight:700}
 .dash-headline p{font-size:1rem;color:var(--ink);opacity:.8;margin-top:6px;max-width:32ch;line-height:1.5}
 .dash-headline p:empty{display:none}
 .dash-headline .tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}
 .dash-headline .tags:empty{display:none}
-.dash-pill{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.95);border-radius:11px;padding:0 13px;height:42px;color:var(--ink);box-shadow:0 4px 14px rgba(0,0,0,.08);font-size:12px;font-weight:600;white-space:nowrap}
+.dash-pill{display:flex;align-items:center;gap:8px;background:var(--glass-bg);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--glass-line);border-radius:11px;padding:0 13px;height:42px;color:var(--ink);box-shadow:0 4px 14px rgba(0,0,0,.08);font-size:12px;font-weight:600;white-space:nowrap}
 .dash-pill .icon{width:17px;height:17px}
 .glass{background:var(--surface);border-radius:14px;padding:20px 24px 22px;box-shadow:0 0 0 1px var(--line),0 6px 18px rgba(42,28,18,.12)}
 .glass-title,.panel-title{display:flex;align-items:center;gap:10px;font-weight:650;font-size:14px;margin-bottom:16px}
@@ -45,7 +45,7 @@
 
 /* busca, atalhos e cartões de objeto (consulta e detalhe) */
 .search-card{max-width:760px;margin-top:auto;box-shadow:0 0 0 1px var(--line),0 10px 30px rgba(0,0,0,.12)}
-.search-card:focus-within{box-shadow:0 0 0 3px var(--marker),0 10px 30px rgba(0,0,0,.12)}
+.search-card:focus-within{box-shadow:0 0 0 2px var(--ink),0 0 0 5px var(--marker),0 10px 30px rgba(0,0,0,.12)}
 /* Espaço do alerta da busca: altura FIXA (cabe um alerta de até duas linhas), invisível quando vazio. Com min-height o
    alerta de duas linhas (margem + caixa passavam de 56px) empurrava o cartão e o quadro inteiro crescia. */
 .hint-perfil{margin-top:12px;height:30px;line-height:15px;align-items:flex-start;overflow:hidden}

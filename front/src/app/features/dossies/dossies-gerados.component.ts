@@ -11,6 +11,7 @@ import { PageResponse } from '../../shared/api-tipos';
 import { baixarBlob, baixarDireto, nomeDoContentDisposition, pdfRecebidoInteiro } from '../../shared/arquivo-local';
 import { agoraEmCuiaba, formatarDataHora, formatarTamanho, minutosAte } from '../../shared/formato';
 import { FolhaSobrepostaComponent } from '../../shared/folha-sobreposta.component';
+import { FocoPresoDirective } from '../../shared/foco-preso.directive';
 import { IconeComponent } from '../../shared/icone.component';
 import { QuadroTopoComponent } from '../../shared/quadro-topo.component';
 import { AcompanhamentoDeDossieService, MENSAGEM_PDF_INCOMPLETO } from '../documentos/acompanhamento-dossie.service';
@@ -70,7 +71,7 @@ const ARQUIVO_PERDIDO = ['DOSSIE_ARQUIVO_AUSENTE', 'DOSSIE_ARQUIVO_INVALIDO', 'D
 @Component({
   selector: 'app-dossies-gerados',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [QuadroTopoComponent, FolhaSobrepostaComponent, IconeComponent],
+  imports: [QuadroTopoComponent, FolhaSobrepostaComponent, IconeComponent, FocoPresoDirective],
   templateUrl: './dossies-gerados.component.html',
   host: { '(document:visibilitychange)': 'aoMudarVisibilidade()' },
 })

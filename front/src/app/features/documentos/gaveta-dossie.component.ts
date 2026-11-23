@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 
 import { AcompanhamentoDeDossieService, MENSAGEM_DE_TOKEN, ROTULO_DO_STATUS, TITULO_DO_STATUS, rotuloDaDecisao } from './acompanhamento-dossie.service';
+import { FocoPresoDirective } from '../../shared/foco-preso.directive';
 import { IconeComponent } from '../../shared/icone.component';
 import { SituacaoItemDossie } from './documentos.models';
 
@@ -28,7 +29,7 @@ const ROTULO_DO_ITEM: Record<SituacaoItemDossie, string> = {
 @Component({
   selector: 'app-gaveta-dossie',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconeComponent],
+  imports: [IconeComponent, FocoPresoDirective],
   templateUrl: './gaveta-dossie.component.html',
   host: { '(document:keydown.escape)': 'aoEsc()' },
 })

@@ -10,6 +10,12 @@
   /* Curvas de nível do fundo (SVG 520x520, traço --contour = %23A8431A, opacidade .08) */
   --contour-img:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='520' fill='none' stroke='%23A8431A' stroke-opacity='.08'%3E%3Cpath d='M-20 380C80 300 140 340 220 260S360 120 540 180'/%3E%3Cpath d='M-20 420C90 340 150 380 230 300S370 160 540 220'/%3E%3Cpath d='M-20 460C100 380 160 420 240 340S380 200 540 260'/%3E%3Cpath d='M-20 100C60 60 150 90 210 40S330-10 540 40'/%3E%3Cpath d='M-20 140C70 100 160 130 220 80S340 30 540 80'/%3E%3C/svg%3E");
 
+  /* Camadas neutras (R2, bloco 14): texto e traço sobre a barra escura (--ink), véu dos diálogos e cartão da faixa.
+     Contraste medido em styles/contraste.spec.ts. */
+  --on-ink:#FFFFFF; --on-ink-soft:rgba(255,255,255,.78); --on-ink-line:rgba(255,255,255,.4);
+  --on-ink-track:rgba(255,255,255,.25); --on-ink-hover:rgba(255,255,255,.15); --on-ink-faint:rgba(255,255,255,.08);
+  --veil:rgba(0,0,0,.5); --headline-bg:rgba(251,246,228,.92); --glass-bg:rgba(255,255,255,.86); --glass-line:rgba(255,255,255,.95);
+
   /* APELIDOS TEMPORÁRIOS de compatibilidade (R2, bloco 3). Removidos no bloco 16. */
   --black:var(--ink);
   --forest:var(--trail-deep);

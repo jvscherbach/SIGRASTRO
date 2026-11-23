@@ -3,6 +3,7 @@ import { Subscription } from 'rxjs';
 
 import { cpfCnpjValido } from '../../shared/documento-fiscal';
 import { mascararCpfCnpj, somenteDigitos } from '../../shared/formato';
+import { FocoPresoDirective } from '../../shared/foco-preso.directive';
 import { IconeComponent } from '../../shared/icone.component';
 import { ConfiguracoesApiService } from './configuracoes-api.service';
 import { LOGIN_VALIDO, PERFIS_ASSINAVEIS, UsuarioConfigurado } from './configuracoes.models';
@@ -18,7 +19,7 @@ type Campo = 'nome' | 'login' | 'cpfCnpj' | 'perfil';
 @Component({
   selector: 'app-novo-usuario',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconeComponent],
+  imports: [IconeComponent, FocoPresoDirective],
   templateUrl: './novo-usuario.component.html',
   host: { '(document:keydown.escape)': 'fechar.emit()' },
 })

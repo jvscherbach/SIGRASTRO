@@ -1,5 +1,5 @@
 <div class="vis-fundo" (click)="aoClicarNoFundo($event)">
-  <section class="previa visualizador" role="dialog" aria-modal="true" aria-labelledby="vis-titulo" (keydown.escape)="fechar.emit()">
+  <section class="previa visualizador" appFocoPreso role="dialog" aria-modal="true" aria-labelledby="vis-titulo" (keydown.escape)="fechar.emit()">
     <header>
       <div class="vis-titulo">
         <span [class]="'ext ' + classeDaExtensao(documento())">{{ tipo() }}</span>
