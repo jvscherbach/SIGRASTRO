@@ -36,7 +36,7 @@ npm --prefix front test -- --watch=false
 npm --prefix front run e2e                     # Playwright com API simulada (só desenvolvimento); 1ª vez: npx playwright install chromium
 docker compose --env-file .env.local.example -f compose.yaml -f compose.local.yaml -f compose.verificacao.yaml config --services
 git diff --check
-node --test .claude/hooks/guarda-bash.test.mjs .claude/hooks/guarda-arquivos.test.mjs .claude/hooks/varrer-dados.test.mjs .claude/hooks/vazamento.test.mjs .claude/hooks/guarda-commit-bloco.test.mjs
+node --test .claude/hooks/guarda-bash.test.mjs .claude/hooks/guarda-arquivos.test.mjs .claude/hooks/varrer-dados.test.mjs .claude/hooks/vazamento.test.mjs .claude/hooks/guarda-commit-bloco.test.mjs .claude/hooks/agentes-orquestracao.test.mjs
 node --test .claude/scripts/commit-bloco.test.mjs
 ```
 
@@ -44,6 +44,7 @@ node --test .claude/scripts/commit-bloco.test.mjs
 - Só `git diff` entre os comandos git (nada de `commit`, `push`, `branch`, `stash`).
 - Nunca se conecte ao banco real do SIGA: a conexão e a leitura reais são homologadas pelo responsável (D27). Os testes de integração usam Oracle 23 Free via Testcontainers (pulados sem Docker).
 - Não faça commit nem push. A revisão é feita por `git diff`, e o commit fica com o responsável pelo projeto.
+- **Única exceção (modo automático, A1, D89):** commit só pelo `commitador`, via `commit-bloco`, em branch `auto/*`; nunca push; nenhuma coautoria de ferramenta. Ver `docs/claude-code/orquestracao.md`.
 
 ## Arquitetura
 

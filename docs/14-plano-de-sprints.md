@@ -39,7 +39,9 @@ Objetivo do protótipo: comprovar, com processos reais, que (1) os processos que
 | S10 | Painel do Gestor | Definido no bloco 11 da S9 (decisão de sequência; **sem prompt escrito ainda**). Previsto na S7 como "painel do Gestor"; a tabela de apoio do painel está em P42 e em [15](15-tramitacao.md) |
 | S11 | Pago que virou isento | Definido no bloco 11 da S9 (**sem prompt escrito ainda**). Usa os dados que o financeiro da S9 já lê: um lançamento `PAGA` com DAR seguido de `ISENTA` (cenário FIN12 de [15](15-tramitacao.md)). O destaque e a explicação são desta sprint, não da S9 |
 
-> **Lista incompleta:** S10 e S11 têm escopo definido (bloco 11 da S9), mas ainda não têm prompt escrito. Não existe `docs/prompts/INDICE.md`; a ordem acima vem dos prompts existentes em `docs/prompts/` (R1, S6, S7, S8, S9). Completar quando S10 e S11 tiverem prompt.
+| A1 | Commit automático e orquestração com quatro agentes (ferramentas do Claude Code) | [prompt A1](prompts/A1-commit-automatico-orquestracao.md), **6 blocos** (OPUS, SONNET e HAIKU). Constrói o modo automático: script `commit-bloco`, exceção estreita nas guardas, agentes `executor-*` e `commitador` e o comando `/orquestrar`. Blocos 1 a 5 feitos, bloco 6 (prompt de exemplo e roteiro) com o HAIKU ([progresso/a1.md](progresso/a1.md), [claude-code/orquestracao.md](claude-code/orquestracao.md)). Decisão D89, riscos R77 e R78. **Falta o teste de ponta a ponta pelo responsável** (roteiro do bloco 6). Os prompts seguintes, como a R2, só rodam sem parar entre os blocos depois disso |
+
+> **Lista incompleta:** S10 e S11 têm escopo definido (bloco 11 da S9), mas ainda não têm prompt escrito. O índice dos prompts está em [prompts/INDICE.md](prompts/INDICE.md); a ordem acima vem dos prompts existentes em `docs/prompts/` (R1, S6, S7, S8, S9, A1). Completar quando S10 e S11 tiverem prompt.
 
 ## R1 — Renomeação para Rastro
 

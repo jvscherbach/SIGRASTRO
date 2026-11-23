@@ -33,7 +33,7 @@ Remova a entrada do hook em `.claude/settings.json` (o bloco com o `matcher` cor
 ## Como rodar os testes
 
 ```bash
-node --test .claude/hooks/guarda-bash.test.mjs .claude/hooks/guarda-arquivos.test.mjs .claude/hooks/varrer-dados.test.mjs .claude/hooks/vazamento.test.mjs .claude/hooks/guarda-commit-bloco.test.mjs
+node --test .claude/hooks/guarda-bash.test.mjs .claude/hooks/guarda-arquivos.test.mjs .claude/hooks/varrer-dados.test.mjs .claude/hooks/vazamento.test.mjs .claude/hooks/guarda-commit-bloco.test.mjs .claude/hooks/agentes-orquestracao.test.mjs
 node --test .claude/scripts/commit-bloco.test.mjs
 ```
 
