@@ -65,6 +65,8 @@ Como ajustado (S1.1):
 
 ## 3. Detalhe do requerimento ou processo
 
+> **Visual SIGRASTRO (R2, bloco 10):** os três cartões de dados do topo (`.glass`) usam o painel claro com anel `--line`; a **Tramitação** é uma trilha vertical (linha contínua `--trail`, um nó por etapa, a etapa atual com o marcador `--marker` e borda `--ink`, linha tracejada; correção em `--warn`); fluxograma, "Onde está agora", Taxas e pagamentos e os avisos usam só tokens (informação em `--trail-tint`, atenção em `--marker-tint`/`--warn`, sempre com texto). Estrutura, textos, ordem e lógica não mudaram.
+
 ### Dados do requerimento
 
 Informações mantidas da tela atual:

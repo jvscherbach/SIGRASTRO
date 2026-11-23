@@ -244,36 +244,36 @@ let instancias = 0;
     :host(.completo) { margin-bottom: 22px; }
     .onde-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; min-height: 32px; }
     .onde-linha-texto { overflow-wrap: anywhere; }
-    .ponto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--muted); }
-    .ponto.ativo { background: #6cc51a; }
-    .ponto.atencao { background: var(--amber); }
-    .ponto.encerrado { background: var(--forest); }
-    .ponto.erro { background: var(--red); }
+    .ponto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--slate); }
+    .ponto.ativo { background: var(--ok); }
+    .ponto.atencao { background: var(--warn); }
+    .ponto.encerrado { background: var(--trail-deep); }
+    .ponto.erro { background: var(--bad); }
     .onde-corpo-resumido { margin-top: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; }
     .onde { min-height: 150px; }
     .onde-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; margin-bottom: 10px; }
     .onde-head h2 { display: flex; align-items: center; gap: 10px; }
-    .onde-head h2 .icon { color: var(--olive); width: 23px; height: 23px; }
+    .onde-head h2 .icon { color: var(--trail); width: 23px; height: 23px; }
     .onde-modelo { font-size: 12px; }
     .onde-principal { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-    .onde-etapa { font-size: 20px; font-weight: 700; color: var(--forest); margin: 0; overflow-wrap: anywhere; }
+    .onde-etapa { font-size: 20px; font-weight: 700; color: var(--trail-deep); margin: 0; overflow-wrap: anywhere; }
     .onde-paralelo { border: 0; cursor: pointer; font: inherit; font-size: 11px; font-weight: 600; }
-    .onde-paralelo:focus-visible, .btn:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
+    .onde-paralelo:focus-visible, .btn:focus-visible { outline: 2px solid var(--trail-deep); outline-offset: 2px; }
     .onde-linhas { display: flex; flex-wrap: wrap; gap: 6px 28px; margin: 10px 0 0; }
-    .onde-linhas dt { font-size: 11px; color: var(--muted); }
+    .onde-linhas dt { font-size: 11px; color: var(--slate); }
     .onde-linhas dd { margin: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
     .onde-participantes, .onde-lista, .onde-avisos { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
     .onde-participantes li, .onde-lista li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; }
     .onde-avisos li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; padding: 8px 10px; border-radius: 8px; }
-    .onde-avisos li.info { background: var(--blue-bg); color: var(--blue); }
-    .onde-avisos li.atencao { background: var(--amber-bg); color: var(--amber); }
+    .onde-avisos li.info { background: var(--trail-tint); color: var(--trail-deep); }
+    .onde-avisos li.atencao { background: var(--marker-tint); color: var(--warn); }
     .onde-avisos .icon { width: 16px; height: 16px; flex: none; margin-top: 2px; }
     .onde-texto { margin: 0; font-size: 14px; }
     .onde-situacao { margin: 10px 0 0; font-size: 14px; overflow-wrap: anywhere; }
     .onde-aviso-geral { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
     .onde-aviso-geral p { margin: 0; }
     .onde-esqueleto { display: grid; gap: 10px; }
-    .osso { display: block; height: 14px; width: 60%; border-radius: 6px; background: var(--soft); }
+    .osso { display: block; height: 14px; width: 60%; border-radius: 6px; background: var(--trail-tint); }
     .osso.grande { height: 24px; width: 40%; }
     .osso.curto { width: 30%; }
   `,

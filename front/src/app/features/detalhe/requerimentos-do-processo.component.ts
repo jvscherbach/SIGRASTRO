@@ -47,7 +47,7 @@ const MAXIMO_POR_PROCESSO = 100;
     .rdp { margin-bottom: 22px; }
     .rdp-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; margin-bottom: 10px; }
     .rdp-head h2 { display: flex; align-items: center; gap: 10px; }
-    .rdp-head h2 .icon { color: var(--olive); width: 23px; height: 23px; }
+    .rdp-head h2 .icon { color: var(--trail); width: 23px; height: 23px; }
     .rdp-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
     .rdp-lista > li { padding: 10px 0; border-top: 1px solid var(--line); display: grid; gap: 4px; }
     .rdp-lista > li:first-child { border-top: 0; }
