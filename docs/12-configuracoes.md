@@ -239,6 +239,8 @@ Parâmetros `rastro.painel*` (classe **imediato**: lidos a cada ciclo de atualiz
 | `rastro.painelTimeoutSegundos` | `RASTRO_PAINEL_TIMEOUT_SEGUNDOS` | 10 a 300 | 60 |
 | `rastro.painelIntervaloMinimoManualSegundos` | `RASTRO_PAINEL_INTERVALO_MINIMO_MANUAL_SEGUNDOS` | 30 a 3600 | 120 |
 
+**Provas do bloco 6:** mudar `rastro.painelAno` (ex.: 2025) vale na **próxima atualização**, e o recorte do outro ano nunca aparece; desligar o nome do responsável tira todo nome do painel e da auditoria na hora (RN12). Ver `VarreduraDoPainelHttpTest` e `VarreduraDoPainelSemNomeHttpTest`.
+
 ## Salvamento
 
 - Parâmetros alterados ficam pendentes numa barra fixa com a contagem de alterações, "Descartar" e "Salvar alterações".
