@@ -86,7 +86,7 @@ const linha = (page: Page, login: string) => page.locator(`tr[data-login="${logi
 
 test('Administrador abre Configurações pelo menu: abas, faixa de memória e lista de usuários', async ({ page }) => {
   await abrir(page, ADMIN, '/consulta');
-  await page.locator('.sidebar .nav-item', { hasText: 'Configurações' }).click();
+  await page.locator('.top .nav a', { hasText: 'Configurações' }).click();
 
   await expect(page).toHaveURL(/\/configuracoes$/);
   await expect(page.getByRole('tab')).toHaveText(['Usuários e perfis', 'Dossiê', 'Conversão', 'Visualização', 'Rastro', 'Conexões', 'Auditoria']);
@@ -118,7 +118,7 @@ for (const [nome, perfil] of [
 ] as const) {
   test(`${nome}: digitar /configuracoes volta à Consulta sem chamar a API de configurações`, async ({ page }) => {
     const c = await abrir(page, perfil, '/consulta');
-    await expect(page.locator('.sidebar .nav-item', { hasText: 'Configurações' })).toHaveCount(0);
+    await expect(page.locator('.top .nav a', { hasText: 'Configurações' })).toHaveCount(0);
 
     await page.evaluate(() => {
       history.pushState({}, '', '/configuracoes');

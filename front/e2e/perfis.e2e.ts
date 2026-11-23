@@ -4,12 +4,12 @@ import { ADMIN, GESTOR, OPERADOR, UsuarioSimulado, simularApi } from './api-simu
 
 /** RN08: menu e rotas por perfil, decididos pelas `permissoes` de /auth/me. API simulada, dados fictícios. */
 const PERFIS: { nome: string; usuario: UsuarioSimulado; menu: string[] }[] = [
-  { nome: 'Operador', usuario: OPERADOR, menu: ['Consulta', 'Dossiês gerados', 'Auditoria', 'Documentos'] },
-  { nome: 'Gestor', usuario: GESTOR, menu: ['Consulta', 'Dossiês gerados', 'Auditoria', 'Documentos'] },
+  { nome: 'Operador', usuario: OPERADOR, menu: ['Consulta', 'Dossiês gerados', 'Auditoria'] },
+  { nome: 'Gestor', usuario: GESTOR, menu: ['Consulta', 'Dossiês gerados', 'Auditoria'] },
   {
     nome: 'Administrador',
     usuario: ADMIN,
-    menu: ['Consulta', 'Dossiês gerados', 'Auditoria', 'Documentos', 'Acessos', 'Configurações'],
+    menu: ['Consulta', 'Dossiês gerados', 'Auditoria', 'Configurações'],
   },
 ];
 
@@ -18,7 +18,7 @@ const ROTAS_RESTRITAS = [
   { rota: '/auditoria/acessos', titulo: 'Auditoria de acessos' },
 ];
 
-const itensDoMenu = (page: Page) => page.locator('.sidebar .nav-item');
+const itensDoMenu = (page: Page) => page.locator('.top .nav a');
 
 async function alturaDoQuadro(page: Page): Promise<number> {
   await page.locator('.dash-hero').waitFor();
@@ -31,7 +31,7 @@ for (const perfil of PERFIS) {
     await page.goto('/consulta');
 
     await expect(itensDoMenu(page)).toHaveText(perfil.menu);
-    await expect(page.locator('.sidebar .nav-lock, .sidebar [aria-label="Restrito"]')).toHaveCount(0);
+    await expect(page.locator('.top .nav-lock, .top [aria-label="Restrito"]')).toHaveCount(0);
   });
 }
 
@@ -85,7 +85,6 @@ test('trocar de usuário no login atualiza o menu sem recarregar a página', asy
   await page.getByRole('button', { name: /Operador Demo/ }).click();
   await expect(itensDoMenu(page)).toHaveText(PERFIS[0].menu);
 
-  await page.locator('.user-btn').click();
   await page.getByRole('button', { name: 'Sair' }).click();
   await expect(page).toHaveURL(/\/login/);
 
