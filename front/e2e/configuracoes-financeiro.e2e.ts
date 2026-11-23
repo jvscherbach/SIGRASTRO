@@ -27,6 +27,11 @@ const CATALOGO = (): ParametroApi[] => [
   { ...base, nome: 'rastro.mostrarValores', rotulo: 'Mostrar valores das taxas (valor, desconto e UPF)', tipo: 'BOOLEANO', valor: 'true', padrao: 'true', minimo: null, maximo: null },
   { ...base, nome: 'rastro.financeiroLimiteLancamentos', rotulo: 'Limite de lançamentos de taxa por requerimento', tipo: 'INTEIRO', valor: '200', padrao: '200', minimo: 1, maximo: 1000 },
   { ...base, nome: 'rastro.financeiroTimeoutSegundos', rotulo: 'Tempo limite da consulta financeira (s)', tipo: 'INTEIRO', valor: '10', padrao: '10', minimo: 1, maximo: 120 },
+  { ...base, nome: 'rastro.painelAno', rotulo: 'Painel: ano considerado (0 = ano corrente)', tipo: 'INTEIRO', valor: '0', padrao: '0', minimo: 0, maximo: 2100 },
+  { ...base, nome: 'rastro.painelAtualizacaoMinutos', rotulo: 'Painel: atualização automática (min)', tipo: 'INTEIRO', valor: '30', padrao: '30', minimo: 5, maximo: 1440 },
+  { ...base, nome: 'rastro.painelLimiteRequerimentos', rotulo: 'Painel: teto de requerimentos por atualização', tipo: 'INTEIRO', valor: '3000', padrao: '3000', minimo: 100, maximo: 20000 },
+  { ...base, nome: 'rastro.painelTimeoutSegundos', rotulo: 'Painel: tempo limite da atualização (s)', tipo: 'INTEIRO', valor: '60', padrao: '60', minimo: 10, maximo: 300 },
+  { ...base, nome: 'rastro.painelIntervaloMinimoManualSegundos', rotulo: 'Painel: intervalo mínimo da atualização manual (s)', tipo: 'INTEIRO', valor: '120', padrao: '120', minimo: 30, maximo: 3600 },
 ];
 
 const lancamento = (ordem: number, sobre: object = {}) => ({
@@ -118,7 +123,7 @@ const aba = (page: Page, nome: string) => page.getByRole('tab', { name: nome }).
 const campo = (page: Page, nome: string) => page.locator(`[data-param="${nome}"]`);
 const diagnostico = (page: Page) => page.locator('app-diagnostico-financeiro');
 
-test('aba Rastro: os três parâmetros do financeiro, com faixa, padrão e a etiqueta "Vale já", sem credencial', async ({ page }) => {
+test('aba Rastro: os parâmetros do financeiro e do painel, com faixa, padrão e a etiqueta "Vale já", sem credencial', async ({ page }) => {
   await abrir(page);
   await aba(page, 'Rastro');
 
@@ -127,6 +132,11 @@ test('aba Rastro: os três parâmetros do financeiro, com faixa, padrão e a eti
   await expect(campo(page, 'rastro.financeiroLimiteLancamentos')).toContainText('Padrão do ambiente: 200');
   await expect(campo(page, 'rastro.financeiroTimeoutSegundos')).toContainText('Faixa: 1 a 120');
   await expect(page.locator('.cfg-fixo')).toContainText('dinheiro público');
+  await expect(campo(page, 'rastro.painelAno')).toContainText('Painel: ano considerado (0 = ano corrente)');
+  await expect(campo(page, 'rastro.painelAno')).toContainText('Faixa: 0 a 2100');
+  await expect(campo(page, 'rastro.painelAno').locator('.tag').first()).toHaveText('Vale já');
+  await expect(campo(page, 'rastro.painelIntervaloMinimoManualSegundos')).toContainText('Faixa: 30 a 3600');
+  await expect(page.locator('.cfg-apoio-painel')).toContainText('0 é o ano corrente (fuso de Cuiabá)');
   const texto = await page.locator('main').innerText();
   expect(texto).not.toMatch(/senha|token|SIGA_DB|http(s)?:\/\//i);
 });

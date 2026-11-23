@@ -330,6 +330,7 @@ Rota `/painel` (título `Painel · SIGRASTRO`), item **Painel** na seção Gest�
 - **Gráfico 3:** barras horizontais (15 maiores e "Outros (N servidores)"); categorias sem nome (área, interessado, não atribuída, não identificado) com ícone próprio; com `nomesOcultos`, a nota "Nomes ocultos por configuração" e nenhum nome.
 - **Acessibilidade:** cada gráfico tem `role="img"` com `aria-label` resumido e **Ver como tabela** (tabela equivalente, com totais); a informação não depende só de cor (valor numérico, rótulo, barra cheia × listrada e posição); foco visível; sem rolagem horizontal em 360 px; `prefers-reduced-motion` respeitado; impressão com barras em preto e valores legíveis. Cor só por token (`styles/painel.css`); sem biblioteca de gráficos.
 - **Testes:** `painel.component.spec.ts` (15), `menu.spec.ts`, `shell.component.spec.ts` e `front/e2e/painel.e2e.ts` (menu por perfil, os estados, 429, tabela igual ao gráfico, nomes ocultos, 360 e 1280 px).
+- **Configurações (S10, bloco 8):** a aba **Rastro** mostra os cinco campos "Painel: …" (só Administrador; a API responde 403 para Gestor e Operador) com faixa, padrão e "Vale já", e um texto de apoio explicando cada um (o `0` no ano é o ano corrente). Detalhes em [12](12-configuracoes.md#texto-de-apoio-na-aba-rastro-s10-bloco-8).
 
 ## Padrão visual comum (R2)
 

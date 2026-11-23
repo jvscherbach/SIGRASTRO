@@ -241,6 +241,8 @@ Parâmetros `rastro.painel*` (classe **imediato**: lidos a cada ciclo de atualiz
 
 **Provas do bloco 6:** mudar `rastro.painelAno` (ex.: 2025) vale na **próxima atualização**, e o recorte do outro ano nunca aparece; desligar o nome do responsável tira todo nome do painel e da auditoria na hora (RN12). Ver `VarreduraDoPainelHttpTest` e `VarreduraDoPainelSemNomeHttpTest`.
 
+**Texto de apoio na aba Rastro (S10, bloco 8):** os cinco campos aparecem com o rótulo "Painel: …", a faixa, o padrão do ambiente e a etiqueta "Vale já" (a tela é guiada pelo catálogo; nenhuma regra nova). Abaixo da lista, a tela explica cada um e diz que `0` no ano é o ano corrente em Cuiabá. Não há validação nova: a faixa e o erro continuam como nos demais parâmetros. Testes: `parametros-config.spec.ts` (campos do painel, faixas, etiqueta e texto de apoio) e `front/e2e/configuracoes-financeiro.e2e.ts` (aba Rastro).
+
 ## Salvamento
 
 - Parâmetros alterados ficam pendentes numa barra fixa com a contagem de alterações, "Descartar" e "Salvar alterações".
