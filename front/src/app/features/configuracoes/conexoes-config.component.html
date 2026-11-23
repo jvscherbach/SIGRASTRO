@@ -32,10 +32,10 @@
           <b>{{ c.rotulo }}</b>
           <span [class]="'tag ' + tomDoEstado(c)">{{ rotuloDoEstado(c) }}</span>
           @if (horas(c) !== null && !vencido(c)) {
-            <span class="tag blue cfg-horas">Token expira em {{ horas(c) }} h</span>
+            <span class="tag gray cfg-horas">Token expira em {{ horas(c) }} h</span>
           }
           @if (vencido(c)) {
-            <span class="tag red cfg-vencido">Token vencido</span>
+            <span class="tag bad cfg-vencido">Token vencido</span>
           }
         </div>
 

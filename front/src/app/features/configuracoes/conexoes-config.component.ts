@@ -129,6 +129,6 @@ export class ConexoesConfigComponent implements OnInit {
   }
 
   protected tomDoEstado(c: Conexao): string {
-    return { CONFIGURADA: 'lime', NAO_CONFIGURADA: 'amber', DESATIVADA: 'gray' }[c.estado];
+    return { CONFIGURADA: 'ok', NAO_CONFIGURADA: 'warn', DESATIVADA: 'gray' }[c.estado];
   }
 }

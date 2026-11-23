@@ -83,11 +83,11 @@ import { DiagnosticoDoFinanceiro, diagnosticoDe } from './diagnostico-financeiro
     :host { display: block; margin-top: 24px; }
     .diag-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; margin-bottom: 12px; }
     .diag-form .field { min-width: 220px; flex: 1 1 220px; max-width: 320px; }
-    .btn:focus-visible, input:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
+    .btn:focus-visible, input:focus-visible { outline: 3px solid var(--marker); outline-offset: 2px; }
     .diag-resultado { margin-top: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; }
     .diag-titulo { margin: 0 0 8px; }
     .diag-lista { display: flex; flex-wrap: wrap; gap: 6px 28px; margin: 0 0 8px; }
-    .diag-lista dt { font-size: 11px; color: var(--muted); }
+    .diag-lista dt { font-size: 0.75rem; color: var(--slate); }
     .diag-lista dd { margin: 0; font-size: 16px; font-weight: 700; }
     .diag-sub { margin: 12px 0 6px; font-size: 13px; }
     .diag-itens { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }

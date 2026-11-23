@@ -36,10 +36,10 @@
 /* configurações (S5): abas e usuários e perfis */
 .cfg-memoria{margin-bottom:12px}
 .cfg-abas{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
-.cfg-aba{background:transparent;color:var(--muted);font-size:13px;font-weight:600;padding:10px 14px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.cfg-aba{background:transparent;color:var(--slate);font-size:13px;font-weight:600;padding:10px 14px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
 .cfg-aba:hover{color:var(--ink)}
-.cfg-aba.ativa{color:var(--forest);border-bottom-color:var(--olive)}
-.cfg-aba:focus-visible,.cfg-painel:focus-visible{outline:2px solid var(--olive);outline-offset:2px}
+.cfg-aba.ativa{color:var(--trail-deep);border-bottom-color:var(--trail)}
+.cfg-aba:focus-visible,.cfg-painel:focus-visible{outline:3px solid var(--marker);outline-offset:2px}
 .cfg-usuarios tr.inativo td{opacity:.55}
 .cfg-usuarios tr.inativo td select{opacity:1}
 .cfg-usuarios td b{overflow-wrap:anywhere}
@@ -52,44 +52,45 @@
 .cfg-usuarios tr:last-child{border-bottom:0}
 .cfg-usuarios td{border:0;padding:6px 14px}
 .cfg-usuarios td[data-rotulo]{display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px;align-items:center;white-space:normal}
-.cfg-usuarios td[data-rotulo]::before{content:attr(data-rotulo);font-size:10px;text-transform:uppercase;letter-spacing:.65px;font-weight:650;color:var(--muted)}
+.cfg-usuarios td[data-rotulo]::before{content:attr(data-rotulo);font-size:10px;text-transform:uppercase;letter-spacing:.65px;font-weight:650;color:var(--slate)}
 .cfg-usuarios td.nowrap{white-space:normal}
 .cfg-usuarios select{max-width:100%}
 }
-.cfg-usuarios select{border:1px solid #cfdac8;border-radius:8px;padding:0 8px;font-size:12px;background:#fff;height:34px;color:var(--ink)}
-.cfg-confirma{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;background:var(--amber-bg);border:1px solid #efe2c4;border-radius:10px;padding:10px 14px;font-size:13px}
-.cfg-campo-erro{color:var(--red);font-size:11px}
+.cfg-usuarios select{border:1px solid var(--line-strong);border-radius:8px;padding:0 8px;font-size:12px;background:var(--surface);height:34px;color:var(--ink)}
+.cfg-confirma{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;background:var(--marker-tint);border:1px solid var(--line-strong);border-radius:10px;padding:10px 14px;font-size:13px}
+.cfg-campo-erro{color:var(--bad);font-size:11px}
 .cfg-em-construcao{padding:30px 15px}
 
 /* configurações: parâmetros, barra de pendências e conexões */
 .cfg-parametros{display:grid;gap:12px}
 .cfg-origens{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
 .cfg-param{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:8px;min-width:0}
-.cfg-param.pendente{border-color:var(--olive);background:var(--soft)}
+.cfg-param.pendente{border-color:var(--trail);background:var(--trail-tint)}
 .cfg-param-controle{display:flex;gap:10px 14px;align-items:center;flex-wrap:wrap}
-.cfg-param-rotulo{font-size:13px;font-weight:600;color:#33482a}
-.cfg-numero{width:110px;border:1px solid #cad7c2;border-radius:8px;padding:8px 10px;font-size:13px;min-height:38px}
-.cfg-lista{border:1px solid #cfdac8;border-radius:8px;padding:0 10px;font-size:13px;height:38px;background:#fff;color:var(--ink)}
+.cfg-param-rotulo{font-size:13px;font-weight:600;color:var(--ink)}
+.cfg-numero{width:110px;border:1.5px solid var(--line-strong);border-radius:var(--r);padding:8px 10px;font-size:13px;min-height:38px}
+.cfg-lista{border:1.5px solid var(--line-strong);border-radius:var(--r);padding:0 10px;font-size:13px;height:38px;background:var(--surface);color:var(--ink)}
 .cfg-opcoes{border:0;padding:0;margin:0;display:flex;gap:6px 18px;flex-wrap:wrap;align-items:center;min-width:0}
 .cfg-opcoes legend{float:left;margin-right:14px;padding:0}
-.cfg-param-meta{display:flex;gap:6px 10px;flex-wrap:wrap;align-items:center;font-size:11px;color:var(--muted)}
-.cfg-aviso-reinicio{font-size:12px;color:var(--amber);margin:0;overflow-wrap:anywhere}
+.cfg-param-meta{display:flex;gap:6px 10px;flex-wrap:wrap;align-items:center;font-size:.75rem;color:var(--slate)}
+.cfg-aviso-reinicio{font-size:12px;color:var(--warn);margin:0;overflow-wrap:anywhere}
 .cfg-fixo{margin-bottom:14px}
-.cfg-barra{position:sticky;bottom:14px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--forest);color:#eaf8de;border-radius:14px;padding:12px 14px 12px 20px;box-shadow:0 12px 30px #10260a40;flex-wrap:wrap;margin-top:16px}
-.cfg-barra .btn.quiet{color:#eaf8de}
+.cfg-barra{position:sticky;bottom:14px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--ink);color:var(--surface);border-radius:14px;padding:12px 14px 12px 20px;box-shadow:0 12px 30px rgba(42,28,18,.3);flex-wrap:wrap;margin-top:16px}
+.cfg-barra .btn.quiet{color:var(--surface)}
+.cfg-barra .btn.quiet:hover{background:var(--trail-deep)}
 .cfg-resumo{margin-top:16px;align-items:flex-start}
 .cfg-resumo ul{margin:6px 0 0;padding-left:18px}
 .cfg-resumo>div{flex:1;min-width:0;overflow-wrap:anywhere}
 .cfg-conexoes{list-style:none;margin:0;padding:0;display:grid;gap:10px}
 .cfg-conexao{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:8px}
 .cfg-conexao-topo{display:flex;gap:8px 10px;align-items:center;flex-wrap:wrap}
-.cfg-conexao-nota{font-size:12px;color:var(--muted);margin:0}
+.cfg-conexao-nota{font-size:12px;color:var(--slate);margin:0}
 .cfg-conexao-acao{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .cfg-teste{display:inline-flex;gap:6px;align-items:center;font-size:12px;overflow-wrap:anywhere}
-.cfg-teste.ok{color:#2c5207}
-.cfg-teste.falha{color:var(--red)}
-.cfg-teste.ressalva{color:#7a5a00}
+.cfg-teste.ok{color:var(--ok)}
+.cfg-teste.falha{color:var(--bad)}
+.cfg-teste.ressalva{color:var(--warn)}
 .cfg-teste{align-items:flex-start}
-.cfg-teste .cfg-teste-mensagem{display:block;color:var(--muted);margin-top:2px}
-.cfg-limite-teste{font-size:12px;color:var(--muted);margin:4px 0 0}
+.cfg-teste .cfg-teste-mensagem{display:block;color:var(--slate);margin-top:2px}
+.cfg-limite-teste{font-size:12px;color:var(--slate);margin:4px 0 0}
 @media(max-width:640px){.cfg-numero{width:90px}.cfg-barra{bottom:8px}}

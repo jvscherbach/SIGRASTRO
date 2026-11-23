@@ -78,7 +78,7 @@ input[type=text],input[type=password],input[type=search],input[type=number],inpu
 .alert{display:flex;gap:12px;align-items:flex-start;border-radius:12px;font-size:.875rem;padding:12px 16px;background:var(--bad-tint);color:var(--bad);box-shadow:inset 0 0 0 1px var(--line);margin-top:14px}
 .note{display:flex;gap:12px;align-items:flex-start;background:var(--trail-tint);color:var(--ink);border-radius:12px;font-size:.875rem;padding:12px 16px;box-shadow:inset 0 0 0 1px var(--line)}
 .note.amber,.note.warn{background:var(--marker-tint);color:var(--warn)}
-.note.lime{background:var(--ok-tint);color:var(--ok)}
+.note.lime,.note.ok{background:var(--ok-tint);color:var(--ok)}
 .note.bad{background:var(--bad-tint);color:var(--bad)}
 .note.info{background:var(--trail-tint);color:var(--ink)}
 .note .icon{margin-top:1px;width:17px;height:17px}
@@ -86,6 +86,11 @@ input[type=text],input[type=password],input[type=search],input[type=number],inpu
 /* interruptor */
 .switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:500}
 .switch input{width:18px;height:18px;accent-color:var(--trail)}
+
+/* caixa ou opção com rótulo ao lado (configurações) e nota de apoio de seção */
+.check{display:inline-flex;align-items:center;gap:8px;font-weight:500;cursor:pointer}
+.check input{width:18px;height:18px;min-height:0;accent-color:var(--trail);cursor:pointer}
+.nota-historico{font-size:.8125rem;color:var(--slate);margin:0 0 12px;line-height:1.5}
 
 /* tabela */
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
