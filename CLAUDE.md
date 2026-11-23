@@ -61,6 +61,14 @@ Camadas por módulo: `api` (controller + `api.dto`) → `application` (casos de 
 
 Entre módulos, a comunicação acontece só por caso de uso ou porta publicada (ex.: `auditoria` publica `RegistrarEvento`). Nunca use DTO HTTP, entidade, repository ou DTO de integração de outro módulo.
 
+### Regras do front (R2, SIGRASTRO, D90)
+
+- Nome visível **SIGRASTRO**; "Rastro" fica nos identificadores técnicos. Padrão visual em `docs/design/sigrastro/LEIA-ME.md`.
+- **Cor só por token** (`front/src/styles/tokens.css`); nada de hex ou `rgb()` em CSS ou template (exceções no guia; `cores-fixas.spec.ts` fiscaliza). Contraste AA medido por `contraste.spec.ts`.
+- **Nenhum brasão do Estado nem logo da SEMA.** **Tema único Cerrado**: sem seletor de tema, sem aba Aparência.
+- Fontes locais (`@fontsource`); nenhuma chamada a terceiros em tempo de execução. Paisagem por `<img>`, nunca SVG inline.
+- Foco visível, `aria-current="page"` no item ativo, diálogo com `appFocoPreso`, sem rolagem horizontal em 390 a 1920 px.
+
 ### Regras duras
 
 - **O banco do SIGA (`SIGA2_LICENCIAMENTO`, `SIGA2_CAMUNDA`, `SIGA2_OUTORGA`, `SIGA2_ARRECADACAO`) é somente leitura.** Não grave nada, não crie objetos e não rode migrations nele. A leitura é feita por `NamedParameterJdbcTemplate` (sem JPA) com datasource `read-only`.

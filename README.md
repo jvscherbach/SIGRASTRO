@@ -1,6 +1,8 @@
-# Rastro
+<p align="center"><img src="front/src/assets/img/sigrastro-escudo.svg" alt="Escudo do SIGRASTRO" width="96"></p>
 
-> Rastro, complemento de consulta ao SIGA Licenciamento (protótipo). Antes chamado "SIGA Vistas".
+# SIGRASTRO
+
+> SIGRASTRO, complemento de consulta ao SIGA Licenciamento (protótipo). Antes chamado "Rastro" e, antes, "SIGA Vistas". O padrão visual está em [docs/design/sigrastro/LEIA-ME.md](docs/design/sigrastro/LEIA-ME.md).
 
 [![CI](https://github.com/jvscherbach/rastro/actions/workflows/ci.yml/badge.svg)](https://github.com/jvscherbach/rastro/actions/workflows/ci.yml)
 
@@ -30,7 +32,7 @@ A leitura real do SIGA, dos arquivos e do SCORP depende da configuração descri
 |---|---|
 | `api/` | Back-end (Java 21 + Spring Boot). Tem o próprio `Dockerfile`. |
 | `front/` | Front-end (Angular). Tem o próprio `Dockerfile` (nginx). |
-| `docs/` | Documentação do projeto, padrões técnicos e o protótipo navegável (`docs/prototipo/`). |
+| `docs/` | Documentação do projeto, padrões técnicos e o protótipo histórico do visual antigo (`docs/prototipo/`) e o padrão visual vigente (`docs/design/sigrastro/`). |
 | `.claude/` | Skill com os padrões técnicos usados no desenvolvimento assistido. |
 | `compose.yaml` | Configuração comum dos serviços `api` e `front` no Docker. |
 | `compose.local.yaml` | Configuração do seu computador: portas e volume dos dossiês. |

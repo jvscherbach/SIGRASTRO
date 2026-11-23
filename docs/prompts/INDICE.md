@@ -15,6 +15,7 @@ Cada sprint é implementada a partir de um prompt `.md` desta pasta. A ordem e o
 | Prompt | Tema |
 |---|---|
 | [R1](R1-renomeacao-rastro.md) | Renomeação para Rastro |
+| [R2](R2-refatorar-front-sigrastro.md) | Refatoração do front para o SIGRASTRO (visual, marca e layout) |
 | [S1](S1-consulta.md) a [S5](S5-auditoria-e-configuracoes.md) | Consulta, documentos, conversão, acesso, auditoria e configurações |
 | [S6](S6-correcoes-ci-e-ferramentas-claude-code.md), [S6.1](S6.1-guardas-contra-vazamento-de-segredo.md) | Correções, CI e ferramentas do Claude Code |
 | [S7](S7-tramitacao-onde-esta-e-com-quem.md), [S8](S8-tramitacao-historico-e-fluxograma.md), [S9](S9-financeiro-taxas-dar-e-pagamentos.md) | Tramitação e financeiro |

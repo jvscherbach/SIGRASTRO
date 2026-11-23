@@ -43,6 +43,10 @@ Objetivo do protótipo: comprovar, com processos reais, que (1) os processos que
 
 > **Lista incompleta:** S10 e S11 têm escopo definido (bloco 11 da S9), mas ainda não têm prompt escrito. O índice dos prompts está em [prompts/INDICE.md](prompts/INDICE.md); a ordem acima vem dos prompts existentes em `docs/prompts/` (R1, S6, S7, S8, S9, A1). Completar quando S10 e S11 tiverem prompt.
 
+## R2 — Refatoração do front para o SIGRASTRO
+
+Prompt: [R2-refatorar-front-sigrastro.md](prompts/R2-refatorar-front-sigrastro.md), **18 blocos** (OPUS, SONNET e HAIKU). Andamento em [progresso/r2.md](progresso/r2.md). Só `front/` e documentação: nome SIGRASTRO, marca (escudo árvore-vida), tema único Cerrado, barra superior com navegação horizontal, fontes locais, login novo, trilha no detalhe, testes e acessibilidade. Decisões D90 e D91, riscos R79 e R80. Guia visual em [design/sigrastro/LEIA-ME.md](design/sigrastro/LEIA-ME.md); roteiro do responsável em [roteiros/r2-homologacao.md](roteiros/r2-homologacao.md). **Situação:** blocos 1 a 17 feitos; falta o bloco 18 (nome visível nos documentos vivos) e a homologação pelo responsável.
+
 ## R1 — Renomeação para Rastro
 
 Prompt: [R1-renomeacao-rastro.md](prompts/R1-renomeacao-rastro.md). Andamento por bloco em [progresso/r1.md](progresso/r1.md). Decisões D73 (nome e fases), D74 (pacote e propriedades com alias) e D75 (chaves do navegador com migração). Roteiro de conferência: [roteiros/r1-homologacao.md](roteiros/r1-homologacao.md).

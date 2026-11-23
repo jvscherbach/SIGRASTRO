@@ -1,17 +1,70 @@
-# Referências de design do SIGRASTRO
+# Padrão visual do SIGRASTRO
 
-Material de entrada da refatoração do front (`docs/prompts/R2-refatorar-front-sigrastro.md`). O Claude Code lê esta pasta; o responsável não precisa editá-la.
+Guia do padrão visual do front (R2). O material de entrada da refatoração (`referencia/`, `logo/`, `cenas/`) continua nesta pasta como fonte da verdade do visual aprovado. Os valores vigentes estão em `front/src/styles/tokens.css` e são fiscalizados por teste (`tokens.spec.ts`, `contraste.spec.ts`, `cores-fixas.spec.ts`).
+
+## Conceito "Trilha"
+
+O caminho do processo é uma **trilha pontilhada com um marcador**: a Consulta lista os "Consultados por último" como trilha vertical, e o detalhe mostra a Tramitação como trilha (um nó por etapa, marcador `--marker` na etapa atual, marcador final quando concluído, tracejado para o caminho aproximado). A paleta é a do **Cerrado** de Mato Grosso, como **tema único**.
+
+**Pantanal e Amazônia** foram explorados no protótipo e **ficaram de fora por decisão** (D90): não há seletor de tema, preferência de bioma nem aba Aparência.
+
+## Arquivos de referência
 
 | Arquivo | O que é |
 |---|---|
-| `referencia/A3-trilha-funcional.html` | Protótipo funcional e autossuficiente (um arquivo) do novo visual, aprovado pelo responsável. Abre direto no navegador (`file://`). É a **referência visual e de comportamento**. Dados fictícios. |
-| `referencia/src/base.css`, `extra.css` | CSS do protótipo (a `extra.css` vem depois e vence a `base.css`). Fonte dos valores de espaçamento, raio, sombra e tamanho. |
-| `referencia/src/app.js` | JavaScript do protótipo: telas, estados, geração das paisagens (`function terra`) e do fundo de curvas de nível (`aplicaTema`). Tem o marcador `/*CERRADO*/` no lugar do SVG do Cerrado (que está em `cenas/cerrado.svg`). |
-| `logo/sigrastro-escudo.svg` | Marca do SIGRASTRO (escudo árvore-vida), `viewBox 0 0 240 240`. Tem contorno claro, funciona sobre fundo escuro. |
-| `logo/sigrastro-horizontal.svg` | Escudo + nome + frase, para documentos. O texto usa a fonte Bricolage Grotesque. |
-| `cenas/cerrado.svg` | Paisagem do Cerrado (animada de leve, respeita `prefers-reduced-motion`). `viewBox 0 0 1200 420`. |
+| `referencia/A3-trilha-funcional.html` | Protótipo funcional e autossuficiente do novo visual, aprovado pelo responsável. Abre direto no navegador (`file://`). Dados fictícios. Só o Cerrado vale; ignore o painel de testes e os outros biomas. |
+| `referencia/src/base.css`, `extra.css` | CSS do protótipo (a `extra.css` vence a `base.css`): espaçamento, raio, sombra e tamanho. |
+| `referencia/src/app.js` | JavaScript do protótipo: telas, estados, paisagens e fundo de curvas de nível. |
+| `logo/sigrastro-escudo.svg` | Escudo árvore-vida, `viewBox 0 0 240 240`, com contorno claro. |
+| `logo/sigrastro-horizontal.svg` | Escudo, nome e frase, para documentos. O texto usa Bricolage Grotesque: depende da fonte instalada (R80 em `docs/10`). Não é usada no front. |
+| `cenas/cerrado.svg` | Paisagem do Cerrado, `viewBox 0 0 1200 420`, animada de leve e com a própria regra de `prefers-reduced-motion`. Copiada para `front/src/assets/img/`. |
 
-**Tema:** o protótipo traz três biomas (Cerrado, Pantanal e Amazônia) e um painel de testes. **Só o Cerrado é usado** no front; ignore o resto.
+## Tokens do Cerrado
+
+Todos em `:root` de `front/src/styles/tokens.css`.
+
+| Grupo | Tokens |
+|---|---|
+| Status | `--ok` #1C7A4D, `--ok-tint` #DDF1E6, `--warn` #8A5A00, `--bad` #B3261E, `--bad-tint` #FBE4E2 |
+| Superfície e texto | `--paper` #EDECE5 (página), `--surface` #FFFFFF (painel), `--ink` #2A1C12, `--slate` #665A4E, `--line` #D6D1C6, `--line-strong` #B9AFA0 |
+| Identidade | `--trail` #A8431A, `--trail-deep` #7F300F, `--trail-tint` #F6E3D8, `--marker` #E8B712, `--marker-tint` #FBF0C6 |
+| Paisagem | `--sky1`, `--sky2`, `--l1`, `--l2`, `--l3`, `--sun`, `--contour` |
+| Forma | `--r` 10px (painéis 14px, faixa 18px) |
+| Sobre a barra escura | `--on-ink`, `--on-ink-soft`, `--on-ink-line`, `--on-ink-track`, `--on-ink-hover`, `--on-ink-faint`; véus `--veil`, `--headline-bg`, `--glass-*` (R2, bloco 14) |
+
+O fundo da página é `--paper` com curvas de nível (`--contour-img`, SVG em data URI no CSS, traço `--contour`, opacidade .08, fixo ao rolar).
+
+**Regra: cor só por token.** Nenhum hex nem `rgb()` em CSS ou template, exceto as constantes de status, o fundo do login (`#12302B`), as sombras, a impressão em preto e branco e as cores internas dos SVGs de marca e paisagem. O `cores-fixas.spec.ts` falha se aparecer outra.
+
+## Tipografia
+
+- **Títulos:** Bricolage Grotesque 700 (500 na marca), `letter-spacing:-.02em`, `line-height:1.1`.
+- **Corpo:** Instrument Sans 400, 500, 600 e 700, `1rem/1.5`; `html{font-size:16px}`.
+- Fontes **locais** (`@fontsource`, OFL-1.1, versão fixa; `docs/13`): nenhuma chamada a terceiros em tempo de execução. Pilha de reserva `'Segoe UI',system-ui,sans-serif`.
+
+## Componentes
+
+| Componente | Classes e regras |
+|---|---|
+| **Botão** | `.btn` é o secundário (fundo `--surface`, anel `--line`); `.btn.primary` preenchido em `--trail` com texto branco; `.btn.quiet` sem fundo; `.btn.sm`. Desabilitado com opacidade e `cursor:not-allowed`. |
+| **Campo** | `input`, `select`, `label`, `.hint` (apoio) e mensagem de erro de campo, sempre com texto. |
+| **Tag** | `.tag` (padrão `--trail-tint`), `.ok`, `.warn`, `.bad`, `.gray`. Sempre com texto, nunca só cor. Os nomes antigos `.lime`, `.amber`, `.red`, `.blue`, `.dark` continuam como alias. |
+| **Painel** | `.panel`: fundo `--surface`, raio 14, anel `--line`. `.glass` (cartões do detalhe) é o mesmo papel com nome antigo. |
+| **Tabela** | `.table-wrap` com rolagem interna; cabeçalho, linha, ordenação com `aria-sort`. Em tela estreita a tabela rola dentro do contêiner. |
+| **Faixa do topo** | `quadro-topo`: 240px, gradiente `--sky1`/`--sky2`, `cerrado.svg` por `<img>` decorativo (`object-fit:cover; object-position:center bottom`, **nunca inline**) e cartão de título claro à esquerda (`--headline-bg`, raio 14). Sem etiqueta de tema. |
+| **Trilha** | Linha tracejada e um nó por item; marcador `--marker` na etapa atual. Em tela estreita vai para coluna única. |
+| **Controle segmentado** | `.seg` com `aria-pressed`. |
+| **Barra superior** | Sticky, 56px, `--ink`; marca, navegação horizontal (item ativo com sublinhado `--marker` e `aria-current="page"`), indicador do dossiê, selo do perfil, nome, avatar (`--trail`) e "Sair". Em até 900px só ícones (o rótulo fica para leitor de tela); em até 520px somem selo e nome. |
+
+## Regras de uso da marca
+
+- A marca é o **escudo árvore-vida** mais o nome **SIGRASTRO**, uma palavra em maiúsculas, com "SIG" em peso 500 e "RASTRO" em 700 (`<app-marca>`).
+- O escudo tem contorno claro: vale sobre **fundo claro ou escuro**. Sem recorte, sem borda, sem filtro.
+- **Tamanho mínimo: 24 px** de largura. Não deformar (proporção 1:1), não girar, não recolorir.
+- Escudo decorativo (`alt=""`) quando o nome está visível ao lado; sem nome visível, o conjunto tem nome acessível "SIGRASTRO".
+- **Nenhum brasão do Estado de Mato Grosso e nenhuma logo da SEMA**, em lugar nenhum do front. Também não aparecem "SEMA · Mato Grosso", "consulta ao SIGA Licenciamento" nem "(protótipo)" como parte da marca.
+- A frase "Acompanhamento de processos de licenciamento ambiental" só aparece no login.
+- O SIGRASTRO é um complemento de consulta, **não** um sistema oficial do SIGA.
 
 ## Contraste medido (R2, bloco 14)
 
@@ -46,4 +99,4 @@ Atenção: `--ok`/`--ok-tint` passa por pouco (4,52). Qualquer ajuste em um dess
 - **Sem rolagem horizontal** em 390, 768, 1280 e 1920 px; tabela larga rola dentro de `.table-wrap`.
 - **Pendência:** a borda dos campos (`--line`) fica abaixo de 3:1 (R79 em `docs/10`), decisão do responsável.
 
-A prova automática está em `front/e2e/acessibilidade.e2e.ts` (Tab com anel e nome acessível no login, barra, consulta, tabela de documentos e abas; foco preso e devolvido nos diálogos; movimento reduzido).
+A prova automática está em `front/e2e/acessibilidade.e2e.ts` (Tab com anel e nome acessível no login, barra, consulta, tabela de documentos e abas; foco preso e devolvido nos diálogos; movimento reduzido) e em `front/e2e/layout-e-tema.e2e.ts` (sem rolagem horizontal, login centralizado, navegação, tema único, console limpo, sem marca antiga).

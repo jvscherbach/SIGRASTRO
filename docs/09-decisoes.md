@@ -622,3 +622,12 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 - **Tema único Cerrado**, com tokens todos em `:root` (`front/src/styles/tokens.css`), sem seletor de tema, sem aba Aparência; Pantanal e Amazônia ficam de fora. Cor só por token; apelidos dos tokens antigos são temporários e saem no bloco 16.
 - **Fontes locais** (Bricolage Grotesque e Instrument Sans, via `@fontsource`, OFL-1.1): nenhuma chamada a terceiros em tempo de execução.
 **Consequência:** só `front/` e a documentação mudam; `api/`, rotas, permissões e regras de negócio não mudam.
+
+## D91 — R2: padrão visual vigente, documentação e fronteira com o back-end
+
+**Contexto:** a R2 trocou o visual do front (blocos 1 a 16) e fecha com a documentação (bloco 17).
+**Decisão:**
+- **O guia do padrão visual é `docs/design/sigrastro/LEIA-ME.md`** (conceito "Trilha", tokens, tipografia, componentes, regras de uso da marca, contraste e acessibilidade). O protótipo `docs/prototipo/siga-vistas-prototipo.html` fica como **histórico** (comentário no topo), sem uso.
+- **Fronteira da refatoração:** textos visíveis **do back-end** que ainda dizem "Rastro" ou o nome antigo (capa do PDF, metadados, título da API, avisos vindos da API) **não** mudam na R2; viram pendência (R80 em `docs/10`).
+- **Regras curtas do front** entram no `CLAUDE.md`: cor só por token, nenhum brasão nem logo do Estado ou da SEMA, tema único, sem seletor de tema.
+**Consequência:** só `front/` e a documentação mudaram na R2; `api/`, rotas, permissões e regras de negócio ficaram intactos.
