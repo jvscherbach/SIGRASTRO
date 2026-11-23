@@ -1,24 +1,25 @@
-/* Tela de login */
-/* login */
-.login{min-height:100vh;display:grid;grid-template-columns:1.1fr 1fr;background:#fff}
-.login-art{position:relative;background:var(--sidebar);color:#fff;overflow:hidden;padding:44px;display:flex;flex-direction:column}
-.login-art .scene{position:absolute;inset:0}
-.login-art .scene svg{width:100%;height:100%}
-.login-art:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,38,10,.15) 0%,rgba(16,38,10,0) 30%,rgba(16,38,10,.55) 62%,rgba(16,38,10,.92) 100%)}
-.login-art>*{position:relative;z-index:1}
-.login-art .brand{padding:0;height:auto}
-.login-art h1{font-size:40px;line-height:1.1;letter-spacing:-1px;margin-top:auto;max-width:460px}
-.login-art p{color:#cfe2c3;margin-top:12px;max-width:440px;font-size:15px}
-.login-art .wm{position:absolute;right:-30px;bottom:-30px;width:300px;opacity:.08;filter:grayscale(1) brightness(1.6);z-index:1}
-.login-form{display:flex;align-items:center;justify-content:center;padding:40px 24px;background:var(--bg)}
-.login-card{width:min(400px,100%);background:#fff;border:1px solid var(--line);border-radius:18px;padding:28px;box-shadow:0 10px 30px #10260a10}
-.login-card h2{font-size:22px}
-.demo-users{display:grid;gap:8px;margin-top:6px}
-.demo-user{display:flex;gap:12px;align-items:center;text-align:left;background:var(--soft-2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;color:var(--ink)}
-.demo-user:hover{background:var(--soft);border-color:#c6dcb7}
-.demo-user .avatar{border-color:#bcd3ad;color:var(--forest);background:#fff}
-.demo-user b{font-size:13px;display:block}
-.demo-user small{font-size:11px;color:var(--muted)}
-.or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:11px;margin:18px 0}
-.or:before,.or:after{content:"";flex:1;height:1px;background:var(--line)}
-
+/* Tela de login: cor única, marca e frase sobre o fundo, caixa central (R2, bloco 8) */
+body:has(.login) { background: #12302B; background-image: none; }
+.login { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(24px, 5vh, 44px); padding: 32px 20px 56px; background: #12302B; }
+.login .marca { display: flex; flex-direction: column; align-items: center; text-align: center; color: #F1F4EA; }
+.login .marca app-marca { flex-direction: column; gap: 14px; }
+.login .marca app-marca .escudo { width: clamp(96px, 16vh, 140px) !important; height: auto !important; aspect-ratio: 1; }
+.login .marca app-marca .wm { font-size: clamp(2.2rem, 6vw, 3.4rem); letter-spacing: .02em; color: #F1F4EA; line-height: 1; }
+.login .marca p { margin: 10px 0 0; font-size: 1.0625rem; color: rgba(241, 244, 234, .78); max-width: 34ch; }
+.login-card { width: min(440px, 100%); background: var(--surface); border-radius: 14px; padding: 32px; box-shadow: 0 20px 60px rgba(0, 0, 0, .35); }
+.login-card h2 { font-size: 1.375rem; margin-top: 6px; }
+.login-card .sub { font-size: .8125rem; margin-top: 6px; color: var(--slate); }
+.login-card form { margin-top: 16px; display: grid; gap: 12px; }
+.login-card .alert { margin-top: 0; }
+.login-card .note { margin: 18px 0 0; }
+.demo-users { display: grid; gap: 8px; margin-top: 6px; }
+.demo-user { display: flex; gap: 12px; align-items: center; text-align: left; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r); padding: 11px 12px; color: var(--ink); cursor: pointer; font: inherit; }
+.demo-user:hover { background: var(--trail-tint); border-color: var(--trail); }
+.demo-user[disabled] { opacity: .6; cursor: not-allowed; }
+.demo-user .avatar { border: 1.5px solid var(--line-strong); color: var(--trail-deep); background: var(--surface); }
+.demo-user .dados { flex: 1; min-width: 0; }
+.demo-user b { font-size: .8125rem; display: block; }
+.demo-user small { font-size: .75rem; color: var(--slate); }
+.or { display: flex; align-items: center; gap: 10px; color: var(--slate); font-size: .75rem; margin: 18px 0; }
+.or:before, .or:after { content: ""; flex: 1; height: 1px; background: var(--line); }
+@media (max-width: 520px) { .login { padding: 24px 20px 40px; } .login-card { padding: 24px 20px; } }

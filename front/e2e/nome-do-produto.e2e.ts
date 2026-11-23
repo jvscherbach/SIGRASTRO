@@ -29,10 +29,10 @@ test.describe('nome do produto: Rastro', () => {
   test('login mostra Rastro e o rótulo curto, sem o nome antigo', async ({ page }) => {
     await simularApi(page, { comSessao: false });
     await page.goto('/login');
-    await page.locator('.login-art .brand').waitFor();
+    await page.locator('.login .marca').waitFor();
 
-    await expect(page.locator('.login-art .brand b')).toHaveText('RASTRO');
-    await expect(page.locator('.login-art .brand small')).toHaveText('consulta ao SIGA Licenciamento (protótipo)');
+    await expect(page.locator('.login .marca .wm')).toHaveText('SIGRASTRO');
+    await expect(page.locator('.login .marca p')).toHaveText('Acompanhamento de processos de licenciamento ambiental');
     await expect(page).toHaveTitle('Entrar · Rastro');
     expect(await textoVisivel(page)).not.toMatch(NOME_ANTIGO);
   });

@@ -11,6 +11,7 @@ O protótipo navegável (`prototipo/siga-vistas-prototipo.html`) é a referênci
 - Usuário e senha.
 - Três usuários fixos de demonstração, um por perfil: `operador.demo` (`OPERADOR`), `gestor.demo` (`OPERADOR_SIGILO`, o Gestor) e `admin.demo` (`ADMIN`). Cada um entra com um clique, e também é possível digitar usuário e senha.
 - Indicação visível de que o acesso é simulado.
+- **Visual (R2, bloco 8):** fundo de uma cor só (`#12302B`, sem curvas de nível), tudo centralizado em coluna: `<app-marca>` grande (escudo `clamp(96px,16vh,140px)`, nome `clamp(2.2rem,6vw,3.4rem)`), a frase "Acompanhamento de processos de licenciamento ambiental" e a caixa branca de `min(440px,100%)`. Sem brasão, sem cena e sem "(protótipo)" na marca; o aviso de acesso simulado dentro da caixa permanece. Em 390 px as margens são de 20 px e não há rolagem horizontal.
 - **Menu e telas por perfil (RN08, S4):** o menu é montado a partir das `permissoes` de `/auth/me` (não do nome do perfil): `verAuditoriaAcessos` libera "Auditoria › Acessos" e `acessarConfiguracoes` libera "Configurações". Resultado por perfil:
 
   | Item | Operador | Gestor | Administrador |

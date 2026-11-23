@@ -1,13 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { AuthService } from '../../core/auth.service';
 import { IconeComponent } from '../../shared/icone.component';
+import { MarcaComponent } from '../../shared/marca.component';
 import { ToastService } from '../../shared/toast.service';
-import { cenaLogin } from './cena-login';
 
 /** Senha de demonstração do perfil local (rastro.demo.senha). Só existe para o clique rápido do protótipo. */
 const SENHA_DEMO = 'vistas-demo';
@@ -28,7 +27,7 @@ const USUARIOS_DEMO: UsuarioDemo[] = [
 @Component({
   selector: 'app-login',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, IconeComponent],
+  imports: [ReactiveFormsModule, IconeComponent, MarcaComponent],
   templateUrl: './login.component.html',
 })
 export class LoginComponent {
@@ -36,7 +35,6 @@ export class LoginComponent {
   private readonly router = inject(Router);
   private readonly rota = inject(ActivatedRoute);
   private readonly toast = inject(ToastService);
-  private readonly sanitizer = inject(DomSanitizer);
 
   protected readonly usuariosDemo = USUARIOS_DEMO;
   protected readonly erro = signal('');
@@ -46,9 +44,6 @@ export class LoginComponent {
     usuario: ['', [Validators.required, Validators.maxLength(100)]],
     senha: ['', [Validators.required, Validators.maxLength(200)]],
   });
-
-  // SVG estático gerado pelo próprio código (cena do protótipo), por isso é seguro marcá-lo como confiável.
-  protected readonly cena = computed(() => this.sanitizer.bypassSecurityTrustHtml(cenaLogin()));
 
   protected entrar(): void {
     if (this.formulario.invalid) {
