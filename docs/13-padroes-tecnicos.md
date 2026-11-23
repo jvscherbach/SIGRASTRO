@@ -115,6 +115,12 @@ O dono é o módulo que define o **significado de negócio**. Ex.: "quais docume
 
 As fontes entram pelo npm e são empacotadas no build, com `font-display: swap`: o front não chama serviço de terceiros (Google Fonts) em tempo de execução. `npm audit --omit=dev` em 0.
 
+### e2e de layout e tema e capturas das telas (R2, bloco 15)
+
+- **`front/e2e/layout-e-tema.e2e.ts`** entra no `npm --prefix front run e2e` (e no job `e2e` do CI) e cobre as telas principais (login, consulta, detalhe, dossiês, auditoria de documentos e de acessos, configurações): sem rolagem horizontal da página em 390, 768, 1280 e 1920 px; login centralizado (2 px) em 1920 e 1280, fundo `#12302B`, escudo e nome; navegação com um único `aria-current="page"`, Auditoria como item único, Configurações só com a permissão e Operador sem Acessos nem Configurações; em 390 px, rótulos da navegação só para leitor de tela; tema único (sem aba Aparência, sem seletor de tema ou bioma, paisagem `cerrado.svg` decorativa na faixa); zero erro de console; nenhuma marca antiga ("SEMA · Mato Grosso", "brasão", "consulta ao SIGA Licenciamento") nem requisição fora do próprio front (Google Fonts incluído). Só o arquivo: `npx --prefix front playwright test e2e/layout-e-tema.e2e.ts` (a partir de `front/`: `npx playwright test e2e/layout-e-tema.e2e.ts`).
+- A API desse e2e é `front/e2e/simulacao-completa.ts`: responde com sucesso a tudo o que as telas principais pedem ao abrir, com dados fictícios, e lista os caminhos sem simulação (o teste exige lista vazia). **Tela nova ou endpoint novo numa tela principal exige atualizar a simulação.**
+- **Capturas:** `npm --prefix front run capturas` (configuração própria `front/playwright.capturas.config.ts`, arquivo `e2e/capturas.captura.ts`, fora do `npm run e2e`) fotografa a página inteira de cada tela principal em 1920 e 390 px, com movimento reduzido, em `front/test-results/capturas/<tela>-<largura>.png`, para comparar com o protótipo (`docs/design/sigrastro/referencia/A3-trilha-funcional.html`). `front/test-results/` está no `.gitignore` (imagens não são versionadas) e o `npm run e2e` limpa essa pasta ao começar: gere as capturas depois dele.
+
 ## Integração contínua
 
 A pipeline roda no GitHub Actions (`.github/`). **Ela só valida e publica imagens: não há deploy** (D51). Nenhuma credencial do SIGA, da API de arquivos ou do SCORP entra nela, nem como secret; o único secret usado é o `GITHUB_TOKEN`, no login do GHCR. As variáveis que ativam os testes de fumaça (`SIGA_SMOKE`, `ARQUIVOS_SMOKE`) não são definidas, então esses testes ficam pulados.

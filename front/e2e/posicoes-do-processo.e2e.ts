@@ -137,7 +137,10 @@ test.describe('desktop', () => {
   test(`coluna "Etapa atual" da busca: nunca mais de ${MAXIMO_SIMULTANEAS} posições ao mesmo tempo`, async ({ page }) => {
     const sim = await simular(page, { demora: 150 });
     await page.goto('/consulta');
-    await page.getByRole('radio', { name: 'Requerimento' }).click();
+    // R2, bloco 9: a alternância virou controle segmentado (botões com aria-pressed) no lugar de role="radio".
+    const porRequerimento = page.getByRole('button', { name: 'Requerimento', exact: true });
+    await porRequerimento.click();
+    await expect(porRequerimento).toHaveAttribute('aria-pressed', 'true');
     await page.locator('#consulta-numero').fill('3001/2026');
     await page.getByRole('button', { name: 'Consultar' }).click();
     await expect(page.locator('tbody tr')).toHaveCount(20);

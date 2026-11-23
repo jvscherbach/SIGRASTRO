@@ -34,6 +34,6 @@
 .ind-dispensar:hover{background:var(--on-ink-hover)}
 .ind-dispensar svg{width:14px;height:14px}
 
-@media(max-width:900px){.nav a span{display:none}.top{gap:12px;padding:0 12px}.top-dir{gap:10px}}
+@media(max-width:900px){.nav a>span{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}.top{gap:12px;padding:0 12px}.top-dir{gap:10px}}
 @media(max-width:520px){.top{gap:8px}.perfil-chip,.who-nome{display:none}.nav a{padding:0 6px}.top{padding:0 8px}.top-dir{gap:6px}.who{gap:6px}.who .sair{padding:4px 2px}.ind-dossie{max-width:40vw}.ind-texto{font-size:11px}}
 @media(max-width:400px){.top{gap:4px}.top .logo app-marca{gap:6px}}
