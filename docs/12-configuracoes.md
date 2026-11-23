@@ -140,6 +140,14 @@ Valor fora da faixa cai no padrão, com aviso no log.
 
 O tempo limite de **cada** consulta continua sendo `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS`.
 
+**Leitura do financeiro** (S9, bloco 2; propriedades `rastro.financeiro.*`; `config.ParametrosDoFinanceiroDoAmbiente`). O padrão vem do ambiente (valor fora da faixa cai no padrão, com aviso no log); **desde o bloco 10 da S9 os três parâmetros do financeiro são editáveis na aba Rastro** (ver "Financeiro na aba Rastro", abaixo).
+
+| Variável | Padrão | Faixa | Efeito |
+|---|---|---|---|
+| `RASTRO_FINANCEIRO_LIMITE_LANCAMENTOS` | 200 | 1 a 1000 | lançamentos de taxa lidos **por requerimento** (em ordem de emissão); passando disso, os mais recentes ficam de fora e sai o aviso `LANCAMENTOS_ALEM_DO_LIMITE` |
+| `RASTRO_FINANCEIRO_TIMEOUT_SEGUNDOS` | 10 | 1 a 120 | tempo limite de **cada** consulta a `LANCAMENTO_TAXA` (uma por requerimento; no lote, uma a cada 500), aplicado em cada `Statement` (`LancamentosDoSigaJdbc`), separado do da tramitação |
+| `RASTRO_MOSTRAR_VALORES` (`rastro.financeiro.mostrar-valores`) | `true` | `true`/`false` | **valor, desconto e UPF** nas respostas do financeiro (S9, bloco 6), lido a cada consulta e válido para todos os perfis; desligado, os três **não existem** em nenhuma resposta e o número do DAR continua. Dinheiro público de pessoas e empresas: a regra definitiva depende da SEMA (docs/10). Editável na aba Rastro desde o bloco 10 (efeito imediato, ver "Financeiro na aba Rastro"). **Bloco 7:** a variável passou a ser ligada à propriedade no `application.yml` (antes só a propriedade funcionava; a variável era ignorada), e a negação é provada pela variável em todos os cenários e perfis (`VarreduraSemValoresHttpTest`) |
+
 ### Rastro (S7, bloco 10)
 
 Aba **Rastro** das Configurações (só Administrador; RN08, `PERFIL_SEM_PERMISSAO` para os demais), com os parâmetros da tramitação. Como nas demais abas, editar não grava: as alterações saem no "Salvar alterações", num **único evento `CONFIG` com antes e depois**. O padrão vem da variável de ambiente; a tela sobrepõe (em memória, some ao reiniciar). **Credenciais não aparecem** na aba.
@@ -154,6 +162,19 @@ Aba **Rastro** das Configurações (só Administrador; RN08, `PERFIL_SEM_PERMISS
 
 - **"Imediato" vale na próxima leitura:** o back-end lê cada valor a cada consulta (`ParametrosDoRastroDoAmbiente` sobre `ParametrosEmVigor`); o tempo limite do Camunda é aplicado em cada `Statement` (`CamundaPosicaoJdbc`), sem reiniciar.
 - **Posições simultâneas no front:** a tela lê o valor em `GET /api/tramitacao/parametros` (qualquer perfil autenticado; só esse número) no primeiro pedido de posição de cada carregamento da página. Até a resposta, a fila libera **um pedido por vez** (um limite menor nunca é ultrapassado); se a leitura falhar, usa 4.
+
+### Financeiro na aba Rastro (S9, bloco 10)
+
+Os parâmetros do financeiro entram na aba **Rastro** (só Administrador; Operador e Gestor recebem 403 `PERFIL_SEM_PERMISSAO`, e a tela os leva de volta à consulta), com o mesmo comportamento da tramitação: editar não grava, o "Salvar alterações" envia **um único evento `CONFIG` com antes e depois**, o padrão vem da variável de ambiente e a tela sobrepõe (em memória, some ao reiniciar). **Credenciais não aparecem.**
+
+| Parâmetro (nome na API) | Variável de ambiente (padrão) | Faixa | Classe | Efeito |
+|---|---|---|---|---|
+| Mostrar valores das taxas (valor, desconto e UPF) (`rastro.mostrarValores`) | `RASTRO_MOSTRAR_VALORES` (`true`) | `true`/`false` | imediato | desligado, valor, desconto e UPF **não existem** em nenhuma resposta nem tela, para nenhum perfil; o DAR continua (dinheiro público de pessoas e empresas: regra definitiva da SEMA, docs/10) |
+| Limite de lançamentos de taxa por requerimento (`rastro.financeiroLimiteLancamentos`) | `RASTRO_FINANCEIRO_LIMITE_LANCAMENTOS` (200) | 1 a 1000 | imediato (próxima leitura) | passando disso, os mais recentes ficam de fora e sai o aviso `LANCAMENTOS_ALEM_DO_LIMITE` |
+| Tempo limite da consulta financeira (`rastro.financeiroTimeoutSegundos`) | `RASTRO_FINANCEIRO_TIMEOUT_SEGUNDOS` (10) | 1 a 120 | imediato (próxima leitura) | cada consulta a `LANCAMENTO_TAXA`, aplicado em cada `Statement` |
+
+- **"Imediato" vale na próxima leitura:** `ParametrosDoFinanceiroDoAmbiente` lê cada valor a cada consulta (sobre `ParametrosEmVigor`), então nada exige reiniciar. Os valores **antigos já em cache não existem** (o financeiro não tem cache): a próxima resposta já sai com o valor novo.
+- **Diagnóstico do financeiro** (somente leitura, na mesma aba, abaixo dos parâmetros): o Administrador informa o identificador de um requerimento (o número do endereço da tela de detalhe) e vê **quantos lançamentos a regra de validade ignorou, por motivo** (`FALSO_SEM_DAR`, `RUIDO_ISENTO_AGUARDANDO`), quantos foram mantidos (e quantos com dados incompletos) e **de onde veio a data de cada "Isento de Taxa"** (`LANCAMENTO`, `FLUXO` ou `AUSENTE`; com a nota "não processado" quando `STATUS_PROCESSADO = N`). **Só contagens e a origem da data:** nenhum dado pessoal, id de lançamento, DAR nem valor. Reaproveita `GET /requerimentos/{id}/financeiro` (que só entrega esses campos ao Administrador), então a consulta **gera o evento `FINANCEIRO`** na auditoria, como a de quem abre o requerimento.
 
 **Resiliência e variáveis (S7, bloco 7).** O tempo de resposta da posição no pior caso é limitado por três variáveis já existentes: `SIGA_DB_CONN_TIMEOUT_MS` (5000; espera por uma conexão do pool, inclusive com o banco mudo), `RASTRO_CAMUNDA_TIMEOUT_SEGUNDOS` (10; cada uma das até 8 consultas) e `SIGA_DB_READ_TIMEOUT_MS` (30000; leitura do socket, por baixo). Estourar qualquer uma delas devolve a posição `INDISPONIVEL` (200), nunca 5xx; o detalhe do requerimento não depende da posição. Com o desligamento do nome (`RASTRO_MOSTRAR_NOME_RESPONSAVEL=false`), nenhuma resposta da posição traz nome de servidor, provado por varredura em todos os cenários (docs/15).
 

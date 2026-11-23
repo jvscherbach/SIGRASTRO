@@ -10,10 +10,15 @@ import { FluxogramaSimplificadoComponent } from './fluxograma-simplificado.compo
 import {
   ROTULO_DO_ESTADO_DO_ATO,
   ROTULO_DO_ESTADO_DO_PARTICIPANTE,
+  MarcaFinanceira,
+  PassagemDaTramitacao,
   ResponsavelDaPassagem,
   TramitacaoDoRequerimento,
   ehAutomatica,
+  marcaPedeConfirmacao,
+  marcasDe,
   passagensVisiveis,
+  textoDaMarca,
   textoDaVolta,
 } from './tramitacao.models';
 
@@ -182,6 +187,20 @@ let instancias = 0;
                             }
                           </ul>
                         }
+                        @if (marcas(p); as lista) {
+                          @if (lista.length) {
+                            <ul class="tram-marcas-fin" aria-label="Marcas financeiras da etapa">
+                              @for (m of lista; track $index) {
+                                <li [class]="'tag ' + tomDaMarca(m)">
+                                  @if (m.tipo === 'TAXA_VENCIDA') {
+                                    <app-icone nome="alert" />
+                                  }
+                                  {{ textoDaMarca(m) }}@if (pedeConfirmacao(m)) {{{ ' ' }}<span class="nota">(data a confirmar)</span>}
+                                </li>
+                              }
+                            </ul>
+                          }
+                        }
                       </li>
                     }
                   </ol>
@@ -245,6 +264,10 @@ let instancias = 0;
     .tram-pessoas, .tram-atos, .tram-marcos, .tram-avisos { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 6px; }
     .tram-pessoas li, .tram-atos li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 13px; }
     .tram-marcos { margin-top: 12px; font-size: 13px; }
+    .tram-marcas-fin { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+    .tram-marcas-fin li { display: inline-flex; align-items: center; gap: 4px; overflow-wrap: anywhere; }
+    .tram-marcas-fin .icon { width: 14px; height: 14px; }
+    .tram-marcas-fin .nota { font-weight: 400; }
     .tram-compl { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; margin: 12px 0 0; }
     .tram-compl .icon { width: 16px; height: 16px; flex: none; margin-top: 2px; }
     .tram-final { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 14px 0 0; font-size: 15px; }
@@ -324,6 +347,33 @@ export class TramitacaoComponent {
   /** No plano B o selo fixo já mostra o texto do aviso `HISTORICO_APROXIMADO`: não repete. */
   protected avisosDe(t: TramitacaoDoRequerimento): TramitacaoDoRequerimento['avisos'] {
     return t.planoB ? t.avisos.filter((a) => a.codigo !== 'HISTORICO_APROXIMADO') : t.avisos;
+  }
+
+  /** S9, bloco 9: marcas financeiras da passagem; nunca no plano B (a API também não as manda). */
+  protected marcas(p: PassagemDaTramitacao): MarcaFinanceira[] {
+    return this.tramitacao()?.planoB ? [] : marcasDe(p);
+  }
+
+  protected textoDaMarca(m: MarcaFinanceira): string {
+    return textoDaMarca(m, formatarData);
+  }
+
+  protected pedeConfirmacao(m: MarcaFinanceira): boolean {
+    return marcaPedeConfirmacao(m);
+  }
+
+  /** Cor da marca (o texto já diz tudo): vencida vermelha, correção âmbar, isenção azul, o resto neutro. */
+  protected tomDaMarca(m: MarcaFinanceira): string {
+    switch (m.tipo) {
+      case 'TAXA_VENCIDA':
+        return 'red';
+      case 'DA_CORRECAO':
+        return 'amber';
+      case 'ISENTO_DE_TAXA':
+        return 'blue';
+      default:
+        return 'gray';
+    }
   }
 
   protected duracao(segundos: number | null): string {

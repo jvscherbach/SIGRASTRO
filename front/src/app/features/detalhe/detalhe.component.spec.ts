@@ -39,6 +39,7 @@ describe('DetalheComponent', () => {
     obter: ReturnType<typeof vi.fn>;
     posicao: ReturnType<typeof vi.fn>;
     tramitacao: ReturnType<typeof vi.fn>;
+    financeiro: ReturnType<typeof vi.fn>;
     parametrosDeExibicao: ReturnType<typeof vi.fn>;
   };
   let documentosApi: { listar: ReturnType<typeof vi.fn> };
@@ -67,7 +68,14 @@ describe('DetalheComponent', () => {
     localStorage.clear();
     // A posição (S7) carrega sozinha; aqui fica pendente, e os estados dela são provados em onde-esta-agora.component.spec.
     // A tramitação completa (S8) também carrega sozinha: os estados dela são provados em tramitacao.component.spec.
-    api = { obter: vi.fn(), posicao: vi.fn(() => NEVER), tramitacao: vi.fn(() => NEVER), parametrosDeExibicao: vi.fn(() => NEVER) };
+    // O financeiro (S9) também: os estados dele são provados em financeiro.component.spec.
+    api = {
+      obter: vi.fn(),
+      posicao: vi.fn(() => NEVER),
+      tramitacao: vi.fn(() => NEVER),
+      financeiro: vi.fn(() => NEVER),
+      parametrosDeExibicao: vi.fn(() => NEVER),
+    };
     documentosApi = { listar: vi.fn(() => NEVER) };
     // Outros requerimentos do processo (S7, bloco 9): provados em requerimentos-do-processo.component.spec.
     consultaApi = { buscar: vi.fn(() => NEVER) };

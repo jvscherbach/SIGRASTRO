@@ -241,6 +241,32 @@ Gravados por `CenariosFicticiosDaS8` (mesmo mecanismo: Oracle de teste + `Camund
 
 Regras das fixtures: `HISTORICO_REQUERIMENTO.CPF_USUARIO` existe (a tabela real a tem) com CPF fictício inválido, **para que o bloco 5 e a varredura do bloco 11 provem que o plano B nunca o lê**. Os cenários finais não têm "etapa ativa"; o evento de fim é a última atividade, com `START_TIME_` = `END_TIME_` = fim da instância. Hipóteses não confirmadas: P40. Testes: `CamundaFicticioBuilderCaminhoTest` (a sequência exata de cada cenário), `CamundaFicticioBuilderValidacaoTest` (o que o construtor recusa) e `DadosFicticiosDaS7Test` (nenhum CPF/CNPJ válido).
 
+### Cenários do financeiro (S9, bloco 1; ids 9001 a 9199)
+
+`CenariosFicticiosDaS9`, carregados por `SigaOracleTeste` depois dos da S8 (script `08-financeiro-s9.sql`: `SIGA2_LICENCIAMENTO.LANCAMENTO_TAXA`; **tipos das colunas NÃO CONFIRMADOS**, só a lista de colunas e o enum de `STATUS` vêm do prompt). Número do requerimento `<id>/2026`, DAR fictício `FICT-nnnn` (o construtor recusa outro prefixo), `CHAVE_GED`, `MENSAGEM` e `ID_TITULACAO` **sempre nulos**. "Hoje" dos testes: `HOJE` = 2026-03-20 (Cuiabá) = `dias(18)`; `RELOGIO` fixo em 10h de Cuiabá e `RELOGIO_NA_VIRADA_UTC` (01:30Z do dia seguinte, ainda "hoje" em Cuiabá). A API fluente é `processo.comLancamento(PAGA).comDar("FICT-0001").emitidoEm(...).vencendoEm(...).pagoEm(...)`, e `.comLancamento(...)` encadeia o próximo; também vale para requerimento sem instância e, sem lançamento, o requerimento fica sem taxa.
+
+| Código | Id | Cenário | Lançamentos (válidos em **negrito**) | Camunda |
+|---|---|---|---|---|
+| FIN01 | 9001 | taxa paga | **`PAGA`**, DAR, emitida dia 2, vence dia 12, paga dia 5 | análise (como o HC01 até aí) |
+| FIN02 | 9002 | aguardando, no prazo | **`AGUARDANDO_PAGAMENTO`**, DAR, vence **amanhã** | espera de pagamento |
+| FIN03 | 9003 | aguardando **vencido por data** | **`AGUARDANDO_PAGAMENTO`** (o status ainda é aguardando), DAR, venceu **ontem** | espera de pagamento |
+| FIN04 | 9004 | já `VENCIDA` | **`VENCIDA`**, DAR | espera de pagamento |
+| FIN05 | 9005 | isento | **`ISENTA`** sem DAR, `TAXA_ISENTA = 1`, processado `P` | atribuição (como o HC02) |
+| FIN06 | 9006 | isento, processado `N` | **`ISENTA`** sem DAR, processado `N` | atribuição |
+| FIN07 | 9007 | cancelada sem DAR + válido | `CANCELADA` sem DAR (**falso**, ignorar) e **`AGUARDANDO_PAGAMENTO`** com DAR | espera de pagamento |
+| FIN08 | 9008 | cancelada com DAR | **`CANCELADA`** com DAR e `DATA_FIM` (dia 6) | espera de pagamento |
+| FIN09 | 9009 | aguardando emissão | **`AGUARDANDO_EMISSAO`** sem DAR | espera de pagamento |
+| FIN10 | 9010 | ruído | `AGUARDANDO_EMISSAO` com `TAXA_ISENTA = 1` (**ignorar**, docs/10) | espera de pagamento |
+| FIN11 | 9011 | taxa inicial paga + taxa da correção aguardando | **`PAGA`** (emitida dia 2) e **`AGUARDANDO_PAGAMENTO`** (emitida dia 14, **depois** de entrar na correção no dia 12; `PASSOU_POR_REAPROV_TAXA_CORREC = 1`, só diagnóstico) | espera do pagamento da correção (HC07 parado na espera) |
+| FIN12 | 9012 | pago que virou isento na correção | **`PAGA`** com DAR e depois **`ISENTA`** (dia 14); os dois à vista (o destaque é da S11) | espera do pagamento da correção |
+| FIN13 | 9013 | sem lançamento | nenhum | espera de pagamento |
+| FIN14 | 9014 | volume | 10 `CANCELADA` sem DAR (**falsos**) e **1 `AGUARDANDO_PAGAMENTO`** | espera de pagamento |
+| FIN15 | 9015 | o H18 da S7 com taxa vencida por data | **`AGUARDANDO_PAGAMENTO`**, DAR, venceu ontem | **encerrada** em `Event_0h1oige`, situação `AGUARDANDO_PAGAMENTO_DE_TAXAS` |
+| FIN16 | 9016 | **sem instância** (plano B) com taxa paga | **`PAGA`**, DAR | nenhuma |
+| VENCE_ONTEM, VENCE_HOJE, VENCE_AMANHA | 9101 a 9103 | apoio aos testes de data | **`AGUARDANDO_PAGAMENTO`** vencendo ontem, **hoje** e amanhã | espera de pagamento |
+
+Os `VENCE_*` ficam fora da numeração FIN01 a FIN16 do roteiro. Vencimento gravado à meia-noite (a hora real da coluna é **NÃO CONFIRMADA**; `vencendoEm(LocalDateTime)` grava com hora para provar que a conversão para data não desloca o dia). Testes: `CenariosFicticiosDaS9Test` (Docker: o que cada cenário grava, colunas proibidas nulas, DAR fictício, usuário de leitura sem escrita), `CamundaFicticioBuilderFinanceiroValidacaoTest` (sem Docker: recusa de DAR sem prefixo, relógio de teste) e `DadosFicticiosDaS7Test` (varre os arquivos novos).
+
 ## Posição atual (bloco 3)
 
 ### Peças
@@ -584,6 +610,78 @@ Testes: `LerTramitacaoTest` (cache e validade, cache desligado, `INDISPONIVEL` f
 [`roteiros/s8-homologacao.md`](roteiros/s8-homologacao.md): uma linha por cenário (HC01 a HC15, LC01 a LC03, HF01 a HF04, LF01 a LF05, PB01 a PB03), com a sequência esperada da linha do tempo, o final ou estado do fluxograma e a coluna **Tela** (`Não executado` enquanto não houver ambiente com SIGA fictício, R66). A seção 6 é a conferência com dados reais, feita pelo responsável fora do repositório, com marcadores no lugar de números.
 
 As sequências vêm de `ReconstruirCaminhoComFixturesTest` (sequência exata, motivos das voltas) e os finais de `CenariosFicticiosDaS8` e `DesfechoComFixturesTest`; o plano B, de `PlanoBComFixturesTest`. Continuam **NÃO CONFIRMADO** na tela: a linha sem caixas de HF03 e LF02 (cadastro expirado sem etapa percorrida) e a forma de exibir o início de HF01. As hipóteses de P40 e P41 seguem valendo para a homologação.
+
+## Financeiro: lançamentos de taxa (S9)
+
+Módulo `financeiro`, independente do Camunda (funciona sem instância e com o Camunda fora do ar). Decisão de base: D85 ([09](09-decisoes.md)); pontos abertos: P43 e R75 ([10](10-pendencias-e-riscos.md)).
+
+### Leitura e regra de validade (bloco 2)
+
+Uma consulta (`sql/siga/financeiro/lancamentos.sql`, só em `integration.siga.LancamentosDoSigaJdbc`) por requerimento e uma a cada 500 no lote, com limite por requerimento, `FETCH FIRST` e tempo limite. `ClassificarValidade` ignora `CANCELADA` sem DAR (`FALSO_SEM_DAR`) e `AGUARDANDO_EMISSAO` com `TAXA_ISENTA = 1` (`RUIDO_ISENTO_AGUARDANDO`); mantém com `LANCAMENTO_INCONSISTENTE` o status desconhecido, `PAGA` sem pagamento e o status que exige DAR sem DAR. Ordem: emissão (sem data no fim) e id.
+
+### Situação, taxa vencida por data e ciclos (bloco 3)
+
+`AvaliarSituacao` avalia os lançamentos mantidos **um a um** (nada é somado) com o `Clock` do projeto.
+
+- **Situação** (`SituacaoFinanceira`) é o `STATUS` como o SIGA grava, nunca trocado: `EMITINDO` (`AGUARDANDO_EMISSAO`), `AGUARDANDO_PAGAMENTO`, `PAGA`, `VENCIDA`, `ISENTA`, `CANCELADA` e `DESCONHECIDA` (status fora do enum; não entra no resumo).
+- **Taxa vencida:** lançamento ativo (`DATA_FIM` nula) e sem `DATA_PAGAMENTO`, e (a) `AGUARDANDO_PAGAMENTO` **sem inconsistência** com a **data** de vencimento anterior a hoje, ou (b) `STATUS = VENCIDA` (a marca do SIGA vale como está). Vencer **hoje** ainda não é vencida; sem data de vencimento, nada se afirma. Só (a) ganha o aviso `TAXA_VENCIDA` ("Taxa vencida em dd/mm/aaaa."), sem trocar a situação: quando a taxa é paga ou o SIGA passa a marcar `VENCIDA`, o aviso some sozinho.
+- **Datas** (`CalendarioDeCuiaba`, um só lugar): hoje = data de Cuiabá no instante do relógio, ignorado o fuso do relógio e da JVM; a data de uma coluna do SIGA é só a parte da data do relógio de parede de Cuiabá (sem conversão de fuso), então 23:30 continua no mesmo dia.
+- **Peso de cada lançamento no resumo:** vencida → `VENCIDO`; `EMITINDO`/`AGUARDANDO_PAGAMENTO` ativo → `EM_ABERTO`; `PAGA` → `QUITADO`; `ISENTA` → `ISENTO`; `CANCELADA`, aberto já encerrado e `VENCIDA` paga ou encerrada → não pesam.
+- **Resumo** (`ResumoFinanceiro`) = o de maior precedência entre os pesos: **`VENCIDO` > `EM_ABERTO` > `QUITADO` > `ISENTO` > `SEM_TAXA`**. Sem lançamento mantido (ou só os que não pesam), `SEM_TAXA`. Se **todos** os mantidos têm status desconhecido, `INDETERMINADO` (o Rastro não afirma "sem taxa" sem saber). Os ignorados nunca entram (provado por propriedade em `AvaliarSituacaoTest`).
+- **Ciclos:** as guias (todo lançamento menos isenção e status desconhecido) são numeradas por ordem de emissão, "1ª taxa", "2ª taxa"; a etiqueta "da correção" é do bloco 5.
+- **Valores** em `BigDecimal`, como gravados; ausente é "não informado" (`Optional` vazio), nunca zero.
+
+| Cenário | Situação dos lançamentos | Resumo | Aviso |
+|---|---|---|---|
+| FIN01 | `PAGA` (1ª taxa) | `QUITADO` | — |
+| FIN02 | `AGUARDANDO_PAGAMENTO`, vence amanhã | `EM_ABERTO` | — |
+| FIN03 | `AGUARDANDO_PAGAMENTO`, venceu ontem | `VENCIDO` | `TAXA_VENCIDA` ("Taxa vencida em 19/03/2026.") |
+| FIN04 | `VENCIDA` | `VENCIDO` | — |
+| FIN11 | `PAGA` (1ª taxa), `AGUARDANDO_PAGAMENTO` no prazo (2ª taxa) | `EM_ABERTO` | — |
+| FIN12 | `PAGA` (1ª taxa), `ISENTA` | `QUITADO` | — |
+| FIN14 | `AGUARDANDO_PAGAMENTO` (os 10 falsos não aparecem) | `EM_ABERTO` | — |
+
+### "Isento de Taxa" e a data (bloco 4) — regra PROVISÓRIA
+
+Para cada lançamento `ISENTA` válido, uma entrada **"Isento de Taxa"** (`RegistroDeIsencao`), em ordem; requerimento isento mais de uma vez (cadastro e correção) tem várias. **Qual coluna dá a data é decisão provisória** (D87; P44, a validar com dados reais na homologação). A data sai da **cadeia de apoio**, configurada num só lugar, a constante `DataDaIsencao.CADEIA`:
+
+1. `LANCAMENTO`: `DATA_EMISSAO` do lançamento `ISENTA`;
+2. `FLUXO`: entrada da passagem **"Isenção confirmada"** (`isencao_confirmada`) do caminho **exato** da tramitação (S8), pela porta `CaminhoDaTramitacao` (bloco 5; no bloco 4, `PassagensDeIsencao`), adaptador `financeiro.infrastructure.tramitacao.CaminhoPelaTramitacao` (sobre o caso de uso `LerTramitacao`, com o cache e os limites dele). Plano B (aproximado), tramitação indisponível, tipo não suportado ou falha: o elo é pulado;
+3. `AUSENTE`: "data não registrada".
+
+- Cada entrada traz `origemDaData` (`LANCAMENTO`, `FLUXO`, `AUSENTE`) para o diagnóstico e para a nota **"data a confirmar"** na tela quando não for `LANCAMENTO`.
+- **Pareamento com o fluxo:** a k-ésima isenção (por emissão) usa a k-ésima passagem (por entrada) **só quando as quantidades batem**; com quantidades diferentes, o elo do fluxo é pulado (não se adivinha qual passagem é de qual lançamento).
+- **A tramitação só é lida quando muda alguma coisa:** no detalhe, só se há isenção sem `DATA_EMISSAO` ou (bloco 5) alguma guia, que pode ser "da correção"; no lote (lista da busca e lista do processo), nunca.
+- **"Pago que virou isento"** (S11) não é tratado aqui: os dois lançamentos aparecem, em ordem (FIN12).
+- `STATUS_PROCESSADO = N` num `ISENTA`: sem tratamento especial; só a marca `naoProcessado` no diagnóstico (P44).
+
+| Cenário | "Isento de Taxa" | Origem da data |
+|---|---|---|
+| FIN05 | 1 entrada, data da emissão | `LANCAMENTO` |
+| FIN06 | 1 entrada, data da emissão; marca "não processado" no diagnóstico | `LANCAMENTO` |
+| FIN12 | 1 entrada (a da correção), depois da taxa paga | `LANCAMENTO` |
+
+### Integração com a tramitação: aviso, marcas e indicador (bloco 5)
+
+**Direção das dependências:** `financeiro` → `tramitacao`, nunca o contrário (sem ciclo, ArchUnit). A tramitação declara a porta `FinanceiroDoRequerimento` (em `tramitacao.application.port`), que o financeiro implementa (`financeiro.infrastructure.tramitacao.FinanceiroParaATramitacao`); o financeiro lê a tramitação pela própria porta `CaminhoDaTramitacao` (sobre `LerTramitacao`). A porta só **acrescenta** e é tolerante: falha do financeiro = nada acrescentado.
+
+- **Aviso `TAXA_VENCIDA` na posição** (`AbrirPosicao`, depois do cache): resumo `VENCIDO` → aviso no fim da lista, "Taxa vencida em dd/mm/aaaa." (texto em `confronto.yaml`, `AvisoDeTaxaVencida`), com a explicação "O SIGA ainda não marca a taxa como vencida; o Rastro compara a data de vencimento com hoje." **só** quando vencida pela data. Etapa, situação e os outros avisos não mudam (prova: `FinanceiroNaTramitacaoHttpTest` compara o JSON da posição com e sem o aviso). Com `FLUXO_ENCERRADO_SEM_STATUS` (FIN15/H18), os dois aparecem: um explica o fim do fluxo, o outro a taxa. Lista do processo: uma leitura em lote para todos. Data do aviso = vencimento da taxa vencida mais recente.
+- **Etiqueta "da correção"** (`LancamentoAvaliado.daCorrecao`): guia emitida **depois** da entrada na primeira passagem do ramo de correção; rótulo "Taxa da correção" no lugar de "Nª taxa". Sem caminho exato, vale a numeração.
+- **Marcas nas passagens** (`MarcarPassagens`; `marcasFinanceiras[]` de cada passagem na resposta da tramitação), só no caminho exato. Ids de etapa fixos em `CaminhoDoFluxo` (mudou o catálogo, mudar lá):
+  - `emissao_da_taxa` / `emissao_da_taxa_correcao`: "Emitida em", "DAR" e "da correção" de cada guia casada. A guia é casada com a **última** passagem de emissão cuja **data** de entrada é igual ou anterior à **data** de emissão (`DATA_EMISSAO` pode vir sem hora); emitida antes de qualquer emissão, não é casada.
+  - `aguardando_pagamento` / `aguardando_pagamento_correcao`: da guia mais recente da emissão logo antes da espera, "Vence em", "Paga em" (se houve), "Taxa vencida" e "da correção".
+  - `isencao_confirmada`: o "Isento de Taxa" do bloco 4 (com `dataAConfirmar`), pareado por ordem só quando as quantidades batem.
+  - Passagem sem lançamento casado fica sem marca; plano B, Camunda fora e tipo não suportado, nenhuma (o bloco "Taxas e pagamentos" segue completo).
+- **Indicador da lista da busca** (`IndicadoresFinanceiros`): só o resumo de cada requerimento já autorizado, uma consulta em lote a cada 500, sem tramitação; falha = sem indicador. A rota e a fila da tela (limite `RASTRO_POSICOES_SIMULTANEAS` da S7) são dos blocos 6 e 8.
+
+| Cenário | Posição | Tramitação |
+|---|---|---|
+| FIN03 | + `TAXA_VENCIDA` (por data, com a explicação) | "Vence em" e "Taxa vencida" na espera |
+| FIN11 | sem aviso | emissão: "Emitida em", DAR; espera: "Vence em", "Paga em"; emissão da correção: + "da correção"; espera da correção: "Vence em", "da correção" |
+| FIN15 | `FLUXO_ENCERRADO_SEM_STATUS` + `TAXA_VENCIDA` | — |
+| FIN16 (plano B) | conforme o resumo | sem marcas, sem erro |
+| Camunda fora | `INDISPONIVEL` + aviso, se vencido | `INDISPONIVEL`, sem marcas |
+| Financeiro fora | igual à de sem o financeiro | sem marcas |
 
 ## Dependências do módulo
 

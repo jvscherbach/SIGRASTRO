@@ -26,6 +26,7 @@ import br.gov.mt.sema.rastro.documento.application.port.ParametrosDaConversao;
 import br.gov.mt.sema.rastro.documento.application.port.ParametrosDaVisualizacao;
 import br.gov.mt.sema.rastro.documento.domain.OrigemDocumento;
 import br.gov.mt.sema.rastro.dossie.application.port.ParametrosDoDossie;
+import br.gov.mt.sema.rastro.financeiro.application.port.ParametrosDoFinanceiro;
 import br.gov.mt.sema.rastro.testsupport.BaseHttpDeDocumentos;
 import br.gov.mt.sema.rastro.tramitacao.application.port.ParametrosDoRastro;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -63,6 +64,9 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
 
     @Autowired
     ParametrosDoRastro rastro;
+
+    @Autowired
+    ParametrosDoFinanceiro financeiro;
 
     /** Nenhum teste deixa sobreposição para o próximo. */
     @AfterEach
@@ -359,6 +363,70 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
             assertThat(resposta.getContentAsString()).contains("PERFIL_SEM_PERMISSAO");
         }
         assertThat(rastro.posicoesSimultaneas()).isEqualTo(4);
+    }
+
+    // --- S9, bloco 10: parâmetros do financeiro, na seção Rastro
+
+    @Test
+    void financeiro_lista_os_tres_parametros_imediatos_na_secao_rastro_sem_credencial() throws Exception {
+        String lista = chamarParametros();
+        for (String nome : List.of("rastro.mostrarValores", "rastro.financeiroLimiteLancamentos",
+                "rastro.financeiroTimeoutSegundos")) {
+            JsonNode p = parametro(nome);
+            assertThat(p.get("grupo").asText()).as(nome).isEqualTo("RASTRO");
+            assertThat(p.get("classeDeAplicacao").asText()).as(nome).isEqualTo("IMEDIATO");
+            assertThat(p.get("sobreposto").asBoolean()).as(nome).isFalse();
+        }
+        assertThat(parametro("rastro.mostrarValores").get("valor").asText()).isEqualTo("true");
+        assertThat(parametro("rastro.financeiroLimiteLancamentos").get("valor").asText()).isEqualTo("200");
+        assertThat(parametro("rastro.financeiroTimeoutSegundos").get("valor").asText()).isEqualTo("10");
+        assertThat(lista).doesNotContainIgnoringCase("SIGA_DB").doesNotContainIgnoringCase("senha")
+                .doesNotContainIgnoringCase("token");
+    }
+
+    @Test
+    void financeiro_alteracao_gera_um_evento_com_antes_e_depois_e_vale_na_proxima_leitura() throws Exception {
+        long antes = ultimoId();
+        Map<String, Object> alteracoes = new LinkedHashMap<>();
+        alteracoes.put("rastro.mostrarValores", false);
+        alteracoes.put("rastro.financeiroLimiteLancamentos", 50);
+        alteracoes.put("rastro.financeiroTimeoutSegundos", 30);
+
+        assertThat(salvar("admin.demo", alteracoes).getStatus()).isEqualTo(200);
+
+        List<EventoDeAuditoria> novos = eventosConfigDepoisDe(antes);
+        assertThat(novos).hasSize(1);
+        assertThat(novos.get(0).alteracoes()).containsExactly(
+                new AlteracaoDoEvento("Mostrar valores das taxas (valor, desconto e UPF)", "true", "false"),
+                new AlteracaoDoEvento("Limite de lançamentos de taxa por requerimento", "200", "50"),
+                new AlteracaoDoEvento("Tempo limite da consulta financeira (s)", "10", "30"));
+        assertThat(financeiro.mostrarValores()).isFalse();
+        assertThat(financeiro.limiteDeLancamentos()).isEqualTo(50);
+        assertThat(financeiro.consultaTimeoutSegundos()).isEqualTo(30);
+        // Voltar ao padrão restaura o ambiente.
+        assertThat(mvc.perform(delete(PARAMETROS + "/rastro.mostrarValores")
+                .header(HttpHeaders.AUTHORIZATION, bearer("admin.demo"))).andReturn().getResponse().getStatus()).isEqualTo(200);
+        assertThat(financeiro.mostrarValores()).isTrue();
+    }
+
+    @Test
+    void financeiro_faixas_e_so_o_administrador_altera() throws Exception {
+        invalido(salvar("admin.demo", Map.of("rastro.financeiroLimiteLancamentos", 0)), "rastro.financeiroLimiteLancamentos");
+        invalido(salvar("admin.demo", Map.of("rastro.financeiroLimiteLancamentos", 1001)), "rastro.financeiroLimiteLancamentos");
+        invalido(salvar("admin.demo", Map.of("rastro.financeiroTimeoutSegundos", 121)), "rastro.financeiroTimeoutSegundos");
+        invalido(salvar("admin.demo", Map.of("rastro.mostrarValores", "talvez")), "rastro.mostrarValores");
+
+        for (String usuario : List.of("operador.demo", "gestor.demo")) {
+            MockHttpServletResponse resposta = salvar(usuario, Map.of("rastro.mostrarValores", false));
+            assertThat(resposta.getStatus()).as(usuario).isEqualTo(403);
+            assertThat(resposta.getContentAsString()).contains("PERFIL_SEM_PERMISSAO");
+            // O Operador nem lista a seção (a rota de parâmetros é do Administrador).
+            MockHttpServletResponse lista = mvc.perform(get(PARAMETROS).header(HttpHeaders.AUTHORIZATION, bearer(usuario)))
+                    .andReturn().getResponse();
+            assertThat(lista.getStatus()).as(usuario).isEqualTo(403);
+            assertThat(lista.getContentAsString()).contains("PERFIL_SEM_PERMISSAO").doesNotContain("rastro.mostrarValores");
+        }
+        assertThat(financeiro.mostrarValores()).isTrue();
     }
 
     @Test

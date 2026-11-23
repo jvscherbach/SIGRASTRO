@@ -24,7 +24,12 @@ public enum CodigoDoAviso {
     /** S8, bloco 5: plano B, linha do tempo aproximada (requerimento sem instância no Camunda). Selo fixo. */
     HISTORICO_APROXIMADO(false),
     /** S8, bloco 6: alguma instância passou do limite de linhas; o caminho mostrado é o que coube (incompleto). */
-    HISTORICO_TRUNCADO(false);
+    HISTORICO_TRUNCADO(false),
+    /**
+     * S9, bloco 5: o resumo financeiro do requerimento é "vencido" (por data ou pela marca do SIGA). Vem da porta
+     * {@code FinanceiroDoRequerimento}, depois do confronto; não muda etapa nem situação.
+     */
+    TAXA_VENCIDA(false);
 
     private final boolean divergenciaConhecida;
 

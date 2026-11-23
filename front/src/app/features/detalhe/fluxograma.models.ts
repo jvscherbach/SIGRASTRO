@@ -1,5 +1,5 @@
 import { duracaoLegivel, formatarData, formatarDataHora } from '../../shared/formato';
-import { PassagemDaTramitacao, TramitacaoDoRequerimento } from './tramitacao.models';
+import { PassagemDaTramitacao, TramitacaoDoRequerimento, marcaPedeConfirmacao, marcasDe, textoDaMarca } from './tramitacao.models';
 
 /**
  * Modelo puro do fluxograma simplificado (S8, bloco 9; docs/08): transforma as `passagens` da API em caixas, em linha
@@ -21,6 +21,13 @@ export interface CaixaDoFluxograma {
   entrada: string;
   /** "Processo concluído": verificação da revisão do processo (arquivamento). */
   concluido: boolean;
+  /**
+   * S9, bloco 9: na espera do pagamento, "Paga em dd/mm/aaaa" (ou, sem pagamento, "Vence em dd/mm/aaaa"); na "Isenção
+   * confirmada", "Isento de Taxa em dd/mm/aaaa". Vazio nas demais caixas e sem marca (plano B, Camunda fora).
+   */
+  financeiro: string | null;
+  /** Selo de texto "Taxa vencida" na espera do pagamento (nunca só a cor). */
+  taxaVencida: boolean;
   /** Linhas do tooltip (também lidas por teclado): entrada, saída, duração e com quem. */
   dica: string[];
 }
@@ -86,6 +93,23 @@ function quemDe(p: PassagemDaTramitacao): string | null {
   return pessoas.map((r) => (r.nome ? `${r.nome} · ${r.papel}` : r.papel)).join('; ');
 }
 
+/** Linha financeira da caixa (S9, bloco 9): só na espera do pagamento e na isenção; nenhuma caixa nova, nenhuma etapa futura. */
+function financeiroDe(p: PassagemDaTramitacao): { texto: string | null; taxaVencida: boolean } {
+  const marcas = marcasDe(p);
+  const marca = (tipo: string) => marcas.find((m) => m.tipo === tipo);
+  if (p.etapa.tipo === 'ESPERA') {
+    const paga = marca('PAGA_EM');
+    const vence = marca('VENCE_EM');
+    const texto = paga ? textoDaMarca(paga, formatarData) : vence ? textoDaMarca(vence, formatarData) : null;
+    return { texto, taxaVencida: !!marca('TAXA_VENCIDA') };
+  }
+  const isento = marca('ISENTO_DE_TAXA');
+  if (isento) {
+    return { texto: textoDaMarca(isento, formatarData) + (marcaPedeConfirmacao(isento) ? ' (data a confirmar)' : ''), taxaVencida: false };
+  }
+  return { texto: null, taxaVencida: false };
+}
+
 export function caixaDe(p: PassagemDaTramitacao): CaixaDoFluxograma {
   const espera = p.etapa.tipo === 'ESPERA';
   const estado: EstadoDaCaixa = p.atual ? (espera ? 'aguardando' : 'atual') : 'concluida';
@@ -99,7 +123,13 @@ export function caixaDe(p: PassagemDaTramitacao): CaixaDoFluxograma {
   }
   const quem = quemDe(p);
   if (quem) dica.push(`Com quem: ${quem}`);
+  for (const m of marcasDe(p)) {
+    dica.push(textoDaMarca(m, formatarData) + (marcaPedeConfirmacao(m) ? ' (data a confirmar)' : ''));
+  }
+  const fin = financeiroDe(p);
   return {
+    financeiro: fin.texto,
+    taxaVencida: fin.taxaVencida,
     rotulo: p.etapa.rotulo,
     detalhe: detalheDe(p),
     passagem: p.ciclo > 1 ? `${p.ciclo}ª passagem` : null,

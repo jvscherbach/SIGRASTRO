@@ -45,6 +45,10 @@ public final class CatalogoDeParametros {
     public static final String RASTRO_MAX_NOMES = "rastro.maxNomesPorEquipe";
     public static final String RASTRO_POSICOES_SIMULTANEAS = "rastro.posicoesSimultaneas";
     public static final String RASTRO_CAMUNDA_TIMEOUT = "rastro.camundaTimeoutSegundos";
+    /** S9, bloco 10: parâmetros do financeiro, lidos a cada consulta (valem na próxima leitura). */
+    public static final String RASTRO_MOSTRAR_VALORES = "rastro.mostrarValores";
+    public static final String RASTRO_FINANCEIRO_LIMITE = "rastro.financeiroLimiteLancamentos";
+    public static final String RASTRO_FINANCEIRO_TIMEOUT = "rastro.financeiroTimeoutSegundos";
 
     private static final String DOSSIE = "DOSSIE";
     private static final String CONVERSAO = "CONVERSAO";
@@ -90,7 +94,11 @@ public final class CatalogoDeParametros {
             inteiro(RASTRO_CACHE_POSICAO, "Validade do cache da posição (s; 0 desliga)", RASTRO, "rastro.tramitacao.posicao-cache-segundos", 30, 0, 3600, IMEDIATO),
             inteiro(RASTRO_MAX_NOMES, "Máximo de nomes por equipe", RASTRO, "rastro.tramitacao.max-nomes-por-equipe", 10, 1, 100, IMEDIATO),
             inteiro(RASTRO_POSICOES_SIMULTANEAS, "Posições consultadas ao mesmo tempo (lista da busca)", RASTRO, "rastro.tramitacao.posicoes-simultaneas", 4, 1, 20, IMEDIATO),
-            inteiro(RASTRO_CAMUNDA_TIMEOUT, "Tempo limite das consultas ao fluxo (s)", RASTRO, "rastro.tramitacao.camunda-timeout-segundos", 10, 1, 120, IMEDIATO));
+            inteiro(RASTRO_CAMUNDA_TIMEOUT, "Tempo limite das consultas ao fluxo (s)", RASTRO, "rastro.tramitacao.camunda-timeout-segundos", 10, 1, 120, IMEDIATO),
+            // S9, bloco 10. Valores de taxas são dinheiro público de pessoas e empresas: a regra definitiva é da SEMA (docs/10).
+            booleano(RASTRO_MOSTRAR_VALORES, "Mostrar valores das taxas (valor, desconto e UPF)", RASTRO, "rastro.financeiro.mostrar-valores", true, IMEDIATO),
+            inteiro(RASTRO_FINANCEIRO_LIMITE, "Limite de lançamentos de taxa por requerimento", RASTRO, "rastro.financeiro.limite-de-lancamentos", 200, 1, 1000, IMEDIATO),
+            inteiro(RASTRO_FINANCEIRO_TIMEOUT, "Tempo limite da consulta financeira (s)", RASTRO, "rastro.financeiro.timeout-segundos", 10, 1, 120, IMEDIATO));
 
     private CatalogoDeParametros() {
     }

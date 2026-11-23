@@ -17,6 +17,8 @@ import br.gov.mt.sema.rastro.consulta.domain.Requerimento;
 import br.gov.mt.sema.rastro.consulta.domain.ResumoRequerimento;
 import br.gov.mt.sema.rastro.consulta.domain.Situacao;
 import br.gov.mt.sema.rastro.tramitacao.application.PosicaoDoRequerimento.SituacaoDoLicenciamento;
+import br.gov.mt.sema.rastro.tramitacao.application.port.FinanceiroDoRequerimento;
+import br.gov.mt.sema.rastro.tramitacao.application.port.FinanceiroDoRequerimento.MarcaFinanceira;
 import br.gov.mt.sema.rastro.tramitacao.domain.CatalogoDeEtapas;
 import br.gov.mt.sema.rastro.tramitacao.domain.ModeloDeFluxo;
 import br.gov.mt.sema.rastro.tramitacao.domain.TramitacaoDoRequerimento;
@@ -55,8 +57,12 @@ public class AbrirTramitacao {
     private final ContextoDoEvento contexto;
     private final CatalogoDeEtapas catalogo;
 
+    private final FinanceiroDoRequerimento financeiro;
+
     public AbrirTramitacao(VerificarAcessoAoRequerimento acesso, BuscarRequerimentos busca, LerTramitacao ler,
-            PoliticaDeAcesso politica, RegistrarEvento registrar, ContextoDoEvento contexto, CatalogoDeEtapas catalogo) {
+            PoliticaDeAcesso politica, RegistrarEvento registrar, ContextoDoEvento contexto, CatalogoDeEtapas catalogo,
+            FinanceiroDoRequerimento financeiro) {
+        this.financeiro = financeiro;
         this.catalogo = catalogo;
         this.acesso = acesso;
         this.busca = busca;
@@ -99,6 +105,17 @@ public class AbrirTramitacao {
                 .map(s -> new SituacaoDoLicenciamento(s.codigo(), s.descricao()));
         Optional<String> rotuloDoModelo = tramitacao.modelo().flatMap(catalogo::modelo).map(ModeloDeFluxo::rotulo);
         return new TramitacaoAberta(id, numeroRequerimento, numeroProcesso, tramitacao, rotuloDoModelo, situacao,
-                politica.podeVerIdsTecnicosDoFluxo());
+                politica.podeVerIdsTecnicosDoFluxo(), marcas(id, tramitacao));
+    }
+
+    /**
+     * S9, bloco 5: marcas financeiras só no caminho exato (nunca no plano B, aproximado, nem sem caminho). A tramitação já
+     * lida vai junto, para o financeiro não ler o Camunda de novo.
+     */
+    private List<List<MarcaFinanceira>> marcas(long id, TramitacaoDoRequerimento tramitacao) {
+        if (tramitacao.aproximado() || tramitacao.caminho().passagens().isEmpty()) {
+            return List.of();
+        }
+        return financeiro.marcas(id, tramitacao.caminho().passagens());
     }
 }

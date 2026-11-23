@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 import { SEM_TOAST } from '../../core/interceptors';
 import { Requerimento } from './detalhe.models';
+import { FinanceiroDoRequerimento } from './financeiro.models';
 import { PosicaoDoRequerimento } from './posicao.models';
 import { TramitacaoDoRequerimento } from './tramitacao.models';
 
@@ -28,6 +29,13 @@ export class DetalheApiService {
   /** Tramitação completa (S8): caminho percorrido, com quem esteve, voltas e final. Carrega e falha sozinha, sem toast. */
   tramitacao(id: number): Observable<TramitacaoDoRequerimento> {
     return this.http.get<TramitacaoDoRequerimento>(`/api/requerimentos/${id}/tramitacao`, {
+      context: new HttpContext().set(SEM_TOAST, true),
+    });
+  }
+
+  /** Histórico financeiro (S9): taxas, DAR, vencimento, pagamento e isenção. Carrega e falha sozinho, sem toast. */
+  financeiro(id: number): Observable<FinanceiroDoRequerimento> {
+    return this.http.get<FinanceiroDoRequerimento>(`/api/requerimentos/${id}/financeiro`, {
       context: new HttpContext().set(SEM_TOAST, true),
     });
   }

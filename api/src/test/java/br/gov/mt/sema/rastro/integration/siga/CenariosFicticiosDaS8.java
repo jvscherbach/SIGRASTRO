@@ -353,7 +353,7 @@ public final class CenariosFicticiosDaS8 {
         return r;
     }
 
-    private static Processo hidrico(CamundaFicticioBuilder camunda, long id, String situacao) {
+    static Processo hidrico(CamundaFicticioBuilder camunda, long id, String situacao) {
         return camunda.processo(Fluxo.HIDRICO, id).situacao(situacao);
     }
 
@@ -362,7 +362,7 @@ public final class CenariosFicticiosDaS8 {
     }
 
     /** Cadastro até o aceite pelos três analistas, taxável (emissão da taxa, espera, protocolo após o pagamento). A análise começa no dia 8. */
-    private static Processo taxavelAteAAnalise(Processo p) {
+    static Processo taxavelAteAAnalise(Processo p) {
         return p.passou(CADASTRO, dias(0), dias(1))
                 .passou(CONFERENCIA, dias(1), dias(2), CONFERIDOR)
                 .variavel("statusConferencia", "taxavel", dias(2))
@@ -384,7 +384,7 @@ public final class CenariosFicticiosDaS8 {
      * Do cadastro até a correção do requerimento pedida por um analista (análise encerrada por pedido de correção) e a
      * tarefa de correção concluída pelo interessado. Termina no instante {@code dias(inicioDaCorrecao + 2)}.
      */
-    private static Processo correcaoAteACorrecao(Processo p, int inicioDaCorrecao) {
+    static Processo correcaoAteACorrecao(Processo p, int inicioDaCorrecao) {
         return taxavelAteAAnalise(p)
                 .passouEmCicloEncerradoPor(ANALISE, dias(8), dias(inicioDaCorrecao), ANALISTA_1, ANALISTA_2, ANALISTA_3)
                 .passou(CORRECAO_STATUS, dias(inicioDaCorrecao), dias(inicioDaCorrecao, 1))

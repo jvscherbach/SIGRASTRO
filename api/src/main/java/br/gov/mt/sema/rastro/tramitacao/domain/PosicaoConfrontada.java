@@ -25,4 +25,11 @@ public record PosicaoConfrontada(PosicaoAtual posicao, Optional<String> situacao
     public PosicaoConfrontada comPosicao(UnaryOperator<PosicaoAtual> transformar) {
         return new PosicaoConfrontada(transformar.apply(posicao), situacaoDoLicenciamento, avisos);
     }
+
+    /** Mesma posição e situação, com um aviso a mais no fim (S9: taxa vencida). Nada mais muda. */
+    public PosicaoConfrontada comAviso(Aviso aviso) {
+        java.util.List<Aviso> todos = new java.util.ArrayList<>(avisos);
+        todos.add(Objects.requireNonNull(aviso));
+        return new PosicaoConfrontada(posicao, situacaoDoLicenciamento, todos);
+    }
 }

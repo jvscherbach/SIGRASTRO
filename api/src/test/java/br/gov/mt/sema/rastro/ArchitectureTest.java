@@ -32,7 +32,8 @@ class ArchitectureTest {
 
     private static final String RAIZ = "br.gov.mt.sema.rastro.";
     private static final List<String> MODULOS =
-            List.of("acesso", "consulta", "documento", "dossie", "auditoria", "configuracao", "tramitacao");
+            List.of("acesso", "consulta", "documento", "dossie", "auditoria", "configuracao", "tramitacao",
+                    "financeiro");
     private static final List<String> INTEGRACOES =
             List.of("siga", "licenciamento", "scorp", "arrecadacao", "libreoffice");
 
@@ -242,6 +243,20 @@ class ArchitectureTest {
     static final ArchRule dominio_da_tramitacao_sem_yaml =
             noClasses().that().resideInAPackage(RAIZ + "tramitacao.domain..")
                     .should().dependOnClassesThat().resideInAnyPackage("org.yaml..", "org.springframework..")
+                    .allowEmptyShould(true);
+
+    // S9 (bloco 2): o financeiro não conhece documentos nem dossiê (e a falha de um não afeta o outro).
+    @ArchTest
+    static final ArchRule financeiro_nao_depende_de_documento_nem_de_dossie =
+            noClasses().that().resideInAPackage(RAIZ + "financeiro..")
+                    .should().dependOnClassesThat().resideInAnyPackage(RAIZ + "documento..", RAIZ + "dossie..")
+                    .allowEmptyShould(true);
+
+    // S9 (bloco 2): o domínio do financeiro é Java puro (regra de validade e, depois, datas e resumo, sem framework).
+    @ArchTest
+    static final ArchRule dominio_do_financeiro_sem_spring =
+            noClasses().that().resideInAPackage(RAIZ + "financeiro.domain..")
+                    .should().dependOnClassesThat().resideInAnyPackage("org.springframework..")
                     .allowEmptyShould(true);
 
     private static String[] concat(String[]... partes) {

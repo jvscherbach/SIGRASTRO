@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import br.gov.mt.sema.rastro.tramitacao.application.TramitacaoAberta;
+import br.gov.mt.sema.rastro.tramitacao.application.port.FinanceiroDoRequerimento;
 import br.gov.mt.sema.rastro.tramitacao.domain.AtoDaEmissao;
 import br.gov.mt.sema.rastro.tramitacao.domain.Aviso;
 import br.gov.mt.sema.rastro.tramitacao.domain.CaminhoReconstruido;
@@ -61,7 +62,8 @@ public record TramitacaoResponse(
                 t.estado().name(),
                 t.aproximado(),
                 caminho.truncado(),
-                caminho.passagens().stream().map(p -> PassagemResponse.de(p, admin)).toList(),
+                java.util.stream.IntStream.range(0, caminho.passagens().size())
+                        .mapToObj(i -> PassagemResponse.de(caminho.passagens().get(i), admin, a.marcasDa(i))).toList(),
                 caminho.complementacoes().stream()
                         .map(c -> new ComplementacaoResponse(c.entrada(), c.saida().orElse(null))).toList(),
                 taxa(t, caminho),
@@ -100,12 +102,16 @@ public record TramitacaoResponse(
             List<ResponsavelResponse> participantes,
             @Schema(description = "Só na \"Emissão do ato\": cada ato (autorização, outros atos, certificado, portaria)")
             List<AtoResponse> atos,
+            @Schema(description = "S9: marcas financeiras da passagem (emissão, DAR, vencimento, pagamento, isenção, "
+                    + "\"da correção\"); vazia sem caminho exato ou sem lançamento casado")
+            List<MarcaFinanceiraResponse> marcasFinanceiras,
             @JsonInclude(JsonInclude.Include.NON_NULL)
             @Schema(description = "Só para o Administrador") String idTecnico,
             @JsonInclude(JsonInclude.Include.NON_NULL)
             @Schema(description = "Só para o Administrador: atividades juntadas nesta passagem") Integer repeticoes) {
 
-        static PassagemResponse de(PassagemPelaEtapa p, boolean admin) {
+        static PassagemResponse de(PassagemPelaEtapa p, boolean admin,
+                List<FinanceiroDoRequerimento.MarcaFinanceira> marcas) {
             List<ResponsavelResponse> pessoas = p.responsaveis().stream().map(ResponsavelResponse::de).toList();
             return new PassagemResponse(
                     new EtapaResponse(p.idDaEtapa().orElse(null), p.rotulo(),
@@ -122,6 +128,7 @@ public record TramitacaoResponse(
                     p.multiInstancia() ? List.of() : pessoas,
                     p.multiInstancia() ? pessoas : List.of(),
                     p.atos().stream().map(AtoResponse::de).toList(),
+                    marcas.stream().map(MarcaFinanceiraResponse::de).toList(),
                     admin ? p.idTecnico() : null,
                     admin ? p.repeticoes() : null);
         }
@@ -166,6 +173,21 @@ public record TramitacaoResponse(
 
         static AtoResponse de(AtoDaEmissao a) {
             return new AtoResponse(a.tipo().name(), a.tipo().rotulo(), a.inicio(), a.fim(), a.estado().name(), a.ocorreu());
+        }
+    }
+
+    @Schema(description = "Marca financeira ao lado da passagem (S9); data pura no fuso de Cuiabá")
+    public record MarcaFinanceiraResponse(
+            @Schema(description = "EMITIDA_EM, NUMERO_DAR, VENCE_EM, PAGA_EM, TAXA_VENCIDA, ISENTO_DE_TAXA ou DA_CORRECAO")
+            String tipo,
+            @Schema(description = "Texto ao usuário (ex.: \"Vence em\", \"Isento de Taxa\")") String rotulo,
+            @Schema(description = "Vazio quando a marca não é de data") java.time.LocalDate data,
+            @Schema(description = "Só no DAR: o número") String valor,
+            @Schema(description = "Só no \"Isento de Taxa\": a data é provisória") boolean dataAConfirmar) {
+
+        static MarcaFinanceiraResponse de(FinanceiroDoRequerimento.MarcaFinanceira m) {
+            return new MarcaFinanceiraResponse(m.tipo(), m.rotulo(), m.data().orElse(null), m.valor().orElse(null),
+                    m.dataAConfirmar());
         }
     }
 

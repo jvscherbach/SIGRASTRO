@@ -554,3 +554,50 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 **Decisão:** **não implementar**. O modo de demonstração continua exigindo os três sistemas externos vazios, e o MCP continua recusando operar fora dele. A demonstração com dados continua pelo **Rastro simulado** (`tools/mcp-rastro/rastro-simulado.mjs`), que já tem os cenários fictícios.
 **Recomendação (se um dia for preciso o serviço real com dados fictícios):** um perfil de Compose **separado** e explícito (não o de verificação), com um Oracle fictício que **não aceita conexão de fora da rede do Compose**, carregado só pelos scripts versionados (`api/src/test/resources/sql/siga/`) e por um gerador de cenários, com usuário e senha gerados na subida e nunca reaproveitáveis; e uma regra nova de demonstração que aceite **só** essa combinação (nome de serviço interno + credencial gerada na mesma subida), decidida pelo responsável antes, com teste de recusa para qualquer outro destino. Até lá, nada muda.
 **Consequência:** R66 fechado como **aceito** em `docs/10`. O MCP segue somente leitura e mascarado.
+
+## D85 — Financeiro: colunas lidas de `LANCAMENTO_TAXA` e regra de validade do lançamento (S9, bloco 2)
+
+**Contexto:** a S9 mostra o histórico financeiro do requerimento a partir de `SIGA2_LICENCIAMENTO.LANCAMENTO_TAXA`, que tem registros "falsos" (criados e descartados pelo próprio sistema) e ruído. O serviço é usado em processos jurídicos e envolve dinheiro público: dado errado é pior do que dado ausente.
+**Decisão (do responsável, no prompt da S9):**
+- **Colunas lidas** (somente estas): `ID`, `ID_REQUERIMENTO`, `STATUS`, `TAXA_ISENTA`, `STATUS_PROCESSADO`, `NUM_DAR`, `DATA_EMISSAO`, `DATA_VENCIMENTO`, `DATA_PAGAMENTO`, `DATA_FIM`, `VALOR_REAL`, `VALOR_DESCONTO`, `QTDE_TOTAL_UPF`, `PASSOU_POR_REAPROV_TAXA_CORREC`. Nunca a chave do arquivo da guia (`CHAVE_GED`), `MENSAGEM` nem `ID_TITULACAO`; sem seleção com asterisco.
+- **`STATUS`** é o enum de guia `AGUARDANDO_EMISSAO`, `AGUARDANDO_PAGAMENTO`, `PAGA`, `VENCIDA`, `ISENTA`, `CANCELADA`; `DATA_FIM` nula = lançamento ativo; `STATUS_PROCESSADO` é `N`/`P`.
+- **Regra de validade:** fora `AGUARDANDO_EMISSAO` e `ISENTA`, o lançamento só é válido com `NUM_DAR`. `CANCELADA` sem DAR é registro falso e é **ignorado** (`FALSO_SEM_DAR`); `CANCELADA` com DAR é válida; `ISENTA` sem DAR é válida; `AGUARDANDO_EMISSAO` com `TAXA_ISENTA = 1` é ruído e é **ignorado por ora** (`RUIDO_ISENTO_AGUARDANDO`). A contagem por motivo só aparece no diagnóstico do Administrador.
+- **Nada some em silêncio (bloco 2):** status fora do enum, `PAGA` sem `DATA_PAGAMENTO` e `AGUARDANDO_PAGAMENTO`/`PAGA`/`VENCIDA` sem DAR ficam **mantidos**, como estão, com o aviso `LANCAMENTO_INCONSISTENTE` (P43 c).
+- **Uma consulta, um componente:** `sql/siga/financeiro/lancamentos.sql`, lido só por `integration.siga.LancamentosDoSigaJdbc`, serve ao requerimento (uma consulta) e ao lote (`IN` de até 500, uma consulta por parte), com limite por requerimento, `FETCH FIRST` total e tempo limite por consulta.
+- **Independência:** o módulo `financeiro` não depende de `documento` nem de `dossie` (ArchUnit) e não precisa do Camunda; a tramitação entra só por porta (blocos 4 e 5).
+**Consequência:** a regra fica em `financeiro.domain.ClassificarValidade`, provada por `ClassificarValidadeTest` (sem banco) e `LancamentosDoSigaJdbcTest` (Oracle fictício: FIN01, FIN05 a FIN10, FIN13, FIN14, status desconhecido, uma consulta por requerimento e por lote, SQL enviado sem as colunas proibidas). As demais decisões da S9 (vencimento por data, "Isento de Taxa", rótulo da correção, valores) entram nos blocos que as implementam.
+
+## D86 — Financeiro: situação como está, taxa vencida por data e resumo por precedência (S9, bloco 3)
+
+**Contexto:** o SIGA não marca a taxa como vencida quando o prazo passa (bug de origem; o Hídrico encerra o fluxo por "Pagamento Vencido 60 dias" sem atualizar a situação, R71). O Rastro precisa mostrar a taxa vencida sem afirmar o que o SIGA não diz.
+**Decisão (do prompt, com os detalhes fechados no bloco 3):**
+- **A situação do lançamento é o `STATUS` como está**; o Rastro nunca a troca. Status fora do enum vira `DESCONHECIDA` e não pesa no resumo.
+- **Taxa vencida por data:** `AGUARDANDO_PAGAMENTO` válido, ativo, sem pagamento, com a **data** de vencimento anterior a hoje em Cuiabá (comparação só de data; vencer hoje não é vencida). Ganha o aviso `TAXA_VENCIDA` "Taxa vencida em dd/mm/aaaa." **acrescentado**, sem trocar a situação. `STATUS = VENCIDA` ativo e sem pagamento também é vencida, mas **sem** o aviso (o SIGA já diz): quando o bug for corrigido, o aviso some sozinho.
+- **A conclusão própria do Rastro só sai de dado limpo:** lançamento com inconsistência nunca é dado como vencido por data, e sem data de vencimento nada se afirma.
+- **Resumo por precedência**, lançamento a lançamento, sem somar: `VENCIDO` > `EM_ABERTO` > `QUITADO` > `ISENTO` > `SEM_TAXA`. Encerrados (`DATA_FIM`) não deixam nada em aberto; `CANCELADA` não pesa. **`INDETERMINADO`** (acrescentado ao conjunto do prompt) quando todos os mantidos têm status desconhecido: dizer "sem taxa" seria afirmar o que não se sabe.
+- **"Hoje" e datas num só lugar** (`financeiro.domain.CalendarioDeCuiaba`): o `Clock` do projeto, lido no fuso `America/Cuiaba` qualquer que seja o fuso do relógio ou da JVM; colunas do SIGA viram data sem conversão de fuso.
+- **Ciclos:** guias numeradas por emissão ("1ª taxa", "2ª taxa"); isenção e status desconhecido não recebem número; "da correção" é do bloco 5.
+**Consequência:** `AvaliarSituacao` e `HistoricoFinanceiro` em `financeiro.domain`; `LerLancamentos.historico`/`historicoEmLote` com o `Clock`. Provado por `AvaliarSituacaoTest` (virada do dia, fusos UTC, Cuiabá e Tóquio, precedência, propriedade dos ignorados) e `LancamentosDoSigaJdbcTest` (FIN01 a FIN04, FIN11, FIN12, FIN14, vencimentos ontem/hoje/amanhã e `TIMESTAMP` às 23:30 lido com a JVM em quatro fusos). Detalhe em docs/15, "Financeiro".
+
+## D87 — Financeiro: "Isento de Taxa" por isenção, com data de uma cadeia de apoio provisória (S9, bloco 4)
+
+**Contexto:** cada vez que o requerimento passou por um ponto de verificação de isenção/taxa e o resultado foi isenção, o Rastro mostra "Isento de Taxa" com a data. Não se sabe qual coluna dá essa data nos dados reais.
+**Decisão (do responsável, no prompt da S9; detalhes do bloco 4):**
+- Uma entrada **"Isento de Taxa"** por lançamento `ISENTA` válido, em ordem (várias quando o requerimento foi isento mais de uma vez).
+- **Cadeia de apoio PROVISÓRIA**, num só lugar (`financeiro.domain.DataDaIsencao.CADEIA`): `DATA_EMISSAO` do lançamento → entrada da passagem "Isenção confirmada" do caminho **exato** da tramitação (S8) → sem data. Cada entrada traz a `origemDaData` (`LANCAMENTO`, `FLUXO`, `AUSENTE`); fora de `LANCAMENTO`, a tela marca "data a confirmar".
+- **A tramitação entra só por porta** (`financeiro.application.port.PassagensDeIsencao`, ligada ao caso de uso `LerTramitacao` em `financeiro.infrastructure.tramitacao`) e só quando há isenção sem `DATA_EMISSAO`; nunca no lote. Plano B (aproximado), tramitação indisponível ou falha pulam o elo, sem erro.
+- **Nada é adivinhado:** isenção e passagem são pareadas por ordem só quando as quantidades batem.
+- "Pago que virou isento" fica para a S11; aqui os dois lançamentos aparecem em ordem. `STATUS_PROCESSADO = N` só marca o diagnóstico.
+**Consequência:** a homologação da S9 fecha a cadeia (P44); mudar a ordem ou tirar um elo é mudar só a constante. Provado por `DataDaIsencaoTest`, `LerLancamentosIsencaoTest`, `PassagensDeIsencaoPelaTramitacaoTest` e `LancamentosDoSigaJdbcTest` (FIN05, FIN06, FIN12).
+
+## D88 — Financeiro na tramitação: porta da tramitação implementada pelo financeiro, só acrescentando (S9, bloco 5)
+
+**Contexto:** a posição precisa do aviso "Taxa vencida" e a linha do tempo, das marcas financeiras; o financeiro precisa do caminho da tramitação ("da correção", data de apoio da isenção). Uma dependência nos dois sentidos seria um ciclo entre módulos (proibido pelo ArchUnit), e falha de um não pode afetar o outro.
+**Decisão:**
+- **Uma só direção:** `financeiro` → `tramitacao`. A tramitação declara a porta `FinanceiroDoRequerimento` (aviso e marcas, em tipos neutros: código, rótulo, data, valor); o financeiro a implementa e lê a tramitação pela sua porta `CaminhoDaTramitacao` (que substitui a `PassagensDeIsencao` do bloco 4).
+- **Só acrescenta:** o aviso `TAXA_VENCIDA` entra no fim da lista, depois do cache da posição; as marcas são um campo novo de cada passagem. Etapa, situação, caminho e avisos existentes nunca mudam. Toda falha do financeiro vira "nada a acrescentar".
+- **Aviso:** "Taxa vencida em dd/mm/aaaa."; a explicação da causa só quando vencida pela data. A data é o vencimento da taxa vencida mais recente.
+- **Casamento lançamento × passagem por data** (não por instante): guia → última emissão com entrada até a data de emissão; espera → emissão anterior; isenção → por ordem, só com quantidades iguais. Sem casamento, sem marca.
+- **"Da correção":** emissão depois da entrada no ramo de correção; sem caminho exato, vale "1ª taxa", "2ª taxa".
+- **Sem leitura por linha:** a lista do processo lê o financeiro em lote; o indicador da busca (`IndicadoresFinanceiros`) também, sem tramitação. A tramitação completa entrega o caminho já lido ao financeiro (o Camunda não é lido de novo).
+**Consequência:** a resposta da tramitação ganhou `passagens[].marcasFinanceiras` e a posição pode ter o aviso `TAXA_VENCIDA` (docs/07). Casamentos e ids de etapa em docs/15; pontos a conferir em P45.

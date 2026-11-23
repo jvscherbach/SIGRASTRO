@@ -93,7 +93,8 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
             "POST /api/configuracoes/conexoes/{nome}/teste",
             "GET /api/requerimentos/{id}/posicao", "GET /api/processos/{numero}/posicao",
             "GET /api/tramitacao/parametros",
-            "GET /api/requerimentos/{id}/tramitacao", "GET /api/processos/{numero}/tramitacao");
+            "GET /api/requerimentos/{id}/tramitacao", "GET /api/processos/{numero}/tramitacao",
+            "GET /api/requerimentos/{id}/financeiro", "GET /api/processos/{numero}/financeiro");
 
     private enum Perfil {
         OPERADOR("operador.demo"), GESTOR("gestor.demo"), ADMIN("admin.demo");
@@ -272,6 +273,7 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
         parametrosEConexoes();
         dossiesGerados();
         posicao();
+        financeiro();
         mascaramentoNoPdfDoOperador();
 
         varreduraDeVazamento();
@@ -394,6 +396,35 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
         }
         verificar(parametros, "sem token", null, 401, "NAO_AUTENTICADO",
                 () -> mvc.perform(get("/api/tramitacao/parametros")));
+    }
+
+    /**
+     * S9, bloco 6: histórico financeiro, com a mesma regra da consulta (RN07) conferida antes de ler os lançamentos. Sem
+     * SIGA, o financeiro é INDISPONIVEL (200). O bloco 7 estende com a varredura de vazamento por cenário.
+     */
+    private void financeiro() throws Exception {
+        String rota = "GET /api/requerimentos/{id}/financeiro";
+        String doProcesso = "GET /api/processos/{numero}/financeiro";
+        String processoDoOperador = PROCESSO_DO_OPERADOR.replace('/', '-');
+        String processoDeOutro = PROCESSO_DE_OUTRO.replace('/', '-');
+        for (Perfil p : Perfil.values()) {
+            boolean op = p == Perfil.OPERADOR;
+            verificar(rota, "do interessado", p, 200, null, () -> comToken(get("/api/requerimentos/101/financeiro"), p));
+            verificar(rota, "de outro", p, op ? 403 : 200, op ? "NAO_INTERESSADO" : null,
+                    () -> comToken(get("/api/requerimentos/202/financeiro"), p));
+            verificar(rota, "inexistente", p, 404, "NAO_ENCONTRADO",
+                    () -> comToken(get("/api/requerimentos/404/financeiro"), p));
+            verificar(doProcesso, "processo do interessado", p, 200, null,
+                    () -> comToken(get("/api/processos/" + processoDoOperador + "/financeiro"), p));
+            verificar(doProcesso, "processo de outro", p, op ? 403 : 200, op ? "NAO_INTERESSADO" : null,
+                    () -> comToken(get("/api/processos/" + processoDeOutro + "/financeiro"), p));
+            verificar(doProcesso, "inexistente", p, 404, "NAO_ENCONTRADO",
+                    () -> comToken(get("/api/processos/9999-1999/financeiro"), p));
+        }
+        verificar(rota, "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(get("/api/requerimentos/101/financeiro")));
+        verificar(doProcesso, "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(get("/api/processos/" + processoDoOperador + "/financeiro")));
     }
 
     private void listaDeDocumentos() throws Exception {

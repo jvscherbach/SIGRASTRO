@@ -1,7 +1,9 @@
 package br.gov.mt.sema.rastro.integration.siga;
 
+import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -116,6 +118,14 @@ public final class CamundaFicticioBuilder {
     public static final String CORRECAO_EXPIRADA_FICTICIA = "Event_FicticioCorrecaoExpirada";
 
     private static final Pattern ONZE_DIGITOS = Pattern.compile("(?<![0-9])[0-9]{11}(?![0-9])");
+
+    /** Prefixo obrigatório do número de DAR fictício (S9): o construtor recusa qualquer outro, para nunca gravar um real. */
+    public static final String PREFIXO_DO_DAR_FICTICIO = "FICT-";
+
+    /** {@code LANCAMENTO_TAXA.STATUS} (enum de guia). Um valor fora destes é gravado por {@link Processo.Lancamento#comStatusBruto}. */
+    public enum StatusDaGuia {
+        AGUARDANDO_EMISSAO, AGUARDANDO_PAGAMENTO, PAGA, VENCIDA, ISENTA, CANCELADA
+    }
 
     private static final String SQL_ATIVIDADE = """
             INSERT INTO SIGA2_CAMUNDA.ACT_HI_ACTINST
@@ -246,6 +256,7 @@ public final class CamundaFicticioBuilder {
         private LocalDateTime dataExpiracaoRequerimento;
         private LocalDateTime dataExpiracaoProcesso;
         private int filhasHistoricas;
+        private final List<Lancamento> lancamentos = new ArrayList<>();
 
         private Processo(Fluxo fluxo, long id) {
             this.fluxo = Objects.requireNonNull(fluxo);
@@ -604,6 +615,158 @@ public final class CamundaFicticioBuilder {
             return this;
         }
 
+        // --- financeiro (S9): lançamentos de taxa em LANCAMENTO_TAXA, independentes do Camunda
+
+        /**
+         * Um lançamento de taxa (uma linha de {@code LANCAMENTO_TAXA}) com o {@code STATUS} dado, e a API fluente para
+         * completá-lo: {@code .comLancamento(PAGA).comDar("FICT-0001").emitidoEm(...).vencendoEm(...).pagoEm(...)}.
+         * Vale também para requerimento sem instância ({@link #semInstancia}); sem nenhum lançamento, o requerimento fica
+         * sem taxa (FIN13). Os lançamentos saem em {@code ID = <requerimento> * 100 + ordem}.
+         */
+        public Lancamento comLancamento(StatusDaGuia status) {
+            return comLancamentoBruto(Objects.requireNonNull(status).name());
+        }
+
+        /** Como {@link #comLancamento(StatusDaGuia)}, mas com o STATUS em texto livre (valor desconhecido do enum). */
+        public Lancamento comLancamentoBruto(String statusEmTexto) {
+            if (lancamentos.size() >= 99) {
+                throw new IllegalStateException("no máximo 99 lançamentos por requerimento fictício");
+            }
+            Lancamento novo = new Lancamento(id * 100 + lancamentos.size() + 1, statusEmTexto);
+            lancamentos.add(novo);
+            return novo;
+        }
+
+        /** Uma linha de {@code LANCAMENTO_TAXA}; as colunas que o Rastro nunca lê ficam nulas. */
+        public final class Lancamento {
+
+            private final long idDoLancamento;
+            private String status;
+            private int taxaIsenta;
+            private String processado = "P";
+            private String dar;
+            private LocalDateTime emissao;
+            private LocalDateTime vencimento;
+            private LocalDateTime pagamento;
+            private LocalDateTime dataFim;
+            private BigDecimal valorReal;
+            private BigDecimal desconto;
+            private BigDecimal upf;
+            private Integer reaprovacaoDaCorrecao;
+
+            private Lancamento(long idDoLancamento, String status) {
+                this.idDoLancamento = idDoLancamento;
+                this.status = status;
+            }
+
+            /** Troca o STATUS por um texto livre. */
+            public Lancamento comStatusBruto(String statusEmTexto) {
+                this.status = statusEmTexto;
+                return this;
+            }
+
+            /** {@code NUM_DAR}; só aceita número fictício evidente ({@value #PREFIXO_DO_DAR_FICTICIO}...). */
+            public Lancamento comDar(String numeroFicticio) {
+                if (numeroFicticio == null || !numeroFicticio.startsWith(PREFIXO_DO_DAR_FICTICIO)) {
+                    throw new IllegalArgumentException("DAR fictício deve começar com " + PREFIXO_DO_DAR_FICTICIO);
+                }
+                this.dar = numeroFicticio;
+                return this;
+            }
+
+            public Lancamento emitidoEm(LocalDateTime quando) {
+                this.emissao = quando;
+                return this;
+            }
+
+            /** {@code DATA_VENCIMENTO} à meia-noite do dia (a hora real da coluna é NÃO CONFIRMADA). */
+            public Lancamento vencendoEm(LocalDate dia) {
+                this.vencimento = dia == null ? null : dia.atStartOfDay();
+                return this;
+            }
+
+            /** {@code DATA_VENCIMENTO} com hora, para provar que a conversão para data não desloca o dia. */
+            public Lancamento vencendoEm(LocalDateTime quando) {
+                this.vencimento = quando;
+                return this;
+            }
+
+            public Lancamento pagoEm(LocalDateTime quando) {
+                this.pagamento = quando;
+                return this;
+            }
+
+            /** {@code DATA_FIM} preenchida: lançamento encerrado (cancelado ou substituído). */
+            public Lancamento encerradoEm(LocalDateTime quando) {
+                this.dataFim = quando;
+                return this;
+            }
+
+            /** {@code TAXA_ISENTA = 1}. */
+            public Lancamento isenta() {
+                this.taxaIsenta = 1;
+                return this;
+            }
+
+            /** {@code STATUS_PROCESSADO} ({@code N} ou {@code P}; o padrão é {@code P}). */
+            public Lancamento processado(char marca) {
+                if (marca != 'N' && marca != 'P') {
+                    throw new IllegalArgumentException("STATUS_PROCESSADO é N ou P");
+                }
+                this.processado = String.valueOf(marca);
+                return this;
+            }
+
+            public Lancamento comValores(String real, String desconto, String upf) {
+                this.valorReal = real == null ? null : new BigDecimal(real);
+                this.desconto = desconto == null ? null : new BigDecimal(desconto);
+                this.upf = upf == null ? null : new BigDecimal(upf);
+                return this;
+            }
+
+            /** {@code PASSOU_POR_REAPROV_TAXA_CORREC} (semântica NÃO CONFIRMADA; só diagnóstico). */
+            public Lancamento passouPelaReaprovacaoDaCorrecao(boolean valor) {
+                this.reaprovacaoDaCorrecao = valor ? 1 : 0;
+                return this;
+            }
+
+            /** Próximo lançamento do mesmo requerimento. */
+            public Lancamento comLancamento(StatusDaGuia proximo) {
+                return Processo.this.comLancamento(proximo);
+            }
+
+            public Lancamento comLancamentoBruto(String proximoEmTexto) {
+                return Processo.this.comLancamentoBruto(proximoEmTexto);
+            }
+
+            /** Grava o requerimento com todos os lançamentos (o mesmo que {@link Processo#gravar()}). */
+            public Resultado gravar() {
+                return Processo.this.gravar();
+            }
+
+            private void gravarLinha() {
+                jdbc.update("""
+                        INSERT INTO SIGA2_LICENCIAMENTO.LANCAMENTO_TAXA
+                               (ID, ID_REQUERIMENTO, STATUS, TAXA_ISENTA, STATUS_PROCESSADO, NUM_DAR, DATA_EMISSAO,
+                                DATA_VENCIMENTO, DATA_PAGAMENTO, DATA_FIM, VALOR_REAL, VALOR_DESCONTO, QTDE_TOTAL_UPF,
+                                PASSOU_POR_REAPROV_TAXA_CORREC)
+                        VALUES (:id, :requerimento, :status, :isenta, :processado, :dar, :emissao,
+                                :vencimento, :pagamento, :fim, :real, :desconto, :upf, :reaprovacao)""",
+                        new MapSqlParameterSource()
+                                .addValue("id", idDoLancamento).addValue("requerimento", id)
+                                .addValue("status", status).addValue("isenta", taxaIsenta)
+                                .addValue("processado", processado).addValue("dar", dar)
+                                .addValue("emissao", carimbo(emissao)).addValue("vencimento", carimbo(vencimento))
+                                .addValue("pagamento", carimbo(pagamento)).addValue("fim", carimbo(dataFim))
+                                .addValue("real", valorReal).addValue("desconto", desconto).addValue("upf", upf)
+                                .addValue("reaprovacao", reaprovacaoDaCorrecao));
+            }
+        }
+
+        private void gravarLancamentos() {
+            lancamentos.forEach(Lancamento::gravarLinha);
+        }
+
         public Resultado gravar() {
             boolean comInstancia = fluxo.chave != null && !semInstancia;
             validar(comInstancia);
@@ -612,6 +775,7 @@ public final class CamundaFicticioBuilder {
                     : historico.stream().map(Passo::inicio).min(Comparator.naturalOrder()).orElseThrow();
             gravarRequerimento(abertura != null ? abertura : comInstancia ? inicio : desde);
             gravarDoLicenciamento();
+            gravarLancamentos();
             if (!comInstancia) {
                 return new Resultado(id, null, false, 0, 0, 0, 0, false);
             }
