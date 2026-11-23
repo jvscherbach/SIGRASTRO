@@ -641,3 +641,15 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 - **Carga:** requerimentos distintos por responsável; grupo vira a área do catálogo (grupo sem área cadastrada = "Equipe responsável"; sem grupo ou grupo `0` = "Não atribuída"); 15 maiores servidores e "Outros (N servidores)"; as categorias sem nome (área, interessado, não atribuída, não identificado) nunca entram nesse corte. Com nomes desligados (RN12) só ficam as categorias sem nome, mais a nota "Nomes ocultos por configuração". Empate: nome, depois posição fixa do tipo.
 - Os modelos de saída não têm campo de CPF.
 **Consequência:** o bloco 4 só monta o instantâneo com estas funções; o bloco 5 as expõe na API.
+
+## D93 — S10 (bloco 4): instantâneo do painel em memória, single flight e proteção do SIGA
+
+**Contexto:** o painel não lê o SIGA nem o Camunda a cada requisição (P42); o SIGRASTRO não tem banco próprio.
+**Decisão:**
+- **`InstantaneoDoPainel`** imutável (estado `PREPARANDO`, `PRONTO`, `DESATUALIZADO`, `INDISPONIVEL`; `geradoEm`, `falhouEm`, `truncado`, avisos) numa referência atômica (`GuardarInstantaneo`); a troca é de uma vez. Falha depois de sucesso mantém o último bom como `DESATUALIZADO`; falha sem sucesso é `INDISPONIVEL`.
+- **Primeira leitura** na primeira requisição (não na subida), em segundo plano; depois, um agendamento que acorda a cada minuto (`rastro.agendamento.painel`, `PT1M`) e dispara quando passou `rastro.painelAtualizacaoMinutos` do início da última atualização. **Single flight** por `AtomicBoolean`; a requisição só lê o instantâneo e **nunca** chama as portas.
+- **Um tempo total** (`rastro.painelTimeoutSegundos`) para as três leituras (série, base e lotes de tarefas); o que resta é repassado a cada consulta. Só entram nos lotes os requerimentos da fila que o catálogo conhece. O log de falha leva só a **classe** da exceção.
+- **Carga nas duas formas** (com e sem nomes) no mesmo instantâneo: desligar `RASTRO_MOSTRAR_NOME_RESPONSAVEL` vale já na próxima requisição, sem esperar a atualização (RN12).
+- **Manual** (`SolicitarAtualizacao`): intervalo mínimo desde o início da última atualização (qualquer uma, não só a manual); recusa devolve os segundos que faltam; já havendo uma em curso, aceita sem disparar outra.
+- Parâmetros lidos a cada ciclo; o ano corrente é o de Cuiabá pelo `Clock`. Neste bloco vêm do ambiente (`ParametrosDoPainelDoAmbiente`); a tela de Configurações os sobrepõe no bloco 5.
+**Consequência:** truncado também liga quando algum lote de tarefas passa do teto de linhas da consulta (aviso `LEITURA_PARCIAL`).
