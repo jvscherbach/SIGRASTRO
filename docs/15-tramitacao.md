@@ -300,6 +300,10 @@ Funções puras em `painel.domain` (decisão D92 em `docs/09`): `MontarSerieDoAn
 
 Decisão D93 (`docs/09`). `InstantaneoDoPainel` (imutável) em `GuardarInstantaneo` (referência atômica); `AtualizarPainel` lê série, base e tarefas em lotes dentro de **um tempo total**, monta com as regras do bloco 3 e troca o instantâneo de uma vez, uma atualização por vez (single flight), em segundo plano. `ConsultarPainel` só lê o instantâneo (a primeira requisição dispara a primeira leitura e responde `PREPARANDO`); `SolicitarAtualizacao` aplica o intervalo mínimo manual; `AtualizacaoAgendadaDoPainel` (a cada minuto) dispara a atualização automática vencida. Falha mantém o último bom (`DESATUALIZADO`) ou fica `INDISPONIVEL`; o log leva só a classe da exceção. Testes: `AtualizarPainelTest` (sem Docker).
 
+### Painel do Gestor: roteiro de homologação (S10, bloco 9)
+
+O roteiro `docs/roteiros/s10-homologacao.md` tem uma linha por cenário PN01 a PN16 (o que abrir, o que a tela deve mostrar e a prova automática), os estados e perfis (seção 3), os pontos provisórios (seção 4: coluna do protocolo, data de conclusão aproximada, instância raiz, unidade de contagem) e a conferência com dados reais, fora do repositório (seção 5). A população fictícia desta seção é a mesma que o roteiro usa; os totais esperados (27 protocolados sem volume, 1.227 com o PN16, 3 concluídos, 5 fora da fila, 1 sem data) estão na seção 2.1 do roteiro e neste documento, acima.
+
 ## Posição atual (bloco 3)
 
 ### Peças
