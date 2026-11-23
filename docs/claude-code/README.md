@@ -7,6 +7,16 @@ O repositório traz configuração do próprio Claude Code, versionada, que serv
 | **Hooks (guardas)** | [`.claude/settings.json`](../../.claude/settings.json), [`.claude/hooks/`](../../.claude/hooks/) | Bloqueiam git além de `git diff`, `gh`, apagar volumes, ler arquivo de segredo, despejar variáveis de ambiente; avisam quando um arquivo gravado tem CPF/CNPJ válido, token ou chave privada | S6, bloco 6 e S6.1 (postura "na dúvida, bloqueia", camadas e corpus com isca) — [hooks.md](hooks.md), [segredos.md](segredos.md) |
 | **Servidor MCP `rastro`** | [`.mcp.json`](../../.mcp.json), [`tools/mcp-rastro/`](../../tools/mcp-rastro/) | Consultas somente leitura ao Rastro local em modo de demonstração, com saída mascarada | S6, bloco 7 — [mcp.md](mcp.md) |
 | **Subagentes e `/verificar-sprint`** | `.claude/agents/`, `.claude/commands/` | Revisão de segurança, execução de testes e conferência das docs, em paralelo; relatório em `docs/progresso/verificacao-s<N>.md` | S6, bloco 8 — [agentes.md](agentes.md) |
+| **Modo automático: `/orquestrar`** | `.claude/commands/orquestrar.md`, `.claude/agents/executor-*.md`, `commitador.md`, `.claude/scripts/commit-bloco.mjs` | Roda um prompt bloco a bloco (executor por modelo, commit pelo `commit-bloco`), só em branch `auto/*`, sem envio remoto | A1, blocos 1 a 4 — [agentes.md](agentes.md), [hooks.md](hooks.md) |
+
+### Como usar o `/orquestrar` (exemplo da R2)
+
+1. O responsável cria a branch: `git switch -c auto/r2-front` e **remove** o marcador de liberação de construção, se existir.
+2. Abre o Claude Code **em Sonnet**, em sessão nova (para carregar os agentes e o comando).
+3. Roda `/orquestrar docs/prompts/R2-refatorar-front-sigrastro.md` (opcionalmente com bloco inicial e final: `... 4 9`).
+4. O comando confere branch, árvore limpa e guardas; para cada bloco chama o executor do modelo da tabela e depois o `commitador`. Para na primeira `PARADA` ou `FALHA DO COMMIT`.
+5. Ao final, a suíte completa roda uma vez e vem a tabela `bloco → hash`. O responsável revisa a branch e faz o envio e o PR à mão.
+6. Para retomar depois de uma parada, rode o mesmo comando: ele continua do primeiro bloco não concluído.
 
 `.claude/settings.local.json` é a configuração **pessoal** de cada máquina e fica fora do Git (`.gitignore`). A configuração do projeto vale para qualquer sessão aberta nesta pasta, inclusive a dos subagentes.
 
