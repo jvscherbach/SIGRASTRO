@@ -631,3 +631,13 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 - **Fronteira da refatoração:** textos visíveis **do back-end** que ainda dizem "Rastro" ou o nome antigo (capa do PDF, metadados, título da API, avisos vindos da API) **não** mudam na R2; viram pendência (R80 em `docs/10`).
 - **Regras curtas do front** entram no `CLAUDE.md`: cor só por token, nenhum brasão nem logo do Estado ou da SEMA, tema único, sem seletor de tema.
 **Consequência:** só `front/` e a documentação mudaram na R2; `api/`, rotas, permissões e regras de negócio ficaram intactos.
+
+## D92 — S10 (bloco 3): regras de contagem do painel do Gestor
+
+**Contexto:** o painel mostra três gráficos a partir de um instantâneo em memória; as regras de contagem são funções puras em `painel.domain` (`MontarSerieDoAno`, `ContarFilaPorEtapa`, `ContarCargaPorResponsavel`), sem Spring nem relógio.
+**Decisão:**
+- **Série:** 12 meses sempre; concluído com mês fora do ano ou sem mês, ou total maior que o de protocolados, gera o aviso `INCONSISTENCIA_NA_SERIE` e os números aparecem como vieram.
+- **Fila:** só requerimentos fora de concluído, cancelado e arquivado; tipo fora do catálogo = "Fora do catálogo"; sem instância ativa = "Sem instância"; id sem etapa, modelo desconhecido ou instância ativa sem tarefa de etapa = "Etapa não mapeada" (nunca some em silêncio). Tarefa de suporte e de fim (ignoradas pelo catálogo) não viram barra. Uma barra por (modelo, etapa), na ordem do catálogo, com as zeradas; o paralelo conta uma vez em cada etapa e a soma maior que o total gera o aviso `SOMA_DAS_BARRAS_MAIOR_QUE_O_TOTAL`.
+- **Carga:** requerimentos distintos por responsável; grupo vira a área do catálogo (grupo sem área cadastrada = "Equipe responsável"; sem grupo ou grupo `0` = "Não atribuída"); 15 maiores servidores e "Outros (N servidores)"; as categorias sem nome (área, interessado, não atribuída, não identificado) nunca entram nesse corte. Com nomes desligados (RN12) só ficam as categorias sem nome, mais a nota "Nomes ocultos por configuração". Empate: nome, depois posição fixa do tipo.
+- Os modelos de saída não têm campo de CPF.
+**Consequência:** o bloco 4 só monta o instantâneo com estas funções; o bloco 5 as expõe na API.

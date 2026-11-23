@@ -292,6 +292,10 @@ Os `VENCE_*` ficam fora da numeração FIN01 a FIN16 do roteiro. Vencimento grav
 
 **Totais esperados** (conferidos por `CenariosFicticiosDaS10Test` contra o Oracle de teste; "sem volume" = PN01 a PN15): protocolados por mês, sem volume, `2, 3, 2, 2, 2, 1, 2, 2, 3, 3, 3, 2` (27 no ano; **1.227 com o PN16**, 100 a mais em cada mês); concluídos por mês (abr 2, ago 1), 3 no ano, **sempre dentro dos protocolados do ano** (o 10031, concluído em 2026 mas protocolado em 2025, **não** conta); fora da fila (concluídos, cancelado, arquivado): 5; sem data de protocolo: 1 (o 10032; as fixtures da S7 a S9 também deixam a coluna vazia, então a contagem de um teste real filtra por faixa de ids). Testes: `CenariosFicticiosDaS10Test` (Docker), `CamundaFicticioBuilderPainelValidacaoTest` (sem Docker: recusa de paralela e de tarefa não mapeada incoerentes, relógios e constantes) e `DadosFicticiosDaS7Test` (varre o arquivo novo).
 
+### Painel do Gestor: regras de contagem (S10, bloco 3)
+
+Funções puras em `painel.domain` (decisão D92 em `docs/09`): `MontarSerieDoAno` (12 meses; aviso `INCONSISTENCIA_NA_SERIE`), `ContarFilaPorEtapa` (barras por modelo e etapa, na ordem do catálogo, zeradas incluídas; "Fora do catálogo", "Sem instância" e "Etapa não mapeada" à parte; paralelo conta uma vez em cada etapa e a soma maior que o total avisa) e `ContarCargaPorResponsavel` (nome, área, "Interessado (cadastrante)", "Não atribuída", "Não identificado"; 15 maiores e "Outros (N servidores)"; nomes ocultos só com categorias sem nome). Concluído, cancelado e arquivado (`CONCLUIDO`, `CANCELADO*`, `ARQUIVADO*`) ficam fora da fila e da carga, mas contam nos protocolados. Testes: `RegrasDeContagemDoPainelTest` (sem Docker).
+
 ## Posição atual (bloco 3)
 
 ### Peças
