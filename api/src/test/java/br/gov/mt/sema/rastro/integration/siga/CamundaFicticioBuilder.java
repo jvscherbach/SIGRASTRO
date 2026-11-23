@@ -206,6 +206,10 @@ public final class CamundaFicticioBuilder {
     private record Evento(String evento, LocalDateTime quando) {
     }
 
+    /** Tarefa ativa a mais na instância raiz (S10): paralela de outro ramo do catálogo ou id não mapeado. */
+    private record TarefaExtra(String id, String nome, String cpf) {
+    }
+
     private record ComplementacaoConcluida(long id, LocalDateTime inicio, LocalDateTime fim) {
     }
 
@@ -257,6 +261,7 @@ public final class CamundaFicticioBuilder {
         private LocalDateTime dataExpiracaoProcesso;
         private int filhasHistoricas;
         private final List<Lancamento> lancamentos = new ArrayList<>();
+        private final List<TarefaExtra> extras = new ArrayList<>();
 
         private Processo(Fluxo fluxo, long id) {
             this.fluxo = Objects.requireNonNull(fluxo);
@@ -400,6 +405,39 @@ public final class CamundaFicticioBuilder {
                 }
                 percurso.add(idTecnico);
             }
+            return this;
+        }
+
+        /**
+         * Segunda tarefa humana ativa na RAIZ, em paralelo à etapa dada por {@link #naEtapa} (S10, painel: "dois ramos
+         * ativos"). Precisa ser tarefa humana de uma etapa DIFERENTE da principal e de outro ramo do catálogo (ex.: análise no
+         * ramo principal e correção no ramo de correção). {@code cpf} nulo deixa a tarefa sem atribuição. Hipótese da
+         * fixture (NÃO CONFIRMADO): como o BPMN real grava duas tarefas ativas na raiz.
+         */
+        public Processo comTarefaParalela(String idTecnico, String cpf) {
+            Etapa paralela = etapaDo(idTecnico);
+            if (paralela.tipo() != TipoDeEtapa.TAREFA_HUMANA || paralela.multiInstancia()) {
+                throw new IllegalArgumentException(idTecnico + " não é tarefa humana simples");
+            }
+            if (etapa == null || etapa.equals(paralela) || etapa.ramo() == paralela.ramo()) {
+                throw new IllegalStateException("a paralela exige naEtapa(...) antes e uma etapa de OUTRO ramo");
+            }
+            extras.add(new TarefaExtra(idTecnico, paralela.rotulo(), cpf));
+            return this;
+        }
+
+        /**
+         * Tarefa ativa na raiz com id que o catálogo não conhece (S10: "Etapa não mapeada"). O id precisa levar "Ficticio" e
+         * não pode estar no catálogo; {@code cpf} nulo deixa a tarefa sem atribuição.
+         */
+        public Processo comTarefaNaoMapeada(String idFicticio, String cpf) {
+            if (!idFicticio.contains("Ficticio")) {
+                throw new IllegalArgumentException("id de tarefa fictícia precisa conter \"Ficticio\"");
+            }
+            if (!(modelo().resolver(idFicticio, Set.of()) instanceof ResolucaoDeEtapa.NaoMapeado)) {
+                throw new IllegalArgumentException(idFicticio + " já é conhecido pelo catálogo de " + modelo().chave());
+            }
+            extras.add(new TarefaExtra(idFicticio, idFicticio + " (FICTÍCIO)", cpf));
             return this;
         }
 
@@ -806,7 +844,8 @@ public final class CamundaFicticioBuilder {
         private void validar(boolean comInstancia) {
             if (!comInstancia) {
                 if (etapa != null || fim != null || suporte || complementacao != null || !filhas.isEmpty()
-                        || !historico.isEmpty() || !variaveis.isEmpty() || !complementacoesConcluidas.isEmpty()) {
+                        || !historico.isEmpty() || !variaveis.isEmpty() || !complementacoesConcluidas.isEmpty()
+                        || !extras.isEmpty()) {
                     throw new IllegalStateException(
                             "requerimento sem instância não tem etapa, final, filhas, caminho nem variáveis");
                 }
@@ -823,7 +862,7 @@ public final class CamundaFicticioBuilder {
                 throw new IllegalStateException("o caminho termina depois do início da etapa ativa (ou do fim da instância): "
                         + "ajuste desde(...)");
             }
-            boolean ativa = etapa != null || suporte;
+            boolean ativa = etapa != null || suporte || !extras.isEmpty();
             if (fim != null && (ativa || complementacao != null)) {
                 throw new IllegalStateException("instância encerrada não tem etapa ativa nem complementação");
             }
@@ -1147,7 +1186,7 @@ public final class CamundaFicticioBuilder {
         }
 
         private Resultado gravarAtiva(String pi, String procDef) {
-            int elementos = (etapa != null ? Math.max(1, filhas.size()) : 0) + (suporte ? 1 : 0);
+            int elementos = (etapa != null ? Math.max(1, filhas.size()) : 0) + (suporte ? 1 : 0) + extras.size();
             boolean simples = elementos == 1 && !(etapa != null && etapa.multiInstancia());
             inserirExecucao(pi, pi, null, Long.toString(id), procDef, pi, null, simples ? atividadeSimples() : null,
                     simples, false, true);
@@ -1213,6 +1252,11 @@ public final class CamundaFicticioBuilder {
                 inserirTarefaAtiva(pi, procDef, modelo.chave(), pi, exec, idSuporte, "Suporte", null, GRUPO_SUPORTE);
                 tarefasNaRaiz++;
             }
+            for (TarefaExtra extra : extras) {
+                String exec = elementos > 1 ? novaExecucao(pi, procDef, pi, extra.id(), true, false, true) : pi;
+                inserirTarefaAtiva(pi, procDef, modelo.chave(), pi, exec, extra.id(), extra.nome(), extra.cpf(), null);
+                tarefasNaRaiz++;
+            }
             if (complementacao != null) {
                 gravarComplementacao(pi);
             }
@@ -1226,6 +1270,9 @@ public final class CamundaFicticioBuilder {
             }
             if (etapa != null) {
                 return atividade;
+            }
+            if (!suporte && !extras.isEmpty()) {
+                return extras.getFirst().id();
             }
             return modelo.idsDeSuporte().iterator().next();
         }

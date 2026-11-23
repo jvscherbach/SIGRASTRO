@@ -267,6 +267,31 @@ Regras das fixtures: `HISTORICO_REQUERIMENTO.CPF_USUARIO` existe (a tabela real 
 
 Os `VENCE_*` ficam fora da numeração FIN01 a FIN16 do roteiro. Vencimento gravado à meia-noite (a hora real da coluna é **NÃO CONFIRMADA**; `vencendoEm(LocalDateTime)` grava com hora para provar que a conversão para data não desloca o dia). Testes: `CenariosFicticiosDaS9Test` (Docker: o que cada cenário grava, colunas proibidas nulas, DAR fictício, usuário de leitura sem escrita), `CamundaFicticioBuilderFinanceiroValidacaoTest` (sem Docker: recusa de DAR sem prefixo, relógio de teste) e `DadosFicticiosDaS7Test` (varre os arquivos novos).
 
+### Painel do Gestor: população fictícia (S10, bloco 1; ids 10001 a 12999)
+
+`CenariosFicticiosDaS10`, gravada **sob demanda** por `SigaOracleTeste.cenariosDoPainel()` (não ao subir o Oracle de teste: o volume só interessa ao painel). Número `<id>/2026` (o de 2025 é `<id>/2025`), interessado "Interessado Fictício S7", responsáveis "Servidor Exemplo 01" a "03" (CPF `000000000NN`, inválido de propósito). Relógio: `RELOGIO` = 2026-12-31 12h em Cuiabá (ano corrente 2026); `RELOGIO_VIRADA_PARA_2027_NO_UTC` (em UTC já é 2027, em Cuiabá ainda 2026) e `RELOGIO_VIRADA_PARA_2026_NO_UTC` (em Cuiabá ainda 2025). **Hipóteses NÃO CONFIRMADAS:** a data de conclusão é `DATA_ALTERACAO` (mês aproximado) e as duas tarefas ativas na raiz do PN07 (como o BPMN real grava o paralelo).
+
+| Código | Id | Cenário | Protocolo / alteração | Camunda (raiz) |
+|---|---|---|---|---|
+| PN01 | 10001 a 10006 | protocolados em vários meses | jan (1º à meia-noite), mar (dois: 10 e 25), jun, set, dez (31) | conferência (grupo) |
+| PN02 | 10011 a 10013 | concluídos (`CONCLUIDO`) em mês diferente do protocolado | protocolo fev, fev, mai; alteração abr, abr, ago | encerrada (`Event_1wiuc48`) |
+| PN03 | 10031, 10032 | fora do recorte: de **2025** (protocolo 31/12/2025 23:59:59, concluído em fev/2026) e **sem data de protocolo** | 10032: coluna vazia | 10031 encerrada; 10032 em análise |
+| PN04 | 10021, 10022 | **cancelado** (Hídrico) e **arquivado** (LAC): protocolados, fora da fila | jul | encerradas |
+| PN05 | 10041 a 10045 | Hídrico em etapas diferentes: análise (S01), revisão (S02), validação (S03), análise (S01), aceite (S02) | abr a nov | uma tarefa atribuída |
+| PN06 | 10051, 10052 | LAC: envio do termo (interessado) e conferência (grupo de atendimento) | ago | uma tarefa |
+| PN07 | 10071 | etapa **paralela**: análise (ramo principal, S01) e correção (ramo de correção, interessado) | nov | **duas** tarefas ativas |
+| PN08 | 10081 | **complementação** em andamento (id da complementação = id do requerimento) e análise (S02) na raiz | out | raiz + instância independente |
+| PN09 | 10091 | tarefa de **grupo** (atribuição, área) | set | grupo |
+| PN10 | 10101 | tarefa do **interessado** (cadastro) | set | interessado |
+| PN11 | 10111 | tarefa **sem atribuição** (revisão, sem responsável nem grupo) | out | `ASSIGNEE_` nulo |
+| PN12 | 10121 | `ASSIGNEE_` com CPF **sem servidor** cadastrado | nov | CPF `00000000099` |
+| PN13 | 10131 | id técnico **não mapeado** (`taskFicticioNaoMapeadoDoPainel`) | dez | tarefa fora do catálogo |
+| PN14 | 10141 | tipo **fora do catálogo** (Trifásico, tipo 73) | jan | sem instância |
+| PN15 | 10151 | Hídrico **sem instância** no Camunda | fev | nenhuma |
+| PN16 | 11001 a 12200 | **volume**: 1.200 requerimentos de 2026 (1.200 ids = 3 lotes de 500) | 100 por mês | 300 em cada etapa (conferência, atribuição, revisão com S01 a S03, cadastro) |
+
+**Totais esperados** (conferidos por `CenariosFicticiosDaS10Test` contra o Oracle de teste; "sem volume" = PN01 a PN15): protocolados por mês, sem volume, `2, 3, 2, 2, 2, 1, 2, 2, 3, 3, 3, 2` (27 no ano; **1.227 com o PN16**, 100 a mais em cada mês); concluídos por mês (abr 2, ago 1), 3 no ano, **sempre dentro dos protocolados do ano** (o 10031, concluído em 2026 mas protocolado em 2025, **não** conta); fora da fila (concluídos, cancelado, arquivado): 5; sem data de protocolo: 1 (o 10032; as fixtures da S7 a S9 também deixam a coluna vazia, então a contagem de um teste real filtra por faixa de ids). Testes: `CenariosFicticiosDaS10Test` (Docker), `CamundaFicticioBuilderPainelValidacaoTest` (sem Docker: recusa de paralela e de tarefa não mapeada incoerentes, relógios e constantes) e `DadosFicticiosDaS7Test` (varre o arquivo novo).
+
 ## Posição atual (bloco 3)
 
 ### Peças
