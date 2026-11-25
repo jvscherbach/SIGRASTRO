@@ -10,6 +10,7 @@
 | 0 | Espelho do padrão de módulos em `.claude/` | HAIKU |
 | 1 | Converter por tipo detectado quando o tipo não foi informado | SONNET |
 | 2 | Mensagem de documentos que não puderam ser obtidos | SONNET |
+| 3 | Gráficos de planilha somem no PDF | SONNET |
 
 ## O problema (observado em produção, requerimento 70402)
 
@@ -79,6 +80,34 @@ Rode os testes direcionados (da conversão e do dossiê). **Rode também a suít
 **Testes:** spec do componente (separador e ID presentes, duas linhas com o mesmo nome ficam distintas) e, se já existe e2e dessa tela, ajuste-o.
 
 **Ponto de parada.** Commit sugerido: `fix(front): lista de documentos não obtidos com separador e ID`
+
+---
+
+## Bloco 3 (SONNET): gráficos de planilha somem no PDF
+
+Causa já confirmada em teste (não refaça a investigação, só confira): o perfil-modelo do LibreOffice criado em `PerfilSeguro` grava `DisableActiveContent = true`. Com essa opção, o LibreOffice não desenha os gráficos das planilhas XLSX (o Excel guarda gráficos como objetos embutidos). Os dados e o resto da aba saem normais; só os gráficos desaparecem. Sem essa opção, na mesma planilha, os 13 gráficos saem. Todas as outras proteções (macro nunca executada, vínculo nunca atualizado, `UpdateDocMode.NO_UPDATE`, proxy morto) não têm esse efeito.
+
+Caso real: planilha XLSX com uma aba só de gráficos de linha (13 gráficos) sobre dados de outra aba, sem valores em cache. No PDF, a aba aparece com o título e uma tabelinha, mas sem nenhum gráfico.
+
+**O que fazer**
+
+1. Confirme com um teste que reproduz (veja abaixo): com o perfil atual o gráfico some; sem `DisableActiveContent`, aparece.
+2. Não remova a proteção para todos os arquivos. Crie um segundo perfil-modelo sem `DisableActiveContent` (as demais opções iguais) e use-o só para planilha XLSX/ODS cujo pacote não contém conteúdo ativo. Antes de escolher o perfil, confira a lista de entradas do pacote ZIP (já há `ZipLimitado`; reuse a leitura) e use o perfil estrito (o atual) se existir qualquer uma destas entradas: `vbaProject.bin`, `*/embeddings/*`, `*oleObject*`, `externalLinks/*`, `activeX/*`, ou relações com `TargetMode="External"`. Gráficos (`xl/charts/*`, `xl/drawings/*`) não contam como conteúdo ativo. Arquivos XLS binário, DOC, DOCX, ODT, RTF e HTML continuam sempre no perfil estrito.
+3. Sem gerar dois pools à toa: o segundo pool só é criado na primeira planilha que precisar, e respeita o mesmo limite de processos, tempo limite e encerramento do pool atual. Se isso exigir mudança grande, pare e descreva as opções (um pool por perfil, ou um pool que troca de perfil) com custo e risco, sem implementar.
+4. Quando o perfil estrito for usado numa planilha e ela tiver gráficos ou desenhos, o resultado deve dizer isso no aviso de conversão da tela ("os gráficos desta planilha não foram incluídos"), em vez de sair em silêncio. Se detectar os gráficos exigir leitura que hoje não existe, use a mesma lista do pacote (entradas `xl/charts/*` ou `xl/drawings/*`).
+5. Registre em `docs/09` (decisão), `docs/06` (planilhas e gráficos) e `docs/10` (risco novo: conversão sem `DisableActiveContent` para pacote sem conteúdo ativo; item para revisão de segurança na primeira sprint pós-apresentação).
+
+**Testes (arquivos sintéticos criados no teste ou em fixtures suas; nada de `amostras-locais/`)**
+
+- Uma planilha XLSX mínima com uma aba de gráfico de linha apontando para dados de outra aba, com cache vazio (como no caso real). Gere com a biblioteca que o projeto já usa em testes; se não houver, monte o pacote OOXML mínimo como recurso de teste. Verifique que o PDF contém o título do gráfico como texto.
+- Perfil estrito: planilha sintética com `vbaProject.bin` (arquivo qualquer, sem macro real), outra com `embeddings/oleObject1.bin` e outra com link externo, cada uma usa o perfil estrito e nada de macro ou OLE é executado. A conversão continua funcionando para o texto das células.
+- Os testes de `PerfilSeguro` existentes continuam passando, e um novo prova que o perfil estrito mantém `DisableActiveContent` e o novo perfil não a tem.
+- Regressão: planilha comum sem gráficos converte igual a antes (mesmo número de páginas).
+- Se testes de conversão dependem do LibreOffice instalado, siga o padrão de pulo que já existe.
+
+Fora deste bloco (registre em `docs/10`): gráficos grandes são partidos entre páginas no modo `LARGURA` (altura livre, o Calc quebra a página no meio do gráfico); isso é limitação do modo e não perda de dados.
+
+**Ponto de parada.** Commit sugerido: `fix(conversao): desenha gráficos de planilhas sem conteúdo ativo`
 
 ---
 
