@@ -662,3 +662,9 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 - **XLS binário, DOC, DOCX, ODT, RTF, HTML e ODS ficam sempre no perfil estrito** (ODS por cautela: o pacote guarda gráficos como subdocumentos que não passam pela mesma conferência).
 - Planilha no perfil estrito com gráficos ou desenhos: `ResultadoDaConversao.graficosOmitidos` e a observação "os gráficos desta planilha não foram incluídos" (e o log). A exibição desse aviso na tela do dossiê **não foi ligada**: hoje só a observação do resultado e o log o trazem.
 **Consequência:** risco R84 em [10](10-pendencias-e-riscos.md); revisão de segurança na primeira sprint pós-apresentação.
+
+## D95 — V6 (bloco 4): páginas maiores que A3 são ajustadas a A4 na montagem
+
+**Contexto:** um documento com a página medida em pixels de foto (por exemplo, PDF de aplicativo de fotos ou scanner) entrava no dossiê com a página enorme, e o carimbo "Página N de M" saía minúsculo. A montagem importava as páginas como vieram, sem nenhuma normalização.
+**Decisão:** na montagem do dossiê, a página cujo **maior lado exibido** (considerando `CropBox` e `/Rotate`) passe de A3 (1191 pt) é reduzida para caber em A4, na mesma orientação visual, centralizada e sem distorção. Continua vetorial: o conteúdo ganha uma matriz de escala e um recorte pela caixa original; nada é rasterizado. A caixa passa a ser A4 e as anotações (links) da página reduzida são descartadas, porque ficariam desalinhadas. Página até A3 não muda. A regra vale só na montagem do dossiê.
+**Consequência:** o carimbo de numeração fica do mesmo tamanho e posição relativa. Limitação em [10](10-pendencias-e-riscos.md) (R86).

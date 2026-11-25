@@ -190,6 +190,8 @@ O texto é em **negrito** (Helvetica-Bold, 9 pt, preto) e **sem fundo** (S3.2): 
 
 ## Preservação do conteúdo
 
+- **Páginas gigantes (V6, D95):** na montagem, a página cujo maior lado exibido (pela `CropBox` e `/Rotate`) passe de A3 (1191 pt) é reduzida a A4, na mesma orientação visual, centralizada e sem distorção, sem rasterizar (matriz de escala e recorte). Links da página reduzida são descartados. Até A3 nada muda. O documento avulso (download e Visualizar) não passa por essa regra.
+
 - As páginas são importadas com tamanho, rotação, anotações e links preservados (importação de página do PDFBox, não desenho como imagem).
 - Formulários interativos são achatados para evitar conflito de nomes de campo entre documentos.
 - Assinaturas digitais de terceiros incorporadas aos PDFs perdem a validade criptográfica no documento mesclado. O carimbo visual de assinatura do SIGA é conteúdo da página e é preservado.
