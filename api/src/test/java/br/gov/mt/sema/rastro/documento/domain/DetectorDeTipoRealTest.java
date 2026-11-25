@@ -190,4 +190,57 @@ class DetectorDeTipoRealTest {
         assertThat(DetectorDeTipoReal.detectar(pasta.resolve("nao-existe"), "pdf").tipo())
                 .isEqualTo(TipoReal.DESCONHECIDO);
     }
+
+    // ---- V6: Office antigo sem extensão utilizável, pela estrutura (nomes dos fluxos) ----
+
+    private static byte[] xlsSintetico() throws IOException {
+        try (org.apache.poi.hssf.usermodel.HSSFWorkbook livro = new org.apache.poi.hssf.usermodel.HSSFWorkbook();
+                ByteArrayOutputStream saida = new ByteArrayOutputStream()) {
+            livro.createSheet("Dados").createRow(0).createCell(0).setCellValue("valor fictício");
+            livro.write(saida);
+            return saida.toByteArray();
+        }
+    }
+
+    private static byte[] docSintetico() throws IOException {
+        try (org.apache.poi.poifs.filesystem.POIFSFileSystem fs = new org.apache.poi.poifs.filesystem.POIFSFileSystem();
+                ByteArrayOutputStream saida = new ByteArrayOutputStream()) {
+            fs.createDocument(new java.io.ByteArrayInputStream(new byte[1024]), "WordDocument");
+            fs.writeFilesystem(saida);
+            return saida.toByteArray();
+        }
+    }
+
+    @Test
+    void ole2SemExtensaoEIdentificadoPelosFluxosDoDiretorio() throws IOException {
+        byte[] xls = xlsSintetico();
+        byte[] doc = docSintetico();
+
+        for (String extensao : new String[] {null, "", "1", "tmp"}) {
+            assertThat(detectar(xls, extensao)).isEqualTo(new TipoDetectado(TipoReal.PLANILHA, "xls"));
+            assertThat(detectar(doc, extensao)).isEqualTo(new TipoDetectado(TipoReal.TEXTO, "doc"));
+        }
+    }
+
+    @Test
+    void ole2ComExtensaoDeclaradaDePdfNaoERevisto() throws IOException {
+        assertThat(detectar(xlsSintetico(), "pdf").tipo()).isEqualTo(TipoReal.DESCONHECIDO);
+    }
+
+    @Test
+    void ole2ComExtensaoDeOfficeContinuaPelaExtensao() throws IOException {
+        assertThat(detectar(xlsSintetico(), "doc")).isEqualTo(new TipoDetectado(TipoReal.TEXTO, "doc"));
+    }
+
+    @Test
+    void ole2TruncadoOuSemFluxoConhecidoContinuaDesconhecido() throws IOException {
+        byte[] xls = xlsSintetico();
+
+        assertThat(detectar(Arrays.copyOf(xls, 600), null).tipo()).isEqualTo(TipoReal.DESCONHECIDO);
+        assertThat(detectar(comResto(OLE2), null).tipo()).isEqualTo(TipoReal.DESCONHECIDO);
+        // Cabeçalho com tamanho de setor absurdo.
+        byte[] ruim = Arrays.copyOf(xls, xls.length);
+        ruim[0x1E] = 31;
+        assertThat(detectar(ruim, null).tipo()).isEqualTo(TipoReal.DESCONHECIDO);
+    }
 }
