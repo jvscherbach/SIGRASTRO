@@ -319,6 +319,19 @@ Somente Administrador. Detalhes em [12 — Configurações](12-configuracoes.md)
 
 **Visual de Configurações (R2, bloco 13).** Só aparência: abas em `cfg-aba` (item ativo com sublinhado `--trail` e `aria-selected`, foco `--marker`), tabelas e campos com os tokens do Cerrado, tags de estado (`ok`, `warn`, `bad`, `gray`; a classe de aplicação "Vale já" é `ok`, "Exige reinício" é `warn` e "Vale na próxima geração" usa a tag padrão), cartões de conexão com o resultado do teste em `ok`/`falha`/`ressalva` (cor e texto), e a barra de alterações pendentes em `--ink`. Nota de apoio (`.nota-historico`) e caixa com rótulo (`.check`) voltaram a ter estilo na base. Não há aba Aparência. Nada de lógica, validação, serviço ou classe de teste mudou. Testes: `front/src/app/features/configuracoes/*.spec.ts` (57) e `front/e2e/configuracoes-usuarios`, `configuracoes-parametros`, `configuracoes-financeiro` e `layout-tabelas` (38, em 1024, 768 e 360 px).
 
+## 6.1 Painel do Gestor (S10, bloco 7)
+
+Rota `/painel` (título `Painel · SIGRASTRO`), item **Painel** na seção Gestão do menu, só com `permissoes.verPainel` (Gestor e Administrador; o Operador não vê o item e, digitando a rota, volta à Consulta com o aviso de perfil, sem chamar a API). Componente `PainelComponent` (carregado sob demanda); lê `GET /api/painel` (instantâneo em memória, contrato em [07](07-api.md)) e pede `POST /api/painel/atualizacao`.
+
+- **Cabeçalho:** "Ano de 2026 (requerimentos protocolados no ano)", "Dados de dd/mm/aaaa hh:mm", próxima atualização automática e **Atualizar agora**. O `429 ATUALIZACAO_RECENTE` mostra "Tente de novo em N segundos" (`tentarEmSegundos`). Aceita a atualização (202), a tela relê a cada 5 s, no máximo 2 minutos, até chegar uma data de dados nova.
+- **Estados:** `PREPARANDO` (selo, sem gráficos e releitura a cada 5 s por até 2 minutos; depois "A leitura está demorando"), `PRONTO`, `DESATUALIZADO` ("Última leitura falhou em ...; mostrando a de ..."; os gráficos seguem na tela), `INDISPONIVEL` (selo de erro, sem gráficos) e `truncado` (aviso do servidor).
+- **Gráfico 1:** barras agrupadas por mês, em SVG: **protocolados** (barra cheia, à esquerda) e **concluídos (mês aproximado)** (barra listrada, à direita), com o valor sobre cada barra; nota sobre a data aproximada e "N sem data de protocolo".
+- **Gráfico 2:** barras horizontais na ordem do catálogo, rótulo "modelo · etapa", total ao lado; "Fora do catálogo", "Sem instância" e "Etapa não mapeada" em linhas à parte; nota quando a soma das barras passa de `totalNaFila`.
+- **Gráfico 3:** barras horizontais (15 maiores e "Outros (N servidores)"); categorias sem nome (área, interessado, não atribuída, não identificado) com ícone próprio; com `nomesOcultos`, a nota "Nomes ocultos por configuração" e nenhum nome.
+- **Acessibilidade:** cada gráfico tem `role="img"` com `aria-label` resumido e **Ver como tabela** (tabela equivalente, com totais); a informação não depende só de cor (valor numérico, rótulo, barra cheia × listrada e posição); foco visível; sem rolagem horizontal em 360 px; `prefers-reduced-motion` respeitado; impressão com barras em preto e valores legíveis. Cor só por token (`styles/painel.css`); sem biblioteca de gráficos.
+- **Testes:** `painel.component.spec.ts` (15), `menu.spec.ts`, `shell.component.spec.ts` e `front/e2e/painel.e2e.ts` (menu por perfil, os estados, 429, tabela igual ao gráfico, nomes ocultos, 360 e 1280 px).
+- **Configurações (S10, bloco 8):** a aba **Rastro** mostra os cinco campos "Painel: …" (só Administrador; a API responde 403 para Gestor e Operador) com faixa, padrão e "Vale já", e um texto de apoio explicando cada um (o `0` no ano é o ano corrente). Detalhes em [12](12-configuracoes.md#texto-de-apoio-na-aba-rastro-s10-bloco-8).
+
 ## Padrão visual comum (R2)
 
 Vale para todas as telas; guia completo em [design/sigrastro/LEIA-ME.md](design/sigrastro/LEIA-ME.md).

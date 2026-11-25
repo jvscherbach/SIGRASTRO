@@ -21,6 +21,7 @@ function usuario(perfil: Perfil): Usuario {
       acessarConfiguracoes: perfil === 'ADMIN',
       restritoAoInteressado: perfil === 'OPERADOR',
       verResponsavelTarefa: perfil !== 'OPERADOR',
+      verPainel: perfil !== 'OPERADOR',
     },
   };
 }

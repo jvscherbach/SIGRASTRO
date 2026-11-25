@@ -94,7 +94,8 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
             "GET /api/requerimentos/{id}/posicao", "GET /api/processos/{numero}/posicao",
             "GET /api/tramitacao/parametros",
             "GET /api/requerimentos/{id}/tramitacao", "GET /api/processos/{numero}/tramitacao",
-            "GET /api/requerimentos/{id}/financeiro", "GET /api/processos/{numero}/financeiro");
+            "GET /api/requerimentos/{id}/financeiro", "GET /api/processos/{numero}/financeiro",
+            "GET /api/painel", "POST /api/painel/atualizacao");
 
     private enum Perfil {
         OPERADOR("operador.demo"), GESTOR("gestor.demo"), ADMIN("admin.demo");
@@ -146,6 +147,9 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
 
     @MockitoBean
     PessoasDoRequerimento pessoas;
+
+    @Autowired
+    br.gov.mt.sema.rastro.painel.application.AtualizarPainel atualizarPainel;
 
     @Autowired
     @Qualifier("requestMappingHandlerMapping")
@@ -274,6 +278,7 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
         dossiesGerados();
         posicao();
         financeiro();
+        painel();
         mascaramentoNoPdfDoOperador();
 
         varreduraDeVazamento();
@@ -425,6 +430,38 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
                 () -> mvc.perform(get("/api/requerimentos/101/financeiro")));
         verificar(doProcesso, "sem token", null, 401, "NAO_AUTENTICADO",
                 () -> mvc.perform(get("/api/processos/" + processoDoOperador + "/financeiro")));
+    }
+
+    /**
+     * S10, bloco 5: painel do Gestor. O Operador leva 403 {@code PERFIL_SEM_PERMISSAO} nas duas rotas (antes de qualquer
+     * leitura); Gestor e Administrador veem. Sem SIGA, o painel responde 200 (PREPARANDO ou INDISPONIVEL), nunca 5xx. A
+     * atualização manual do Gestor e do Administrador vem depois da primeira consulta (que já iniciou uma leitura), então
+     * cai no intervalo mínimo: 429 {@code ATUALIZACAO_RECENTE}, depois de a leitura em segundo plano terminar.
+     */
+    private void painel() throws Exception {
+        String leitura = "GET /api/painel";
+        String atualizacao = "POST /api/painel/atualizacao";
+        for (Perfil p : Perfil.values()) {
+            boolean op = p == Perfil.OPERADOR;
+            verificar(leitura, "painel", p, op ? 403 : 200, op ? "PERFIL_SEM_PERMISSAO" : null,
+                    () -> comToken(get("/api/painel"), p));
+        }
+        aguardarFimDaAtualizacaoDoPainel();
+        for (Perfil p : Perfil.values()) {
+            boolean op = p == Perfil.OPERADOR;
+            verificar(atualizacao, "atualização manual", p, op ? 403 : 429, op ? "PERFIL_SEM_PERMISSAO" : "ATUALIZACAO_RECENTE",
+                    () -> comToken(post("/api/painel/atualizacao"), p));
+        }
+        verificar(leitura, "sem token", null, 401, "NAO_AUTENTICADO", () -> mvc.perform(get("/api/painel")));
+        verificar(atualizacao, "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(post("/api/painel/atualizacao")));
+    }
+
+    private void aguardarFimDaAtualizacaoDoPainel() throws InterruptedException {
+        long limite = System.nanoTime() + 10_000_000_000L;
+        while (atualizarPainel.emAndamento() && System.nanoTime() < limite) {
+            Thread.sleep(20);
+        }
     }
 
     private void listaDeDocumentos() throws Exception {

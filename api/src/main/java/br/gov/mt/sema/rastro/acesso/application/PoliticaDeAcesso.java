@@ -88,6 +88,11 @@ public class PoliticaDeAcesso {
         return usuario.perfil().podeAcessarConfiguracoes();
     }
 
+    /** S10: o painel do Gestor é só de Gestor e Administrador. */
+    public boolean podeVerPainel(Usuario usuario) {
+        return usuario.perfil().podeVerPainel();
+    }
+
     /** O título como sai para o usuário: o de um documento que ele não acessa é mascarado. */
     public static String mascararTitulo(boolean acessivel, String titulo) {
         return acessivel ? titulo : TITULO_SIGILOSO;
@@ -123,6 +128,13 @@ public class PoliticaDeAcesso {
     public void exigirConfiguracoes() {
         if (!podeAcessarConfiguracoes(usuarioAtual.obter())) {
             throw new PerfilSemPermissaoException("Seu perfil não acessa as configurações.");
+        }
+    }
+
+    /** 403 {@code PERFIL_SEM_PERMISSAO} se o usuário da requisição não vê o painel do Gestor (S10). */
+    public void exigirPainel() {
+        if (!podeVerPainel(usuarioAtual.obter())) {
+            throw new PerfilSemPermissaoException("Seu perfil não acessa o painel.");
         }
     }
 

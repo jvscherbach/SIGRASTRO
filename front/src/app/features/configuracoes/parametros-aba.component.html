@@ -52,6 +52,15 @@
   }
 
   @if (grupo() === 'RASTRO') {
+    <h3 class="aud-sub">Painel do Gestor: o que cada campo "Painel:" faz</h3>
+    <ul class="nota-historico cfg-apoio-painel">
+      <li><b>Ano considerado:</b> 0 é o ano corrente (fuso de Cuiabá); de 2000 a 2100 fixa o ano. O painel sempre mostra o ano na tela.</li>
+      <li><b>Atualização automática:</b> de quantos em quantos minutos o painel refaz a leitura do SIGA e do Camunda.</li>
+      <li><b>Teto de requerimentos:</b> quantos requerimentos uma atualização considera. Acima disso, o painel mostra só os primeiros e avisa.</li>
+      <li><b>Tempo limite da atualização:</b> tempo máximo de uma atualização inteira. Estourado, o painel mantém a última leitura boa.</li>
+      <li><b>Intervalo da atualização manual:</b> tempo mínimo entre dois pedidos de "Atualizar agora".</li>
+    </ul>
+    <p class="nota-historico">Os valores valem na próxima atualização. O painel só lê o SIGA e o Camunda; não grava nada neles.</p>
     <app-diagnostico-financeiro />
   }
 }

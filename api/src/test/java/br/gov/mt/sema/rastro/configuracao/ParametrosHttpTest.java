@@ -27,6 +27,7 @@ import br.gov.mt.sema.rastro.documento.application.port.ParametrosDaVisualizacao
 import br.gov.mt.sema.rastro.documento.domain.OrigemDocumento;
 import br.gov.mt.sema.rastro.dossie.application.port.ParametrosDoDossie;
 import br.gov.mt.sema.rastro.financeiro.application.port.ParametrosDoFinanceiro;
+import br.gov.mt.sema.rastro.painel.application.ParametrosDoPainel;
 import br.gov.mt.sema.rastro.testsupport.BaseHttpDeDocumentos;
 import br.gov.mt.sema.rastro.tramitacao.application.port.ParametrosDoRastro;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -67,6 +68,9 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
 
     @Autowired
     ParametrosDoFinanceiro financeiro;
+
+    @Autowired
+    ParametrosDoPainel painel;
 
     /** Nenhum teste deixa sobreposição para o próximo. */
     @AfterEach
@@ -427,6 +431,71 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
             assertThat(lista.getContentAsString()).contains("PERFIL_SEM_PERMISSAO").doesNotContain("rastro.mostrarValores");
         }
         assertThat(financeiro.mostrarValores()).isTrue();
+    }
+
+    // --- S10, bloco 5: parâmetros do painel, na seção Rastro
+
+    @Test
+    void painel_lista_os_cinco_parametros_imediatos_na_secao_rastro_com_o_padrao() throws Exception {
+        Map<String, String> padroes = Map.of("rastro.painelAno", "0", "rastro.painelAtualizacaoMinutos", "30",
+                "rastro.painelLimiteRequerimentos", "3000", "rastro.painelTimeoutSegundos", "60",
+                "rastro.painelIntervaloMinimoManualSegundos", "120");
+        for (Map.Entry<String, String> p : padroes.entrySet()) {
+            JsonNode parametro = parametro(p.getKey());
+            assertThat(parametro.get("grupo").asText()).as(p.getKey()).isEqualTo("RASTRO");
+            assertThat(parametro.get("classeDeAplicacao").asText()).as(p.getKey()).isEqualTo("IMEDIATO");
+            assertThat(parametro.get("valor").asText()).as(p.getKey()).isEqualTo(p.getValue());
+            assertThat(parametro.get("sobreposto").asBoolean()).as(p.getKey()).isFalse();
+        }
+    }
+
+    @Test
+    void painel_alteracao_gera_um_evento_com_antes_e_depois_e_vale_no_proximo_ciclo() throws Exception {
+        long antes = ultimoId();
+        Map<String, Object> alteracoes = new LinkedHashMap<>();
+        alteracoes.put("rastro.painelAno", 2025);
+        alteracoes.put("rastro.painelAtualizacaoMinutos", 10);
+        alteracoes.put("rastro.painelLimiteRequerimentos", 500);
+
+        assertThat(salvar("admin.demo", alteracoes).getStatus()).isEqualTo(200);
+
+        List<EventoDeAuditoria> novos = eventosConfigDepoisDe(antes);
+        assertThat(novos).hasSize(1);
+        assertThat(novos.get(0).alteracoes()).containsExactly(
+                new AlteracaoDoEvento("Painel: ano considerado (0 = ano corrente)", "0", "2025"),
+                new AlteracaoDoEvento("Painel: atualização automática (min)", "30", "10"),
+                new AlteracaoDoEvento("Painel: teto de requerimentos por atualização", "3000", "500"));
+        assertThat(painel.ano()).isEqualTo(2025);
+        assertThat(painel.atualizacaoMinutos()).isEqualTo(10);
+        assertThat(painel.limiteRequerimentos()).isEqualTo(500);
+        assertThat(mvc.perform(delete(PARAMETROS + "/rastro.painelAno")
+                .header(HttpHeaders.AUTHORIZATION, bearer("admin.demo"))).andReturn().getResponse().getStatus()).isEqualTo(200);
+        assertThat(painel.ano()).isZero();
+    }
+
+    @Test
+    void painel_faixas_e_so_o_administrador_altera() throws Exception {
+        invalido(salvar("admin.demo", Map.of("rastro.painelAno", 1999)), "rastro.painelAno");
+        invalido(salvar("admin.demo", Map.of("rastro.painelAno", 2101)), "rastro.painelAno");
+        invalido(salvar("admin.demo", Map.of("rastro.painelAtualizacaoMinutos", 4)), "rastro.painelAtualizacaoMinutos");
+        invalido(salvar("admin.demo", Map.of("rastro.painelAtualizacaoMinutos", 1441)), "rastro.painelAtualizacaoMinutos");
+        invalido(salvar("admin.demo", Map.of("rastro.painelLimiteRequerimentos", 99)), "rastro.painelLimiteRequerimentos");
+        invalido(salvar("admin.demo", Map.of("rastro.painelLimiteRequerimentos", 20001)), "rastro.painelLimiteRequerimentos");
+        invalido(salvar("admin.demo", Map.of("rastro.painelTimeoutSegundos", 9)), "rastro.painelTimeoutSegundos");
+        invalido(salvar("admin.demo", Map.of("rastro.painelTimeoutSegundos", 301)), "rastro.painelTimeoutSegundos");
+        invalido(salvar("admin.demo", Map.of("rastro.painelIntervaloMinimoManualSegundos", 29)),
+                "rastro.painelIntervaloMinimoManualSegundos");
+        invalido(salvar("admin.demo", Map.of("rastro.painelIntervaloMinimoManualSegundos", 3601)),
+                "rastro.painelIntervaloMinimoManualSegundos");
+        assertThat(salvar("admin.demo", Map.of("rastro.painelAno", 0)).getStatus()).isEqualTo(200);
+        assertThat(salvar("admin.demo", Map.of("rastro.painelAno", 2000)).getStatus()).isEqualTo(200);
+
+        for (String usuario : List.of("operador.demo", "gestor.demo")) {
+            MockHttpServletResponse resposta = salvar(usuario, Map.of("rastro.painelAno", 2025));
+            assertThat(resposta.getStatus()).as(usuario).isEqualTo(403);
+            assertThat(resposta.getContentAsString()).contains("PERFIL_SEM_PERMISSAO");
+        }
+        assertThat(painel.ano()).isEqualTo(2000);
     }
 
     @Test

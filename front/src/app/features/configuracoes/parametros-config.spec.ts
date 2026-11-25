@@ -36,6 +36,13 @@ const VIS_TTL = parametro({ nome: 'visualizacao.ttlMinutos', rotulo: 'Vida do ca
 const RETENCAO = parametro({ nome: 'auditoria.retencaoDocumentosAnos', rotulo: 'Retenção: documentos', grupo: 'AUDITORIA', tipo: 'OPCAO', valor: '5', padrao: '5', minimo: null, maximo: null, opcoes: ['1', '2', '5', '10'], classeDeAplicacao: 'IMEDIATO' });
 const DOWNLOAD = parametro({ nome: 'conexoes.downloadTimeoutSegundos', rotulo: 'Tempo limite de download (s)', grupo: 'CONEXOES', valor: '120', padrao: '120', minimo: 10, maximo: 300 });
 const TODOS = [TTL, THREADS, SUMARIO, ORIGEM, MODO, VIS_TTL, RETENCAO, DOWNLOAD];
+const RASTRO_PAINEL: Parametro[] = [
+  parametro({ nome: 'rastro.painelAno', rotulo: 'Painel: ano considerado (0 = ano corrente)', grupo: 'RASTRO', tipo: 'INTEIRO', valor: '0', padrao: '0', minimo: 0, maximo: 2100, classeDeAplicacao: 'IMEDIATO' }),
+  parametro({ nome: 'rastro.painelAtualizacaoMinutos', rotulo: 'Painel: atualização automática (min)', grupo: 'RASTRO', valor: '30', padrao: '30', minimo: 5, maximo: 1440, classeDeAplicacao: 'IMEDIATO' }),
+  parametro({ nome: 'rastro.painelLimiteRequerimentos', rotulo: 'Painel: teto de requerimentos por atualização', grupo: 'RASTRO', valor: '3000', padrao: '3000', minimo: 100, maximo: 20000, classeDeAplicacao: 'IMEDIATO' }),
+  parametro({ nome: 'rastro.painelTimeoutSegundos', rotulo: 'Painel: tempo limite da atualização (s)', grupo: 'RASTRO', valor: '60', padrao: '60', minimo: 10, maximo: 300, classeDeAplicacao: 'IMEDIATO' }),
+  parametro({ nome: 'rastro.painelIntervaloMinimoManualSegundos', rotulo: 'Painel: intervalo mínimo da atualização manual (s)', grupo: 'RASTRO', valor: '120', padrao: '120', minimo: 30, maximo: 3600, classeDeAplicacao: 'IMEDIATO' }),
+];
 
 const CONEXOES: Conexao[] = [
   { nome: 'siga', rotulo: 'Banco do SIGA', estado: 'CONFIGURADA', horasAteExpirar: null, tokenVencido: false },
@@ -132,6 +139,23 @@ describe('ConfiguracoesComponent: parâmetros, conexões e retenção', () => {
       expect(campo('dossie.origem.JUNTADA').querySelector('.tag')!.textContent!.trim()).toBe('Vale já');
       expect(campo('dossie.sumario').textContent).toContain('Padrão do ambiente: ligado');
       expect(raiz.querySelector('[data-param="conversao.planilhaModo"]')).toBeNull();
+    });
+
+    it('Rastro: os cinco campos do painel aparecem com faixa, padrão e "Vale já", e o texto de apoio explica o 0 do ano', () => {
+      api.parametros.mockReturnValue(of({ parametros: [...TODOS, ...RASTRO_PAINEL] }));
+      abrir();
+      aba('Rastro');
+
+      expect(campo('rastro.painelAno').textContent).toContain('Painel: ano considerado (0 = ano corrente)');
+      expect(campo('rastro.painelAno').textContent).toContain('Faixa: 0 a 2100');
+      expect(campo('rastro.painelAno').textContent).toContain('Padrão do ambiente: 0');
+      expect(campo('rastro.painelAtualizacaoMinutos').textContent).toContain('Faixa: 5 a 1440');
+      expect(campo('rastro.painelLimiteRequerimentos').textContent).toContain('Faixa: 100 a 20000');
+      expect(campo('rastro.painelTimeoutSegundos').textContent).toContain('Faixa: 10 a 300');
+      expect(campo('rastro.painelIntervaloMinimoManualSegundos').textContent).toContain('Faixa: 30 a 3600');
+      expect(campo('rastro.painelAno').querySelector('.tag')!.textContent!.trim()).toBe('Vale já');
+      expect(raiz.querySelector('.cfg-apoio-painel')!.textContent).toContain('0 é o ano corrente (fuso de Cuiabá)');
+      expect(raiz.querySelector('.cfg-apoio-painel')!.textContent).not.toMatch(/senha|token|SIGA_DB|https?:\/\//i);
     });
 
     it('a ordem cronológica aparece como somente leitura (fixa, RN03), sem campo', () => {

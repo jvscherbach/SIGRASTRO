@@ -3,9 +3,9 @@ import { MENU, itemAtivo, menuDasPermissoes } from './menu';
 
 /** Permissões como o back-end devolve em /auth/me para cada perfil (docs/12). */
 const PERMISSOES: Record<'OPERADOR' | 'GESTOR' | 'ADMIN', Permissoes> = {
-  OPERADOR: { verSigilosos: false, verAuditoriaAcessos: false, acessarConfiguracoes: false, restritoAoInteressado: true, verResponsavelTarefa: false },
-  GESTOR: { verSigilosos: true, verAuditoriaAcessos: false, acessarConfiguracoes: false, restritoAoInteressado: false, verResponsavelTarefa: true },
-  ADMIN: { verSigilosos: true, verAuditoriaAcessos: true, acessarConfiguracoes: true, restritoAoInteressado: false, verResponsavelTarefa: true },
+  OPERADOR: { verSigilosos: false, verAuditoriaAcessos: false, acessarConfiguracoes: false, restritoAoInteressado: true, verResponsavelTarefa: false, verPainel: false },
+  GESTOR: { verSigilosos: true, verAuditoriaAcessos: false, acessarConfiguracoes: false, restritoAoInteressado: false, verResponsavelTarefa: true, verPainel: true },
+  ADMIN: { verSigilosos: true, verAuditoriaAcessos: true, acessarConfiguracoes: true, restritoAoInteressado: false, verResponsavelTarefa: true, verPainel: true },
 };
 
 function rotas(permissoes: Permissoes | undefined): string[] {
@@ -19,12 +19,12 @@ describe('menuDasPermissoes (RN08)', () => {
     expect(rotas(PERMISSOES.OPERADOR)).toEqual(['/consulta', '/dossies', '/auditoria/documentos']);
   });
 
-  it('Gestor não recebe Configurações', () => {
-    expect(rotas(PERMISSOES.GESTOR)).toEqual(['/consulta', '/dossies', '/auditoria/documentos']);
+  it('Gestor recebe o Painel e não recebe Configurações', () => {
+    expect(rotas(PERMISSOES.GESTOR)).toEqual(['/consulta', '/dossies', '/painel', '/auditoria/documentos']);
   });
 
   it('Administrador vê tudo, com Auditoria como item único', () => {
-    expect(rotas(PERMISSOES.ADMIN)).toEqual(['/consulta', '/dossies', '/auditoria/documentos', '/configuracoes']);
+    expect(rotas(PERMISSOES.ADMIN)).toEqual(['/consulta', '/dossies', '/painel', '/auditoria/documentos', '/configuracoes']);
   });
 
   it('Auditoria é um item só, para todos os perfis', () => {
@@ -41,6 +41,8 @@ describe('menuDasPermissoes (RN08)', () => {
   it('cada item restrito segue a sua permissão, não o nome do perfil', () => {
     expect(rotas({ ...PERMISSOES.GESTOR, acessarConfiguracoes: true })).toContain('/configuracoes');
     expect(rotas({ ...PERMISSOES.ADMIN, acessarConfiguracoes: false })).not.toContain('/configuracoes');
+    expect(rotas({ ...PERMISSOES.OPERADOR, verPainel: true })).toContain('/painel');
+    expect(rotas({ ...PERMISSOES.GESTOR, verPainel: false })).not.toContain('/painel');
   });
 
   it('sem permissões, nada restrito aparece', () => {

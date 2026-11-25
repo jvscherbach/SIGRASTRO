@@ -1,0 +1,264 @@
+<section aria-label="Painel do Gestor">
+  <app-quadro-topo
+    titulo="Painel"
+    sobretitulo="Visão de conjunto"
+    descricao="Protocolados e concluídos, fila por etapa e carga por responsável."
+  >
+    @if (painel(); as p) {
+      <span etiquetas class="tag gray"><app-icone nome="calendar" />Ano de {{ p.ano }}</span>
+    }
+    <span etiquetas class="tag gray"><app-icone nome="clock" />Instantâneo em memória</span>
+  </app-quadro-topo>
+
+  <app-folha-sobreposta>
+    <section aria-label="Situação do painel" class="painel-cabecalho">
+      <div class="dash-sec-head">
+        <div>
+          @if (painel(); as p) {
+            <h2><app-icone nome="bars" />Ano de {{ p.ano }} (requerimentos protocolados no ano)</h2>
+            <p>
+              @if (p.geradoEm) {
+                Dados de {{ formatarDataHora(p.geradoEm) }}
+              } @else {
+                Ainda sem dados
+              }
+              @if (p.proximaAtualizacaoEm) {
+                · próxima atualização automática por volta de {{ formatarDataHora(p.proximaAtualizacaoEm) }}
+              }
+            </p>
+          } @else {
+            <h2><app-icone nome="bars" />Painel do Gestor</h2>
+          }
+        </div>
+        <button type="button" class="btn sm" [disabled]="atualizando() || carregando()" (click)="atualizarAgora()">
+          <app-icone nome="refresh" />{{ atualizando() ? 'Pedindo…' : 'Atualizar agora' }}
+        </button>
+      </div>
+
+      @if (mensagem()) {
+        <p class="painel-mensagem" role="status"><app-icone nome="info" />{{ mensagem() }}</p>
+      }
+
+      @if (carregando()) {
+        <p class="muted" role="status">Carregando o painel…</p>
+      } @else if (erro()) {
+        <p class="painel-selo erro" role="alert"><app-icone nome="alert" />{{ erro() }}</p>
+      }
+
+      @if (painel(); as p) {
+        @switch (p.estado) {
+          @case ('PREPARANDO') {
+            <p class="painel-selo" role="status">
+              <app-icone nome="clock" />
+              @if (demorando()) {
+                <span>A leitura está demorando. Use "Atualizar agora" para ver de novo.</span>
+              } @else {
+                <span>Preparando o painel: a primeira leitura roda em segundo plano. A tela se atualiza sozinha a cada 5 segundos.</span>
+              }
+            </p>
+          }
+          @case ('DESATUALIZADO') {
+            <p class="painel-selo aviso" role="status">
+              <app-icone nome="alert" />
+              <span>
+                Última leitura falhou{{ p.falhouEm ? ' em ' + formatarDataHora(p.falhouEm) : '' }}; mostrando a de
+                {{ formatarDataHora(p.geradoEm) }}.
+              </span>
+            </p>
+          }
+          @case ('INDISPONIVEL') {
+            <p class="painel-selo erro" role="alert">
+              <app-icone nome="alert" />
+              <span>Painel indisponível: ainda não houve uma leitura com sucesso. Tente "Atualizar agora" em instantes.</span>
+            </p>
+          }
+        }
+        @if (p.truncado && mostraGraficos()) {
+          <p class="painel-selo aviso" role="status"><app-icone nome="alert" /><span>{{ avisoDeTruncado() }}</span></p>
+        }
+        @for (a of avisosGerais(); track a.codigo + a.texto) {
+          <p class="painel-selo aviso" role="status"><app-icone nome="info" /><span>{{ a.texto }}</span></p>
+        }
+      }
+    </section>
+
+    @if (painel(); as p) {
+      @if (mostraGraficos()) {
+        <!-- Gráfico 1 -->
+        <section aria-labelledby="g1-titulo" class="painel-grafico">
+          <div class="dash-sec-head">
+            <div>
+              <h2 id="g1-titulo"><app-icone nome="calendar" />Protocolados × concluídos por mês</h2>
+              <p>Requerimentos protocolados em {{ p.ano }}.</p>
+            </div>
+            <button type="button" class="btn sm quiet" [attr.aria-pressed]="comoTabela().serie" (click)="alternar('serie')">
+              {{ comoTabela().serie ? 'Ver como gráfico' : 'Ver como tabela' }}
+            </button>
+          </div>
+
+          @if (!comoTabela().serie) {
+            <div class="painel-legenda">
+              <span><i class="amostra protocolados"></i>Protocolados (barra cheia, à esquerda)</span>
+              <span><i class="amostra concluidos"></i>Concluídos (mês aproximado) (barra listrada, à direita)</span>
+            </div>
+            <svg
+              class="painel-svg"
+              [attr.viewBox]="'0 0 ' + vb.largura + ' ' + vb.altura"
+              role="img"
+              [attr.aria-label]="resumoDaSerie()"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <defs>
+                <pattern id="hachura-painel" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                  <rect width="6" height="6" class="hachura-fundo" />
+                  <rect width="2.5" height="6" class="hachura-traco" />
+                </pattern>
+              </defs>
+              <line class="eixo" [attr.x1]="vb.esquerda" [attr.x2]="vb.largura - vb.direita" [attr.y1]="vb.altura - vb.base" [attr.y2]="vb.altura - vb.base" />
+              <text class="eixo-texto" [attr.x]="vb.esquerda - 6" [attr.y]="vb.altura - vb.base" text-anchor="end">0</text>
+              <text class="eixo-texto" [attr.x]="vb.esquerda - 6" [attr.y]="vb.topo + 4" text-anchor="end">{{ maximoDaSerie() }}</text>
+              <line class="grade" [attr.x1]="vb.esquerda" [attr.x2]="vb.largura - vb.direita" [attr.y1]="vb.topo" [attr.y2]="vb.topo" />
+              @for (b of barrasDaSerie(); track $index) {
+                <rect
+                  [attr.x]="b.x"
+                  [attr.y]="b.y"
+                  [attr.width]="b.largura"
+                  [attr.height]="b.altura"
+                  [class]="'barra ' + b.serie"
+                  [attr.fill]="b.serie === 'concluidos' ? 'url(#hachura-painel)' : null"
+                />
+                <text class="valor" [attr.x]="b.x + b.largura / 2" [attr.y]="b.y - 3" text-anchor="middle">{{ b.valor }}</text>
+              }
+              @for (m of nomesDosMeses(); track m.nome) {
+                <text class="eixo-texto mes" [attr.x]="m.x" [attr.y]="vb.altura - 10" text-anchor="middle">{{ m.nome }}</text>
+              }
+            </svg>
+          } @else {
+            <div class="tabela-rolavel">
+              <table class="painel-tabela">
+                <caption class="sr-only">Protocolados e concluídos por mês</caption>
+                <thead>
+                  <tr><th scope="col">Mês</th><th scope="col" class="num">Protocolados</th><th scope="col" class="num">Concluídos (mês aproximado)</th></tr>
+                </thead>
+                <tbody>
+                  @for (m of serieCompleta(); track m.mes) {
+                    <tr><th scope="row">{{ m.nome }}</th><td class="num">{{ m.protocolados }}</td><td class="num">{{ m.concluidos }}</td></tr>
+                  }
+                </tbody>
+                <tfoot>
+                  <tr><th scope="row">Total</th><td class="num">{{ p.totalProtocolados }}</td><td class="num">{{ p.totalConcluidos }}</td></tr>
+                </tfoot>
+              </table>
+            </div>
+          }
+          <p class="nota-historico">
+            Protocolados: pelo mês da data de protocolo. Concluídos: pelo mês da última alteração do requerimento, por isso o
+            mês é aproximado (não é o instante da conclusão). Os concluídos são sempre parte dos protocolados do ano.
+          </p>
+          @if (p.semDataDeProtocolo > 0) {
+            <p class="nota-historico">{{ p.semDataDeProtocolo }} sem data de protocolo (fora dos gráficos).</p>
+          }
+        </section>
+
+        <!-- Gráfico 2 -->
+        <section aria-labelledby="g2-titulo" class="painel-grafico">
+          <div class="dash-sec-head">
+            <div>
+              <h2 id="g2-titulo"><app-icone nome="flow" />Fila por etapa</h2>
+              <p>{{ p.totalNaFila }} requerimentos na fila agora, na ordem do fluxo.</p>
+            </div>
+            <button type="button" class="btn sm quiet" [attr.aria-pressed]="comoTabela().fila" (click)="alternar('fila')">
+              {{ comoTabela().fila ? 'Ver como gráfico' : 'Ver como tabela' }}
+            </button>
+          </div>
+
+          @if (!comoTabela().fila) {
+            <div class="barras-h" role="img" [attr.aria-label]="resumoDaFila()">
+              @for (e of p.filaPorEtapa; track $index) {
+                <div class="barra-h">
+                  <span class="rotulo">{{ e.rotulo }}</span>
+                  <span class="trilho"><span class="enchimento" [style.width.%]="porcentagem(e.total, maximoDaFila())"></span></span>
+                  <span class="valor">{{ e.total }}</span>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="tabela-rolavel">
+              <table class="painel-tabela">
+                <caption class="sr-only">Fila por etapa</caption>
+                <thead><tr><th scope="col">Etapa</th><th scope="col" class="num">Requerimentos</th></tr></thead>
+                <tbody>
+                  @for (e of p.filaPorEtapa; track $index) {
+                    <tr><th scope="row">{{ e.rotulo }}</th><td class="num">{{ e.total }}</td></tr>
+                  }
+                  @for (l of linhasAParte(); track l.rotulo) {
+                    <tr><th scope="row">{{ l.rotulo }}</th><td class="num">{{ l.total }}</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+
+          @if (!comoTabela().fila) {
+            <ul class="linhas-a-parte" aria-label="Fora das barras">
+              @for (l of linhasAParte(); track l.rotulo) {
+                <li><span>{{ l.rotulo }}</span><strong>{{ l.total }}</strong></li>
+              }
+            </ul>
+          }
+          @if (somaPassaDoTotal()) {
+            <p class="nota-historico">
+              A soma das barras ({{ somaDasBarras() }}) passa do total na fila ({{ p.totalNaFila }}): um requerimento em
+              etapas paralelas conta uma vez em cada etapa.
+            </p>
+          }
+          <p class="nota-historico">Conta requerimentos, não números de processo. Só a instância principal entra: a complementação em andamento não vira barra.</p>
+        </section>
+
+        <!-- Gráfico 3 -->
+        <section aria-labelledby="g3-titulo" class="painel-grafico">
+          <div class="dash-sec-head">
+            <div>
+              <h2 id="g3-titulo"><app-icone nome="user" />Carga por responsável</h2>
+              <p>Requerimentos na etapa atual de cada responsável (15 maiores e o resto agrupado).</p>
+            </div>
+            <button type="button" class="btn sm quiet" [attr.aria-pressed]="comoTabela().carga" (click)="alternar('carga')">
+              {{ comoTabela().carga ? 'Ver como gráfico' : 'Ver como tabela' }}
+            </button>
+          </div>
+
+          @if (p.nomesOcultos) {
+            <p class="painel-selo" role="status"><app-icone nome="lock" /><span>Nomes ocultos por configuração</span></p>
+          }
+
+          @if (!comoTabela().carga) {
+            <div class="barras-h" role="img" [attr.aria-label]="resumoDaCarga()">
+              @for (c of p.cargaPorResponsavel; track $index) {
+                <div class="barra-h" [class.sem-nome]="semNome(c.tipo)">
+                  <span class="rotulo"><app-icone [nome]="icone(c.tipo)" />{{ c.rotulo }}</span>
+                  <span class="trilho"><span class="enchimento" [style.width.%]="porcentagem(c.total, maximoDaCarga())"></span></span>
+                  <span class="valor">{{ c.total }}</span>
+                </div>
+              } @empty {
+                <p class="muted">Nenhuma tarefa ativa na fila.</p>
+              }
+            </div>
+          } @else {
+            <div class="tabela-rolavel">
+              <table class="painel-tabela">
+                <caption class="sr-only">Carga por responsável</caption>
+                <thead><tr><th scope="col">Responsável</th><th scope="col">Tipo</th><th scope="col" class="num">Requerimentos</th></tr></thead>
+                <tbody>
+                  @for (c of p.cargaPorResponsavel; track $index) {
+                    <tr><th scope="row">{{ c.rotulo }}</th><td>{{ rotuloDoTipo[c.tipo] }}</td><td class="num">{{ c.total }}</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+          <p class="nota-historico">Mostra só o nome do responsável. Um requerimento em etapas paralelas aparece uma vez para cada responsável.</p>
+        </section>
+      }
+    }
+  </app-folha-sobreposta>
+</section>

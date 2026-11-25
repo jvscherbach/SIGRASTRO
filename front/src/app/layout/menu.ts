@@ -26,6 +26,7 @@ export const MENU: SecaoMenu[] = [
   {
     rotulo: 'Gestão',
     itens: [
+      { rotulo: 'Painel', icone: 'bars', rota: '/painel', permissao: 'verPainel' },
       // Item único: "Documentos" e "Acessos" viram abas dentro da tela (R2, bloco 12).
       { rotulo: 'Auditoria', icone: 'shield', rota: '/auditoria/documentos', prefixoAtivo: '/auditoria' },
       { rotulo: 'Configurações', icone: 'settings', rota: '/configuracoes', permissao: 'acessarConfiguracoes' },

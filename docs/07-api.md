@@ -179,6 +179,21 @@ As taxas emitidas, o número do DAR, o vencimento, o pagamento, a isenção e a 
 - **Valores:** `RASTRO_MOSTRAR_VALORES` (docs/12, padrão ligado no protótipo) é lido a cada consulta e vale para todos os perfis: desligado, `valor`, `desconto` e `upf` não existem em nenhuma resposta; o número do DAR continua.
 - **Degradação:** banco do SIGA fora do ar, lento ou não configurado **depois** do acesso conferido = **200** `INDISPONIVEL`, nunca 5xx (e a consulta é registrada). Erros como na posição (403 `NAO_INTERESSADO`, 404 `NAO_ENCONTRADO`, 401; 503 `SIGA_INDISPONIVEL` só quando o acesso não pode ser conferido). O financeiro não afeta a tramitação nem os documentos, e o inverso.
 
+## Painel do Gestor (S10, bloco 5)
+
+A visão de conjunto: protocolados × concluídos no ano, fila por etapa e carga por responsável (docs/15, "Painel"). Controller `painel.api.PainelController`, caso de uso `painel.application.AbrirPainel`. **Só Gestor e Administrador**: o Operador leva 403 `PERFIL_SEM_PERMISSAO` nas duas rotas (e o login traz `permissoes.verPainel`). **Nenhuma requisição consulta o SIGA nem o Camunda**: a rota só lê o instantâneo em memória; a leitura roda em segundo plano.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/painel` | O instantâneo, sempre de imediato. A primeira requisição dispara a primeira leitura (resposta `PREPARANDO`). |
+| `POST` | `/painel/atualizacao` | Atualização manual: `202` (aceita, ou já havia uma em curso) ou `429` `ATUALIZACAO_RECENTE` com `tentarEmSegundos` (e `Retry-After`) antes do intervalo mínimo. |
+
+**Contrato (`PainelResponse`):** `estado` (`PREPARANDO`, `PRONTO`, `DESATUALIZADO`, `INDISPONIVEL`); `ano` (o considerado; sempre presente); `geradoEm`, `falhouEm`, `proximaAtualizacaoEm` (data e hora com fuso de Cuiabá; ausentes quando não valem); `truncado`; `serie[]` (12 meses: `mes` de 1 a 12, `protocolados`, `concluidos` (mês **aproximado**)), `totalProtocolados`, `totalConcluidos`, `semDataDeProtocolo`; `filaPorEtapa[]` (`rotulo`, `total`; ordem do catálogo, barras zeradas incluídas), `totalNaFila`, `foraDoCatalogo`, `semInstancia`, `etapaNaoMapeada`; `cargaPorResponsavel[]` (`rotulo`, `total`, `tipo`: `SERVIDOR`, `AREA`, `INTERESSADO`, `NAO_ATRIBUIDA`, `NAO_IDENTIFICADO` ou `OUTROS`), `nomesOcultos`; `avisos[]` (`codigo`, `texto`: `INCONSISTENCIA_NA_SERIE`, `SOMA_DAS_BARRAS_MAIOR_QUE_O_TOTAL`, `NOMES_OCULTOS`, `TRUNCADO`, `LEITURA_PARCIAL`).
+
+- **Nunca saem:** CPF (nem mascarado), id técnico do Camunda (id de tarefa, chave do modelo), chave de arquivo. Com `RASTRO_MOSTRAR_NOME_RESPONSAVEL` desligado a carga traz só as categorias sem nome, com o aviso `NOMES_OCULTOS`; o valor é lido a cada resposta, então vale na hora.
+- **Estados:** `DESATUALIZADO` mostra o último retrato bom com `falhouEm`; `INDISPONIVEL` nunca teve leitura boa (listas vazias). Nenhum deles vira 5xx.
+- **Auditoria:** evento `PAINEL`, um por consulta e um por atualização manual aceita (detalhe "painel consulta ano 2026 PRONTO"); recusada (429) e negada não registram.
+
 ## Documentos
 
 | Método | Rota | Descrição |
@@ -421,6 +436,8 @@ Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **
 | `GET /processos/{numero}/tramitacao` (S8) | sessão | ✓ | ✓ | ✓ | como a busca por número de processo: filtro na consulta; nenhum dele e o número existe: 403; não existe: 404 | — | — | `restricaoDoUsuarioAtual` (pela busca da consulta); exibição como na linha acima |
 | `GET /requerimentos/{id}/financeiro` (S9) | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler os lançamentos; negado não registra evento) | — | — | `exigirAcessoAoRequerimento`; ids de lançamento e diagnóstico só para Ad (`podeVerIdsTecnicosDoFluxo`); valores conforme `RASTRO_MOSTRAR_VALORES`, para todos |
 | `GET /processos/{numero}/financeiro` (S9) | sessão | ✓ | ✓ | ✓ | como a busca por número de processo: filtro na consulta; nenhum dele e o número existe: 403; não existe: 404 | — | — | `restricaoDoUsuarioAtual` (pela busca da consulta); exibição como na linha acima |
+| `GET /painel` (S10) | sessão | 403 | ✓ | ✓ | — | — | — | `exigirPainel` (`PERFIL_SEM_PERMISSAO`, antes de ler o instantâneo; negado não registra evento); nomes de servidor conforme `RASTRO_MOSTRAR_NOME_RESPONSAVEL` (RN12) |
+| `POST /painel/atualizacao` (S10) | sessão | 403 | ✓ | ✓ | — | — | — | `exigirPainel`; 429 `ATUALIZACAO_RECENTE` antes do intervalo mínimo |
 | `GET /tramitacao/parametros` (S7) | sessão | ✓ | ✓ | ✓ | — | — | — | nenhuma: só números de comportamento da tela (`posicoesSimultaneas`), sem credencial nem dado de negócio |
 | `GET /requerimentos/{id}/documentos` | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler os documentos e de chamar o SCORP) | listados para todos; para o Op, mascarados e bloqueados; geometria sigilosa não aparece para o Op (só `totais.geometriasOmitidas`) | — | `exigirAcessoAoRequerimento`, `podeAcessarDocumento`, `mascararTitulo` |
 | `GET /documentos/{origem}/{id}/conteudo?requerimento=` | sessão | ✓ | ✓ | ✓ | 403/404 do requerimento; origem e id fora do requerimento: 404 | 403 | — | `exigirAcessoAoRequerimento`, `exigirAcessoAoDocumento` (a cada requisição, mesmo com cache) |
@@ -485,6 +502,7 @@ O registro dos eventos é feito pelo próprio back-end nas rotas de consulta, co
 | `GET /requerimentos/{id}/geometrias/arquivo` | `GEOMETRIAS` | ZIP lido por inteiro. |
 | `GET /requerimentos/{id}/tramitacao`, `GET /processos/{numero}/tramitacao` (S8) | `TRAMITACAO` | Tramitação devolvida, inclusive `INDISPONIVEL` e plano B; detalhe "histórico" + identificação do requerimento; no processo, um evento por requerimento devolvido. Só usuário e números: nunca o responsável nem CPF. |
 | `GET /requerimentos/{id}/financeiro`, `GET /processos/{numero}/financeiro` (S9) | `FINANCEIRO` | Histórico financeiro devolvido, inclusive `INDISPONIVEL`; detalhe "financeiro" + identificação do requerimento; no processo, um evento por requerimento devolvido. Só usuário e números: **nunca** valor, número de DAR, situação da taxa nem CPF. |
+| `GET /painel`, `POST /painel/atualizacao` (S10) | `PAINEL` | Consulta devolvida (qualquer estado) e atualização manual **aceita**. Detalhe "painel consulta ano AAAA ESTADO" ou "painel atualizacao manual ano AAAA ESTADO"; sem requerimento. Só usuário, ano e estado: **nunca** nome de servidor nem CPF. Negado e 429 não registram. |
 | `GET /requerimentos/{id}/posicao`, `GET /processos/{numero}/posicao` (S7) | `TRAMITACAO` | Posição devolvida, inclusive `INDISPONIVEL`; no processo, um evento por requerimento devolvido. Só usuário e números: nunca o responsável pela etapa nem CPF. |
 
 ## Configurações

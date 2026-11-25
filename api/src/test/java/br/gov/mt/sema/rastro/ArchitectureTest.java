@@ -33,7 +33,7 @@ class ArchitectureTest {
     private static final String RAIZ = "br.gov.mt.sema.rastro.";
     private static final List<String> MODULOS =
             List.of("acesso", "consulta", "documento", "dossie", "auditoria", "configuracao", "tramitacao",
-                    "financeiro");
+                    "financeiro", "painel");
     private static final List<String> INTEGRACOES =
             List.of("siga", "licenciamento", "scorp", "arrecadacao", "libreoffice");
 
@@ -257,6 +257,29 @@ class ArchitectureTest {
     static final ArchRule dominio_do_financeiro_sem_spring =
             noClasses().that().resideInAPackage(RAIZ + "financeiro.domain..")
                     .should().dependOnClassesThat().resideInAnyPackage("org.springframework..")
+                    .allowEmptyShould(true);
+
+    // S10 (bloco 2): o painel só lê o resumo do ano; não conhece documentos, dossiê nem o financeiro (a falha de um não
+    // afeta o outro). De tramitacao e consulta, só contratos publicados (a regra 6 já barra api e infrastructure alheias).
+    @ArchTest
+    static final ArchRule painel_nao_depende_de_documento_dossie_nem_financeiro =
+            noClasses().that().resideInAPackage(RAIZ + "painel..")
+                    .should().dependOnClassesThat().resideInAnyPackage(RAIZ + "documento..", RAIZ + "dossie..",
+                            RAIZ + "financeiro..")
+                    .allowEmptyShould(true);
+
+    // S10 (bloco 2): o domínio do painel é Java puro (regras de contagem sem framework nem relógio escondido).
+    @ArchTest
+    static final ArchRule dominio_do_painel_sem_spring =
+            noClasses().that().resideInAPackage(RAIZ + "painel.domain..")
+                    .should().dependOnClassesThat().resideInAnyPackage("org.springframework..")
+                    .allowEmptyShould(true);
+
+    // S10 (bloco 2): só o painel e o adaptador do SIGA usam as portas de leitura do painel (só a atualização lê o SIGA).
+    @ArchTest
+    static final ArchRule portas_do_painel_so_no_painel_e_no_siga =
+            noClasses().that().resideOutsideOfPackages(RAIZ + "painel..", RAIZ + "integration.siga..")
+                    .should().dependOnClassesThat().resideInAPackage(RAIZ + "painel.application.port..")
                     .allowEmptyShould(true);
 
     private static String[] concat(String[]... partes) {

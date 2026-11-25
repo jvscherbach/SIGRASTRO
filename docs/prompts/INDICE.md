@@ -19,4 +19,5 @@ Cada sprint é implementada a partir de um prompt `.md` desta pasta. A ordem e o
 | [S1](S1-consulta.md) a [S5](S5-auditoria-e-configuracoes.md) | Consulta, documentos, conversão, acesso, auditoria e configurações |
 | [S6](S6-correcoes-ci-e-ferramentas-claude-code.md), [S6.1](S6.1-guardas-contra-vazamento-de-segredo.md) | Correções, CI e ferramentas do Claude Code |
 | [S7](S7-tramitacao-onde-esta-e-com-quem.md), [S8](S8-tramitacao-historico-e-fluxograma.md), [S9](S9-financeiro-taxas-dar-e-pagamentos.md) | Tramitação e financeiro |
+| [S10](S10-painel-do-gestor.md) | Painel do Gestor: três gráficos (protocolados × concluídos, fila por etapa, carga por responsável) sobre um instantâneo em memória; 9 blocos |
 | [A1](A1-commit-automatico-orquestracao.md) | Commit automático por bloco e orquestração com quatro agentes |

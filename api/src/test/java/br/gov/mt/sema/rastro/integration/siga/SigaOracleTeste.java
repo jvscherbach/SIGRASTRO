@@ -62,6 +62,23 @@ final class SigaOracleTeste {
         }
     }
 
+    private static Map<String, CamundaFicticioBuilder.Resultado> cenariosDoPainel;
+
+    /**
+     * População fictícia do painel (S10, PN01 a PN16, ids 10001 a 12999, {@link CenariosFicticiosDaS10}). Gravada sob
+     * demanda, uma única vez por execução: o volume (1.200 linhas) só interessa aos testes do painel.
+     */
+    static synchronized Map<String, CamundaFicticioBuilder.Resultado> cenariosDoPainel() {
+        if (cenariosDoPainel == null) {
+            try (Connection conexao = DriverManager.getConnection(ORACLE.getJdbcUrl(), "system", ORACLE.getPassword())) {
+                cenariosDoPainel = Map.copyOf(CenariosFicticiosDaS10.carregar(construtorDeCenarios(conexao)));
+            } catch (SQLException e) {
+                throw new IllegalStateException("Falha ao gravar a população do painel para teste", e);
+            }
+        }
+        return cenariosDoPainel;
+    }
+
     private static CamundaFicticioBuilder construtorDeCenarios(Connection conexao) {
         return new CamundaFicticioBuilder(
                 new NamedParameterJdbcTemplate(new SingleConnectionDataSource(conexao, true)),
@@ -71,7 +88,8 @@ final class SigaOracleTeste {
     /**
      * Construtor de cenários com escrita (usuário {@code system}), para o teste que precisa de um cenário próprio além dos
      * da S7 e da S8. Use ids fora das faixas já ocupadas (7000 a 7299 são da S7 e dos testes dela; 8000 a 8199 são da S8;
-     * os testes da S8 usam a partir de 8200; 9001 a 9199 são da S9). Feche o datasource ao terminar.
+     * os testes da S8 usam a partir de 8200; 9001 a 9199 são da S9; 10001 a 12999 são da população do painel da S10,
+     * a partir de 13000 são dos testes da S10). Feche o datasource ao terminar.
      */
     static HikariDataSource dataSourceAdministrador() {
         HikariConfig config = new HikariConfig();

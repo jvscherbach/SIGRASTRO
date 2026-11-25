@@ -13,6 +13,7 @@ export const GESTOR = {
     acessarConfiguracoes: false,
     restritoAoInteressado: false,
     verResponsavelTarefa: true,
+    verPainel: true,
   },
 };
 
@@ -24,7 +25,7 @@ export const OPERADOR = {
   perfil: 'OPERADOR',
   perfilDescricao: 'Operador',
   cpfCnpj: '<CPF_DE_TESTE>',
-  permissoes: { ...GESTOR.permissoes, verSigilosos: false, restritoAoInteressado: true, verResponsavelTarefa: false },
+  permissoes: { ...GESTOR.permissoes, verSigilosos: false, restritoAoInteressado: true, verResponsavelTarefa: false, verPainel: false },
 };
 
 /** Administrador fictício: acesso irrestrito. */

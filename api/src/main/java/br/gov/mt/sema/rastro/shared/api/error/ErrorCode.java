@@ -28,6 +28,7 @@ public enum ErrorCode {
     DOCUMENTO_CORROMPIDO(HttpStatus.UNPROCESSABLE_ENTITY, "Documento corrompido"),
     CONVERSAO_RECUSADA(HttpStatus.UNPROCESSABLE_ENTITY, "Conversão recusada"),
     MUITAS_CONVERSOES(HttpStatus.TOO_MANY_REQUESTS, "Muitas conversões em andamento"),
+    ATUALIZACAO_RECENTE(HttpStatus.TOO_MANY_REQUESTS, "Atualização recente"),
     TICKET_INVALIDO(HttpStatus.FORBIDDEN, "Ticket de download inválido"),
     // Geometrias em ZIP (S4). GEOMETRIAS_INCOMPLETAS sai como 504 quando todas as falhas são de tempo limite.
     GEOMETRIAS_INCOMPLETAS(HttpStatus.BAD_GATEWAY, "Geometrias incompletas"),

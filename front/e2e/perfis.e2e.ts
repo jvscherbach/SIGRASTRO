@@ -5,11 +5,11 @@ import { ADMIN, GESTOR, OPERADOR, UsuarioSimulado, simularApi } from './api-simu
 /** RN08: menu e rotas por perfil, decididos pelas `permissoes` de /auth/me. API simulada, dados fictícios. */
 const PERFIS: { nome: string; usuario: UsuarioSimulado; menu: string[] }[] = [
   { nome: 'Operador', usuario: OPERADOR, menu: ['Consulta', 'Dossiês gerados', 'Auditoria'] },
-  { nome: 'Gestor', usuario: GESTOR, menu: ['Consulta', 'Dossiês gerados', 'Auditoria'] },
+  { nome: 'Gestor', usuario: GESTOR, menu: ['Consulta', 'Dossiês gerados', 'Painel', 'Auditoria'] },
   {
     nome: 'Administrador',
     usuario: ADMIN,
-    menu: ['Consulta', 'Dossiês gerados', 'Auditoria', 'Configurações'],
+    menu: ['Consulta', 'Dossiês gerados', 'Painel', 'Auditoria', 'Configurações'],
   },
 ];
 

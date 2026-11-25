@@ -19,6 +19,7 @@ function usuario(perfil: Perfil): Usuario {
       acessarConfiguracoes: perfil === 'ADMIN',
       restritoAoInteressado: perfil === 'OPERADOR',
       verResponsavelTarefa: perfil !== 'OPERADOR',
+      verPainel: perfil !== 'OPERADOR',
     },
   };
 }
@@ -45,12 +46,14 @@ describe('ShellComponent: barra superior e navegação por perfil (RN08)', () =>
     for (const perfil of ['OPERADOR', 'OPERADOR_SIGILO'] as Perfil[]) {
       atual.set(usuario(perfil));
       fixture.detectChanges();
-      expect(itensDoMenu(raiz)).toEqual(['Consulta', 'Dossiês gerados', 'Auditoria']);
+      expect(itensDoMenu(raiz)).toEqual(
+        perfil === 'OPERADOR' ? ['Consulta', 'Dossiês gerados', 'Auditoria'] : ['Consulta', 'Dossiês gerados', 'Painel', 'Auditoria'],
+      );
     }
 
     atual.set(usuario('ADMIN'));
     fixture.detectChanges();
-    expect(itensDoMenu(raiz)).toEqual(['Consulta', 'Dossiês gerados', 'Auditoria', 'Configurações']);
+    expect(itensDoMenu(raiz)).toEqual(['Consulta', 'Dossiês gerados', 'Painel', 'Auditoria', 'Configurações']);
   });
 
   it('troca de usuário atualiza o menu sem recriar a tela', () => {

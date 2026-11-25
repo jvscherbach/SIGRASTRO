@@ -82,7 +82,8 @@ public record EventoDeAuditoria(long id, ZonedDateTime dataHora, TipoDeEvento ti
     /** Campos obrigatórios por tipo, conforme "Detalhe registrado" de docs/11. */
     private static void exigirCamposDoTipo(TipoDeEvento tipo, Long idRequerimento, String arquivo, String idPedido,
             String detalhe, List<DocumentoDoEvento> documentos, List<AlteracaoDoEvento> alteracoes) {
-        if (tipo.grupo() == GrupoDeEvento.DOCUMENTOS) {
+        // O painel (S10) é uma visão de conjunto: fica no grupo "documentos" da tela, mas não tem requerimento.
+        if (tipo.grupo() == GrupoDeEvento.DOCUMENTOS && tipo != TipoDeEvento.PAINEL) {
             exigir(idRequerimento != null, "idRequerimento");
         }
         switch (tipo) {

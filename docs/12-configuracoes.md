@@ -227,6 +227,22 @@ Cada parâmetro tem uma **classe de aplicação** e uma faixa. O valor do ambien
 - **Exige reinício:** o valor é lido só na subida. Fica pendente e registrado no evento, mas o valor em vigor não muda. **Como as sobreposições somem ao reiniciar, para valer de fato é preciso alterar a variável de ambiente** (R56).
 - **Fora da tela:** credenciais, URLs, diretórios, `SCORP_SIGILO_PADRAO` (decisão da área, P30), `DOSSIE_ESPACO_MINIMO_MB` e os demais limites técnicos. "Orientação automática" está na tabela de Conversão, mas não existe como parâmetro no código.
 
+## Parâmetros do painel (S10, blocos 4 e 5)
+
+Parâmetros `rastro.painel*` (classe **imediato**: lidos a cada ciclo de atualização, valem na próxima). O padrão vem do ambiente (`RASTRO_PAINEL_*`; fora da faixa cai no padrão, com aviso no log). **Desde o bloco 5** os cinco estão no `CatalogoDeParametros`, na seção **Rastro** das Configurações (só Administrador; Operador e Gestor recebem 403 `PERFIL_SEM_PERMISSAO`): editar gera **um único evento `CONFIG` com antes e depois**, e `ParametrosDoPainelDoAmbiente` lê o valor a cada ciclo (sobre `ParametrosEmVigor`). O ano aceita `0` ou 2000 a 2100 (1 a 1999 é recusado com 400).
+
+| Parâmetro | Variável | Faixa | Padrão |
+|---|---|---|---|
+| `rastro.painelAno` | `RASTRO_PAINEL_ANO` | 0 (ano corrente em Cuiabá) ou 2000 a 2100 | 0 |
+| `rastro.painelAtualizacaoMinutos` | `RASTRO_PAINEL_ATUALIZACAO_MINUTOS` | 5 a 1440 | 30 |
+| `rastro.painelLimiteRequerimentos` | `RASTRO_PAINEL_LIMITE_REQUERIMENTOS` | 100 a 20000 | 3000 |
+| `rastro.painelTimeoutSegundos` | `RASTRO_PAINEL_TIMEOUT_SEGUNDOS` | 10 a 300 | 60 |
+| `rastro.painelIntervaloMinimoManualSegundos` | `RASTRO_PAINEL_INTERVALO_MINIMO_MANUAL_SEGUNDOS` | 30 a 3600 | 120 |
+
+**Provas do bloco 6:** mudar `rastro.painelAno` (ex.: 2025) vale na **próxima atualização**, e o recorte do outro ano nunca aparece; desligar o nome do responsável tira todo nome do painel e da auditoria na hora (RN12). Ver `VarreduraDoPainelHttpTest` e `VarreduraDoPainelSemNomeHttpTest`.
+
+**Texto de apoio na aba Rastro (S10, bloco 8):** os cinco campos aparecem com o rótulo "Painel: …", a faixa, o padrão do ambiente e a etiqueta "Vale já" (a tela é guiada pelo catálogo; nenhuma regra nova). Abaixo da lista, a tela explica cada um e diz que `0` no ano é o ano corrente em Cuiabá. Não há validação nova: a faixa e o erro continuam como nos demais parâmetros. Testes: `parametros-config.spec.ts` (campos do painel, faixas, etiqueta e texto de apoio) e `front/e2e/configuracoes-financeiro.e2e.ts` (aba Rastro).
+
 ## Salvamento
 
 - Parâmetros alterados ficam pendentes numa barra fixa com a contagem de alterações, "Descartar" e "Salvar alterações".

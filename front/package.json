@@ -8,7 +8,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "e2e": "playwright test",
-    "capturas": "playwright test --config playwright.capturas.config.ts"
+    "capturas": "playwright test --config playwright.capturas.config.ts",
+    "video:capturar": "node ../tools/video-demo/capturar.mjs"
   },
   "private": true,
   "packageManager": "npm@10.9.3",

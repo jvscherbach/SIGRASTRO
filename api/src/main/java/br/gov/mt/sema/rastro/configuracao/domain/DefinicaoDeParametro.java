@@ -55,7 +55,9 @@ public record DefinicaoDeParametro(String nome, String rotulo, String grupo, Str
 
     public String faixa() {
         return switch (tipo) {
-            case INTEIRO -> "Use um número inteiro de " + minimo + " a " + maximo + ".";
+            case INTEIRO -> ehAnoDoPainel()
+                    ? "Use 0 (ano corrente) ou um ano de 2000 a 2100."
+                    : "Use um número inteiro de " + minimo + " a " + maximo + ".";
             case BOOLEANO -> "Use true ou false.";
             case OPCAO -> "Use " + String.join(", ", opcoes) + ".";
         };
@@ -64,9 +66,17 @@ public record DefinicaoDeParametro(String nome, String rotulo, String grupo, Str
     private Optional<String> inteiro(String valor) {
         try {
             int numero = Integer.parseInt(valor);
+            if (ehAnoDoPainel() && numero != 0 && numero < 2000) {
+                return Optional.empty();
+            }
             return numero >= minimo && numero <= maximo ? Optional.of(String.valueOf(numero)) : Optional.empty();
         } catch (NumberFormatException e) {
             return Optional.empty();
         }
+    }
+
+    /** O ano do painel aceita 0 (ano corrente) ou 2000 a 2100: o buraco entre 1 e 1999 não é faixa contínua. */
+    private boolean ehAnoDoPainel() {
+        return CatalogoDeParametros.RASTRO_PAINEL_ANO.equals(nome);
     }
 }

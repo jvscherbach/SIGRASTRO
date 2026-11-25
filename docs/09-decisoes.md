@@ -631,3 +631,25 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 - **Fronteira da refatoração:** textos visíveis **do back-end** que ainda dizem "Rastro" ou o nome antigo (capa do PDF, metadados, título da API, avisos vindos da API) **não** mudam na R2; viram pendência (R80 em `docs/10`).
 - **Regras curtas do front** entram no `CLAUDE.md`: cor só por token, nenhum brasão nem logo do Estado ou da SEMA, tema único, sem seletor de tema.
 **Consequência:** só `front/` e a documentação mudaram na R2; `api/`, rotas, permissões e regras de negócio ficaram intactos.
+
+## D92 — S10 (bloco 3): regras de contagem do painel do Gestor
+
+**Contexto:** o painel mostra três gráficos a partir de um instantâneo em memória; as regras de contagem são funções puras em `painel.domain` (`MontarSerieDoAno`, `ContarFilaPorEtapa`, `ContarCargaPorResponsavel`), sem Spring nem relógio.
+**Decisão:**
+- **Série:** 12 meses sempre; concluído com mês fora do ano ou sem mês, ou total maior que o de protocolados, gera o aviso `INCONSISTENCIA_NA_SERIE` e os números aparecem como vieram.
+- **Fila:** só requerimentos fora de concluído, cancelado e arquivado; tipo fora do catálogo = "Fora do catálogo"; sem instância ativa = "Sem instância"; id sem etapa, modelo desconhecido ou instância ativa sem tarefa de etapa = "Etapa não mapeada" (nunca some em silêncio). Tarefa de suporte e de fim (ignoradas pelo catálogo) não viram barra. Uma barra por (modelo, etapa), na ordem do catálogo, com as zeradas; o paralelo conta uma vez em cada etapa e a soma maior que o total gera o aviso `SOMA_DAS_BARRAS_MAIOR_QUE_O_TOTAL`.
+- **Carga:** requerimentos distintos por responsável; grupo vira a área do catálogo (grupo sem área cadastrada = "Equipe responsável"; sem grupo ou grupo `0` = "Não atribuída"); 15 maiores servidores e "Outros (N servidores)"; as categorias sem nome (área, interessado, não atribuída, não identificado) nunca entram nesse corte. Com nomes desligados (RN12) só ficam as categorias sem nome, mais a nota "Nomes ocultos por configuração". Empate: nome, depois posição fixa do tipo.
+- Os modelos de saída não têm campo de CPF.
+**Consequência:** o bloco 4 só monta o instantâneo com estas funções; o bloco 5 as expõe na API.
+
+## D93 — S10 (bloco 4): instantâneo do painel em memória, single flight e proteção do SIGA
+
+**Contexto:** o painel não lê o SIGA nem o Camunda a cada requisição (P42); o SIGRASTRO não tem banco próprio.
+**Decisão:**
+- **`InstantaneoDoPainel`** imutável (estado `PREPARANDO`, `PRONTO`, `DESATUALIZADO`, `INDISPONIVEL`; `geradoEm`, `falhouEm`, `truncado`, avisos) numa referência atômica (`GuardarInstantaneo`); a troca é de uma vez. Falha depois de sucesso mantém o último bom como `DESATUALIZADO`; falha sem sucesso é `INDISPONIVEL`.
+- **Primeira leitura** na primeira requisição (não na subida), em segundo plano; depois, um agendamento que acorda a cada minuto (`rastro.agendamento.painel`, `PT1M`) e dispara quando passou `rastro.painelAtualizacaoMinutos` do início da última atualização. **Single flight** por `AtomicBoolean`; a requisição só lê o instantâneo e **nunca** chama as portas.
+- **Um tempo total** (`rastro.painelTimeoutSegundos`) para as três leituras (série, base e lotes de tarefas); o que resta é repassado a cada consulta. Só entram nos lotes os requerimentos da fila que o catálogo conhece. O log de falha leva só a **classe** da exceção.
+- **Carga nas duas formas** (com e sem nomes) no mesmo instantâneo: desligar `RASTRO_MOSTRAR_NOME_RESPONSAVEL` vale já na próxima requisição, sem esperar a atualização (RN12).
+- **Manual** (`SolicitarAtualizacao`): intervalo mínimo desde o início da última atualização (qualquer uma, não só a manual); recusa devolve os segundos que faltam; já havendo uma em curso, aceita sem disparar outra.
+- Parâmetros lidos a cada ciclo; o ano corrente é o de Cuiabá pelo `Clock`. Neste bloco vêm do ambiente (`ParametrosDoPainelDoAmbiente`); a tela de Configurações os sobrepõe no bloco 5.
+**Consequência:** truncado também liga quando algum lote de tarefas passa do teto de linhas da consulta (aviso `LEITURA_PARCIAL`).
