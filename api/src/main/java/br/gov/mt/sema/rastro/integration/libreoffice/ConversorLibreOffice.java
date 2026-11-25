@@ -112,6 +112,8 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
     private final String marca = ProcessosDoConversor.PREFIXO + UUID.randomUUID().toString().substring(0, 8);
 
     private LocalOfficeManager gerente;
+    /** Segundo pool (V6, bloco 3): perfil sem DisableActiveContent, só para planilha XLSX sem conteúdo ativo. */
+    private LocalOfficeManager gerenteDeGraficos;
     private Path trabalho;
     private volatile Instant partidaFalhouEm;
     private boolean encerrado;
@@ -163,7 +165,6 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
         if (!disponivel()) {
             throw new FalhaDeConversaoException(Motivo.CONVERSOR_INDISPONIVEL);
         }
-        LocalOfficeManager pool = pool();
         Path pasta;
         try {
             pasta = Files.createTempDirectory(destinoPdf.toAbsolutePath().getParent(), "conversao-");
@@ -177,6 +178,10 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
             if (DocumentoCriptografado.ooxmlCriptografado(entrada)) {
                 throw new FalhaDeConversaoException(Motivo.PROTEGIDO_POR_SENHA);
             }
+            // Só XLSX sem conteúdo ativo vai ao perfil que desenha gráficos; o resto fica no estrito.
+            PacoteDePlanilha.Analise pacote = "xlsx".equals(extensao) ? PacoteDePlanilha.analisar(entrada) : null;
+            boolean perfilDeGraficos = pacote != null && !pacote.conteudoAtivo();
+            LocalOfficeManager pool = pool(perfilDeGraficos);
             Path saida = pasta.resolve("saida.pdf");
             FiltroDePlanilha planilha = new FiltroDePlanilha(parametros.planilhaModo(), parametros.abasOcultas(),
                     parametros.planilhaEscalaMinima(), titulo);
@@ -184,7 +189,11 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
             int paginas = validarSaida(saida);
             conferirUltimasLinhas(saida, planilha.marcasFinais());
             Files.move(saida, destinoPdf, StandardCopyOption.REPLACE_EXISTING);
-            return new ResultadoDaConversao(paginas, planilha.abasEmPaginaUnica());
+            boolean graficosOmitidos = pacote != null && !perfilDeGraficos && pacote.graficos();
+            if (graficosOmitidos) {
+                log.info("Planilha convertida no perfil estrito: gráficos ou desenhos do documento não foram incluídos.");
+            }
+            return new ResultadoDaConversao(paginas, planilha.abasEmPaginaUnica(), graficosOmitidos);
         } catch (IOException e) {
             throw new FalhaDeConversaoException(Motivo.CORROMPIDO, e);
         } finally {
@@ -365,30 +374,35 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
         }
     }
 
-    private synchronized LocalOfficeManager pool() {
+    private synchronized LocalOfficeManager pool(boolean deGraficos) {
         if (encerrado) {
             throw new FalhaDeConversaoException(Motivo.CONVERSOR_INDISPONIVEL);
         }
-        if (gerente != null && gerente.isRunning()) {
-            return gerente;
+        LocalOfficeManager atual = deGraficos ? gerenteDeGraficos : gerente;
+        if (atual != null && atual.isRunning()) {
+            return atual;
         }
         if (partidaFalhouRecentemente()) {
             throw new FalhaDeConversaoException(Motivo.CONVERSOR_INDISPONIVEL);
         }
         try {
             Files.createDirectories(base);
-            int orfaos = ProcessosDoConversor.encerrarOrfaosAnteriores(base, ESPERA_DE_ENCERRAMENTO);
-            if (orfaos > 0) {
-                log.warn("Encerrados {} processo(s) do LibreOffice deixados por uma execução anterior.", orfaos);
+            if (trabalho == null) {
+                int orfaos = ProcessosDoConversor.encerrarOrfaosAnteriores(base, ESPERA_DE_ENCERRAMENTO);
+                if (orfaos > 0) {
+                    log.warn("Encerrados {} processo(s) do LibreOffice deixados por uma execução anterior.", orfaos);
+                }
+                trabalho = Files.createDirectories(base.resolve(marca));
+                ProcessosDoConversor.registrarDono(trabalho);
             }
-            trabalho = Files.createDirectories(base.resolve(marca));
-            ProcessosDoConversor.registrarDono(trabalho);
-            Path modelo = PerfilSeguro.criar(trabalho.resolve("perfil-modelo"));
+            String nome = deGraficos ? "graficos" : "estrito";
+            Path modelo = PerfilSeguro.criar(trabalho.resolve("perfil-modelo-" + nome), !deGraficos);
+            Path trabalhoDoPool = Files.createDirectories(trabalho.resolve("pool-" + nome));
             LocalOfficeManager novo = LocalOfficeManager.builder()
                     .officeHome(officeHome)
                     .hostName("127.0.0.1")
                     .portNumbers(portasLivres(Math.max(1, parametros.processos())))
-                    .workingDir(trabalho.toFile())
+                    .workingDir(trabalhoDoPool.toFile())
                     .templateProfileDir(modelo.toFile())
                     .maxTasksPerProcess(Math.max(1, parametros.tarefasPorProcesso()))
                     .taskExecutionTimeout(parametros.timeoutSegundos() * 1000L)
@@ -398,10 +412,15 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
                     .startFailFast(true)
                     .build();
             novo.start();
-            gerente = novo;
+            if (deGraficos) {
+                gerenteDeGraficos = novo;
+            } else {
+                gerente = novo;
+            }
             partidaFalhouEm = null;
-            log.info("Conversor de documentos pronto: {} processo(s) do LibreOffice.", parametros.processos());
-            return gerente;
+            log.info("Conversor de documentos pronto ({}): {} processo(s) do LibreOffice.", nome,
+                    parametros.processos());
+            return novo;
         } catch (OfficeException | IOException | RuntimeException e) {
             partidaFalhouEm = relogio.instant();
             log.warn("Conversor de documentos indisponível: o LibreOffice não subiu ({}).", e.getClass().getSimpleName());
@@ -437,14 +456,18 @@ class ConversorLibreOffice implements ConversorDeDocumentos, DisposableBean {
     }
 
     private void pararPool() {
-        if (gerente != null) {
+        for (LocalOfficeManager g : new LocalOfficeManager[] {gerente, gerenteDeGraficos}) {
+            if (g == null) {
+                continue;
+            }
             try {
-                gerente.stop();
+                g.stop();
             } catch (OfficeException | RuntimeException e) {
                 log.warn("Falha ao parar o LibreOffice ({}); processos encerrados à força.", e.getClass().getSimpleName());
             }
-            gerente = null;
         }
+        gerente = null;
+        gerenteDeGraficos = null;
         ProcessosDoConversor.encerrar(marca, ESPERA_DE_ENCERRAMENTO);
         if (trabalho != null) {
             apagarPasta(trabalho);

@@ -653,3 +653,12 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 - **Manual** (`SolicitarAtualizacao`): intervalo mínimo desde o início da última atualização (qualquer uma, não só a manual); recusa devolve os segundos que faltam; já havendo uma em curso, aceita sem disparar outra.
 - Parâmetros lidos a cada ciclo; o ano corrente é o de Cuiabá pelo `Clock`. Neste bloco vêm do ambiente (`ParametrosDoPainelDoAmbiente`); a tela de Configurações os sobrepõe no bloco 5.
 **Consequência:** truncado também liga quando algum lote de tarefas passa do teto de linhas da consulta (aviso `LEITURA_PARCIAL`).
+
+## D94 — V6 (bloco 3): perfil do LibreOffice que desenha gráficos, só para XLSX sem conteúdo ativo
+**Contexto:** o perfil-modelo gravava `DisableActiveContent = true`; com ela o Calc não desenha os gráficos de planilhas XLSX (objetos embutidos), e os dados saem sem eles. As demais proteções (macro nunca executada, vínculo nunca atualizado, `UpdateDocMode.NO_UPDATE`, proxy morto) não têm esse efeito.
+**Decisão:**
+- Dois perfis-modelo: o **estrito** (o de sempre) e o de **gráficos** (mesmas opções, sem `DisableActiveContent`). O segundo pool, com o mesmo limite de processos, tempo limite e encerramento do primeiro, só sobe na primeira planilha que o pedir.
+- Só vai ao perfil de gráficos o **XLSX** cujo pacote ZIP **não** tem `vbaProject*`, `embeddings/`, `oleObject*`, `externalLinks/`, `activeX/` nem relação com `TargetMode="External"` (lidas as entradas e as `.rels`, `PacoteDePlanilha`). Gráficos e desenhos (`xl/charts/*`, `xl/drawings/*`) não contam como conteúdo ativo. Leitura inconclusiva (ZIP ilegível, `.rels` acima de 4 MB): perfil estrito.
+- **XLS binário, DOC, DOCX, ODT, RTF, HTML e ODS ficam sempre no perfil estrito** (ODS por cautela: o pacote guarda gráficos como subdocumentos que não passam pela mesma conferência).
+- Planilha no perfil estrito com gráficos ou desenhos: `ResultadoDaConversao.graficosOmitidos` e a observação "os gráficos desta planilha não foram incluídos" (e o log). A exibição desse aviso na tela do dossiê **não foi ligada**: hoje só a observação do resultado e o log o trazem.
+**Consequência:** risco R84 em [10](10-pendencias-e-riscos.md); revisão de segurança na primeira sprint pós-apresentação.

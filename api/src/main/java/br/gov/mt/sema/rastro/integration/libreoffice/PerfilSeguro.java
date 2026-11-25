@@ -34,14 +34,25 @@ final class PerfilSeguro {
     private PerfilSeguro() {
     }
 
-    /** Cria {@code <diretorio>/user/registrymodifications.xcu} e devolve o diretório (o modelo). */
+    /** Perfil estrito (o padrão): conteúdo ativo desligado. */
     static Path criar(Path diretorio) throws IOException {
+        return criar(diretorio, true);
+    }
+
+    /**
+     * Cria {@code <diretorio>/user/registrymodifications.xcu} e devolve o diretório (o modelo). Sem
+     * {@code DisableActiveContent} (V6, bloco 3) o Calc desenha os gráficos das planilhas XLSX; só se usa para pacote
+     * sem conteúdo ativo ({@link PacoteDePlanilha}). Todas as demais proteções valem nos dois perfis.
+     */
+    static Path criar(Path diretorio, boolean desativarConteudoAtivo) throws IOException {
         Path usuario = Files.createDirectories(diretorio.resolve("user"));
         StringBuilder itens = new StringBuilder();
         String seguranca = "/org.openoffice.Office.Common/Security/Scripting";
         item(itens, seguranca, "MacroSecurityLevel", "3");
         item(itens, seguranca, "DisableMacrosExecution", "true");
-        item(itens, seguranca, "DisableActiveContent", "true");
+        if (desativarConteudoAtivo) {
+            item(itens, seguranca, "DisableActiveContent", "true");
+        }
         item(itens, seguranca, "BlockUntrustedRefererLinks", "true");
         // Calc: 0 sempre, 1 nunca, 2 sob pedido. Writer: 0 nunca, 1 sob pedido, 2 sempre.
         item(itens, "/org.openoffice.Office.Calc/Content/Update", "Link", "1");
