@@ -34,9 +34,11 @@ Regras adicionadas na S7 (bloco 1): (i) o módulo `tramitacao` entra na lista de
 
 Regras adicionadas na S9 (bloco 2): (l) o módulo `financeiro` entra na lista de módulos de negócio; (m) `financeiro` não depende de `documento` nem de `dossie`; (n) `financeiro.domain` não depende de `org.springframework..`.
 
+Regras adicionadas na S10 (bloco 2): (o) o módulo `painel` entra na lista de módulos de negócio; (p) `painel` não depende de `documento`, `dossie` nem `financeiro`; (q) `painel.domain` não depende de `org.springframework..`; (r) fora de `painel` e `integration.siga`, ninguém usa `painel.application.port` (só a atualização do instantâneo lê o SIGA).
+
 Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTest test` (não precisa de Docker). O teste ignora pacotes vazios e passa a inspecioná-los quando recebem classes.
 
-## Contratos internos usados no Rastro
+## Contratos internos usados no SIGRASTRO
 
 | Consumidor | Contrato publicado por | Exemplo |
 |---|---|---|
@@ -62,11 +64,13 @@ Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTes
 | `config` (S9) | `ParametrosDoFinanceiro` (variáveis de ambiente; a tela vem no bloco 10) | `financeiro.application.port` |
 | `financeiro.infrastructure.tramitacao` (S9, blocos 4 e 5) | caso de uso `LerTramitacao` (caminho exato, atrás da porta `CaminhoDaTramitacao`) | `tramitacao.application` |
 | `financeiro.infrastructure.tramitacao` (S9, bloco 5) | implementa a porta `FinanceiroDoRequerimento` (aviso de taxa vencida e marcas nas passagens), chamada por `AbrirPosicao` e `AbrirTramitacao` | `tramitacao.application.port` |
+| `integration.siga` (S10, bloco 2) | portas `ResumoDoAnoNoSiga` e `TarefasAtivasEmLote` (`PainelDoSigaJdbc`, único leitor do SIGA e do Camunda para o painel; sem SIGA, `ResumoDoAnoNaoConfigurado` e `TarefasEmLoteNaoConfiguradas`) | `painel.application.port` |
+| `painel` (S10, bloco 2) | `LimiteDeLeiturasDoCamunda` (cada lote de tarefas ocupa uma vaga) | `tramitacao.application` |
 | `integration.licenciamento` | porta `ArquivosDoRepositorio` | `dossie.application.port` |
 | `dossie.infrastructure` | portas `ValidadorDePdf`, `MontadorDoDossie`, `RepositorioDePedidos`, `FilaDeGeracao` | `dossie.application.port` |
 | `config` | `ParametrosDoDossie` (variáveis de ambiente; a S5 troca) | `dossie.application.port` |
 
-Dependências previstas entre módulos de negócio: `documento` → `consulta`, `acesso`; `dossie` → `documento`, `consulta`, `acesso`. Não há ciclo (o `ArchitectureTest` fiscaliza). `consulta` não depende de `documento` nem de `dossie`. `tramitacao` (S7) → `consulta` e `acesso`, só por porta ou caso de uso publicado; nunca `documento` nem `dossie`. O SQL do Camunda e do Licenciamento que ela consome fica em `integration.siga`, atrás de portas de `tramitacao.application`. `financeiro` (S9) não depende de `documento` nem de `dossie`; da `tramitacao`, só por porta (S9, blocos 4 e 5); o SQL de `LANCAMENTO_TAXA` fica em `integration.siga`, atrás de `financeiro.application.port`.
+Dependências previstas entre módulos de negócio: `documento` → `consulta`, `acesso`; `dossie` → `documento`, `consulta`, `acesso`. Não há ciclo (o `ArchitectureTest` fiscaliza). `consulta` não depende de `documento` nem de `dossie`. `tramitacao` (S7) → `consulta` e `acesso`, só por porta ou caso de uso publicado; nunca `documento` nem `dossie`. O SQL do Camunda e do Licenciamento que ela consome fica em `integration.siga`, atrás de portas de `tramitacao.application`. `financeiro` (S9) não depende de `documento` nem de `dossie`; da `tramitacao`, só por porta (S9, blocos 4 e 5); o SQL de `LANCAMENTO_TAXA` fica em `integration.siga`, atrás de `financeiro.application.port`. `painel` (S10) → `tramitacao` (e, a partir do bloco 3, `consulta`) só por contrato publicado; nunca `documento`, `dossie` nem `financeiro`; o SQL do painel (`sql/siga/painel/`) fica em `integration.siga`, atrás de `painel.application.port`.
 
 **Nunca são contrato interno:** DTO HTTP de outro módulo, entidade JPA de outro módulo, repository concreto de outro módulo, DTO de integração externa.
 
