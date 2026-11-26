@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { AuthService } from '../../core/auth.service';
+import { destinoInicial } from '../../core/destino';
 import { IconeComponent } from '../../shared/icone.component';
 import { MarcaComponent } from '../../shared/marca.component';
 import { ToastService } from '../../shared/toast.service';
@@ -67,7 +68,7 @@ export class LoginComponent {
       next: (u) => {
         this.toast.info(`Acesso simulado como ${u.nome}.`);
         const destino = this.rota.snapshot.queryParamMap.get('retorno');
-        void this.router.navigateByUrl(destino && destino.startsWith('/') ? destino : '/consulta');
+        void this.router.navigateByUrl(destino && destino.startsWith('/') ? destino : destinoInicial(u));
       },
       error: (erro: unknown) => {
         this.entrando.set(false);

@@ -34,6 +34,7 @@ export const TIPOS_DO_GRUPO: Record<GrupoDeAuditoria, { codigo: string; rotulo: 
 export const ROTULO_DO_PERFIL: Record<string, string | undefined> = {
   OPERADOR: 'Operador',
   OPERADOR_SIGILO: 'Gestor',
+  ANALISTA: 'Analista',
   ADMIN: 'Administrador',
 };
 

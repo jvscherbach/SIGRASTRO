@@ -8,9 +8,11 @@ public record UsuarioResponse(String login, String nome, Perfil perfil, String p
 
     public static UsuarioResponse de(Usuario usuario) {
         Perfil perfil = usuario.perfil();
-        return new UsuarioResponse(usuario.login(), usuario.nome(), perfil, perfil.rotulo(), usuario.cpfCnpj(),
+        // S11: o CPF do Analista é o vínculo com o Camunda e nunca sai em resposta, nem mascarado
+        String cpfCnpj = perfil.podeVerCaixa() ? null : usuario.cpfCnpj();
+        return new UsuarioResponse(usuario.login(), usuario.nome(), perfil, perfil.rotulo(), cpfCnpj,
                 new PermissoesResponse(perfil.podeVerSigilosos(), perfil.podeVerAuditoriaAcessos(),
                         perfil.podeAcessarConfiguracoes(), perfil.restritoAoInteressado(),
-                        perfil.podeVerResponsavelTarefa(), perfil.podeVerPainel()));
+                        perfil.podeVerResponsavelTarefa(), perfil.podeVerPainel(), perfil.podeVerCaixa()));
     }
 }

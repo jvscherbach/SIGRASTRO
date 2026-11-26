@@ -26,6 +26,7 @@ function usuario(perfil: Perfil): Usuario {
       restritoAoInteressado: perfil === 'OPERADOR',
       verResponsavelTarefa: perfil !== 'OPERADOR',
       verPainel: perfil !== 'OPERADOR',
+      verCaixa: false,
     },
   };
 }

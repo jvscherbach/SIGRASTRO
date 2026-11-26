@@ -319,6 +319,10 @@ Somente Administrador. Detalhes em [12 — Configurações](12-configuracoes.md)
 
 **Visual de Configurações (R2, bloco 13).** Só aparência: abas em `cfg-aba` (item ativo com sublinhado `--trail` e `aria-selected`, foco `--marker`), tabelas e campos com os tokens do Cerrado, tags de estado (`ok`, `warn`, `bad`, `gray`; a classe de aplicação "Vale já" é `ok`, "Exige reinício" é `warn` e "Vale na próxima geração" usa a tag padrão), cartões de conexão com o resultado do teste em `ok`/`falha`/`ressalva` (cor e texto), e a barra de alterações pendentes em `--ink`. Nota de apoio (`.nota-historico`) e caixa com rótulo (`.check`) voltaram a ter estilo na base. Não há aba Aparência. Nada de lógica, validação, serviço ou classe de teste mudou. Testes: `front/src/app/features/configuracoes/*.spec.ts` (57) e `front/e2e/configuracoes-usuarios`, `configuracoes-parametros`, `configuracoes-financeiro` e `layout-tabelas` (38, em 1024, 768 e 360 px).
 
+## 6.0 Minha caixa (S11, bloco 2: tela provisória)
+
+Rota `/caixa` (título `Minha caixa · SIGRASTRO`), item **Minha caixa** como primeiro da seção "Área de trabalho", só com `permissoes.verCaixa` (perfil Analista). Depois do login, ao abrir a raiz e quando uma rota restrita o barra, o Analista cai aqui (os demais perfis, na Consulta; digitando `/caixa` eles voltam à Consulta com o aviso de perfil). Por ora mostra "Em construção"; a caixa de verdade (resumo, visões, busca, caixinha de aviso) é o bloco 7.
+
 ## 6.1 Painel do Gestor (S10, bloco 7)
 
 Rota `/painel` (título `Painel · SIGRASTRO`), item **Painel** na seção Gestão do menu, só com `permissoes.verPainel` (Gestor e Administrador; o Operador não vê o item e, digitando a rota, volta à Consulta com o aviso de perfil, sem chamar a API). Componente `PainelComponent` (carregado sob demanda); lê `GET /api/painel` (instantâneo em memória, contrato em [07](07-api.md)) e pede `POST /api/painel/atualizacao`.

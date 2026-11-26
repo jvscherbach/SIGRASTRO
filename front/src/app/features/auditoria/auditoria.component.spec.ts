@@ -63,6 +63,7 @@ function usuario(perfil: 'OPERADOR' | 'OPERADOR_SIGILO' | 'ADMIN'): Usuario {
       restritoAoInteressado: perfil === 'OPERADOR',
       verResponsavelTarefa: ve,
       verPainel: ve,
+      verCaixa: false,
     },
   };
 }

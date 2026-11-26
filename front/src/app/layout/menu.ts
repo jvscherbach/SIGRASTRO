@@ -19,6 +19,7 @@ export const MENU: SecaoMenu[] = [
   {
     rotulo: 'Área de trabalho',
     itens: [
+      { rotulo: 'Minha caixa', icone: 'plan', rota: '/caixa', permissao: 'verCaixa' },
       { rotulo: 'Consulta', icone: 'search', rota: '/consulta' },
       { rotulo: 'Dossiês gerados', icone: 'layers', rota: '/dossies' },
     ],

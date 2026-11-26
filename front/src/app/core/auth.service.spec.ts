@@ -11,7 +11,7 @@ const USUARIO: Usuario = {
   perfil: 'OPERADOR_SIGILO',
   perfilDescricao: 'Gestor',
   cpfCnpj: null,
-  permissoes: { verSigilosos: true, verAuditoriaAcessos: false, acessarConfiguracoes: false, restritoAoInteressado: false, verResponsavelTarefa: false, verPainel: false },
+  permissoes: { verSigilosos: true, verAuditoriaAcessos: false, acessarConfiguracoes: false, restritoAoInteressado: false, verResponsavelTarefa: false, verPainel: false, verCaixa: false },
 };
 
 describe('AuthService', () => {

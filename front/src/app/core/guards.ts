@@ -4,6 +4,7 @@ import { map } from 'rxjs';
 
 import { ToastService } from '../shared/toast.service';
 import { AuthService } from './auth.service';
+import { destinoInicial } from './destino';
 import { mensagemDoCodigo } from './mensagens-erro';
 import { PermissaoDeTela } from './usuario.model';
 
@@ -21,7 +22,7 @@ export const autenticadoGuard: CanActivateFn = () => {
   return auth.restaurar().pipe(map((ok) => (ok ? true : router.createUrlTree(['/login']))));
 };
 
-/** Quem já está autenticado não volta ao login. */
+/** Quem já está autenticado não volta ao login: vai ao destino do perfil (o Analista, à caixa). */
 export const visitanteGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
@@ -29,7 +30,13 @@ export const visitanteGuard: CanActivateFn = () => {
   if (!auth.token()) {
     return true;
   }
-  return auth.restaurar().pipe(map((ok) => (ok ? router.createUrlTree(['/consulta']) : true)));
+  return auth.restaurar().pipe(map((ok) => (ok ? router.createUrlTree([destinoInicial(auth.usuario())]) : true)));
+};
+
+/** Rota raiz do shell: leva ao destino do perfil (o Analista, à caixa; os demais, à consulta). */
+export const destinoInicialGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  return inject(Router).createUrlTree([destinoInicial(auth.usuario())]);
 };
 
 /**
@@ -47,5 +54,5 @@ export const permissaoGuard: CanActivateFn = (route) => {
     return true;
   }
   toast.erro(mensagemDoCodigo('PERFIL_SEM_PERMISSAO'));
-  return router.createUrlTree(['/consulta']);
+  return router.createUrlTree([destinoInicial(usuario)]);
 };

@@ -93,6 +93,11 @@ public class PoliticaDeAcesso {
         return usuario.perfil().podeVerPainel();
     }
 
+    /** S11: a caixa de entrada é só do Analista; Operador, Gestor e Administrador não têm caixa. */
+    public boolean podeVerCaixa(Usuario usuario) {
+        return usuario.perfil().podeVerCaixa();
+    }
+
     /** O título como sai para o usuário: o de um documento que ele não acessa é mascarado. */
     public static String mascararTitulo(boolean acessivel, String titulo) {
         return acessivel ? titulo : TITULO_SIGILOSO;
@@ -135,6 +140,13 @@ public class PoliticaDeAcesso {
     public void exigirPainel() {
         if (!podeVerPainel(usuarioAtual.obter())) {
             throw new PerfilSemPermissaoException("Seu perfil não acessa o painel.");
+        }
+    }
+
+    /** 403 {@code PERFIL_SEM_PERMISSAO} se o usuário da requisição não tem caixa de entrada (S11), antes de qualquer leitura. */
+    public void exigirCaixa() {
+        if (!podeVerCaixa(usuarioAtual.obter())) {
+            throw new PerfilSemPermissaoException("Seu perfil não tem caixa de entrada.");
         }
     }
 

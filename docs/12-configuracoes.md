@@ -4,16 +4,18 @@ Tela acessível apenas ao perfil Administrador. Toda alteração gera evento na 
 
 ## Perfis e permissões
 
-| Permissão | Operador | Gestor | Administrador |
-|---|:---:|:---:|:---:|
-| Consultar e visualizar documentos | Só como interessado | ✓ | ✓ |
-| Ver e incluir documentos sigilosos | — | ✓ | ✓ |
-| Gerar e baixar dossiê | Só como interessado | ✓ | ✓ |
-| Auditoria de documentos | Só como interessado | ✓ | ✓ |
-| Auditoria de acessos | — | — | ✓ |
-| Configurações | — | — | ✓ |
+| Permissão | Operador | Gestor | Analista (S11) | Administrador |
+|---|:---:|:---:|:---:|:---:|
+| Consultar e visualizar documentos | Só como interessado | ✓ | ✓ | ✓ |
+| Ver e incluir documentos sigilosos | — | ✓ | — | ✓ |
+| Gerar e baixar dossiê | Só como interessado | ✓ | ✓ | ✓ |
+| Auditoria de documentos | Só como interessado | ✓ | ✓ | ✓ |
+| Auditoria de acessos | — | — | — | ✓ |
+| Configurações | — | — | — | ✓ |
+| Painel do Gestor (`verPainel`) | — | ✓ | — | ✓ |
+| Caixa de entrada (`verCaixa`) | — | — | ✓ | — |
 
-"Só como interessado": processos e requerimentos em que o CPF/CNPJ do usuário é o do interessado (RN07). O Administrador tem acesso irrestrito.
+"Só como interessado": processos e requerimentos em que o CPF/CNPJ do usuário é o do interessado (RN07). O Administrador tem acesso irrestrito. **Analista (D96):** só tem a permissão `verCaixa`; não é restrito ao interessado (abre os requerimentos da própria caixa), não vê sigilosos nem o responsável da tarefa. Gestor e Administrador **não** têm caixa: levam `403 PERFIL_SEM_PERMISSAO`. O CPF do Analista é o vínculo com o Camunda, opcional no cadastro, e nunca sai em resposta (nem mascarado, nem em `/auth/me`).
 
 **Regras aplicadas no back-end (S4, RNF10)**, todas decididas pela `PoliticaDeAcesso` (D60):
 
@@ -35,7 +37,7 @@ A matriz completa, endpoint por endpoint, está em [07 — API](07-api.md#matriz
 
 **Testado (S5, bloco 11):** a matriz cobre `/auditoria/**` e `/configuracoes/**` por perfil, vínculo e sigilo. `VarreduraDaAuditoriaHttpTest` injeta token, cookie, URL, caminho e CPF/CNPJ no motivo de uma falha, no título e no nome de um documento e varre lista, detalhe de todos os eventos, CSV, usuários, parâmetros e conexões. `AcessoRevogadoHttpTest` prova que usuário desativado ou rebaixado perde o acesso na requisição seguinte, com sessão aberta, com ticket já emitido e com o pedido que ele mesmo gerou (D70). `ImutabilidadeDaAuditoriaTest` prova que nenhuma rota nem método público altera ou apaga evento.
 
-Códigos: `OPERADOR`, `OPERADOR_SIGILO`, `ADMIN`. Na versão definitiva, a identidade vem da autenticação institucional; o perfil é atribuído nesta tela. Itens de menu sem permissão não são exibidos (RN08).
+Códigos: `OPERADOR`, `OPERADOR_SIGILO`, `ANALISTA`, `ADMIN`. Na versão definitiva, a identidade vem da autenticação institucional; o perfil é atribuído nesta tela. Itens de menu sem permissão não são exibidos (RN08).
 
 ## Abas
 
@@ -45,7 +47,7 @@ Códigos: `OPERADOR`, `OPERADOR_SIGILO`, `ADMIN`. Na versão definitiva, a ident
 - Perfil e situação são alterados direto na lista e gravados na hora (evento `USUARIO`).
 - Inclusão por gaveta lateral: nome, login, CPF/CNPJ e perfil. Login é único; CPF/CNPJ é obrigatório para o Operador.
 - Usuário inativo não entra no sistema; o histórico de auditoria é mantido.
-- **Regras no back-end (S5, bloco 7, D68):** login de 3 a 60 caracteres (letras, números, ponto, hífen ou sublinhado), único e normalizado; CPF/CNPJ conferido pelos dígitos verificadores, guardado só como dígitos e devolvido só mascarado; perfil `OPERADOR`, `OPERADOR_SIGILO` ou `ADMIN`. Não é possível desativar nem rebaixar o último Administrador ativo, nem desativar o próprio usuário. Mudar para Operador exige CPF/CNPJ já cadastrado: a alteração não recebe documento, então quem não o tem precisa ser incluído de novo com outro login.
+- **Regras no back-end (S5, bloco 7, D68):** login de 3 a 60 caracteres (letras, números, ponto, hífen ou sublinhado), único e normalizado; CPF/CNPJ conferido pelos dígitos verificadores, guardado só como dígitos e devolvido só mascarado; perfil `OPERADOR`, `OPERADOR_SIGILO`, `ANALISTA` ou `ADMIN` (o CPF/CNPJ é opcional para o Analista e, informado, é conferido; a lista não o devolve, nem mascarado). Não é possível desativar nem rebaixar o último Administrador ativo, nem desativar o próprio usuário. Mudar para Operador exige CPF/CNPJ já cadastrado: a alteração não recebe documento, então quem não o tem precisa ser incluído de novo com outro login.
 - **Senha:** os usuários incluídos entram com a senha única do protótipo (`VISTAS_DEMO_SENHA`); não há autenticação nova (D09).
 - **Memória:** incluídos e alterados somem ao reiniciar, e o serviço volta aos três usuários de demonstração. O último acesso também.
 

@@ -26,10 +26,14 @@ Resposta de `GET /auth/me` (e o campo `usuario` do login):
     "verAuditoriaAcessos": false,
     "acessarConfiguracoes": false,
     "restritoAoInteressado": true,
-    "verResponsavelTarefa": false
+    "verResponsavelTarefa": false,
+    "verPainel": false,
+    "verCaixa": false
   }
 }
 ```
+
+Perfil `ANALISTA` (S11, D96): só `verCaixa` é verdadeiro e o campo `cpfCnpj` vem **nulo** (o CPF é o vínculo com o Camunda e nunca sai na API). O contrato da caixa (`/api/caixa`) chega no bloco 6 da S11.
 
 ## Consulta
 
