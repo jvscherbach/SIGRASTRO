@@ -66,6 +66,9 @@ describe('LoginComponent', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('[role="alert"]')?.textContent).toContain('Usuário ou senha inválidos.');
     expect((el.querySelector('#login-senha') as HTMLInputElement).value).toBe('');
+    // a senha digitada nunca fica na página (nem em atributo), e o usuário não é repetido na mensagem
+    expect(el.innerHTML).not.toContain('senha-de-teste-123');
+    expect(el.querySelector('[role="alert"]')?.textContent).not.toContain('alguem');
   });
 
   it('bloqueio temporário (429) mostra o tempo restante em minutos', () => {

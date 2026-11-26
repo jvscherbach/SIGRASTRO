@@ -102,6 +102,8 @@ describe('MinhaContaComponent', () => {
     expect(campo('senhaAtual').getAttribute('aria-invalid')).toBe('true');
     expect(campo('novaSenha').value).toBe('');
     expect(raiz.querySelector('.mc-sucesso')).toBeNull();
+    expect(raiz.innerHTML).not.toContain(NOVA);
+    expect(raiz.innerHTML).not.toContain(ATUAL);
   });
 
   it('bloqueio (429) mostra o tempo restante em minutos', () => {
