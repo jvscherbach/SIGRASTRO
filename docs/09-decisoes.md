@@ -710,3 +710,16 @@ Registro das decisões técnicas. Cada decisão traz o contexto, o que foi decid
 **Contexto:** a varredura da matriz de acesso do bloco 10 achou que o Analista (não restrito ao interessado, D96) recebia 200 em `GET /api/auditoria/documentos`, vendo os eventos de todos os requerimentos e usuários.
 **Decisão:** a auditoria de documentos passa a ser negada ao Analista (`Perfil.podeVerAuditoriaDeDocumentos`, `PoliticaDeAcesso.exigirAuditoriaDeDocumentos`, 403 `PERFIL_SEM_PERMISSAO`, antes de qualquer leitura, também no detalhe e na exportação). No front, o item "Auditoria" do menu some para quem tem `verCaixa` (`ocultoComPermissao`); a rota direta continua existindo e mostra o erro 403 da API. Operador, Gestor e Administrador não mudam.
 **Consequência:** `docs/07` e `docs/12` atualizados; a matriz de acesso do Analista nas demais rotas é provada por `CaixaAcessoVazamentoResilienciaHttpTest`.
+
+## D103 — S11 (bloco 11): fechamento da sprint, roteiro e escopo pós-apresentação
+
+**Contexto:** o bloco 11 fecha a S11 (caixa do analista e lista por analista, 11 blocos). Ficaram fora desta sprint itens que o prompt manda registrar sem os escrever: persistência do visto (H1), revisão com Opus, validação com dados reais, grupos, aviso de saída, "pago que virou isento", documentos sigilosos divergentes e conversão de planilhas sem tipo.
+**Decisão:**
+- O roteiro de homologação é `docs/roteiros/s11-homologacao.md`, com a coluna **Resultado** em `Não executado`. Nenhum item é marcado como validado com dados reais.
+- A seção "Primeira sprint pós-apresentação" de `docs/14` registra os oito itens, cada um com o motivo, sem escrever o prompt.
+- O tema antigo "pago que virou isento" sai da numeração da S11 e vai para a lista pós-apresentação.
+- Os pontos provisórios D96 a D102 e P47 a P49 entram no roteiro (seção 8) e em `docs/10` (P50), como provisórios ou NÃO CONFIRMADOS.
+- O espelho de `docs/padroes/modulos-e-dependencias.md` continua **diferente** da fonte nesta sessão (o modo automático não grava em `.claude/`); a cópia fica como pendência do responsável (R87).
+- A suíte completa roda uma vez, por quem comanda o fechamento; os números reais entram em `docs/progresso/s11.md` por esse passo, não por esta sessão.
+
+**Consequência:** a homologação com dados reais continua do responsável; a lista pós-apresentação é o que a S11 deixa aberto.
