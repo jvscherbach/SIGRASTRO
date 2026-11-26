@@ -25,7 +25,7 @@ describe('menuDasPermissoes (RN08)', () => {
   });
 
   it('Analista recebe "Minha caixa" (só ele) e não recebe Painel nem Configurações', () => {
-    expect(rotas(PERMISSOES.ANALISTA)).toEqual(['/caixa', '/consulta', '/dossies', '/auditoria/documentos']);
+    expect(rotas(PERMISSOES.ANALISTA)).toEqual(['/caixa', '/consulta', '/dossies']);
     for (const outro of [PERMISSOES.OPERADOR, PERMISSOES.GESTOR, PERMISSOES.ADMIN]) {
       expect(rotas(outro)).not.toContain('/caixa');
     }

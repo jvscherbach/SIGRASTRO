@@ -24,7 +24,7 @@ test('Analista: o login leva à Minha caixa e o menu traz o item', async ({ page
 
   await expect(page).toHaveURL(/\/caixa$/);
   await expect(page.getByRole('heading', { name: 'Minha caixa' })).toBeVisible();
-  await expect(page.locator('.top .nav a')).toHaveText(['Minha caixa', 'Consulta', 'Dossiês gerados', 'Auditoria']);
+  await expect(page.locator('.top .nav a')).toHaveText(['Minha caixa', 'Consulta', 'Dossiês gerados']);
 });
 
 test('Analista: abrir a raiz com sessão também cai na caixa', async ({ page }) => {

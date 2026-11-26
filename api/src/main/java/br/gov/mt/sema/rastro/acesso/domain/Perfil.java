@@ -68,6 +68,14 @@ public enum Perfil {
         return verResponsavelTarefa;
     }
 
+    /**
+     * A auditoria de documentos (S5) é do Operador (só os requerimentos dele), do Gestor e do Administrador. O Analista
+     * (S11) não a vê: como não é restrito ao interessado, veria os eventos de todos (achado da varredura do bloco 10).
+     */
+    public boolean podeVerAuditoriaDeDocumentos() {
+        return this != ANALISTA;
+    }
+
     /** O painel do Gestor (S10) é só de Gestor e Administrador. */
     public boolean podeVerPainel() {
         return verPainel;

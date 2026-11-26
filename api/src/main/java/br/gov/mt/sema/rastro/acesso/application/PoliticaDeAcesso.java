@@ -83,6 +83,18 @@ public class PoliticaDeAcesso {
         return usuario.perfil().podeVerAuditoriaAcessos();
     }
 
+    /** S11 (bloco 10): a auditoria de documentos não é do Analista, que não é restrito ao interessado. */
+    public boolean podeVerAuditoriaDeDocumentos(Usuario usuario) {
+        return usuario.perfil().podeVerAuditoriaDeDocumentos();
+    }
+
+    /** 403 {@code PERFIL_SEM_PERMISSAO} se o usuário da requisição não vê a auditoria de documentos. */
+    public void exigirAuditoriaDeDocumentos() {
+        if (!podeVerAuditoriaDeDocumentos(usuarioAtual.obter())) {
+            throw new PerfilSemPermissaoException("Seu perfil não acessa a auditoria de documentos.");
+        }
+    }
+
     /** RF25: as configurações são só do Administrador. */
     public boolean podeAcessarConfiguracoes(Usuario usuario) {
         return usuario.perfil().podeAcessarConfiguracoes();

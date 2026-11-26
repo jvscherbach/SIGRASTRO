@@ -39,6 +39,10 @@ class PerfilTest {
         assertThat(perfil.podeAcessarConfiguracoes()).isFalse();
         assertThat(perfil.podeVerResponsavelTarefa()).isFalse();
         assertThat(perfil.podeVerPainel()).isFalse();
+        assertThat(perfil.podeVerAuditoriaDeDocumentos()).isFalse();
+        assertThat(Perfil.OPERADOR.podeVerAuditoriaDeDocumentos()).isTrue();
+        assertThat(Perfil.OPERADOR_SIGILO.podeVerAuditoriaDeDocumentos()).isTrue();
+        assertThat(Perfil.ADMIN.podeVerAuditoriaDeDocumentos()).isTrue();
         assertThat(perfil.podeVerIdsTecnicosDoFluxo()).isFalse();
         assertThat(perfil.rotulo()).isEqualTo("Analista");
     }

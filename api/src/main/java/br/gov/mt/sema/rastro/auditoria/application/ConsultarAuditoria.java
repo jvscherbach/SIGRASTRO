@@ -101,6 +101,8 @@ public class ConsultarAuditoria {
     private Visao visao(GrupoDeEvento grupo) {
         if (grupo == GrupoDeEvento.ACESSOS) {
             politica.exigirAuditoriaDeAcessos();
+        } else {
+            politica.exigirAuditoriaDeDocumentos();
         }
         return new Visao(politica.regraDoInteressadoDoUsuarioAtual(), politica.podeVerDocumentoSigiloso());
     }

@@ -8,6 +8,8 @@ export interface ItemMenu {
   prefixoAtivo?: string;
   /** Permissão exigida para ver o item (RN08). Sem ela, todos veem. */
   permissao?: PermissaoDeTela;
+  /** Permissão que esconde o item (o Analista, com `verCaixa`, não vê a Auditoria: a API responde 403). */
+  ocultoComPermissao?: PermissaoDeTela;
 }
 
 export interface SecaoMenu {
@@ -29,7 +31,7 @@ export const MENU: SecaoMenu[] = [
     itens: [
       { rotulo: 'Painel', icone: 'bars', rota: '/painel', permissao: 'verPainel' },
       // Item único: "Documentos" e "Acessos" viram abas dentro da tela (R2, bloco 12).
-      { rotulo: 'Auditoria', icone: 'shield', rota: '/auditoria/documentos', prefixoAtivo: '/auditoria' },
+      { rotulo: 'Auditoria', icone: 'shield', rota: '/auditoria/documentos', prefixoAtivo: '/auditoria', ocultoComPermissao: 'verCaixa' },
       { rotulo: 'Configurações', icone: 'settings', rota: '/configuracoes', permissao: 'acessarConfiguracoes' },
     ],
   },
@@ -37,7 +39,9 @@ export const MENU: SecaoMenu[] = [
 
 /** Menu das permissões do usuário: o que ele não usa não é renderizado (RN08), e seções vazias somem. */
 export function menuDasPermissoes(permissoes: Permissoes | undefined): SecaoMenu[] {
-  const visivel = (item: ItemMenu) => !item.permissao || permissoes?.[item.permissao] === true;
+  const visivel = (item: ItemMenu) =>
+    (!item.permissao || permissoes?.[item.permissao] === true) &&
+    !(item.ocultoComPermissao && permissoes?.[item.ocultoComPermissao] === true);
   return MENU.map((secao) => ({ ...secao, itens: secao.itens.filter(visivel) })).filter((secao) => secao.itens.length > 0);
 }
 

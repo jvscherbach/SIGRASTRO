@@ -9,7 +9,7 @@ Tela acessível apenas ao perfil Administrador. Toda alteração gera evento na 
 | Consultar e visualizar documentos | Só como interessado | ✓ | ✓ | ✓ |
 | Ver e incluir documentos sigilosos | — | ✓ | — | ✓ |
 | Gerar e baixar dossiê | Só como interessado | ✓ | ✓ | ✓ |
-| Auditoria de documentos | Só como interessado | ✓ | ✓ | ✓ |
+| Auditoria de documentos | Só como interessado | ✓ | — (403, bloco 10 da S11) | ✓ |
 | Auditoria de acessos | — | — | — | ✓ |
 | Configurações | — | — | — | ✓ |
 | Painel do Gestor (`verPainel`) | — | ✓ | — | ✓ |
