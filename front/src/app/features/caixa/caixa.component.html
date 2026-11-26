@@ -1,0 +1,169 @@
+<section aria-label="Minha caixa">
+  <app-quadro-topo
+    titulo="Minha caixa"
+    sobretitulo="Área de trabalho"
+    descricao="Os requerimentos que estão com você na análise."
+  >
+    <span etiquetas class="tag gray"><app-icone nome="clock" />Instantâneo em memória</span>
+  </app-quadro-topo>
+
+  <app-folha-sobreposta>
+    <section aria-label="Situação da caixa" class="painel-cabecalho">
+      <div class="dash-sec-head">
+        <div>
+          <h2 #titulo tabindex="-1"><app-icone nome="layers" />Requerimentos na sua posse</h2>
+          @if (caixa(); as c) {
+            @if (c.geradoEm) {
+              <p>Atualizado às {{ horaDaAtualizacao(c.geradoEm) }}</p>
+            } @else {
+              <p>Ainda sem dados</p>
+            }
+          }
+        </div>
+        <button type="button" class="btn sm" [disabled]="atualizando() || carregando()" (click)="atualizarAgora()">
+          <app-icone nome="refresh" />{{ atualizando() ? 'Pedindo…' : 'Atualizar' }}
+        </button>
+      </div>
+
+      @if (mensagem()) {
+        <p class="painel-mensagem" role="status"><app-icone nome="info" />{{ mensagem() }}</p>
+      }
+
+      <!-- Região viva fixa: o leitor de tela anuncia a caixinha quando ela aparece -->
+      <div class="caixa-aviso-regiao" role="status" aria-live="polite">
+        @if (caixa(); as c) {
+          @if (!c.semVinculo && c.novos > 0) {
+            <button type="button" class="caixa-aviso" aria-haspopup="dialog" (click)="abrirMudancas()">
+              <app-icone nome="sparkle" /><span>{{ textoDaCaixinha() }}</span><small>Ver o que chegou</small>
+            </button>
+          }
+        }
+      </div>
+
+      @if (carregando()) {
+        <p class="muted" role="status">Carregando a sua caixa…</p>
+      } @else if (erro()) {
+        <p class="painel-selo erro" role="alert"><app-icone nome="alert" />{{ erro() }}</p>
+      }
+
+      @if (caixa(); as c) {
+        @if (c.semVinculo) {
+          <p class="painel-selo aviso" role="status"><app-icone nome="alert" /><span>{{ c.mensagem }}</span></p>
+        } @else {
+          @switch (c.estado) {
+            @case ('PREPARANDO') {
+              <p class="painel-selo" role="status">
+                <app-icone nome="clock" />
+                @if (demorando()) {
+                  <span>A leitura está demorando. Use "Atualizar" para ver de novo.</span>
+                } @else {
+                  <span>Preparando a sua caixa: a primeira leitura roda em segundo plano. A tela se atualiza sozinha a cada 5 segundos.</span>
+                }
+              </p>
+            }
+            @case ('DESATUALIZADO') {
+              <p class="painel-selo aviso" role="status">
+                <app-icone nome="alert" />
+                <span>A última leitura falhou; mostrando a das {{ horaDaAtualizacao(c.geradoEm) }}. Os avisos podem estar atrasados.</span>
+              </p>
+            }
+            @case ('INDISPONIVEL') {
+              <p class="painel-selo erro" role="alert">
+                <app-icone nome="alert" />
+                <span>A caixa está indisponível: ainda não houve uma leitura com sucesso. Tente "Atualizar" em instantes.</span>
+              </p>
+            }
+          }
+          @if (c.incompleta && mostraLista()) {
+            <p class="painel-selo aviso" role="status">
+              <app-icone nome="alert" /><span>A leitura foi parcial: pode haver requerimentos seus que ainda não aparecem.</span>
+            </p>
+          }
+        }
+      }
+    </section>
+
+    @if (caixa(); as c) {
+      @if (mostraLista()) {
+        <section aria-label="Resumo da caixa" class="caixa-resumo">
+          <div class="caixa-numero" data-resumo="total"><b>{{ c.resumo.total }}</b><span>Total na caixa</span></div>
+          @for (e of c.resumo.porEtapa; track e.id) {
+            <div class="caixa-numero"><b>{{ e.quantidade }}</b><span>{{ e.rotulo }}</span></div>
+          }
+          <div class="caixa-numero" data-resumo="correcao">
+            <b>{{ c.resumo.comInteressado }}</b><span>Com o interessado (correção)</span>
+          </div>
+        </section>
+
+        <section aria-label="Lista de requerimentos" class="caixa-lista-secao">
+          <div class="caixa-visoes" role="group" aria-label="Visão da lista">
+            <button type="button" [attr.aria-pressed]="etapa() === ''" (click)="escolherEtapa('')">Geral</button>
+            @for (e of c.resumo.porEtapa; track e.id) {
+              <button type="button" [attr.aria-pressed]="etapa() === e.id" (click)="escolherEtapa(e.id)">
+                {{ e.rotulo }} ({{ e.quantidade }})
+              </button>
+            }
+            <button type="button" [attr.aria-pressed]="etapa() === etapaCorrecao" (click)="escolherEtapa(etapaCorrecao)">
+              Com o interessado ({{ c.resumo.comInteressado }})
+            </button>
+          </div>
+
+          <div class="toolbar">
+            <div class="search">
+              <app-icone nome="search" />
+              <input
+                type="search"
+                aria-label="Buscar por nome do interessado ou número"
+                placeholder="Interessado ou número…"
+                maxlength="100"
+                [value]="busca()"
+                (input)="digitarBusca($event)"
+              />
+            </div>
+            <select aria-label="Ordenação" [value]="ordem()" (change)="escolherOrdem($event)">
+              <option value="MAIS_PARADO" [selected]="ordem() === 'MAIS_PARADO'">Mais tempo parado primeiro</option>
+              <option value="MAIS_RECENTE" [selected]="ordem() === 'MAIS_RECENTE'">Mais recente primeiro</option>
+            </select>
+            @if (temFiltro()) {
+              <button type="button" class="btn sm quiet" (click)="limparFiltros()">Limpar filtros</button>
+            }
+          </div>
+
+          @if (c.linhas.length === 0) {
+            <p class="muted" role="status">
+              {{ temFiltro() ? 'Nenhum requerimento corresponde aos filtros.' : 'Nenhum requerimento na sua caixa.' }}
+            </p>
+          } @else {
+            <ul class="caixa-lista" aria-label="Requerimentos da caixa">
+              @for (l of c.linhas; track l.id) {
+                <li [class.novo]="l.novo">
+                  <a class="caixa-numero-link" [routerLink]="['/consulta/requerimentos', l.id]">{{ l.numero ?? 'Sem número' }}</a>
+                  <span class="caixa-interessado">{{ l.interessado ?? 'Interessado não informado' }}</span>
+                  <span class="caixa-meta">{{ l.tipo ?? 'Tipo não informado' }}</span>
+                  <span class="caixa-etapa">
+                    @if (linhaComInteressado(l)) {
+                      <span class="tag amber">Com o interessado</span>
+                    }
+                    {{ l.etapa }}
+                  </span>
+                  <span class="caixa-dias">{{ textoDosDias(l.diasNaEtapa) }} na etapa</span>
+                  @if (l.novo) {
+                    <span class="tag ok caixa-novo">Novo</span>
+                  }
+                </li>
+              }
+            </ul>
+          }
+          <p class="muted caixa-ajuda">
+            O que você já viu fica guardado só em memória: ao reiniciar o sistema, a marca "Novo" volta do zero e nada é avisado de
+            novo retroativamente.
+          </p>
+        </section>
+      }
+    }
+  </app-folha-sobreposta>
+</section>
+
+@if (mudancasAbertas()) {
+  <app-caixa-mudancas (fechar)="fecharMudancas()" (visto)="aoGravarVisto()" />
+}

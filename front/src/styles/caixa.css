@@ -1,0 +1,38 @@
+/* Minha caixa (S11, bloco 7): só tokens; a informação nunca depende só de cor. */
+.caixa-aviso-regiao{margin:0 0 10px}
+.caixa-aviso{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;width:100%;padding:12px 14px;border-radius:10px;text-align:left;background:var(--marker-tint);color:var(--ink);box-shadow:inset 0 0 0 2px var(--marker);font-size:.9375rem;font-weight:700}
+.caixa-aviso .icon{flex:none;width:18px;height:18px}
+.caixa-aviso small{margin-left:auto;font-weight:600;text-decoration:underline}
+.caixa-aviso:focus-visible{outline:3px solid var(--marker);outline-offset:2px}
+
+.caixa-resumo{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0 0 16px}
+.caixa-numero{display:grid;gap:2px;padding:10px 12px;border-radius:10px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line);min-width:0}
+.caixa-numero b{font:700 1.5rem var(--body);font-variant-numeric:tabular-nums}
+.caixa-numero span{font-size:.8125rem;color:var(--slate);overflow-wrap:anywhere}
+
+.caixa-lista-secao{display:grid;gap:10px;min-width:0}
+.caixa-visoes{display:flex;flex-wrap:wrap;gap:6px}
+.caixa-visoes button{padding:8px 14px;border-radius:8px;background:var(--paper);color:var(--slate);font-size:.875rem;font-weight:600;box-shadow:inset 0 0 0 1px var(--line)}
+.caixa-visoes button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:inset 0 0 0 2px var(--ink)}
+.caixa-visoes button:focus-visible{outline:3px solid var(--marker);outline-offset:2px}
+
+.caixa-lista,.caixa-mudancas{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.caixa-lista li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;align-items:center;padding:10px 12px;border-radius:10px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--line);min-width:0}
+.caixa-lista li.novo{box-shadow:inset 0 0 0 2px var(--ok)}
+.caixa-lista .caixa-numero-link{font-weight:700;color:var(--ink);overflow-wrap:anywhere}
+.caixa-lista .caixa-interessado,.caixa-mudancas .caixa-interessado{font-size:.9375rem;overflow-wrap:anywhere}
+.caixa-meta,.caixa-etapa,.caixa-dias{font-size:.8125rem;color:var(--slate);overflow-wrap:anywhere}
+.caixa-lista .caixa-dias{font-variant-numeric:tabular-nums}
+.caixa-lista .caixa-novo{grid-column:2;grid-row:1;justify-self:end}
+.caixa-lista li > *{min-width:0}
+.caixa-ajuda{font-size:.8125rem;margin:4px 0 0}
+
+.caixa-mudancas li{display:grid;gap:6px;padding:10px 12px;border-radius:10px;box-shadow:inset 0 0 0 1px var(--line);min-width:0}
+.caixa-mudancas a{display:grid;gap:2px;color:var(--ink);text-decoration:none;min-width:0}
+.caixa-mudancas a:focus-visible{outline:3px solid var(--marker);outline-offset:2px}
+.caixa-origem{justify-self:start;white-space:normal}
+
+@media (min-width:720px){
+  .caixa-lista li{grid-template-columns:minmax(0,1.2fr) minmax(0,2fr) minmax(0,1.4fr) minmax(0,1.6fr) auto auto}
+  .caixa-lista .caixa-novo{grid-column:auto;grid-row:auto}
+}

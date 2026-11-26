@@ -319,9 +319,19 @@ Somente Administrador. Detalhes em [12 — Configurações](12-configuracoes.md)
 
 **Visual de Configurações (R2, bloco 13).** Só aparência: abas em `cfg-aba` (item ativo com sublinhado `--trail` e `aria-selected`, foco `--marker`), tabelas e campos com os tokens do Cerrado, tags de estado (`ok`, `warn`, `bad`, `gray`; a classe de aplicação "Vale já" é `ok`, "Exige reinício" é `warn` e "Vale na próxima geração" usa a tag padrão), cartões de conexão com o resultado do teste em `ok`/`falha`/`ressalva` (cor e texto), e a barra de alterações pendentes em `--ink`. Nota de apoio (`.nota-historico`) e caixa com rótulo (`.check`) voltaram a ter estilo na base. Não há aba Aparência. Nada de lógica, validação, serviço ou classe de teste mudou. Testes: `front/src/app/features/configuracoes/*.spec.ts` (57) e `front/e2e/configuracoes-usuarios`, `configuracoes-parametros`, `configuracoes-financeiro` e `layout-tabelas` (38, em 1024, 768 e 360 px).
 
-## 6.0 Minha caixa (S11, bloco 2: tela provisória)
+## 6.0 Minha caixa (S11, blocos 2 e 7)
 
-Rota `/caixa` (título `Minha caixa · SIGRASTRO`), item **Minha caixa** como primeiro da seção "Área de trabalho", só com `permissoes.verCaixa` (perfil Analista). Depois do login, ao abrir a raiz e quando uma rota restrita o barra, o Analista cai aqui (os demais perfis, na Consulta; digitando `/caixa` eles voltam à Consulta com o aviso de perfil). Por ora mostra "Em construção"; a caixa de verdade (resumo, visões, busca, caixinha de aviso) é o bloco 7.
+Rota `/caixa` (título `Minha caixa · SIGRASTRO`), item **Minha caixa** como primeiro da seção "Área de trabalho", só com `permissoes.verCaixa` (perfil Analista). Depois do login, ao abrir a raiz e quando uma rota restrita o barra, o Analista cai aqui (os demais perfis, na Consulta; digitando `/caixa` eles voltam à Consulta com o aviso de perfil). Componentes `CaixaComponent` e `CaixaMudancasComponent` (sob demanda); lê `GET /api/caixa` (instantâneo em memória, contrato em [07](07-api.md)), `GET /api/caixa/avisos`, `POST /api/caixa/avisos/visto` e `POST /api/caixa/atualizar`. Nenhuma tela lê o SIGA nem o Camunda.
+
+- **Cabeçalho:** "Atualizado às HH:MM" (Cuiabá) e o botão **Atualizar** (202 espera uma data nova, relendo a cada 5 s por até 2 minutos; 429 mostra "Tente de novo em N segundos").
+- **Resumo:** total na caixa, uma contagem por etapa de posse (análise e revisão, inclusive zeradas) e "Com o interessado (correção)".
+- **Visões:** botões **Geral**, um por etapa e **Com o interessado**; pedem a etapa ao servidor (`aria-pressed` na ativa). **Busca** por nome do interessado ou número (espera 300 ms depois da última tecla, sem acento) e **ordenação** (mais tempo parado primeiro, o padrão, ou mais recente).
+- **Lista:** número (link para o requerimento), **interessado** (só o nome), tipo, etapa, dias na etapa ("sem informação" quando não há dado, nunca inventado) e a marca **Novo**; itens com o interessado levam a tag "Com o interessado". Em 360 px cada linha vira um cartão, sem rolagem horizontal.
+- **Estados:** `PREPARANDO` (relê sozinha), `DESATUALIZADO` (mantém a lista e avisa), `INDISPONIVEL` (aviso, sem lista), leitura parcial (`incompleta`) e **sem CPF vinculado** (mensagem "Seu usuário não está vinculado a um servidor. Peça ao Administrador.", sem lista nem caixinha).
+- **Caixinha de aviso:** região viva (`role="status"`, `aria-live="polite"`) com o botão destacado "N requerimentos chegaram para você" (vem de `novos` de `GET /api/caixa`). Ao clicar abre a **lista de mudanças** (diálogo com `appFocoPreso`, Esc e clique fora): processo, interessado, etapa e **de onde veio**. Receber a lista grava o visto só daquele conjunto e a caixa se relê, então a caixinha e as marcas "Novo" somem; ao fechar, o foco vai ao botão ou, se ele sumiu, ao título da lista. Clicar em um item abre o requerimento. Se gravar o visto falhar, a lista continua visível e o aviso volta na próxima abertura.
+- **Ajuda discreta:** o visto fica só em memória e zera quando o sistema reinicia (reinício = primeiro acesso, sem aviso retroativo).
+
+Testes: `caixa.component.spec.ts` (22) e `front/e2e/caixa.e2e.ts` e `caixa-destino.e2e.ts` (caixa vazia, itens, aviso e depois sem aviso, busca, ordenação, por etapa, sem CPF vinculado, Atualizar, 360, 390 e 1280 px, nenhum CPF/CNPJ no DOM).
 
 ## 6.1 Painel do Gestor (S10, bloco 7)
 

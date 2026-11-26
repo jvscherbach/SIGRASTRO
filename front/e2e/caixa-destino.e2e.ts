@@ -10,13 +10,20 @@ async function entrar(page: import('@playwright/test').Page, login: string): Pro
   await page.getByRole('button', { name: 'Entrar' }).click();
 }
 
-test('Analista: o login leva à Minha caixa (tela provisória) e o menu traz o item', async ({ page }) => {
+test('Analista: o login leva à Minha caixa e o menu traz o item', async ({ page }) => {
   await simularApi(page, { comSessao: false });
+  await page.route('**/api/caixa**', (route) =>
+    route.fulfill({
+      json: {
+        estado: 'PRONTO', geradoEm: '2028-06-15T12:30:00-04:00', falhouEm: null, incompleta: false, semVinculo: false,
+        mensagem: null, novos: 0, resumo: { total: 0, comInteressado: 0, porEtapa: [] }, linhas: [],
+      },
+    }),
+  );
   await entrar(page, ANALISTA.login);
 
   await expect(page).toHaveURL(/\/caixa$/);
   await expect(page.getByRole('heading', { name: 'Minha caixa' })).toBeVisible();
-  await expect(page.getByText('Em construção')).toBeVisible();
   await expect(page.locator('.top .nav a')).toHaveText(['Minha caixa', 'Consulta', 'Dossiês gerados', 'Auditoria']);
 });
 
