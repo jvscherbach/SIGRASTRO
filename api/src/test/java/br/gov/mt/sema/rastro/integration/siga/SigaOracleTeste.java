@@ -79,6 +79,37 @@ final class SigaOracleTeste {
         return cenariosDoPainel;
     }
 
+    private static Map<String, CamundaFicticioBuilder.Resultado> cenariosDaCaixa;
+    private static Map<String, CamundaFicticioBuilder.Resultado> volumeDaCaixa;
+
+    /**
+     * População fictícia da caixa do analista (S11, CX01 a CX17, ids 15001 a 15017 e pessoas 15001 a 15004,
+     * {@link CenariosFicticiosDaS11}). Gravada sob demanda, uma única vez por execução. Datas em 2027 e 2028: fora da base do
+     * painel de 2026.
+     */
+    static synchronized Map<String, CamundaFicticioBuilder.Resultado> cenariosDaCaixa() {
+        if (cenariosDaCaixa == null) {
+            try (Connection conexao = DriverManager.getConnection(ORACLE.getJdbcUrl(), "system", ORACLE.getPassword())) {
+                cenariosDaCaixa = Map.copyOf(CenariosFicticiosDaS11.carregar(construtorDeCenarios(conexao)));
+            } catch (SQLException e) {
+                throw new IllegalStateException("Falha ao gravar a população da caixa para teste", e);
+            }
+        }
+        return cenariosDaCaixa;
+    }
+
+    /** Volume da caixa (S11): 1.200 requerimentos na análise (ids 16001 a 17200), sob demanda e separado dos cenários. */
+    static synchronized Map<String, CamundaFicticioBuilder.Resultado> volumeDaCaixa() {
+        if (volumeDaCaixa == null) {
+            try (Connection conexao = DriverManager.getConnection(ORACLE.getJdbcUrl(), "system", ORACLE.getPassword())) {
+                volumeDaCaixa = Map.copyOf(CenariosFicticiosDaS11.carregarVolume(construtorDeCenarios(conexao)));
+            } catch (SQLException e) {
+                throw new IllegalStateException("Falha ao gravar o volume da caixa para teste", e);
+            }
+        }
+        return volumeDaCaixa;
+    }
+
     private static CamundaFicticioBuilder construtorDeCenarios(Connection conexao) {
         return new CamundaFicticioBuilder(
                 new NamedParameterJdbcTemplate(new SingleConnectionDataSource(conexao, true)),
@@ -89,7 +120,8 @@ final class SigaOracleTeste {
      * Construtor de cenários com escrita (usuário {@code system}), para o teste que precisa de um cenário próprio além dos
      * da S7 e da S8. Use ids fora das faixas já ocupadas (7000 a 7299 são da S7 e dos testes dela; 8000 a 8199 são da S8;
      * os testes da S8 usam a partir de 8200; 9001 a 9199 são da S9; 10001 a 12999 são da população do painel da S10,
-     * a partir de 13000 são dos testes da S10). Feche o datasource ao terminar.
+     * a partir de 13000 são dos testes da S10, 15001 a 15099 e 16001 a 17200 são da população da caixa da S11, a partir de
+     * 18000 são dos testes da S11). Feche o datasource ao terminar.
      */
     static HikariDataSource dataSourceAdministrador() {
         HikariConfig config = new HikariConfig();

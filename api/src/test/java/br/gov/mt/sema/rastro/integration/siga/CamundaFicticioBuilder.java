@@ -169,6 +169,21 @@ public final class CamundaFicticioBuilder {
         return new Processo(fluxo, idRequerimento);
     }
 
+    /**
+     * Grava uma pessoa fictícia (S11): o nome precisa levar "Exemplo" e o documento começa com quatro zeros (CPF ou CNPJ
+     * inválido de propósito), para nunca gravar dado real. O mesmo campo guarda pessoa e empresa.
+     */
+    public void pessoaFicticia(long id, String nome, String documento) {
+        if (nome == null || !nome.contains("Exemplo")) {
+            throw new IllegalArgumentException("nome de pessoa fictícia precisa conter \"Exemplo\"");
+        }
+        if (documento == null || !documento.matches("0000[0-9]{7}|0000[0-9]{10}")) {
+            throw new IllegalArgumentException("documento fictício: 4 zeros e mais 7 (CPF) ou 10 (CNPJ) dígitos, inválido");
+        }
+        jdbc.update("INSERT INTO SIGA2_LICENCIAMENTO.PESSOA (ID, NOME, CPF_CNPJ) VALUES (:id, :nome, :documento)",
+                new MapSqlParameterSource().addValue("id", id).addValue("nome", nome).addValue("documento", documento));
+    }
+
     // --- caminho histórico (S8): passos guardados até o gravar()
 
     private sealed interface Passo permits Simples, Ciclo, Emissao, Repeticao {
@@ -254,6 +269,7 @@ public final class CamundaFicticioBuilder {
         private final List<Variavel> variaveis = new ArrayList<>();
         private final List<Evento> eventosDoLicenciamento = new ArrayList<>();
         private final List<ComplementacaoConcluida> complementacoesConcluidas = new ArrayList<>();
+        private long idPessoa = ID_INTERESSADO;
         private LocalDateTime abertura;
         private LocalDateTime dataProtocolo;
         private LocalDateTime dataCancelamento;
@@ -279,6 +295,15 @@ public final class CamundaFicticioBuilder {
 
         public Processo numeroProcesso(String numeroDoProcesso) {
             this.numeroProcesso = numeroDoProcesso;
+            return this;
+        }
+
+        /**
+         * Interessado do requerimento ({@code REQUERIMENTO.ID_PESSOA}): uma pessoa gravada por
+         * {@link CamundaFicticioBuilder#pessoaFicticia}. O padrão é o interessado fictício da S7 ({@link #ID_INTERESSADO}).
+         */
+        public Processo comInteressado(long idDaPessoa) {
+            this.idPessoa = idDaPessoa;
             return this;
         }
 
@@ -1016,7 +1041,7 @@ public final class CamundaFicticioBuilder {
                     new MapSqlParameterSource()
                             .addValue("id", id).addValue("numero", numero).addValue("processo", numeroProcesso)
                             .addValue("abertura", Timestamp.valueOf(abertura)).addValue("alteracao", Timestamp.valueOf(desde))
-                            .addValue("situacao", situacao).addValue("pessoa", ID_INTERESSADO)
+                            .addValue("situacao", situacao).addValue("pessoa", idPessoa)
                             .addValue("tipo", fluxo.idTipoProcesso));
         }
 

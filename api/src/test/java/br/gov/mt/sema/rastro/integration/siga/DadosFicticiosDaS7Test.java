@@ -31,7 +31,9 @@ class DadosFicticiosDaS7Test {
             Path.of("src/test/resources/sql/siga/08-financeiro-s9.sql"),
             Path.of("src/test/java/br/gov/mt/sema/rastro/integration/siga/CenariosFicticiosDaS9.java"),
             // S10 (bloco 1): população do painel
-            Path.of("src/test/java/br/gov/mt/sema/rastro/integration/siga/CenariosFicticiosDaS10.java"));
+            Path.of("src/test/java/br/gov/mt/sema/rastro/integration/siga/CenariosFicticiosDaS10.java"),
+            // S11 (bloco 1): população da caixa do analista
+            Path.of("src/test/java/br/gov/mt/sema/rastro/integration/siga/CenariosFicticiosDaS11.java"));
 
     /** 11 ou 14 dígitos seguidos, com ou sem máscara, sem fazer parte de um número maior. */
     private static final Pattern DOCUMENTO = Pattern.compile(

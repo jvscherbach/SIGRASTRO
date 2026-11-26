@@ -304,6 +304,10 @@ Decisão D93 (`docs/09`). `InstantaneoDoPainel` (imutável) em `GuardarInstantan
 
 O roteiro `docs/roteiros/s10-homologacao.md` tem uma linha por cenário PN01 a PN16 (o que abrir, o que a tela deve mostrar e a prova automática), os estados e perfis (seção 3), os pontos provisórios (seção 4: coluna do protocolo, data de conclusão aproximada, instância raiz, unidade de contagem) e a conferência com dados reais, fora do repositório (seção 5). A população fictícia desta seção é a mesma que o roteiro usa; os totais esperados (27 protocolados sem volume, 1.227 com o PN16, 3 concluídos, 5 fora da fila, 1 sem data) estão na seção 2.1 do roteiro e neste documento, acima.
 
+### Caixa do analista: população fictícia (S11, bloco 1; ids 15001 a 15099 e 16001 a 17200)
+
+`CenariosFicticiosDaS11` (testes): cenários **CX01 a CX17** (ids 15001 a 15017; pessoas 15001 a 15004) e o **volume** de 1.200 requerimentos na análise (ids 16001 a 17200, 400 de cada analista, para os lotes de 500). Gravados **sob demanda** (`SigaOracleTeste.cenariosDaCaixa()` e `volumeDaCaixa()`), com **datas só em 2027 e 2028** (o "hoje" dos testes é 2028-06-15, 12h em Cuiabá): a população não entra na base do ano do painel da S10. O construtor ganhou `comInteressado(idPessoa)` e `pessoaFicticia(id, nome, documento)` (recusa nome sem "Exemplo" e documento que não comece com quatro zeros). A **tabela do cenário** (estado esperado, estado no último visto, aviso, origem e dias na etapa) está em `docs/progresso/s11.md` e no código (`CenariosFicticiosDaS11.CASOS`). Hipóteses **NÃO CONFIRMADAS**: o valor das variáveis de devolução (`isRevisaoAnalise`, `isRevisaoParecer`, `decisaoValidacaoParecerTecnico` = RA) e a devolução da emissão do ato direto para a análise (CX17), todas registradas no histórico de teste como o BPMN real poderia gravar. Testes: `CenariosFicticiosDaS11Test` (Docker) e `CenariosFicticiosDaS11ValidacaoTest` (sem Docker: coerência da tabela com o catálogo e com a regra do aviso).
+
 ## Posição atual (bloco 3)
 
 ### Peças
