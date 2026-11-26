@@ -70,6 +70,9 @@ Fiscalização por `ArchitectureTest` (ArchUnit): `./mvnw -Dtest=ArchitectureTes
 | `painel` (S10, bloco 2) | `LimiteDeLeiturasDoCamunda` (cada lote de tarefas ocupa uma vaga) | `tramitacao.application` |
 | `integration.siga` (S11, bloco 4) | porta `PosseDoAnalistaEmLote` (`PosseDoAnalistaNoSigaJdbc`, único leitor do SIGA e do Camunda para a caixa; sem SIGA, `PosseNaoConfigurada`) | `caixa.application.port` |
 | `caixa` (S11, bloco 4) | `LimiteDeLeiturasDoCamunda` (cada consulta de candidatos e cada lote de detalhe ocupa uma vaga), `CatalogoDeEtapas` e `IdentificadorDoResponsavel` (tipos de domínio) | `tramitacao.application`, `tramitacao.domain` |
+| `caixa` (S11, bloco 5) | caso de uso `ConsultarAnalistas` (analistas ativos com CPF cadastrado, só para virar chave opaca) e `LerTramitacao` (origem do retorno, só dos avisados) | `acesso.application`, `tramitacao.application` |
+| `caixa.infrastructure.memoria` (S11, bloco 5) | implementa a porta `VistoDoAnalista` (em memória; a H1 troca por banco) | `caixa.application.port` |
+| `config` (S11, bloco 5) | `ParametrosDaCaixa` (variáveis `RASTRO_CAIXA_*`; teto e tempo vêm do painel) | `caixa.application` |
 | `integration.licenciamento` | porta `ArquivosDoRepositorio` | `dossie.application.port` |
 | `dossie.infrastructure` | portas `ValidadorDePdf`, `MontadorDoDossie`, `RepositorioDePedidos`, `FilaDeGeracao` | `dossie.application.port` |
 | `config` | `ParametrosDoDossie` (variáveis de ambiente; a S5 troca) | `dossie.application.port` |
