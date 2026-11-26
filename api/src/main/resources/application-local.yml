@@ -3,7 +3,3 @@ springdoc:
     enabled: true
   swagger-ui:
     enabled: true
-
-rastro:
-  demo:
-    senha: ${VISTAS_DEMO_SENHA:vistas-demo}

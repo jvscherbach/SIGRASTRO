@@ -99,6 +99,11 @@ public class AdministrarUsuarios {
         return new Alteracao(administrado(atual), administrado(alterado));
     }
 
+    /** Há ao menos um Administrador ativo? (só o fato, para o estado do serviço). */
+    public boolean haAdministradorAtivo() {
+        return administradoresAtivos() > 0;
+    }
+
     private long administradoresAtivos() {
         return cadastro.listar().stream().filter(u -> u.ativo() && u.perfil() == Perfil.ADMIN).count();
     }

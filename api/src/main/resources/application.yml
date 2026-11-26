@@ -56,9 +56,17 @@ rastro:
         connection-timeout: ${SIGA_DB_CONN_TIMEOUT_MS:5000}
         max-lifetime: ${SIGA_DB_MAX_LIFETIME_MS:1500000}
         read-timeout: ${SIGA_DB_READ_TIMEOUT_MS:30000}
-  # Senha única dos usuários de demonstração. Vazia = login desabilitado; o valor padrão só existe no perfil local.
-  demo:
-    senha: ${VISTAS_DEMO_SENHA:}
+  # Usuários padrão (L1): criados na subida só se a senha estiver preenchida e válida (mín. 12 caracteres, sem o login,
+  # diferente das outras). Sem valor padrão no repositório. Voltam ao que as variáveis dizem a cada reinício.
+  usuarios-padrao:
+    operador:
+      senha: ${RASTRO_SENHA_OPERADOR:}
+      cpf-cnpj: ${RASTRO_OPERADOR_CPF_CNPJ:}
+    analista:
+      senha: ${RASTRO_SENHA_ANALISTA:}
+      cpf: ${RASTRO_ANALISTA_CPF:}
+    admin:
+      senha: ${RASTRO_SENHA_ADMIN:}
   # Login (L1): custo do PBKDF2 e limite de tentativas (em memória). Faixas em CatalogoDeParametros; exigem reinício.
   login:
     iteracoes: ${RASTRO_LOGIN_ITERACOES:600000}

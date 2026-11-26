@@ -21,9 +21,9 @@ import org.springframework.core.env.SystemEnvironmentPropertySource;
  * log, só com os nomes, nunca com o valor (pode ser senha ou token).
  *
  * <p>As variáveis de ambiente não mudam (decisão da R1) e entram pelos placeholders do {@code application.yml}
- * ({@code ${VISTAS_DEMO_SENHA}}, {@code ${VISTAS_DOSSIE_DIRETORIO}}). Por isso o alias ignora as fontes de variáveis de
- * ambiente: a ligação relaxada do Spring leria {@code VISTAS_DEMO_SENHA} como {@code vistas.demo.senha} e daria um
- * aviso falso de depreciação.
+ * ({@code ${VISTAS_DOSSIE_DIRETORIO}}). Por isso o alias ignora as fontes de variáveis de
+ * ambiente: a ligação relaxada do Spring leria {@code VISTAS_DOSSIE_DIRETORIO} como {@code vistas.dossie.diretorio} e
+ * daria um aviso falso de depreciação.
  *
  * <p>O alias é uma fonte de propriedades viva, consultada a cada leitura: vê também as propriedades que os testes
  * acrescentam depois desta etapa. Registrado em {@code META-INF/spring.factories}.

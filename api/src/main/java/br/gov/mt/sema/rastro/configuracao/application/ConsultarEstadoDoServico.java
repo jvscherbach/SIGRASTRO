@@ -1,5 +1,8 @@
 package br.gov.mt.sema.rastro.configuracao.application;
 
+import java.util.function.BooleanSupplier;
+
+import br.gov.mt.sema.rastro.acesso.application.AdministrarUsuarios;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -22,25 +25,41 @@ public class ConsultarEstadoDoServico {
     private final boolean arquivosConfigurados;
     private final boolean scorpConfigurado;
 
+    private final BooleanSupplier haAdministrador;
+
     @Autowired
     public ConsultarEstadoDoServico(@Value("${rastro.modo:padrao}") String modoPedido,
             @Value("${rastro.datasource.siga.url:}") String sigaUrl,
             @Value("${rastro.arquivos.url:}") String arquivosUrl,
-            @Value("${rastro.scorp.url:}") String scorpUrl) {
+            @Value("${rastro.scorp.url:}") String scorpUrl, AdministrarUsuarios usuarios) {
+        this(modoPedido, sigaUrl, arquivosUrl, scorpUrl, usuarios::haAdministradorAtivo);
+    }
+
+    /** Sem a conferência de administrador (assume que existe). */
+    public ConsultarEstadoDoServico(String modoPedido, String sigaUrl, String arquivosUrl, String scorpUrl) {
+        this(modoPedido, sigaUrl, arquivosUrl, scorpUrl, () -> true);
+    }
+
+    private ConsultarEstadoDoServico(String modoPedido, String sigaUrl, String arquivosUrl, String scorpUrl,
+            BooleanSupplier haAdministrador) {
         this.modoPedido = modoPedido == null ? "" : modoPedido.trim().toLowerCase(java.util.Locale.ROOT);
         this.sigaConfigurado = preenchido(sigaUrl);
         this.arquivosConfigurados = preenchido(arquivosUrl);
         this.scorpConfigurado = preenchido(scorpUrl);
+        this.haAdministrador = haAdministrador;
     }
 
-    /** @param sistemasExternos algum sistema externo (SIGA, arquivos, SCORP) está configurado */
-    public record EstadoDoServico(String status, String modo, boolean sistemasExternos) {
+    /**
+     * @param sistemasExternos algum sistema externo (SIGA, arquivos, SCORP) está configurado
+     * @param semAdministrador "sem administrador cadastrado": nenhum Administrador ativo existe (L1, bloco 2)
+     */
+    public record EstadoDoServico(String status, String modo, boolean sistemasExternos, boolean semAdministrador) {
     }
 
     public EstadoDoServico consultar() {
         boolean externos = sigaConfigurado || arquivosConfigurados || scorpConfigurado;
         String modo = DEMONSTRACAO.equals(modoPedido) && !externos ? DEMONSTRACAO : PADRAO;
-        return new EstadoDoServico("UP", modo, externos);
+        return new EstadoDoServico("UP", modo, externos, !haAdministrador.getAsBoolean());
     }
 
     private static boolean preenchido(String valor) {

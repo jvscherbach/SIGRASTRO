@@ -48,8 +48,19 @@ Códigos: `OPERADOR`, `OPERADOR_SIGILO`, `ANALISTA`, `ADMIN`. Na versão definit
 - Inclusão por gaveta lateral: nome, login, CPF/CNPJ e perfil. Login é único; CPF/CNPJ é obrigatório para o Operador.
 - Usuário inativo não entra no sistema; o histórico de auditoria é mantido.
 - **Regras no back-end (S5, bloco 7, D68):** login de 3 a 60 caracteres (letras, números, ponto, hífen ou sublinhado), único e normalizado; CPF/CNPJ conferido pelos dígitos verificadores, guardado só como dígitos e devolvido só mascarado; perfil `OPERADOR`, `OPERADOR_SIGILO`, `ANALISTA` ou `ADMIN` (o CPF/CNPJ é opcional para o Analista e, informado, é conferido; a lista não o devolve, nem mascarado). Não é possível desativar nem rebaixar o último Administrador ativo, nem desativar o próprio usuário. Mudar para Operador exige CPF/CNPJ já cadastrado: a alteração não recebe documento, então quem não o tem precisa ser incluído de novo com outro login.
-- **Senha:** os usuários incluídos entram com a senha única do protótipo (`VISTAS_DEMO_SENHA`); não há autenticação nova (D09).
-- **Memória:** incluídos e alterados somem ao reiniciar, e o serviço volta aos três usuários de demonstração. O último acesso também.
+- **Senha (L1):** cada usuário tem a própria senha, guardada só como hash. A definição na inclusão, a redefinição e a troca da própria senha entram no bloco 3 da L1; até lá um usuário incluído pela tela não tem senha e não entra.
+- **Usuários padrão (L1, bloco 2):** na subida, a `api` cria `operador` (Operador), `analista` (Analista) e `admin` (Administrador) a partir das variáveis abaixo. Não há usuário nem senha de demonstração. O Gestor é criado pelo Administrador nesta tela.
+- **Memória:** incluídos e alterados somem ao reiniciar, e o serviço volta ao que as variáveis dos usuários padrão dizem (a persistência é da H1). O último acesso também.
+
+| Variável | Serviço | Padrão | O que faz |
+|---|---|---|---|
+| `RASTRO_SENHA_OPERADOR` | `api` | sem padrão | senha do `operador`; ausente ou fraca (mínimo 12 caracteres, sem o login) = usuário não criado, com um aviso no log (só o nome da variável) |
+| `RASTRO_OPERADOR_CPF_CNPJ` | `api` | sem padrão | CPF/CNPJ do interessado do `operador` (obrigatório, válido) |
+| `RASTRO_SENHA_ANALISTA` | `api` | sem padrão | senha do `analista` |
+| `RASTRO_ANALISTA_CPF` | `api` | sem padrão | CPF do `analista` (vínculo com o `ASSIGNEE_` do Camunda); sem ele a caixa fica vazia com a mensagem já existente |
+| `RASTRO_SENHA_ADMIN` | `api` | sem padrão | senha do `admin`; sem administrador válido o aviso é destacado e `GET /api/estado` traz `semAdministrador: true` |
+
+Duas ou mais senhas iguais (mesmo só com diferença de maiúscula/minúscula) não criam nenhum dos usuários envolvidos; o aviso diz só os nomes das variáveis repetidas.
 
 ### Dossiê
 
@@ -190,7 +201,7 @@ Variáveis de ambiente, fora da tela:
 |---|---|---|---|
 | `RASTRO_MODO` | serviço (`api`) | `padrao` | `demonstracao` declara o modo em `GET /api/estado`, **só** se SIGA, API de arquivos e SCORP estiverem vazios. O `compose.verificacao.yaml` liga |
 | `RASTRO_MCP_URL` | servidor MCP (ambiente do processo do Claude Code) | `http://localhost:8080` (porta do front no `compose.local.yaml`) | base do SIGRASTRO local; host diferente de `localhost`, `127.0.0.1` e `host.docker.internal` é recusado |
-| `RASTRO_MCP_USUARIO` / `RASTRO_MCP_SENHA` | servidor MCP | sem padrão | usuário de demonstração; nunca lidos do `.env.local` |
+| `RASTRO_MCP_USUARIO` / `RASTRO_MCP_SENHA` | servidor MCP | sem padrão | credencial de verificação definida por variável do processo; nunca lida do `.env.local` (o usuário de verificação é definido no bloco 5 da L1) |
 | `RASTRO_MCP_TIMEOUT_MS` | servidor MCP | 10000 | tempo limite de cada pedido ao SIGRASTRO |
 
 ### Auditoria
