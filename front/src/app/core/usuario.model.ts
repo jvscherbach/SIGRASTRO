@@ -1,4 +1,4 @@
-export type Perfil = 'OPERADOR' | 'OPERADOR_SIGILO' | 'ADMIN';
+export type Perfil = 'OPERADOR' | 'OPERADOR_SIGILO' | 'ANALISTA' | 'ADMIN';
 
 export interface Permissoes {
   verSigilosos: boolean;
@@ -7,10 +7,15 @@ export interface Permissoes {
   restritoAoInteressado: boolean;
   verResponsavelTarefa: boolean;
   verPainel: boolean;
+  /** Caixa de entrada do Analista (S11). */
+  verCaixa: boolean;
 }
 
 /** Permissão de /auth/me que libera uma tela e o item de menu dela (RN08). */
-export type PermissaoDeTela = keyof Pick<Permissoes, 'verAuditoriaAcessos' | 'acessarConfiguracoes' | 'verPainel'>;
+export type PermissaoDeTela = keyof Pick<
+  Permissoes,
+  'verAuditoriaAcessos' | 'acessarConfiguracoes' | 'verPainel' | 'verCaixa'
+>;
 
 export interface Usuario {
   login: string;

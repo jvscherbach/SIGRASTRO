@@ -33,7 +33,7 @@ class ArchitectureTest {
     private static final String RAIZ = "br.gov.mt.sema.rastro.";
     private static final List<String> MODULOS =
             List.of("acesso", "consulta", "documento", "dossie", "auditoria", "configuracao", "tramitacao",
-                    "financeiro", "painel");
+                    "financeiro", "painel", "caixa");
     private static final List<String> INTEGRACOES =
             List.of("siga", "licenciamento", "scorp", "arrecadacao", "libreoffice");
 
@@ -280,6 +280,29 @@ class ArchitectureTest {
     static final ArchRule portas_do_painel_so_no_painel_e_no_siga =
             noClasses().that().resideOutsideOfPackages(RAIZ + "painel..", RAIZ + "integration.siga..")
                     .should().dependOnClassesThat().resideInAPackage(RAIZ + "painel.application.port..")
+                    .allowEmptyShould(true);
+
+    // S11 (bloco 4): a caixa do analista só lê a posse; não conhece documentos, dossiê, financeiro nem o painel (a falha de
+    // um não afeta o outro). Da tramitação, só contratos publicados (a regra 6 já barra api e infrastructure alheias).
+    @ArchTest
+    static final ArchRule caixa_nao_depende_de_documento_dossie_financeiro_nem_painel =
+            noClasses().that().resideInAPackage(RAIZ + "caixa..")
+                    .should().dependOnClassesThat().resideInAnyPackage(RAIZ + "documento..", RAIZ + "dossie..",
+                            RAIZ + "financeiro..", RAIZ + "painel..")
+                    .allowEmptyShould(true);
+
+    // S11 (bloco 4): o domínio da caixa é Java puro (regras de posse sem framework nem relógio escondido).
+    @ArchTest
+    static final ArchRule dominio_da_caixa_sem_spring =
+            noClasses().that().resideInAPackage(RAIZ + "caixa.domain..")
+                    .should().dependOnClassesThat().resideInAnyPackage("org.springframework..")
+                    .allowEmptyShould(true);
+
+    // S11 (bloco 4): só a caixa e o adaptador do SIGA usam as portas de leitura da caixa (só a atualização lê o SIGA).
+    @ArchTest
+    static final ArchRule portas_da_caixa_so_na_caixa_e_no_siga =
+            noClasses().that().resideOutsideOfPackages(RAIZ + "caixa..", RAIZ + "integration.siga..")
+                    .should().dependOnClassesThat().resideInAPackage(RAIZ + "caixa.application.port..")
                     .allowEmptyShould(true);
 
     private static String[] concat(String[]... partes) {

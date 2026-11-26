@@ -38,19 +38,7 @@ public final class ContarCargaPorResponsavel {
 
     public static CargaPorResponsavel contar(CatalogoDeEtapas catalogo, CatalogoDeGrupos grupos,
             List<RequerimentoDaBase> base, LeituraDasTarefas leitura, boolean mostrarNome) {
-        Set<Long> naFila = new HashSet<>();
-        for (RequerimentoDaBase r : base) {
-            if (!SituacoesForaDaFila.estaForaDaFila(r.situacao())) {
-                naFila.add(r.id());
-            }
-        }
-        Map<Chave, Set<Long>> porLinha = new LinkedHashMap<>();
-        for (TarefaAtiva t : leitura.tarefas()) {
-            if (!naFila.contains(t.idRequerimento()) || ehSuporteOuFim(catalogo, t)) {
-                continue;
-            }
-            porLinha.computeIfAbsent(chaveDa(t, grupos), k -> new HashSet<>()).add(t.idRequerimento());
-        }
+        Map<Chave, Set<Long>> porLinha = agrupar(catalogo, grupos, base, leitura);
         List<LinhaDeCarga> linhas = new ArrayList<>();
         List<Map.Entry<Chave, Set<Long>>> servidores = new ArrayList<>();
         for (Map.Entry<Chave, Set<Long>> e : porLinha.entrySet()) {
@@ -88,12 +76,34 @@ public final class ContarCargaPorResponsavel {
         return new CargaPorResponsavel(linhas, false, List.of());
     }
 
-    private static boolean ehSuporteOuFim(CatalogoDeEtapas catalogo, TarefaAtiva t) {
+    /**
+     * Requerimentos distintos por responsável (a regra única de quem é o responsável e de quais tarefas contam). A lista por
+     * analista (S11, bloco 9) usa este mesmo agrupamento para que os totais batam com as barras.
+     */
+    static Map<Chave, Set<Long>> agrupar(CatalogoDeEtapas catalogo, CatalogoDeGrupos grupos,
+            List<RequerimentoDaBase> base, LeituraDasTarefas leitura) {
+        Set<Long> naFila = new HashSet<>();
+        for (RequerimentoDaBase r : base) {
+            if (!SituacoesForaDaFila.estaForaDaFila(r.situacao())) {
+                naFila.add(r.id());
+            }
+        }
+        Map<Chave, Set<Long>> porLinha = new LinkedHashMap<>();
+        for (TarefaAtiva t : leitura.tarefas()) {
+            if (!naFila.contains(t.idRequerimento()) || ehSuporteOuFim(catalogo, t)) {
+                continue;
+            }
+            porLinha.computeIfAbsent(chaveDa(t, grupos), k -> new HashSet<>()).add(t.idRequerimento());
+        }
+        return porLinha;
+    }
+
+    static boolean ehSuporteOuFim(CatalogoDeEtapas catalogo, TarefaAtiva t) {
         ResolucaoDeEtapa r = catalogo.resolver(t.chaveDoModelo(), t.idDaTarefa(), Set.of());
         return r instanceof ResolucaoDeEtapa.Ignorado || r instanceof ResolucaoDeEtapa.Encerrado;
     }
 
-    private static Chave chaveDa(TarefaAtiva t, CatalogoDeGrupos grupos) {
+    static Chave chaveDa(TarefaAtiva t, CatalogoDeGrupos grupos) {
         return switch (t.responsavel()) {
             case INTERESSADO -> new Chave(TipoDeCarga.INTERESSADO, ROTULO_INTERESSADO);
             case NAO_IDENTIFICADO -> new Chave(TipoDeCarga.NAO_IDENTIFICADO, ROTULO_NAO_IDENTIFICADO);
@@ -123,6 +133,6 @@ public final class ContarCargaPorResponsavel {
         return new Chave(TipoDeCarga.AREA, ROTULO_AREA_SEM_CADASTRO);
     }
 
-    private record Chave(TipoDeCarga tipo, String rotulo) {
+    record Chave(TipoDeCarga tipo, String rotulo) {
     }
 }

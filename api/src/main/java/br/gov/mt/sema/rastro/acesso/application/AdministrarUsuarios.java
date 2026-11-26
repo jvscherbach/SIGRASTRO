@@ -104,12 +104,13 @@ public class AdministrarUsuarios {
 
     private static Perfil perfil(String codigo) {
         return Arrays.stream(Perfil.values()).filter(p -> p.name().equals(codigo)).findFirst()
-                .orElseThrow(() -> new ParametroInvalidoException("perfil", "Use OPERADOR, OPERADOR_SIGILO ou ADMIN."));
+                .orElseThrow(() -> new ParametroInvalidoException("perfil", "Use OPERADOR, OPERADOR_SIGILO, ANALISTA ou ADMIN."));
     }
 
     private UsuarioAdministrado administrado(Usuario usuario) {
         return new UsuarioAdministrado(usuario.login(), usuario.nome(), usuario.perfil().name(), usuario.rotuloDoPerfil(),
                 usuario.ativo(), cadastro.ultimoAcesso(usuario.login()).orElse(null),
-                CpfCnpjDoUsuario.mascarar(usuario.cpfCnpj()));
+                // S11: o CPF do Analista é o vínculo com o Camunda e nunca sai em resposta, nem mascarado
+                usuario.perfil().podeVerCaixa() ? null : CpfCnpjDoUsuario.mascarar(usuario.cpfCnpj()));
     }
 }

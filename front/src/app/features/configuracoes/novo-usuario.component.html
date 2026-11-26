@@ -40,7 +40,7 @@
           }
         </div>
         <div class="field">
-          <label for="nu-cpf">CPF/CNPJ{{ perfil() === 'OPERADOR' ? ' (obrigatório)' : '' }}</label>
+          <label for="nu-cpf">CPF/CNPJ{{ perfil() === 'OPERADOR' ? ' (obrigatório)' : perfil() === 'ANALISTA' ? ' (vínculo com o servidor)' : '' }}</label>
           <input id="nu-cpf" type="text" inputmode="numeric" autocomplete="off" placeholder="Somente números" [value]="cpfCnpj()" [attr.aria-invalid]="!!mensagemDe('cpfCnpj')" (input)="digitar('cpfCnpj', $event)" />
           @if (mensagemDe('cpfCnpj'); as m) {
             <small class="cfg-campo-erro" role="alert">{{ m }}</small>

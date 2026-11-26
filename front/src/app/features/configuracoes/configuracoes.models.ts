@@ -25,6 +25,7 @@ export interface AlteracaoDeUsuario {
 export const PERFIS_ASSINAVEIS: { codigo: string; rotulo: string }[] = [
   { codigo: 'OPERADOR', rotulo: 'Operador' },
   { codigo: 'OPERADOR_SIGILO', rotulo: 'Gestor' },
+  { codigo: 'ANALISTA', rotulo: 'Analista' },
   { codigo: 'ADMIN', rotulo: 'Administrador' },
 ];
 

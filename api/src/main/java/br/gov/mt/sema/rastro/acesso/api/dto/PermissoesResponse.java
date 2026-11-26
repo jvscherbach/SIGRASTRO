@@ -6,5 +6,6 @@ public record PermissoesResponse(
         boolean acessarConfiguracoes,
         boolean restritoAoInteressado,
         boolean verResponsavelTarefa,
-        boolean verPainel) {
+        boolean verPainel,
+        boolean verCaixa) {
 }

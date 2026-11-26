@@ -5,7 +5,7 @@ import { Observable, firstValueFrom, isObservable, of } from 'rxjs';
 
 import { ToastService } from '../shared/toast.service';
 import { AuthService } from './auth.service';
-import { autenticadoGuard, permissaoGuard, visitanteGuard } from './guards';
+import { autenticadoGuard, destinoInicialGuard, permissaoGuard, visitanteGuard } from './guards';
 import { Perfil, Usuario } from './usuario.model';
 
 function usuario(perfil: Perfil): Usuario {
@@ -16,12 +16,13 @@ function usuario(perfil: Perfil): Usuario {
     perfilDescricao: perfil,
     cpfCnpj: null,
     permissoes: {
-      verSigilosos: perfil !== 'OPERADOR',
+      verSigilosos: perfil !== 'OPERADOR' && perfil !== 'ANALISTA',
       verAuditoriaAcessos: perfil === 'ADMIN',
       acessarConfiguracoes: perfil === 'ADMIN',
       restritoAoInteressado: perfil === 'OPERADOR',
-      verResponsavelTarefa: perfil !== 'OPERADOR',
-      verPainel: perfil !== 'OPERADOR',
+      verResponsavelTarefa: perfil !== 'OPERADOR' && perfil !== 'ANALISTA',
+      verPainel: perfil !== 'OPERADOR' && perfil !== 'ANALISTA',
+      verCaixa: perfil === 'ANALISTA',
     },
   };
 }
@@ -86,6 +87,27 @@ describe('guards', () => {
       restaurar = () => of(true);
       expect(destino(await executar(visitanteGuard))).toBe('/consulta');
     });
+
+    it('leva o Analista à caixa quando já tem sessão válida', async () => {
+      token = 'abc';
+      atual.set(usuario('ANALISTA'));
+      restaurar = () => of(true);
+      expect(destino(await executar(visitanteGuard))).toBe('/caixa');
+    });
+  });
+
+  describe('destinoInicialGuard (destino do login por perfil, S11)', () => {
+    it('Analista vai para a caixa; os demais perfis, para a consulta', async () => {
+      for (const [perfil, esperado] of [
+        ['ANALISTA', '/caixa'],
+        ['OPERADOR', '/consulta'],
+        ['OPERADOR_SIGILO', '/consulta'],
+        ['ADMIN', '/consulta'],
+      ] as [Perfil, string][]) {
+        atual.set(usuario(perfil));
+        expect(destino(await executar(destinoInicialGuard))).toBe(esperado);
+      }
+    });
   });
 
   describe('permissaoGuard (RN08)', () => {
@@ -117,6 +139,21 @@ describe('guards', () => {
       atual.set({ ...gestor, permissoes: { ...gestor.permissoes, acessarConfiguracoes: true } });
       expect(await executar(permissaoGuard, configuracoes)).toBe(true);
       expect(destino(await executar(permissaoGuard, acessos))).toBe('/consulta');
+    });
+
+    it('a caixa é só de quem tem verCaixa: o Analista entra; Operador, Gestor e Administrador voltam à consulta', async () => {
+      const caixa = { permissao: 'verCaixa' };
+      atual.set(usuario('ANALISTA'));
+      expect(await executar(permissaoGuard, caixa)).toBe(true);
+      for (const perfil of ['OPERADOR', 'OPERADOR_SIGILO', 'ADMIN'] as Perfil[]) {
+        atual.set(usuario(perfil));
+        expect(destino(await executar(permissaoGuard, caixa))).toBe('/consulta');
+      }
+    });
+
+    it('o Analista barrado em tela restrita volta à caixa, não à consulta', async () => {
+      atual.set(usuario('ANALISTA'));
+      expect(destino(await executar(permissaoGuard, { permissao: 'verPainel' }))).toBe('/caixa');
     });
 
     it('bloqueia rota sem permissão declarada (nada liberado por omissão)', async () => {

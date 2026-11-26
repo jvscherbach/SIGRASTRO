@@ -2,10 +2,11 @@ import { Permissoes } from '../core/usuario.model';
 import { MENU, itemAtivo, menuDasPermissoes } from './menu';
 
 /** Permissões como o back-end devolve em /auth/me para cada perfil (docs/12). */
-const PERMISSOES: Record<'OPERADOR' | 'GESTOR' | 'ADMIN', Permissoes> = {
-  OPERADOR: { verSigilosos: false, verAuditoriaAcessos: false, acessarConfiguracoes: false, restritoAoInteressado: true, verResponsavelTarefa: false, verPainel: false },
-  GESTOR: { verSigilosos: true, verAuditoriaAcessos: false, acessarConfiguracoes: false, restritoAoInteressado: false, verResponsavelTarefa: true, verPainel: true },
-  ADMIN: { verSigilosos: true, verAuditoriaAcessos: true, acessarConfiguracoes: true, restritoAoInteressado: false, verResponsavelTarefa: true, verPainel: true },
+const PERMISSOES: Record<'OPERADOR' | 'GESTOR' | 'ANALISTA' | 'ADMIN', Permissoes> = {
+  ANALISTA: { verSigilosos: false, verAuditoriaAcessos: false, acessarConfiguracoes: false, restritoAoInteressado: false, verResponsavelTarefa: false, verPainel: false, verCaixa: true },
+  OPERADOR: { verSigilosos: false, verAuditoriaAcessos: false, acessarConfiguracoes: false, restritoAoInteressado: true, verResponsavelTarefa: false, verPainel: false, verCaixa: false },
+  GESTOR: { verSigilosos: true, verAuditoriaAcessos: false, acessarConfiguracoes: false, restritoAoInteressado: false, verResponsavelTarefa: true, verPainel: true, verCaixa: false },
+  ADMIN: { verSigilosos: true, verAuditoriaAcessos: true, acessarConfiguracoes: true, restritoAoInteressado: false, verResponsavelTarefa: true, verPainel: true, verCaixa: false },
 };
 
 function rotas(permissoes: Permissoes | undefined): string[] {
@@ -21,6 +22,13 @@ describe('menuDasPermissoes (RN08)', () => {
 
   it('Gestor recebe o Painel e não recebe Configurações', () => {
     expect(rotas(PERMISSOES.GESTOR)).toEqual(['/consulta', '/dossies', '/painel', '/auditoria/documentos']);
+  });
+
+  it('Analista recebe "Minha caixa" (só ele) e não recebe Painel nem Configurações', () => {
+    expect(rotas(PERMISSOES.ANALISTA)).toEqual(['/caixa', '/consulta', '/dossies']);
+    for (const outro of [PERMISSOES.OPERADOR, PERMISSOES.GESTOR, PERMISSOES.ADMIN]) {
+      expect(rotas(outro)).not.toContain('/caixa');
+    }
   });
 
   it('Administrador vê tudo, com Auditoria como item único', () => {
@@ -41,8 +49,8 @@ describe('menuDasPermissoes (RN08)', () => {
   it('cada item restrito segue a sua permissão, não o nome do perfil', () => {
     expect(rotas({ ...PERMISSOES.GESTOR, acessarConfiguracoes: true })).toContain('/configuracoes');
     expect(rotas({ ...PERMISSOES.ADMIN, acessarConfiguracoes: false })).not.toContain('/configuracoes');
-    expect(rotas({ ...PERMISSOES.OPERADOR, verPainel: true })).toContain('/painel');
-    expect(rotas({ ...PERMISSOES.GESTOR, verPainel: false })).not.toContain('/painel');
+    expect(rotas({ ...PERMISSOES.OPERADOR, verPainel: true, verCaixa: false })).toContain('/painel');
+    expect(rotas({ ...PERMISSOES.GESTOR, verPainel: false, verCaixa: false })).not.toContain('/painel');
   });
 
   it('sem permissões, nada restrito aparece', () => {

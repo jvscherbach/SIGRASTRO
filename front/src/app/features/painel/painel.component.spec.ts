@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
 import { PainelApiService } from './painel-api.service';
@@ -46,7 +47,12 @@ function painel(sobre: Partial<PainelResposta> = {}): PainelResposta {
 }
 
 describe('PainelComponent', () => {
-  let api: { obter: ReturnType<typeof vi.fn>; atualizar: ReturnType<typeof vi.fn> };
+  let api: {
+    obter: ReturnType<typeof vi.fn>;
+    atualizar: ReturnType<typeof vi.fn>;
+    analistas: ReturnType<typeof vi.fn>;
+    requerimentosDoAnalista: ReturnType<typeof vi.fn>;
+  };
   let fixture: ComponentFixture<PainelComponent>;
   let raiz: HTMLElement;
 
@@ -61,8 +67,8 @@ describe('PainelComponent', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    api = { obter: vi.fn(), atualizar: vi.fn() };
-    TestBed.configureTestingModule({ providers: [{ provide: PainelApiService, useValue: api }] });
+    api = { obter: vi.fn(), atualizar: vi.fn(), analistas: vi.fn(), requerimentosDoAnalista: vi.fn() };
+    TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: PainelApiService, useValue: api }] });
   });
 
   afterEach(() => vi.useRealTimers());
@@ -79,19 +85,88 @@ describe('PainelComponent', () => {
     expect(texto).toContain('1 sem data de protocolo');
   });
 
-  it('o gráfico 2 mantém a ordem recebida, mostra barras zeradas e as linhas à parte', async () => {
+  it('o gráfico 2 é uma pizza: legenda na ordem do catálogo com as zeradas e as linhas especiais', async () => {
     await abrir(painel());
-    const rotulos = Array.from(raiz.querySelectorAll('.barras-h')[0].querySelectorAll('.rotulo')).map((e) => e.textContent?.trim());
-    expect(rotulos).toEqual(['Hídrico · Cadastro do requerimento', 'Hídrico · Análise técnica', 'LAC · Cadastro do requerimento']);
-    const linhas = raiz.querySelector('.linhas-a-parte')?.textContent ?? '';
-    expect(linhas).toContain('Fora do catálogo');
-    expect(linhas).toContain('Sem instância');
-    expect(linhas).toContain('Etapa não mapeada');
+    const itens = Array.from(raiz.querySelectorAll('.pizza-legenda li'));
+    const rotulos = itens.map((e) => e.querySelector('.rotulo')?.textContent?.trim());
+    expect(rotulos).toEqual([
+      'Hídrico · Cadastro do requerimento',
+      'Hídrico · Análise técnica',
+      'LAC · Cadastro do requerimento',
+      'Fora do catálogo',
+      'Sem instância',
+      'Etapa não mapeada',
+    ]);
+    // soma exibida = 5 + 3 + 0 + 2 + 1 + 1 = 12
+    expect(itens[0].textContent).toContain('5');
+    expect(itens[0].querySelector('.percentual')?.textContent?.trim()).toBe('41,7%');
+    expect(itens[2].querySelector('.valor')?.textContent?.trim()).toBe('0');
+    expect(itens[2].querySelector('.percentual')?.textContent?.trim()).toBe('0,0%');
+    // etapa zerada não tem fatia: 5 fatias com valor
+    expect(raiz.querySelectorAll('svg.pizza-svg path.fatia')).toHaveLength(5);
+    expect(raiz.querySelectorAll('.barras-h')).toHaveLength(1);
+    expect(raiz.textContent).toContain('participação na soma das etapas (12)');
   });
 
-  it('avisa quando a soma das barras passa do total na fila', async () => {
+  it('percentuais da pizza somam 100 (dentro do arredondamento)', async () => {
     await abrir(painel());
-    expect(raiz.textContent).toContain('A soma das barras (8) passa do total na fila (7)');
+    const soma = Array.from(raiz.querySelectorAll('.pizza-legenda .percentual'))
+      .map((e) => Number((e.textContent ?? '').replace('%', '').replace(',', '.')))
+      .reduce((s, v) => s + v, 0);
+    expect(Math.abs(soma - 100)).toBeLessThan(0.5);
+  });
+
+  it('uma só etapa com valor preenche o círculo inteiro', async () => {
+    await abrir(
+      painel({
+        filaPorEtapa: [
+          { rotulo: 'Hídrico · Análise técnica', total: 4 },
+          { rotulo: 'LAC · Cadastro do requerimento', total: 0 },
+        ],
+        totalNaFila: 4,
+        foraDoCatalogo: 0,
+        semInstancia: 0,
+        etapaNaoMapeada: 0,
+      }),
+    );
+    expect(raiz.querySelectorAll('svg.pizza-svg circle.fatia')).toHaveLength(1);
+    expect(raiz.querySelectorAll('svg.pizza-svg path.fatia')).toHaveLength(0);
+    expect(raiz.querySelector('.pizza-legenda li .percentual')?.textContent?.trim()).toBe('100,0%');
+  });
+
+  it('tudo zerado: mostra a mensagem e nenhuma pizza', async () => {
+    await abrir(
+      painel({
+        filaPorEtapa: [{ rotulo: 'Hídrico · Análise técnica', total: 0 }],
+        totalNaFila: 0,
+        foraDoCatalogo: 0,
+        semInstancia: 0,
+        etapaNaoMapeada: 0,
+      }),
+    );
+    expect(raiz.textContent).toContain('Nenhum requerimento em andamento');
+    expect(raiz.querySelectorAll('svg.pizza-svg')).toHaveLength(0);
+  });
+
+  it('muitas etapas: todas na legenda, mesmo com as cores se repetindo', async () => {
+    const etapas = Array.from({ length: 20 }, (_, i) => ({ rotulo: `Etapa ${i + 1}`, total: i + 1 }));
+    await abrir(painel({ filaPorEtapa: etapas, totalNaFila: 210, foraDoCatalogo: 0, semInstancia: 0, etapaNaoMapeada: 0 }));
+    expect(raiz.querySelectorAll('.pizza-legenda li')).toHaveLength(23);
+    expect(raiz.querySelectorAll('svg.pizza-svg path.fatia')).toHaveLength(20);
+  });
+
+  it('o item da legenda recebe foco por teclado e destaca a fatia', async () => {
+    await abrir(painel());
+    const item = raiz.querySelector('.pizza-legenda li') as HTMLElement;
+    expect(item.getAttribute('tabindex')).toBe('0');
+    item.dispatchEvent(new Event('focus'));
+    fixture.detectChanges();
+    expect(raiz.querySelector('svg.pizza-svg path.fatia.destaque')).not.toBeNull();
+  });
+
+  it('avisa quando a soma das fatias passa do total na fila', async () => {
+    await abrir(painel());
+    expect(raiz.textContent).toContain('A soma das fatias (8) passa do total na fila (7)');
   });
 
   it('sem soma maior que o total, a nota não aparece', async () => {
@@ -123,8 +198,65 @@ describe('PainelComponent', () => {
     ).toBe('Total 19 9');
     expect(celulas(tabelas[1])).toContain('Hídrico · Análise técnica 3');
     expect(celulas(tabelas[1])).toContain('Fora do catálogo 2');
-    expect(celulas(tabelas[2])[1]).toBe('Área técnica Área 3');
+    expect(celulas(tabelas[2])[1]).toBe('Área técnica Área 3 Ver lista');
     expect(raiz.querySelectorAll('svg.painel-svg')).toHaveLength(0);
+  });
+
+  describe('aba lateral Processos por analista (S11, bloco 9)', () => {
+    beforeEach(() => {
+      api.analistas.mockReturnValue(
+        of({
+          estado: 'PRONTO', ano: 2026, geradoEm: null, falhouEm: null, truncado: false, nomesOcultos: false,
+          analistas: [
+            { analista: 'aaaaaaaaaaaaaaaa', rotulo: 'Servidor Exemplo 01', total: 4, tipo: 'SERVIDOR' },
+            { analista: 'bbbbbbbbbbbbbbbb', rotulo: 'Área técnica', total: 3, tipo: 'AREA' },
+          ],
+          etapas: [], avisos: [],
+        }),
+      );
+      api.requerimentosDoAnalista.mockReturnValue(
+        of({
+          estado: 'PRONTO', ano: 2026, geradoEm: null, truncado: false, analista: 'bbbbbbbbbbbbbbbb', rotulo: 'Área técnica',
+          tipo: 'AREA', total: 3, quantidade: 3, limitada: false, requerimentos: [], avisos: [],
+        }),
+      );
+    });
+
+    it('fica fechada e separada do dashboard; o botão abre a lista no primeiro analista', async () => {
+      await abrir(painel());
+      expect(document.querySelector('app-painel-analistas')).toBeNull();
+      const botao = Array.from(raiz.querySelectorAll('button')).find((b) => b.textContent?.includes('Processos por analista'));
+      botao?.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(document.querySelector('app-painel-analistas')).not.toBeNull();
+      expect(api.requerimentosDoAnalista).toHaveBeenCalledWith('aaaaaaaaaaaaaaaa', '', '');
+    });
+
+    it('o clique na barra de um analista abre a aba nele (pelo rótulo e tipo da barra)', async () => {
+      await abrir(painel());
+      const barras = Array.from(raiz.querySelectorAll('.barra-h.clicavel'));
+      expect(barras).toHaveLength(5);
+      (barras[1] as HTMLElement).click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(api.requerimentosDoAnalista).toHaveBeenCalledWith('bbbbbbbbbbbbbbbb', '', '');
+    });
+
+    it('na tabela, cada linha tem o botão Ver lista e Fechar tira a aba da tela', async () => {
+      await abrir(painel());
+      Array.from(raiz.querySelectorAll('button')).filter((b) => b.textContent?.includes('Ver como tabela')).forEach((b) => b.click());
+      fixture.detectChanges();
+      const ver = Array.from(raiz.querySelectorAll('button')).filter((b) => b.textContent?.includes('Ver lista'));
+      expect(ver).toHaveLength(5);
+      ver[1].click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(api.requerimentosDoAnalista).toHaveBeenCalledWith('bbbbbbbbbbbbbbbb', '', '');
+      (document.querySelector('app-painel-analistas footer button') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      expect(document.querySelector('app-painel-analistas')).toBeNull();
+    });
   });
 
   it('nomes ocultos: mostra a nota e nenhum nome de servidor', async () => {

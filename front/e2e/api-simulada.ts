@@ -14,6 +14,7 @@ export const GESTOR = {
     restritoAoInteressado: false,
     verResponsavelTarefa: true,
     verPainel: true,
+    verCaixa: false,
   },
 };
 
@@ -38,9 +39,30 @@ export const ADMIN = {
   permissoes: { ...GESTOR.permissoes, verAuditoriaAcessos: true, acessarConfiguracoes: true },
 };
 
+/** Analista fictício (S11): só a caixa de entrada; o CPF vinculado nunca sai na resposta. */
+export const ANALISTA = {
+  ...GESTOR,
+  login: 'analista.exemplo01',
+  nome: 'Analista Exemplo 01',
+  perfil: 'ANALISTA',
+  perfilDescricao: 'Analista',
+  permissoes: {
+    ...GESTOR.permissoes,
+    verSigilosos: false,
+    verResponsavelTarefa: false,
+    verPainel: false,
+    verCaixa: true,
+  },
+};
+
 export type UsuarioSimulado = typeof GESTOR;
 
-const POR_LOGIN: Record<string, UsuarioSimulado> = { [OPERADOR.login]: OPERADOR, [GESTOR.login]: GESTOR, [ADMIN.login]: ADMIN };
+const POR_LOGIN: Record<string, UsuarioSimulado> = {
+  [OPERADOR.login]: OPERADOR,
+  [GESTOR.login]: GESTOR,
+  [ADMIN.login]: ADMIN,
+  [ANALISTA.login]: ANALISTA,
+};
 
 export interface OpcoesDaSimulacao {
   /** Usuário de /api/auth/me (padrão: Gestor). */

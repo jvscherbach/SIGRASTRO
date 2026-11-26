@@ -12,7 +12,7 @@ function usuario(login: string): Usuario {
     perfil: 'OPERADOR',
     perfilDescricao: 'Operador',
     cpfCnpj: null,
-    permissoes: { verSigilosos: false, verAuditoriaAcessos: false, acessarConfiguracoes: false, restritoAoInteressado: true, verResponsavelTarefa: false, verPainel: false },
+    permissoes: { verSigilosos: false, verAuditoriaAcessos: false, acessarConfiguracoes: false, restritoAoInteressado: true, verResponsavelTarefa: false, verPainel: false, verCaixa: false },
   };
 }
 

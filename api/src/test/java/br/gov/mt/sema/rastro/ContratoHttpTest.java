@@ -44,6 +44,7 @@ class ContratoHttpTest {
                 .andExpect(jsonPath("$.usuario.permissoes.restritoAoInteressado").value(true))
                 .andExpect(jsonPath("$.usuario.permissoes.verResponsavelTarefa").value(false))
                 .andExpect(jsonPath("$.usuario.permissoes.verPainel").value(false))
+                .andExpect(jsonPath("$.usuario.permissoes.verCaixa").value(false))
                 .andExpect(header().exists("X-Correlation-Id"));
     }
 

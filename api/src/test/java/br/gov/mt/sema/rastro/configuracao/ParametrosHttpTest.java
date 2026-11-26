@@ -449,6 +449,31 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
         }
     }
 
+    // --- S11, bloco 6: parâmetros da caixa do analista, na seção Rastro
+
+    @Test
+    void caixa_lista_os_dois_parametros_imediatos_na_secao_rastro_com_o_padrao_e_confere_a_faixa() throws Exception {
+        Map<String, String> padroes = Map.of("rastro.caixaAtualizacaoMinutos", "10",
+                "rastro.caixaIntervaloMinimoManualSegundos", "60");
+        for (Map.Entry<String, String> p : padroes.entrySet()) {
+            JsonNode parametro = parametro(p.getKey());
+            assertThat(parametro.get("grupo").asText()).as(p.getKey()).isEqualTo("RASTRO");
+            assertThat(parametro.get("classeDeAplicacao").asText()).as(p.getKey()).isEqualTo("IMEDIATO");
+            assertThat(parametro.get("valor").asText()).as(p.getKey()).isEqualTo(p.getValue());
+            assertThat(parametro.get("sobreposto").asBoolean()).as(p.getKey()).isFalse();
+        }
+        assertThat(parametro("rastro.caixaAtualizacaoMinutos").get("minimo").asInt()).isEqualTo(2);
+        assertThat(parametro("rastro.caixaAtualizacaoMinutos").get("maximo").asInt()).isEqualTo(120);
+        assertThat(parametro("rastro.caixaIntervaloMinimoManualSegundos").get("minimo").asInt()).isEqualTo(15);
+        assertThat(parametro("rastro.caixaIntervaloMinimoManualSegundos").get("maximo").asInt()).isEqualTo(3600);
+        invalido(salvar("admin.demo", Map.of("rastro.caixaAtualizacaoMinutos", 1)), "rastro.caixaAtualizacaoMinutos");
+        invalido(salvar("admin.demo", Map.of("rastro.caixaAtualizacaoMinutos", 121)), "rastro.caixaAtualizacaoMinutos");
+        invalido(salvar("admin.demo", Map.of("rastro.caixaIntervaloMinimoManualSegundos", 14)),
+                "rastro.caixaIntervaloMinimoManualSegundos");
+        invalido(salvar("admin.demo", Map.of("rastro.caixaIntervaloMinimoManualSegundos", 3601)),
+                "rastro.caixaIntervaloMinimoManualSegundos");
+    }
+
     @Test
     void painel_alteracao_gera_um_evento_com_antes_e_depois_e_vale_no_proximo_ciclo() throws Exception {
         long antes = ultimoId();

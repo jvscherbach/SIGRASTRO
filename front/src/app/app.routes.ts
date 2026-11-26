@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
-import { autenticadoGuard, permissaoGuard, visitanteGuard } from './core/guards';
+import { autenticadoGuard, destinoInicialGuard, permissaoGuard, visitanteGuard } from './core/guards';
 import { pendenciasGuard } from './features/configuracoes/pendencias.guard';
 import { ConsultaComponent } from './features/consulta/consulta.component';
 import { DossiesGeradosComponent } from './features/dossies/dossies-gerados.component';
@@ -14,7 +14,15 @@ export const routes: Routes = [
     component: ShellComponent,
     canActivate: [autenticadoGuard],
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'consulta' },
+      // O Analista cai na caixa (S11); os demais, na consulta
+      { path: '', pathMatch: 'full', canActivate: [destinoInicialGuard], children: [] },
+      {
+        path: 'caixa',
+        loadComponent: () => import('./features/caixa/caixa.component').then((m) => m.CaixaComponent),
+        canActivate: [permissaoGuard],
+        title: 'Minha caixa · SIGRASTRO',
+        data: { permissao: 'verCaixa', crumb: ['Minha caixa'] },
+      },
       {
         path: 'consulta',
         component: ConsultaComponent,

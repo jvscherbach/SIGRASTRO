@@ -25,6 +25,51 @@ export interface AvisoDoPainel {
   texto: string;
 }
 
+/** Contrato de GET /api/painel/analistas (S11, bloco 9): `analista` é um identificador opaco, nunca CPF. */
+export interface AnalistaDoPainel {
+  analista: string;
+  rotulo: string;
+  total: number;
+  tipo: TipoDeCarga;
+}
+
+export interface AnalistasDoPainelResposta {
+  estado: EstadoDoPainel;
+  ano: number;
+  geradoEm: string | null;
+  falhouEm: string | null;
+  truncado: boolean;
+  nomesOcultos: boolean;
+  analistas: AnalistaDoPainel[];
+  etapas: string[];
+  avisos: AvisoDoPainel[];
+}
+
+export interface RequerimentoDoAnalista {
+  id: number;
+  numero: string | null;
+  interessado: string | null;
+  protocolo: string | null;
+  etapas: string[];
+  responsavel: string;
+}
+
+/** Contrato de GET /api/painel/analistas/{chave}/requerimentos: `total` é o da barra; `quantidade` é o que sobrou dos filtros. */
+export interface RequerimentosDoAnalistaResposta {
+  estado: EstadoDoPainel;
+  ano: number;
+  geradoEm: string | null;
+  truncado: boolean;
+  analista: string;
+  rotulo: string;
+  tipo: TipoDeCarga;
+  total: number;
+  quantidade: number;
+  limitada: boolean;
+  requerimentos: RequerimentoDoAnalista[];
+  avisos: AvisoDoPainel[];
+}
+
 export interface PainelResposta {
   estado: EstadoDoPainel;
   ano: number;

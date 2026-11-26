@@ -45,6 +45,7 @@ class PoliticaDeAcessoTest {
         return switch (perfil) {
             case OPERADOR -> new Usuario("operador.demo", "Operador Demo", perfil, CNPJ_DO_OPERADOR, true);
             case OPERADOR_SIGILO -> new Usuario("gestor.demo", "Gestor Demo", perfil, null, true);
+            case ANALISTA -> new Usuario("analista.exemplo", "Analista Exemplo 01", perfil, "000.000.000-01", true);
             case ADMIN -> new Usuario("admin.demo", "Admin Demo", perfil, null, true);
         };
     }
@@ -81,15 +82,16 @@ class PoliticaDeAcessoTest {
         String cpfCnpjDoInteressado = interessado ? CNPJ_DO_OPERADOR : CNPJ_DE_OUTRO;
         PedidoDeUsuario pedido = new PedidoDeUsuario(dono ? usuario.login() : "outro.usuario", cpfCnpjDoInteressado);
         boolean operador = perfil == Perfil.OPERADOR;
+        boolean semSigilo = perfil == Perfil.OPERADOR || perfil == Perfil.ANALISTA;
 
-        // RN07: Operador só como interessado; Gestor e Administrador, tudo.
+        // RN07: Operador só como interessado; Gestor, Analista e Administrador, tudo.
         boolean esperaRequerimento = !operador || interessado;
         assertThat(politica.podeAcessarRequerimento(usuario, cpfCnpjDoInteressado)).isEqualTo(esperaRequerimento);
         assertResultado(() -> politica.exigirAcessoAoRequerimento(cpfCnpjDoInteressado), esperaRequerimento,
                 ErrorCode.NAO_INTERESSADO);
 
         // RF20: sigiloso só para Gestor e Administrador.
-        boolean esperaDocumento = !sigiloso || !operador;
+        boolean esperaDocumento = !sigiloso || !semSigilo;
         assertThat(politica.podeAcessarDocumento(usuario, sigiloso)).isEqualTo(esperaDocumento);
         assertThat(politica.podeAcessarDocumento(sigiloso)).isEqualTo(esperaDocumento);
         assertResultado(() -> politica.exigirAcessoAoDocumento(sigiloso), esperaDocumento, ErrorCode.DOCUMENTO_SIGILOSO);
@@ -99,12 +101,27 @@ class PoliticaDeAcessoTest {
                 .isEqualTo(esperaDocumento ? "laudo-secreto.pdf" : null);
 
         // Pedido: o dono enquanto tiver acesso ao requerimento; Gestor e Administrador, todos.
-        boolean esperaPedido = operador ? dono && interessado : true;
+        boolean esperaPedido = semSigilo ? dono && esperaRequerimento : true;
         assertThat(politica.podeAcessarPedido(usuario, pedido)).isEqualTo(esperaPedido);
         assertThat(politica.podeAcessarPedido(pedido)).isEqualTo(esperaPedido);
         // "Dossiês gerados" (S4): pedidos de outros e quem gerou só para Gestor e Administrador
-        assertThat(politica.podeVerPedidosDeOutros(usuario)).isEqualTo(!operador);
-        assertThat(politica.podeVerPedidosDeOutros()).isEqualTo(!operador);
+        assertThat(politica.podeVerPedidosDeOutros(usuario)).isEqualTo(!semSigilo);
+        assertThat(politica.podeVerPedidosDeOutros()).isEqualTo(!semSigilo);
+    }
+
+    /** S11: a caixa é só do Analista; os demais perfis levam 403 PERFIL_SEM_PERMISSAO antes de qualquer leitura. */
+    @ParameterizedTest(name = "{0}")
+    @org.junit.jupiter.params.provider.EnumSource(Perfil.class)
+    void caixaSoParaOAnalistaEPainelNaoEDele(Perfil perfil) {
+        usuario = usuario(perfil);
+        boolean analista = perfil == Perfil.ANALISTA;
+
+        assertThat(politica.podeVerCaixa(usuario)).isEqualTo(analista);
+        assertResultado(politica::exigirCaixa, analista, ErrorCode.PERFIL_SEM_PERMISSAO);
+        assertThat(politica.podeVerPainel(usuario)).isEqualTo(perfil == Perfil.OPERADOR_SIGILO || perfil == Perfil.ADMIN);
+        assertThat(politica.podeAcessarConfiguracoes(usuario)).isEqualTo(perfil == Perfil.ADMIN);
+        assertThat(politica.podeVerAuditoriaDeAcessos(usuario)).isEqualTo(perfil == Perfil.ADMIN);
+        assertThat(politica.podeVerResponsavelTarefa(usuario)).isEqualTo(perfil == Perfil.OPERADOR_SIGILO || perfil == Perfil.ADMIN);
     }
 
     @Test

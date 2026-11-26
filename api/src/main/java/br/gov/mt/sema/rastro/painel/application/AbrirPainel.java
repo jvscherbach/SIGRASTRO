@@ -2,6 +2,7 @@ package br.gov.mt.sema.rastro.painel.application;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import br.gov.mt.sema.rastro.acesso.application.PoliticaDeAcesso;
@@ -10,6 +11,10 @@ import br.gov.mt.sema.rastro.auditoria.application.RegistrarEvento;
 import br.gov.mt.sema.rastro.auditoria.domain.TipoDeEvento;
 import br.gov.mt.sema.rastro.painel.domain.AnoDoPainel;
 import br.gov.mt.sema.rastro.painel.domain.InstantaneoDoPainel;
+import br.gov.mt.sema.rastro.painel.domain.ListaPorResponsavel;
+import br.gov.mt.sema.rastro.painel.domain.ListaPorResponsavel.LinhaDeAnalista;
+import br.gov.mt.sema.rastro.painel.domain.ListaPorResponsavel.RequerimentoDaLista;
+import br.gov.mt.sema.rastro.shared.application.exception.RecursoNaoEncontradoException;
 import org.springframework.stereotype.Service;
 
 /**
@@ -56,6 +61,48 @@ public class AbrirPainel {
         int ano = anoConsiderado(visao.instantaneo());
         registrar("consulta", ano, visao.instantaneo());
         return new PainelAberto(visao.instantaneo(), ano, visao.mostrarNome(), visao.proximaAtualizacaoEm());
+    }
+
+    /** O 403 sem ler nada: o controlador chama antes de validar filtros. */
+    public void exigirPerfil() {
+        politica.exigirPainel();
+    }
+
+    /** A lista de analistas (S11, bloco 9): o instantâneo e a lista no formato do parâmetro de nomes vigente (RN12). */
+    public record AnalistasAbertos(InstantaneoDoPainel instantaneo, int ano, boolean mostrarNome,
+            Optional<ListaPorResponsavel> lista) {
+    }
+
+    /** Os requerimentos de um analista: {@code total} é o da barra; {@code requerimentos} já traz os filtros. */
+    public record RequerimentosAbertos(InstantaneoDoPainel instantaneo, int ano, LinhaDeAnalista linha,
+            List<RequerimentoDaLista> requerimentos, List<String> etapas) {
+    }
+
+    /** Lista de analistas com o total de cada um (o da barra). Mesmo 403 do painel, antes de qualquer leitura. */
+    public AnalistasAbertos analistas() {
+        politica.exigirPainel();
+        ConsultarPainel.Visao visao = consultar.consultar();
+        int ano = anoConsiderado(visao.instantaneo());
+        registrar("lista por analista", ano, visao.instantaneo());
+        return new AnalistasAbertos(visao.instantaneo(), ano, visao.mostrarNome(),
+                visao.instantaneo().lista(visao.mostrarNome()));
+    }
+
+    /**
+     * Requerimentos de uma chave de analista, com os filtros (etapa pelo rótulo exato; busca por interessado ou número).
+     * Chave desconhecida, ou de servidor com os nomes ocultos, é 404.
+     */
+    public RequerimentosAbertos requerimentosDoAnalista(String chave, Optional<String> etapa, String busca) {
+        politica.exigirPainel();
+        ConsultarPainel.Visao visao = consultar.consultar();
+        int ano = anoConsiderado(visao.instantaneo());
+        ListaPorResponsavel lista = visao.instantaneo().lista(visao.mostrarNome())
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Analista não encontrado."));
+        LinhaDeAnalista linha = lista.linha(chave)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Analista não encontrado."));
+        registrar("lista de requerimentos por analista", ano, visao.instantaneo());
+        return new RequerimentosAbertos(visao.instantaneo(), ano, linha, lista.requerimentos(chave, etapa, busca),
+                lista.etapas());
     }
 
     public SolicitarAtualizacao.Resultado atualizar() {

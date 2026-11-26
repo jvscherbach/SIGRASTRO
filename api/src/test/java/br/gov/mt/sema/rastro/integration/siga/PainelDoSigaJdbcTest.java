@@ -421,7 +421,11 @@ class PainelDoSigaJdbcTest {
         assertThat(resposta).as("CPF com máscara").doesNotContainPattern("\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}");
         assertThat(resposta).doesNotContain(CamundaFicticioBuilder.CPF_DO_INTERESSADO)
                 .doesNotContain(CamundaFicticioBuilder.CPF_SEM_SERVIDOR).doesNotContain(CamundaFicticioBuilder.cpfDoServidor(1));
-        assertThat(resposta).as("o nome do interessado nunca sai").doesNotContain("Interessado Fictício");
+        // S11, bloco 9: a base traz o NOME do interessado (para a lista por analista), nunca o CPF/CNPJ; as tarefas não.
+        assertThat(lidas.toString() + painel.lerSerie(new AnoDoPainel(ANO), TEMPO))
+                .as("o nome do interessado não sai com as tarefas").doesNotContain("Interessado Fictício");
+        assertThat(painel.lerBase(new AnoDoPainel(ANO), 20_000, TEMPO).requerimentos())
+                .extracting(r -> r.interessado().orElse("")).anyMatch(n -> n.startsWith("Interessado Fictício"));
         // e a varredura não é vazia: os nomes de servidor vêm
         assertThat(resposta).contains("Servidor Exemplo 01");
         // e nenhum componente do tipo guarda CPF

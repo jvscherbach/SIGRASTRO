@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.integration.siga;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -124,8 +125,13 @@ class PainelDoSigaJdbc implements ResumoDoAnoNoSiga, TarefasAtivasEmLote {
         int teto = Math.max(1, Math.min(MAXIMO_DE_REQUERIMENTOS, limite));
         List<RequerimentoDaBase> lidos = com(tempoLimite).query(sqlBase,
                 doAno(ano).addValue("limiteMaisUm", teto + 1),
-                (rs, n) -> new RequerimentoDaBase(rs.getLong("ID"), texto(rs.getString("TIPO")),
-                        texto(rs.getString("SITUACAO"))));
+                (rs, n) -> {
+                    LocalDateTime protocolo = DataHoraDoSiga.ler(rs, "PROTOCOLO");
+                    return new RequerimentoDaBase(rs.getLong("ID"), texto(rs.getString("TIPO")),
+                            texto(rs.getString("SITUACAO")), texto(rs.getString("NUMERO")),
+                            texto(rs.getString("INTERESSADO")),
+                            Optional.ofNullable(protocolo).map(LocalDateTime::toLocalDate));
+                });
         boolean truncado = lidos.size() > teto;
         return new BaseDoAno(truncado ? lidos.subList(0, teto) : lidos, truncado);
     }

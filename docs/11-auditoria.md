@@ -29,6 +29,7 @@ Registro de quem consultou, visualizou, gerou e baixou dossiês, com destaque pa
 | `DOWNLOAD` | Download | Download completo do PDF do dossiê (a pré-visualização não conta) | Nome do arquivo e pedido |
 | `GEOMETRIAS` | Geometrias baixadas | Download completo do ZIP das geometrias (RN10; previsto desde a S4, registrado a partir da S5) | Quantidade de arquivos, quantas sigilosas e nome do ZIP |
 | `TRAMITACAO` | Posição na tramitação | Posição atual devolvida (S7): do requerimento, ou uma por requerimento do processo; também quando o Camunda está indisponível (a consulta aconteceu). Acesso negado não registra | Número consultado (como em `CONSULTA`). **Nunca** o responsável pela etapa, a área, ids técnicos nem CPF |
+| `CAIXA` | Caixa do analista | Abrir a caixa (`GET /caixa`) e abrir a lista de mudanças (`GET /caixa/avisos`), S11. Acesso negado, filtro recusado, gravação do visto e atualização manual não registram. O grupo é `DOCUMENTOS`, **sem requerimento** (o Operador não vê estes eventos) | "caixa consulta total 5 PRONTO" ou "caixa avisos 3". **Nunca** CPF, chave do analista, nome de interessado nem a lista de processos |
 | `FINANCEIRO` | Histórico financeiro | Histórico financeiro devolvido (S9): do requerimento, ou um por requerimento do processo; também quando o banco do SIGA está indisponível (`INDISPONIVEL`: a consulta aconteceu). Acesso negado não registra. O grupo é `DOCUMENTOS`, como a consulta ao detalhe | Número consultado e a identificação do requerimento ("financeiro Requerimento 9001/2026"). **Nunca** valor, desconto, UPF, número de DAR, situação da taxa, ids de lançamento nem CPF |
 
 O evento `DOSSIE` é registrado quando a geração termina com sucesso; uma tentativa interrompida gera `FALHA`.
@@ -77,7 +78,7 @@ Schema próprio do serviço (ver D09), em Oracle (D21): desenvolvimento em Oracl
 | `LOGIN_USUARIO` / `NOME_USUARIO` | Retrato do usuário no momento do evento (sem FK para `USUARIO`) |
 | `PERFIL` | Perfil no momento do evento |
 | `GRUPO` | `DOCUMENTOS` ou `ACESSOS` |
-| `TIPO_EVENTO` | `CONSULTA`, `VISUALIZACAO`, `DOSSIE`, `FALHA`, `DOWNLOAD`, `GEOMETRIAS`, `TRAMITACAO` (S7), `FINANCEIRO` (S9), `PAINEL` (S10), `LOGIN`, `USUARIO`, `CONFIG` |
+| `TIPO_EVENTO` | `CONSULTA`, `VISUALIZACAO`, `DOSSIE`, `FALHA`, `DOWNLOAD`, `GEOMETRIAS`, `TRAMITACAO` (S7), `FINANCEIRO` (S9), `PAINEL` (S10), `CAIXA` (S11), `LOGIN`, `USUARIO`, `CONFIG` |
 | `ID_REQUERIMENTO` | Requerimento do SIGA (referência lógica, sem FK entre bancos) |
 | `NUMERO_PROCESSO` / `NUMERO_REQUERIMENTO` | Números no momento do evento |
 | `SIGILOSO` | Evento envolve documento sigiloso |
