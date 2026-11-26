@@ -55,6 +55,9 @@ public final class CatalogoDeParametros {
     public static final String RASTRO_PAINEL_LIMITE = "rastro.painelLimiteRequerimentos";
     public static final String RASTRO_PAINEL_TIMEOUT = "rastro.painelTimeoutSegundos";
     public static final String RASTRO_PAINEL_INTERVALO_MANUAL = "rastro.painelIntervaloMinimoManualSegundos";
+    /** S11, bloco 6: parâmetros da caixa do analista, lidos a cada ciclo de atualização (valem no próximo). */
+    public static final String RASTRO_CAIXA_ATUALIZACAO = "rastro.caixaAtualizacaoMinutos";
+    public static final String RASTRO_CAIXA_INTERVALO_MANUAL = "rastro.caixaIntervaloMinimoManualSegundos";
 
     private static final String DOSSIE = "DOSSIE";
     private static final String CONVERSAO = "CONVERSAO";
@@ -110,7 +113,10 @@ public final class CatalogoDeParametros {
             inteiro(RASTRO_PAINEL_ATUALIZACAO, "Painel: atualização automática (min)", RASTRO, "rastro.painel.atualizacao-minutos", 30, 5, 1440, IMEDIATO),
             inteiro(RASTRO_PAINEL_LIMITE, "Painel: teto de requerimentos por atualização", RASTRO, "rastro.painel.limite-requerimentos", 3000, 100, 20000, IMEDIATO),
             inteiro(RASTRO_PAINEL_TIMEOUT, "Painel: tempo limite da atualização (s)", RASTRO, "rastro.painel.timeout-segundos", 60, 10, 300, IMEDIATO),
-            inteiro(RASTRO_PAINEL_INTERVALO_MANUAL, "Painel: intervalo mínimo da atualização manual (s)", RASTRO, "rastro.painel.intervalo-minimo-manual-segundos", 120, 30, 3600, IMEDIATO));
+            inteiro(RASTRO_PAINEL_INTERVALO_MANUAL, "Painel: intervalo mínimo da atualização manual (s)", RASTRO, "rastro.painel.intervalo-minimo-manual-segundos", 120, 30, 3600, IMEDIATO),
+            // S11, bloco 6. O teto de requerimentos e o tempo limite da caixa são os do painel (nenhum parâmetro novo).
+            inteiro(RASTRO_CAIXA_ATUALIZACAO, "Caixa do analista: atualização automática (min)", RASTRO, "rastro.caixa.atualizacao-minutos", 10, 2, 120, IMEDIATO),
+            inteiro(RASTRO_CAIXA_INTERVALO_MANUAL, "Caixa do analista: intervalo mínimo da atualização manual (s)", RASTRO, "rastro.caixa.intervalo-minimo-manual-segundos", 60, 15, 3600, IMEDIATO));
 
     private CatalogoDeParametros() {
     }

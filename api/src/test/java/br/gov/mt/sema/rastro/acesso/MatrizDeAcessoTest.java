@@ -95,7 +95,8 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
             "GET /api/tramitacao/parametros",
             "GET /api/requerimentos/{id}/tramitacao", "GET /api/processos/{numero}/tramitacao",
             "GET /api/requerimentos/{id}/financeiro", "GET /api/processos/{numero}/financeiro",
-            "GET /api/painel", "POST /api/painel/atualizacao");
+            "GET /api/painel", "POST /api/painel/atualizacao",
+            "GET /api/caixa", "GET /api/caixa/avisos", "POST /api/caixa/avisos/visto", "POST /api/caixa/atualizar");
 
     private enum Perfil {
         OPERADOR("operador.demo"), GESTOR("gestor.demo"), ADMIN("admin.demo");
@@ -279,6 +280,7 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
         posicao();
         financeiro();
         painel();
+        caixa();
         mascaramentoNoPdfDoOperador();
 
         varreduraDeVazamento();
@@ -457,7 +459,32 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
                 () -> mvc.perform(post("/api/painel/atualizacao")));
     }
 
-    private void aguardarFimDaAtualizacaoDoPainel() throws InterruptedException {
+    /**
+     * S11, bloco 6: a caixa do analista é só do perfil Analista. Operador, Gestor e Administrador levam 403
+     * {@code PERFIL_SEM_PERMISSAO} nas quatro rotas, antes de qualquer leitura; sem token, 401. O Analista (com CPF, sem CPF,
+     * a própria caixa) é provado em {@code CaixaHttpTest}.
+     */
+    private void caixa() throws Exception {
+        String corpo = json.writeValueAsString(Map.of("ids", List.of(1)));
+        for (Perfil p : Perfil.values()) {
+            verificar("GET /api/caixa", "sem caixa", p, 403, "PERFIL_SEM_PERMISSAO", () -> comToken(get("/api/caixa"), p));
+            verificar("GET /api/caixa/avisos", "sem caixa", p, 403, "PERFIL_SEM_PERMISSAO",
+                    () -> comToken(get("/api/caixa/avisos"), p));
+            verificar("POST /api/caixa/avisos/visto", "sem caixa", p, 403, "PERFIL_SEM_PERMISSAO",
+                    () -> comToken(post("/api/caixa/avisos/visto").contentType(MediaType.APPLICATION_JSON).content(corpo), p));
+            verificar("POST /api/caixa/atualizar", "sem caixa", p, 403, "PERFIL_SEM_PERMISSAO",
+                    () -> comToken(post("/api/caixa/atualizar"), p));
+        }
+        verificar("GET /api/caixa", "sem token", null, 401, "NAO_AUTENTICADO", () -> mvc.perform(get("/api/caixa")));
+        verificar("GET /api/caixa/avisos", "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(get("/api/caixa/avisos")));
+        verificar("POST /api/caixa/avisos/visto", "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(post("/api/caixa/avisos/visto").contentType(MediaType.APPLICATION_JSON).content(corpo)));
+        verificar("POST /api/caixa/atualizar", "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(post("/api/caixa/atualizar")));
+    }
+
+    private void aguardarFimDaAtualizacaoDoPainel()throws InterruptedException {
         long limite = System.nanoTime() + 10_000_000_000L;
         while (atualizarPainel.emAndamento() && System.nanoTime() < limite) {
             Thread.sleep(20);

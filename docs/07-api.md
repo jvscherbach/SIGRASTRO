@@ -33,7 +33,7 @@ Resposta de `GET /auth/me` (e o campo `usuario` do login):
 }
 ```
 
-Perfil `ANALISTA` (S11, D96): só `verCaixa` é verdadeiro e o campo `cpfCnpj` vem **nulo** (o CPF é o vínculo com o Camunda e nunca sai na API). O contrato da caixa (`/api/caixa`) chega no bloco 6 da S11.
+Perfil `ANALISTA` (S11, D96): só `verCaixa` é verdadeiro e o campo `cpfCnpj` vem **nulo** (o CPF é o vínculo com o Camunda e nunca sai na API). O contrato da caixa (`/api/caixa`) está em "Caixa do analista (S11, bloco 6)".
 
 ## Consulta
 
@@ -197,6 +197,27 @@ A visão de conjunto: protocolados × concluídos no ano, fila por etapa e carga
 - **Nunca saem:** CPF (nem mascarado), id técnico do Camunda (id de tarefa, chave do modelo), chave de arquivo. Com `RASTRO_MOSTRAR_NOME_RESPONSAVEL` desligado a carga traz só as categorias sem nome, com o aviso `NOMES_OCULTOS`; o valor é lido a cada resposta, então vale na hora.
 - **Estados:** `DESATUALIZADO` mostra o último retrato bom com `falhouEm`; `INDISPONIVEL` nunca teve leitura boa (listas vazias). Nenhum deles vira 5xx.
 - **Auditoria:** evento `PAINEL`, um por consulta e um por atualização manual aceita (detalhe "painel consulta ano 2026 PRONTO"); recusada (429) e negada não registram.
+
+## Caixa do analista (S11, bloco 6)
+
+A caixa de entrada do **Analista**: os requerimentos na posse dele na fase de análise (D98, docs/15). Controller `caixa.api.CaixaController`, caso de uso `caixa.application.AbrirCaixa`. **Só o perfil Analista** (`permissoes.verCaixa`): Operador, Gestor e Administrador levam 403 `PERFIL_SEM_PERMISSAO` nas quatro rotas, **antes** de validar parâmetro ou ler qualquer coisa. A identidade vem **sempre da sessão** (o login do usuário vira a chave opaca do responsável): não existe parâmetro de usuário, então não há como pedir a caixa de outro. **Nenhuma requisição consulta o SIGA nem o Camunda**: as rotas só leem o instantâneo em memória; a primeira requisição de um Analista dispara a primeira leitura em segundo plano.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/caixa` | Resumo e lista. Filtros: `etapa` (`analise_do_processo`, `revisao_do_parecer_tecnico` ou `correcao_do_requerimento`; vazio = visão geral; outro valor: 400), `busca` (nome do interessado ou número, sem diferenciar acento nem caixa; até 100 caracteres, mais: 400) e `ordem` (`MAIS_PARADO`, o padrão, ou `MAIS_RECENTE`; outra: 400). |
+| `GET` | `/caixa/avisos` | A lista de mudanças: o que chegou desde o último visto, com a origem. **Não grava o visto.** |
+| `POST` | `/caixa/avisos/visto` | Grava o visto do conjunto devolvido. Corpo `{"ids": [<ids de requerimento>]}` (sem `ids`: 400); responde `204`. O que chegou depois, ou que esta aba não viu, continua avisando. |
+| `POST` | `/caixa/atualizar` | Atualização manual (um instantâneo só para todos os analistas): `202` (aceita, ou já havia uma em curso) ou `429` `ATUALIZACAO_RECENTE` com `tentarEmSegundos` (e `Retry-After`) antes do intervalo mínimo (`rastro.caixaIntervaloMinimoManualSegundos`, padrão 60). |
+
+**Contrato da caixa (`CaixaResponse`):** `estado` (`PREPARANDO`, `PRONTO`, `DESATUALIZADO`, `INDISPONIVEL`), `geradoEm` ("Atualizado às HH:MM") e `falhouEm` (fuso de Cuiabá; ausentes quando não valem), `incompleta` (a leitura passou do teto: a caixa pode estar parcial), `semVinculo` e `mensagem` (usuário Analista **sem CPF cadastrado**: caixa vazia e "Seu usuário não está vinculado a um servidor. Peça ao Administrador."), `novos` (quantos requerimentos chegaram desde o último visto: o contador da caixinha), `resumo` (`total`, `comInteressado`, `porEtapa[]` com `id`, `rotulo`, `quantidade`, sempre sobre a caixa inteira, sem os filtros) e `linhas[]` (`id`, `numero`, `interessado` (só o nome ou a razão social), `tipo`, `posse` (`COM_ANALISTA` ou `COM_INTERESSADO`), `etapaId`, `etapa`, `diasNaEtapa` (nulo = "sem informação"), `novo`).
+
+**Contrato da lista de mudanças (`AvisosResponse`):** `semVinculo`, `mensagem`, `quantidade` e `avisos[]` (`id`, `numero`, `interessado`, `tipo`, `etapaId`, `etapa`, `origemCodigo` (`NOVO`, `VOLTOU_DA_CORRECAO`, `VOLTOU_DA_VALIDACAO`, `VOLTOU_DA_EMISSAO`, `VOLTOU_DA_REVISAO` ou `MUDOU_DE_ETAPA`) e `origem` (o texto: "Novo na sua caixa", "Voltou da correção", ...; "Mudou de etapa" quando o histórico não permite dizer, nunca inventado)).
+
+- **Nunca saem:** CPF e CNPJ (nem mascarados), a chave opaca do analista, id técnico do Camunda, chave de arquivo.
+- **O visto fica em memória** (atrás da porta `VistoDoAnalista`; a H1 troca por banco): some ao reiniciar o sistema, e o reinício vale como primeiro acesso, **sem aviso retroativo**.
+- **Estados:** `DESATUALIZADO` mostra o último retrato bom com `falhouEm`; `INDISPONIVEL` nunca teve leitura boa. Nenhum deles vira 5xx.
+- **Auditoria:** evento `CAIXA` (grupo documentos), só com a quantidade: abrir a caixa ("caixa consulta total 5 PRONTO") e abrir a lista de mudanças, em `GET /caixa/avisos` ("caixa avisos 3"). Nunca CPF, chave do analista nem a lista de processos. Negado, validação recusada, gravação do visto e atualização manual não registram.
+- **Parâmetros:** `rastro.caixaAtualizacaoMinutos` (2 a 120; padrão 10) e `rastro.caixaIntervaloMinimoManualSegundos` (15 a 3600; padrão 60), na seção Rastro das Configurações, classe imediato (`RASTRO_CAIXA_ATUALIZACAO_MINUTOS` e `RASTRO_CAIXA_INTERVALO_MINIMO_MANUAL_SEGUNDOS`). O teto de requerimentos e o tempo limite da leitura são os do painel.
 
 ## Documentos
 
@@ -422,7 +443,7 @@ Para continuar, o cliente usa `POST /dossies/{id}/continuacao` (acima), **não**
 
 **S4, bloco 1 (RNF10).** Inventário de **todos** os mapeamentos dos controllers, com quem pode chamar e qual regra se aplica. Todas as decisões de perfil, de vínculo com o interessado (RN07), de sigilo (RF20) e de dono do pedido saem de **um lugar**: `acesso.application.PoliticaDeAcesso` (D60). Os casos de uso só perguntam à política; os controllers não decidem acesso (`ArchitectureTest`). Os `errorCode` não mudaram.
 
-Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **Ad** = Administrador (`ADMIN`). "RN07" = Operador só como interessado: requerimento de outro interessado dá 403 `NAO_INTERESSADO`, requerimento inexistente dá 404 `NAO_ENCONTRADO`. "Sigilo" = documento sigiloso para quem não o acessa dá 403 `DOCUMENTO_SIGILOSO` (na lista, aparece mascarado). "Dono" = pedido de dossiê de outro usuário dá **404** para quem não o acessa (não revela que existe).
+Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **Ad** = Administrador (`ADMIN`). O perfil **Analista** (`ANALISTA`, S11) só tem a caixa: as rotas `/caixa` valem só para ele (nas colunas, 403 para os três perfis acima); a matriz dos demais endpoints para o Analista é do bloco 10 da S11. "RN07" = Operador só como interessado: requerimento de outro interessado dá 403 `NAO_INTERESSADO`, requerimento inexistente dá 404 `NAO_ENCONTRADO`. "Sigilo" = documento sigiloso para quem não o acessa dá 403 `DOCUMENTO_SIGILOSO` (na lista, aparece mascarado). "Dono" = pedido de dossiê de outro usuário dá **404** para quem não o acessa (não revela que existe).
 
 | Método e rota | Autenticação | Op | Ge | Ad | RN07 | Sigilo | Dono do pedido | Onde a política decide |
 |---|---|:---:|:---:|:---:|---|---|---|---|
@@ -442,6 +463,10 @@ Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **
 | `GET /processos/{numero}/financeiro` (S9) | sessão | ✓ | ✓ | ✓ | como a busca por número de processo: filtro na consulta; nenhum dele e o número existe: 403; não existe: 404 | — | — | `restricaoDoUsuarioAtual` (pela busca da consulta); exibição como na linha acima |
 | `GET /painel` (S10) | sessão | 403 | ✓ | ✓ | — | — | — | `exigirPainel` (`PERFIL_SEM_PERMISSAO`, antes de ler o instantâneo; negado não registra evento); nomes de servidor conforme `RASTRO_MOSTRAR_NOME_RESPONSAVEL` (RN12) |
 | `POST /painel/atualizacao` (S10) | sessão | 403 | ✓ | ✓ | — | — | — | `exigirPainel`; 429 `ATUALIZACAO_RECENTE` antes do intervalo mínimo |
+| `GET /caixa` (S11) | sessão | 403 | 403 | 403 | — | — | — | `exigirCaixa` (`PERFIL_SEM_PERMISSAO`, antes de validar filtro ou ler o instantâneo; só o Analista); a caixa é a da própria sessão (chave opaca do login), nunca de parâmetro |
+| `GET /caixa/avisos` (S11) | sessão | 403 | 403 | 403 | — | — | — | `exigirCaixa`; só o Analista, só a própria caixa; registra o evento `CAIXA` com a quantidade |
+| `POST /caixa/avisos/visto` (S11) | sessão | 403 | 403 | 403 | — | — | — | `exigirCaixa`; grava só o visto do próprio Analista |
+| `POST /caixa/atualizar` (S11) | sessão | 403 | 403 | 403 | — | — | — | `exigirCaixa`; 429 `ATUALIZACAO_RECENTE` antes do intervalo mínimo |
 | `GET /tramitacao/parametros` (S7) | sessão | ✓ | ✓ | ✓ | — | — | — | nenhuma: só números de comportamento da tela (`posicoesSimultaneas`), sem credencial nem dado de negócio |
 | `GET /requerimentos/{id}/documentos` | sessão | ✓ | ✓ | ✓ | 403/404 (antes de ler os documentos e de chamar o SCORP) | listados para todos; para o Op, mascarados e bloqueados; geometria sigilosa não aparece para o Op (só `totais.geometriasOmitidas`) | — | `exigirAcessoAoRequerimento`, `podeAcessarDocumento`, `mascararTitulo` |
 | `GET /documentos/{origem}/{id}/conteudo?requerimento=` | sessão | ✓ | ✓ | ✓ | 403/404 do requerimento; origem e id fora do requerimento: 404 | 403 | — | `exigirAcessoAoRequerimento`, `exigirAcessoAoDocumento` (a cada requisição, mesmo com cache) |

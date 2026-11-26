@@ -175,6 +175,11 @@ rastro:
     limite-requerimentos: ${RASTRO_PAINEL_LIMITE_REQUERIMENTOS:3000}
     timeout-segundos: ${RASTRO_PAINEL_TIMEOUT_SEGUNDOS:60}
     intervalo-minimo-manual-segundos: ${RASTRO_PAINEL_INTERVALO_MINIMO_MANUAL_SEGUNDOS:120}
+  # Caixa do analista (S11): intervalo da atualização (2 a 120 min) e intervalo mínimo da atualização manual (15 a 3600 s).
+  # Editáveis em Configurações › Rastro (classe imediato). O teto e o tempo limite são os do painel.
+  caixa:
+    atualizacao-minutos: ${RASTRO_CAIXA_ATUALIZACAO_MINUTOS:10}
+    intervalo-minimo-manual-segundos: ${RASTRO_CAIXA_INTERVALO_MINIMO_MANUAL_SEGUNDOS:60}
   agendamento:
     enabled: ${AGENDAMENTO_ENABLED:true}
     limpeza-dossie: PT5M

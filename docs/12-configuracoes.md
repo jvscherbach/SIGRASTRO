@@ -245,6 +245,17 @@ Parâmetros `rastro.painel*` (classe **imediato**: lidos a cada ciclo de atualiz
 
 **Texto de apoio na aba Rastro (S10, bloco 8):** os cinco campos aparecem com o rótulo "Painel: …", a faixa, o padrão do ambiente e a etiqueta "Vale já" (a tela é guiada pelo catálogo; nenhuma regra nova). Abaixo da lista, a tela explica cada um e diz que `0` no ano é o ano corrente em Cuiabá. Não há validação nova: a faixa e o erro continuam como nos demais parâmetros. Testes: `parametros-config.spec.ts` (campos do painel, faixas, etiqueta e texto de apoio) e `front/e2e/configuracoes-financeiro.e2e.ts` (aba Rastro).
 
+## Parâmetros da caixa do analista (S11, bloco 6)
+
+Parâmetros `rastro.caixa*` (classe **imediato**: lidos a cada ciclo, valem na próxima atualização), na seção **Rastro** das Configurações. O padrão vem do ambiente (`RASTRO_CAIXA_*`; fora da faixa cai no padrão, com aviso no log). O teto de requerimentos e o tempo limite da leitura são os do painel (`rastro.painelLimiteRequerimentos` e `rastro.painelTimeoutSegundos`): a caixa não cria parâmetro para eles.
+
+| Parâmetro | Variável | Faixa | Padrão |
+|---|---|---|---|
+| `rastro.caixaAtualizacaoMinutos` | `RASTRO_CAIXA_ATUALIZACAO_MINUTOS` | 2 a 120 | 10 |
+| `rastro.caixaIntervaloMinimoManualSegundos` | `RASTRO_CAIXA_INTERVALO_MINIMO_MANUAL_SEGUNDOS` | 15 a 3600 | 60 |
+
+Os dois campos aparecem na aba Rastro com o rótulo "Caixa do analista: …" (a tela é guiada pelo catálogo; nenhuma regra nova no front). Prova: `ParametrosHttpTest` (padrão, classe imediato, faixa).
+
 ## Salvamento
 
 - Parâmetros alterados ficam pendentes numa barra fixa com a contagem de alterações, "Descartar" e "Salvar alterações".

@@ -15,6 +15,8 @@ public enum TipoDeEvento {
     FINANCEIRO(GrupoDeEvento.DOCUMENTOS, "Histórico financeiro"),
     /** Painel do Gestor (S10, bloco 5): consulta e atualização manual; só o ano e o estado, nunca nome de servidor. */
     PAINEL(GrupoDeEvento.DOCUMENTOS, "Painel do Gestor"),
+    /** Caixa do analista (S11, bloco 6): abrir a caixa e abrir a lista de mudanças; só a quantidade, nunca CPF nem a lista de processos. */
+    CAIXA(GrupoDeEvento.DOCUMENTOS, "Caixa do analista"),
     LOGIN(GrupoDeEvento.ACESSOS, "Acesso"),
     PERFIL(GrupoDeEvento.ACESSOS, "Troca de perfil"),
     USUARIO(GrupoDeEvento.ACESSOS, "Usuário alterado"),

@@ -37,7 +37,7 @@ public record ResumoDaCaixa(int total, List<EtapaDoResumo> porEtapa, int comInte
     }
 
     /** Rótulo do catálogo; sem a etapa, o próprio id (nunca inventa texto). */
-    private static String rotulo(String id, CatalogoDeEtapas catalogo) {
+    public static String rotulo(String id, CatalogoDeEtapas catalogo) {
         for (ModeloDeFluxo modelo : catalogo.modelos()) {
             Optional<Etapa> etapa = modelo.etapa(id);
             if (etapa.isPresent()) {
