@@ -1,4 +1,8 @@
-import { Identificacao, Interessado, Situacao } from '../../shared/api-tipos';
+import { Identificacao, Situacao } from '../../shared/api-tipos';
+
+export interface InteressadoDaLista {
+  nome: string | null;
+}
 
 export type TipoBusca = 'REQUERIMENTO' | 'PROCESSO';
 
@@ -17,7 +21,8 @@ export interface ResultadoBusca {
   identificacao: Identificacao;
   numeroRequerimento: string;
   numeroProcesso: string | null;
-  interessado: Interessado | null;
+  /** Só o nome (pessoa) ou a razão social (empresa): a listagem nunca traz CPF/CNPJ (S11). */
+  interessado: InteressadoDaLista | null;
   tipoProcesso: string | null;
   situacao: Situacao;
   abertura: string | null;

@@ -124,6 +124,22 @@ class ConsultaHttpTest {
     }
 
     @Test
+    void listaTrazSoONomeDoInteressadoNuncaCpfOuCnpj() throws Exception {
+        Requerimento r = new Requerimento(101, "3331/2025", null, "Requerimento de Outorga",
+                Situacao.de("EM_ANALISE"), LocalDateTime.of(2025, 3, 31, 10, 12), null,
+                new Interessado("Interessado Exemplo LTDA", "00000000000100"), "Uso de Recursos Hídricos");
+        when(siga.buscarPorNumeroDeRequerimento(any())).thenReturn(Optional.of(r));
+
+        String corpo = buscar("gestor.demo", "tipo=REQUERIMENTO&numero=3331/2025")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conteudo[0].interessado.nome").value("Interessado Exemplo LTDA"))
+                .andExpect(jsonPath("$.conteudo[0].interessado.cpfCnpj").doesNotExist())
+                .andReturn().getResponse().getContentAsString();
+
+        org.assertj.core.api.Assertions.assertThat(corpo).doesNotContain("00000000000100").doesNotContain("0000000000");
+    }
+
+    @Test
     void buscaPorListaDevolvePaginaComTotalEPassaARestricaoDoOperador() throws Exception {
         Requerimento r = requerimento(101, CNPJ_DO_OPERADOR, null);
         when(siga.buscarPorCriterios(any())).thenReturn(new Pagina<>(List.of(r.resumo()), 41, 1, 20));

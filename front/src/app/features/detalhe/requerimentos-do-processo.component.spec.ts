@@ -15,7 +15,7 @@ function resultado(id: number): ResultadoBusca {
     identificacao: { rotulo: 'Processo', numero: '7900/2022', protocolado: true },
     numeroRequerimento: `${id}/2026`,
     numeroProcesso: '7900/2022',
-    interessado: { nome: 'Interessado Fictício S7', cpfCnpj: '12345678000190' },
+    interessado: { nome: 'Interessado Fictício S7' },
     tipoProcesso: 'Outorga de recursos hídricos (FICTÍCIO)',
     situacao: { codigo: 'EM_ANALISE', descricao: 'Em análise' },
     abertura: '2026-03-01T09:00:00',

@@ -39,7 +39,7 @@ function resultado(id: number, numero: string, protocolado = true): ResultadoBus
     identificacao: { rotulo: protocolado ? 'Processo' : 'Requerimento', numero, protocolado },
     numeroRequerimento: '3331/2025',
     numeroProcesso: protocolado ? numero : null,
-    interessado: { nome: 'Associação Vale Verde', cpfCnpj: '12345678000190' },
+    interessado: { nome: 'Associação Vale Verde' },
     tipoProcesso: 'Uso de Recursos Hídricos',
     situacao: { codigo: 'EM_ANALISE', descricao: 'Em análise' },
     abertura: '2025-03-31T10:12:00',
@@ -364,7 +364,9 @@ describe('ConsultaComponent', () => {
       expect(linhas.length).toBe(2);
       expect(texto(raiz)).toContain('41 resultado(s)');
       expect(linhas[0].textContent).toContain('2825/2025');
-      expect(linhas[0].textContent).toContain('12.345.678/0001-90');
+      expect(linhas[0].textContent).toContain('Associação Vale Verde');
+      expect(linhas[0].textContent).not.toMatch(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{14}/);
+      expect(linhas[0].querySelector('.interessado-nome')).not.toBeNull();
       expect(linhas[0].textContent).toContain('Em análise');
       expect(linhas[0].textContent).toContain('31/03/2025');
       expect(linhas[1].textContent).toContain('Requerimento · não protocolado');

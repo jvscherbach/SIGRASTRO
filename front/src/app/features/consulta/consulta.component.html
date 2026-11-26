@@ -98,10 +98,7 @@
                       <b>{{ r.identificacao.numero }}</b>
                       <span class="cell-sub">{{ r.identificacao.protocolado ? 'Processo' : 'Requerimento · não protocolado' }}</span>
                     </td>
-                    <td>
-                      {{ nomeDe(r.interessado) }}
-                      <span class="cell-sub">{{ formatarCpfCnpj(r.interessado?.cpfCnpj) }}</span>
-                    </td>
+                    <td class="interessado-nome">{{ nomeDe(r.interessado) }}</td>
                     <td>{{ r.tipoProcesso || '—' }}</td>
                     <td><app-situacao-tag [situacao]="r.situacao" /></td>
                     @if (mostrarEtapa()) {

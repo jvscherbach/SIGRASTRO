@@ -4,8 +4,8 @@ import { Router } from '@angular/router';
 
 import { AuthService } from '../../core/auth.service';
 import { mensagemDoErro } from '../../core/mensagens-erro';
-import { PageResponse, Interessado } from '../../shared/api-tipos';
-import { formatarCpfCnpj, formatarData, mascararCpfCnpj, mascararNumero, somenteDigitos } from '../../shared/formato';
+import { PageResponse } from '../../shared/api-tipos';
+import { formatarData, mascararCpfCnpj, mascararNumero, somenteDigitos } from '../../shared/formato';
 import { FolhaSobrepostaComponent } from '../../shared/folha-sobreposta.component';
 import { IconeComponent } from '../../shared/icone.component';
 import { QuadroTopoComponent } from '../../shared/quadro-topo.component';
@@ -13,7 +13,7 @@ import { RecentesService } from '../../shared/recentes.service';
 import { SituacaoTagComponent } from '../../shared/situacao-tag.component';
 import { OndeEstaAgoraComponent } from '../detalhe/onde-esta-agora.component';
 import { ConsultaApiService } from './consulta-api.service';
-import { CriterioBusca, ResultadoBusca, TipoBusca } from './consulta.models';
+import { CriterioBusca, InteressadoDaLista, ResultadoBusca, TipoBusca } from './consulta.models';
 
 const FORMATO_NUMERO = /^\d{1,6}\/\d{4}$/;
 const NOME_MINIMO = 3;
@@ -107,10 +107,9 @@ export class ConsultaComponent {
     this.resultado.set(null);
   }
 
-  protected formatarCpfCnpj = formatarCpfCnpj;
   protected formatarData = formatarData;
 
-  protected nomeDe(interessado: Interessado | null): string {
+  protected nomeDe(interessado: InteressadoDaLista | null): string {
     return interessado?.nome || '—';
   }
 

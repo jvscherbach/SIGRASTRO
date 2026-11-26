@@ -125,6 +125,7 @@ input[type=checkbox]:disabled{cursor:not-allowed}
 .doc-cell b{font-size:.875rem;font-weight:600;display:block;line-height:1.35}
 .doc-cell small{font-size:.75rem;color:var(--slate);display:block}
 .cell-sub{font-size:.75rem;color:var(--slate);display:block;margin-top:2px}
+.interessado-nome{min-width:9rem;overflow-wrap:anywhere}
 .nowrap{white-space:nowrap}
 .lock{display:inline-flex;align-items:center;gap:5px;color:var(--warn);font-size:.75rem;font-weight:600}
 .lock .icon{width:14px;height:14px}
