@@ -51,6 +51,7 @@ Códigos: `OPERADOR`, `OPERADOR_SIGILO`, `ANALISTA`, `ADMIN`. Na versão definit
 - **Senha (L1):** cada usuário tem a própria senha, guardada só como hash. A definição na inclusão, a redefinição e a troca da própria senha entram no bloco 3 da L1; até lá um usuário incluído pela tela não tem senha e não entra.
 - **Usuários padrão (L1, bloco 2):** na subida, a `api` cria `operador` (Operador), `analista` (Analista) e `admin` (Administrador) a partir das variáveis abaixo. Não há usuário nem senha de demonstração. O Gestor é criado pelo Administrador nesta tela.
 - **Memória:** incluídos e alterados somem ao reiniciar, e o serviço volta ao que as variáveis dos usuários padrão dizem (a persistência é da H1). O último acesso também.
+- **Senhas (L1, bloco 3):** ao incluir, o Administrador informa a senha inicial; ao editar, pode redefinir a senha (encerra todas as sessões do usuário). Todos os perfis trocam a **própria** senha em `POST /api/auth/senha` (senha atual, nova e confirmação; encerra as outras sessões e mantém a atual); só o Administrador redefine a de outros. Política: 12 a 200 caracteres, sem o login, nova diferente da atual. Nenhuma resposta, log ou evento traz senha ou hash.
 
 | Variável | Serviço | Padrão | O que faz |
 |---|---|---|---|

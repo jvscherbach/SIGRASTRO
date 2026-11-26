@@ -2,7 +2,11 @@ package br.gov.mt.sema.rastro.auditoria.application;
 
 import br.gov.mt.sema.rastro.acesso.application.EntradaRealizada;
 import br.gov.mt.sema.rastro.acesso.application.LoginRecusado;
+import java.util.List;
+
+import br.gov.mt.sema.rastro.acesso.application.SenhaTrocada;
 import br.gov.mt.sema.rastro.acesso.domain.Usuario;
+import br.gov.mt.sema.rastro.auditoria.domain.AlteracaoDoEvento;
 import br.gov.mt.sema.rastro.auditoria.domain.TipoDeEvento;
 import br.gov.mt.sema.rastro.auditoria.domain.UsuarioDoEvento;
 import org.slf4j.Logger;
@@ -58,6 +62,18 @@ class EventosDeAcesso {
                 registrar.registrar(contexto.novo(TipoDeEvento.LOGIN, anonimo)
                         .detalhe("Entrada bloqueada por excesso de tentativas").criar());
             }
+        } catch (RuntimeException e) {
+            log.error("Falha ao registrar evento de acesso: {}", e.getClass().getSimpleName());
+        }
+    }
+
+    /** Troca da própria senha: só o fato, nunca a senha nem o hash. */
+    @EventListener
+    void aoTrocarSenha(SenhaTrocada troca) {
+        try {
+            UsuarioDoEvento quem = retrato(troca.usuario());
+            registrar.registrar(contexto.novo(TipoDeEvento.USUARIO, quem).detalhe(troca.usuario().login())
+                    .alteracoes(List.of(new AlteracaoDoEvento("Senha", null, "trocada pelo próprio usuário"))).criar());
         } catch (RuntimeException e) {
             log.error("Falha ao registrar evento de acesso: {}", e.getClass().getSimpleName());
         }

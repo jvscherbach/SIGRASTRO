@@ -60,6 +60,11 @@ class RepositorioSessoesEmMemoria implements RepositorioSessoes {
         }
     }
 
+    @Override
+    public void encerrarDoUsuario(String login, String tokenAManter) {
+        sessoes.values().removeIf(s -> s.login().equals(login) && !s.token().equals(tokenAManter));
+    }
+
     private void removerExpiradas() {
         Instant agora = relogio.instant();
         sessoes.values().removeIf(s -> !s.expiraEm().isAfter(agora));

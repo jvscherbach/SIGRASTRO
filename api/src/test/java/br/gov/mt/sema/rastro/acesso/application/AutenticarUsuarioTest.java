@@ -91,6 +91,10 @@ class AutenticarUsuarioTest {
         @Override
         public void encerrar(String token) {
         }
+
+        @Override
+        public void encerrarDoUsuario(String login, String tokenAManter) {
+        }
     }
 
     private static final class Eventos implements ApplicationEventPublisher {

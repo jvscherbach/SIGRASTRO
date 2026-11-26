@@ -9,6 +9,7 @@ Prefixo: `/api`. JSON, exceto onde indicado. Todas as rotas, menos o login, exig
 | `POST` | `/auth/login` | Login simulado. Corpo `{ "usuario": "...", "senha": "..." }`. Retorna token (opaco, válido por 8 h), `tipo` `Bearer`, `expiraEm` e o usuário (perfil `OPERADOR`, `OPERADOR_SIGILO` ou `ADMIN`). 401 `NAO_AUTENTICADO` se usuário ou senha estiverem errados; 400 se faltar campo. Não exige token. |
 | `GET` | `/auth/me` | Usuário e perfil atuais, com as permissões do perfil. |
 | `POST` | `/auth/logout` | Encerra a sessão atual (204). |
+| `POST` | `/auth/senha` | Troca a própria senha: `{senhaAtual, novaSenha, confirmacao}` (204). Todo perfil troca a própria; limite de tentativas como o do login (429); encerra as outras sessões do usuário. |
 
 Usuários de demonstração (senha única `vistas-demo` no perfil `local`; configurável por `VISTAS_DEMO_SENHA`): `operador.demo` (`OPERADOR`, CNPJ `12.345.678/0001-90`), `gestor.demo` (`OPERADOR_SIGILO`) e `admin.demo` (`ADMIN`).
 
@@ -455,6 +456,7 @@ Legenda: **Op** = Operador (`OPERADOR`), **Ge** = Gestor (`OPERADOR_SIGILO`), **
 | `GET /auth/me` | sessão | ✓ | ✓ | ✓ | — | — | — | só o próprio usuário |
 | `GET /estado` (S6) | sessão | ✓ | ✓ | ✓ | — | — | — | só status e modo; sem URL, host ou credencial |
 | `POST /auth/logout` | sessão | ✓ | ✓ | ✓ | — | — | — | só a própria sessão |
+| `POST /auth/senha` (L1) | sessão | ✓ | ✓ | ✓ | — | — | — | só a própria senha; 401 antes de qualquer leitura |
 | `GET /busca` (por número de requerimento) | sessão | ✓ | ✓ | ✓ | 403/404 | — | — | `exigirAcessoAoRequerimento` |
 | `GET /busca` (por número de processo, 1:N) | sessão | ✓ | ✓ | ✓ | filtro na consulta; nenhum dele e o número existe: 403; não existe: 404 | — | — | `restricaoDoUsuarioAtual` |
 | `GET /busca` (por CPF/CNPJ e/ou nome) | sessão | ✓ | ✓ | ✓ | filtro na consulta (total e paginação já filtrados); Operador sem CPF/CNPJ: página vazia | — | — | `restricaoDoUsuarioAtual` |
@@ -550,8 +552,8 @@ Restrito ao perfil `ADMIN`. Toda escrita gera evento na auditoria de acessos.
 | `PUT` | `/configuracoes/parametros` | Salva todas as alterações pendentes, de forma atômica (um evento `CONFIG` com a lista de mudanças). |
 | `DELETE` | `/configuracoes/parametros/{nome}` | Volta o parâmetro ao padrão do ambiente. |
 | `GET` | `/configuracoes/usuarios` | Usuários com perfil, situação e último acesso, por nome, numa página só. |
-| `POST` | `/configuracoes/usuarios` | Inclui usuário: `{nome, login, cpfCnpj, perfil}`. 201 com o usuário. |
-| `PATCH` | `/configuracoes/usuarios/{id}` | Altera `perfil` e/ou `ativo`; o campo ausente fica como está. |
+| `POST` | `/configuracoes/usuarios` | Inclui usuário: `{nome, login, cpfCnpj, perfil, senha}` (senha inicial pela política de senha; nunca devolvida). 201 com o usuário. |
+| `PATCH` | `/configuracoes/usuarios/{id}` | Altera `perfil`, `ativo` e/ou redefine `senha` (só Administrador; encerra todas as sessões do usuário); o campo ausente fica como está. |
 | `GET` | `/configuracoes/conexoes` | Estado das conexões. |
 | `POST` | `/configuracoes/conexoes/{nome}/teste` | Testa uma conexão e devolve a classificação, o código HTTP e o tempo de resposta. |
 

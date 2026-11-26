@@ -114,8 +114,8 @@ public class ConfiguracaoController {
     @PostMapping("/usuarios")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Inclui usuário",
-            description = "Login único e normalizado. CPF/CNPJ obrigatório e válido para o Operador. Gera evento USUARIO, sem "
-                    + "o CPF/CNPJ. 409 LOGIN_JA_EXISTE.")
+            description = "Login único e normalizado. Senha inicial obrigatória, pela política de senha. CPF/CNPJ obrigatório e "
+                    + "válido para o Operador. Gera evento USUARIO, sem o CPF/CNPJ e sem a senha. 409 LOGIN_JA_EXISTE.")
     @ApiResponse(responseCode = "201", description = "Usuário incluído.")
     @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest")
     @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized")
@@ -123,12 +123,14 @@ public class ConfiguracaoController {
     @ApiResponse(responseCode = "409", description = "Login já existe (LOGIN_JA_EXISTE).")
     public UsuarioDaConfiguracaoResponse incluir(@RequestBody IncluirUsuarioRequest pedido) {
         return UsuarioDaConfiguracaoResponse.de(
-                gerirUsuarios.incluir(pedido.nome(), pedido.login(), pedido.cpfCnpj(), pedido.perfil()));
+                gerirUsuarios.incluir(pedido.nome(), pedido.login(), pedido.cpfCnpj(), pedido.perfil(),
+                        pedido.senha()));
     }
 
     @PatchMapping("/usuarios/{id}")
-    @Operation(summary = "Altera perfil ou situação",
-            description = "Vale para as sessões abertas já na próxima requisição. Gera um evento USUARIO se algo mudou. 409 "
+    @Operation(summary = "Altera perfil, situação ou redefine a senha",
+            description = "Vale para as sessões abertas já na próxima requisição. O campo senha redefine a senha (política de "
+                    + "senha) e encerra todas as sessões do usuário. Gera um evento USUARIO se algo mudou, sem a senha. 409 "
                     + "ULTIMO_ADMINISTRADOR ou PROPRIO_USUARIO.")
     @ApiResponse(responseCode = "200", description = "Usuário como ficou.")
     @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest")
@@ -137,6 +139,6 @@ public class ConfiguracaoController {
     @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound")
     @ApiResponse(responseCode = "409", description = "Proteção da administração (ULTIMO_ADMINISTRADOR, PROPRIO_USUARIO).")
     public UsuarioDaConfiguracaoResponse alterar(@PathVariable String id, @RequestBody AlterarUsuarioRequest pedido) {
-        return UsuarioDaConfiguracaoResponse.de(gerirUsuarios.alterar(id, pedido.perfil(), pedido.ativo()));
+        return UsuarioDaConfiguracaoResponse.de(gerirUsuarios.alterar(id, pedido.perfil(), pedido.ativo(), pedido.senha()));
     }
 }

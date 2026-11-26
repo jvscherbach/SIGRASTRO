@@ -10,4 +10,7 @@ public interface RepositorioSessoes {
     Optional<Sessao> buscar(String token);
 
     void encerrar(String token);
+
+    /** Encerra as sessões abertas do usuário, menos a do token informado ({@code null} = todas). */
+    void encerrarDoUsuario(String login, String tokenAManter);
 }

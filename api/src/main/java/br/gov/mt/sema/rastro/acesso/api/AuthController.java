@@ -2,7 +2,9 @@ package br.gov.mt.sema.rastro.acesso.api;
 
 import br.gov.mt.sema.rastro.acesso.api.dto.LoginRequest;
 import br.gov.mt.sema.rastro.acesso.api.dto.LoginResponse;
+import br.gov.mt.sema.rastro.acesso.api.dto.TrocarSenhaRequest;
 import br.gov.mt.sema.rastro.acesso.api.dto.UsuarioResponse;
+import br.gov.mt.sema.rastro.acesso.application.TrocarSenha;
 import br.gov.mt.sema.rastro.acesso.application.AutenticarUsuario;
 import br.gov.mt.sema.rastro.acesso.application.EncerrarSessao;
 import br.gov.mt.sema.rastro.acesso.application.SessaoAberta;
@@ -32,9 +34,11 @@ public class AuthController {
     private final AutenticarUsuario autenticarUsuario;
     private final EncerrarSessao encerrarSessao;
     private final UsuarioAtual usuarioAtual;
+    private final TrocarSenha trocarSenha;
 
     public AuthController(AutenticarUsuario autenticarUsuario, EncerrarSessao encerrarSessao,
-            UsuarioAtual usuarioAtual) {
+            UsuarioAtual usuarioAtual, TrocarSenha trocarSenha) {
+        this.trocarSenha = trocarSenha;
         this.autenticarUsuario = autenticarUsuario;
         this.encerrarSessao = encerrarSessao;
         this.usuarioAtual = usuarioAtual;
@@ -90,6 +94,23 @@ public class AuthController {
     @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalError")
     public UsuarioResponse me() {
         return UsuarioResponse.de(usuarioAtual.obter());
+    }
+
+    @PostMapping("/senha")
+    @Operation(summary = "Troca a própria senha",
+            description = "Qualquer perfil troca a própria senha. Confere a senha atual (com o mesmo limite de tentativas do "
+                    + "login), aplica a política (12 a 200 caracteres, diferente da atual, sem o login) e encerra as outras "
+                    + "sessões do usuário; a atual continua. Nunca devolve senha nem hash.")
+    @ApiResponse(responseCode = "204", description = "Senha trocada.")
+    @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest")
+    @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized")
+    @ApiResponse(responseCode = "429", ref = "#/components/responses/TooManyRequests")
+    @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalError")
+    public ResponseEntity<Void> trocarSenha(@Valid @RequestBody TrocarSenhaRequest pedido,
+            HttpServletRequest requisicao) {
+        trocarSenha.executar(usuarioAtual.obter().login(), usuarioAtual.token(), pedido.senhaAtual(),
+                pedido.novaSenha(), pedido.confirmacao(), origemDe(requisicao));
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/logout")

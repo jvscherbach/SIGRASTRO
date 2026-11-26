@@ -7,6 +7,7 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 
 import br.gov.mt.sema.rastro.acesso.domain.CpfCnpjDoUsuario;
+import br.gov.mt.sema.rastro.acesso.domain.HashDeSenha;
 import br.gov.mt.sema.rastro.acesso.domain.Perfil;
 import br.gov.mt.sema.rastro.acesso.domain.Usuario;
 import br.gov.mt.sema.rastro.shared.api.error.ErrorCode;
@@ -28,13 +29,17 @@ public class AdministrarUsuarios {
     private static final int MAX_NOME = 200;
 
     private final CadastroDeUsuarios cadastro;
+    private final HashDeSenha hashes;
+    private final RepositorioSessoes sessoes;
 
-    public AdministrarUsuarios(CadastroDeUsuarios cadastro) {
+    public AdministrarUsuarios(CadastroDeUsuarios cadastro, HashDeSenha hashes, RepositorioSessoes sessoes) {
         this.cadastro = cadastro;
+        this.hashes = hashes;
+        this.sessoes = sessoes;
     }
 
-    /** O antes e o depois de uma alteração. */
-    public record Alteracao(UsuarioAdministrado antes, UsuarioAdministrado depois) {
+    /** O antes e o depois de uma alteração; {@code senhaRedefinida} diz só o fato, nunca a senha. */
+    public record Alteracao(UsuarioAdministrado antes, UsuarioAdministrado depois, boolean senhaRedefinida) {
     }
 
     public List<UsuarioAdministrado> listar() {
@@ -42,7 +47,9 @@ public class AdministrarUsuarios {
                 .map(this::administrado).toList();
     }
 
-    public synchronized UsuarioAdministrado incluir(String nome, String login, String cpfCnpj, String perfil) {
+    /** @param senha senha inicial, pela política de senha */
+    public synchronized UsuarioAdministrado incluir(String nome, String login, String cpfCnpj, String perfil,
+            String senha) {
         String nomeLimpo = nome == null ? "" : nome.strip();
         if (nomeLimpo.isEmpty() || nomeLimpo.length() > MAX_NOME) {
             throw new ParametroInvalidoException("nome", "Informe o nome, com até " + MAX_NOME + " caracteres.");
@@ -52,6 +59,7 @@ public class AdministrarUsuarios {
             throw new ParametroInvalidoException("login",
                     "O login tem de 3 a 60 caracteres: letras, números, ponto, hífen ou sublinhado.");
         }
+        PoliticaDeSenha.validar(loginNormalizado, senha);
         Perfil novoPerfil = perfil(perfil);
         String digitos = CpfCnpjDoUsuario.somenteDigitos(cpfCnpj);
         if (digitos.isEmpty() && novoPerfil.restritoAoInteressado()) {
@@ -63,19 +71,30 @@ public class AdministrarUsuarios {
         if (cadastro.buscarPorLogin(loginNormalizado).isPresent()) {
             throw new RastroException(ErrorCode.LOGIN_JA_EXISTE, "Já existe um usuário com este login.");
         }
-        Usuario novo = new Usuario(loginNormalizado, nomeLimpo, novoPerfil, digitos.isEmpty() ? null : digitos, true);
+        Usuario novo = new Usuario(loginNormalizado, nomeLimpo, novoPerfil, digitos.isEmpty() ? null : digitos, true,
+                hashes.gerar(senha));
         cadastro.salvar(novo);
         return administrado(novo);
+    }
+
+    public synchronized Alteracao alterar(String login, String perfil, Boolean ativo, String loginDoAutor) {
+        return alterar(login, perfil, ativo, null, loginDoAutor);
     }
 
     /**
      * @param perfil código do novo perfil; {@code null} mantém
      * @param ativo nova situação; {@code null} mantém
+     * @param novaSenha redefine a senha (pela política); {@code null} ou vazia mantém. Encerra todas as sessões do usuário.
      * @param loginDoAutor quem está alterando: ninguém desativa o próprio usuário
      */
-    public synchronized Alteracao alterar(String login, String perfil, Boolean ativo, String loginDoAutor) {
+    public synchronized Alteracao alterar(String login, String perfil, Boolean ativo, String novaSenha,
+            String loginDoAutor) {
         Usuario atual = cadastro.buscarPorLogin(login)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário não encontrado."));
+        boolean redefine = novaSenha != null && !novaSenha.isEmpty();
+        if (redefine) {
+            PoliticaDeSenha.validar(atual.login(), novaSenha);
+        }
         Perfil novoPerfil = perfil == null ? atual.perfil() : perfil(perfil);
         boolean novaSituacao = ativo == null ? atual.ativo() : ativo;
         if (atual.ativo() && !novaSituacao && atual.login().equals(loginDoAutor)) {
@@ -92,11 +111,14 @@ public class AdministrarUsuarios {
                     "Não é possível desativar nem rebaixar o último Administrador ativo.");
         }
         Usuario alterado = new Usuario(atual.login(), atual.nome(), novoPerfil, atual.cpfCnpj(), novaSituacao,
-                atual.senhaHash());
+                redefine ? hashes.gerar(novaSenha) : atual.senhaHash());
         if (!alterado.equals(atual)) {
             cadastro.salvar(alterado);
         }
-        return new Alteracao(administrado(atual), administrado(alterado));
+        if (redefine) {
+            sessoes.encerrarDoUsuario(atual.login(), null);
+        }
+        return new Alteracao(administrado(atual), administrado(alterado), redefine);
     }
 
     /** Há ao menos um Administrador ativo? (só o fato, para o estado do serviço). */

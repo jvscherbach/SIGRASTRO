@@ -40,7 +40,7 @@ O evento `DOSSIE` é registrado quando a geração termina com sucesso; uma tent
 |---|---|---|---|
 | `LOGIN` | Acesso | Entrada no sistema (login bem-sucedido) e, desde a L1, a **falha de login** e o **bloqueio por excesso de tentativas**. Falha e bloqueio não levam o login digitado nem a senha e não dizem se o login existe: o usuário do evento é o marcador `(nao-autenticado)`; a origem (IP) vem da requisição | Falha: "Falha de login"; bloqueio: "Entrada bloqueada por excesso de tentativas" |
 | `PERFIL` | Troca de perfil | Troca do perfil simulado (só no protótipo): um login bem-sucedido feito com uma sessão aberta de **outro perfil** registra `LOGIN` e `PERFIL`, em nome de quem entrou | Perfil novo ("Perfil novo: Administrador") |
-| `USUARIO` | Usuário alterado | Inclusão de usuário, mudança de perfil ou de situação (um evento por gravação; sem mudança real, nenhum) | Login do alvo em `detalhe` e antes e depois, sem CPF/CNPJ |
+| `USUARIO` | Usuário alterado | Inclusão de usuário, mudança de perfil ou de situação, definição ou redefinição de senha pelo Administrador e troca da própria senha (L1; só o fato, nunca a senha) (um evento por gravação; sem mudança real, nenhum) | Login do alvo em `detalhe` e antes e depois, sem CPF/CNPJ |
 | `CONEXAO` | Teste de conexão | Cada "Testar conexão" do Administrador (S6, bloco 4) | Conexão, classificação, código HTTP e tempo (ex.: "SCORP: ALCANCAVEL_COM_RESSALVA (HTTP 400), 180 ms"); nunca URL, host, token, cookie nem corpo do serviço |
 | `CONFIG` | Configuração alterada | Salvamento de parâmetros, ou retorno de um deles ao padrão (um evento por salvamento; sem mudança real, nenhum). Testar conexão gera `CONEXAO` (S6) | Lista de mudanças (antes e depois), com a marca "(exige reinício)" |
 

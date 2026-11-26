@@ -40,10 +40,11 @@ public class GerirUsuarios {
         return usuarios.listar();
     }
 
-    public UsuarioAdministrado incluir(String nome, String login, String cpfCnpj, String perfil) {
+    public UsuarioAdministrado incluir(String nome, String login, String cpfCnpj, String perfil, String senha) {
         politica.exigirConfiguracoes();
-        UsuarioAdministrado novo = usuarios.incluir(nome, login, cpfCnpj, perfil);
+        UsuarioAdministrado novo = usuarios.incluir(nome, login, cpfCnpj, perfil, senha);
         registrarEvento(novo, List.of(new AlteracaoDoEvento("Inclusão", null, "incluído"),
+                new AlteracaoDoEvento("Senha", null, "definida"),
                 new AlteracaoDoEvento("Nome", null, novo.nome()),
                 new AlteracaoDoEvento("Login", null, novo.login()),
                 new AlteracaoDoEvento("Perfil", null, novo.perfilRotulo()),
@@ -51,9 +52,10 @@ public class GerirUsuarios {
         return novo;
     }
 
-    public UsuarioAdministrado alterar(String login, String perfil, Boolean ativo) {
+    public UsuarioAdministrado alterar(String login, String perfil, Boolean ativo, String novaSenha) {
         politica.exigirConfiguracoes();
-        AdministrarUsuarios.Alteracao alteracao = usuarios.alterar(login, perfil, ativo, usuarioAtual.obter().login());
+        AdministrarUsuarios.Alteracao alteracao =
+                usuarios.alterar(login, perfil, ativo, novaSenha, usuarioAtual.obter().login());
         UsuarioAdministrado antes = alteracao.antes();
         UsuarioAdministrado depois = alteracao.depois();
         List<AlteracaoDoEvento> mudancas = new ArrayList<>();
@@ -62,6 +64,9 @@ public class GerirUsuarios {
         }
         if (antes.ativo() != depois.ativo()) {
             mudancas.add(new AlteracaoDoEvento("Situação", situacao(antes), situacao(depois)));
+        }
+        if (alteracao.senhaRedefinida()) {
+            mudancas.add(new AlteracaoDoEvento("Senha", null, "redefinida pelo Administrador"));
         }
         if (!mudancas.isEmpty()) {
             registrarEvento(depois, mudancas);
