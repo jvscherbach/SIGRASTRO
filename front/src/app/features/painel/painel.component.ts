@@ -50,6 +50,53 @@ export interface BarraDaSerie {
   serie: 'protocolados' | 'concluidos';
 }
 
+/** Fatia da pizza da fila por etapa (coordenadas no viewBox 0 0 200 200). */
+export interface FatiaDaPizza {
+  indice: number;
+  rotulo: string;
+  total: number;
+  /** Participação na soma das contagens exibidas, em %, com uma casa decimal. */
+  percentual: number;
+  /** Caminho do SVG; vazio quando a etapa está zerada ou quando uma só etapa preenche o círculo. */
+  caminho: string;
+  /** Classe de cor (cíclica, só tokens): a legenda sempre traz o número, então a cor não carrega a informação sozinha. */
+  cor: string;
+}
+
+const CORES_DA_PIZZA = 8;
+const CENTRO = 100;
+const RAIO = 90;
+
+function ponto(angulo: number): string {
+  const x = CENTRO + RAIO * Math.sin(angulo);
+  const y = CENTRO - RAIO * Math.cos(angulo);
+  return `${x.toFixed(2)} ${y.toFixed(2)}`;
+}
+
+export function montarPizza(itens: { rotulo: string; total: number }[]): FatiaDaPizza[] {
+  const soma = itens.reduce((s, i) => s + i.total, 0);
+  let acumulado = 0;
+  return itens.map((item, indice) => {
+    const fracao = soma > 0 ? item.total / soma : 0;
+    const inicio = acumulado * 2 * Math.PI;
+    acumulado += fracao;
+    const fim = acumulado * 2 * Math.PI;
+    let caminho = '';
+    if (item.total > 0 && fracao < 1) {
+      const grande = fracao > 0.5 ? 1 : 0;
+      caminho = `M ${CENTRO} ${CENTRO} L ${ponto(inicio)} A ${RAIO} ${RAIO} 0 ${grande} 1 ${ponto(fim)} Z`;
+    }
+    return {
+      indice,
+      rotulo: item.rotulo,
+      total: item.total,
+      percentual: Math.round(fracao * 1000) / 10,
+      caminho,
+      cor: 'cor-' + (indice % CORES_DA_PIZZA),
+    };
+  });
+}
+
 export const VB = { largura: 720, altura: 290, esquerda: 44, direita: 8, topo: 24, base: 32 };
 
 /**
@@ -143,7 +190,6 @@ export class PainelComponent implements OnInit {
   });
 
   // Gráfico 2
-  protected readonly maximoDaFila = computed(() => Math.max(1, ...(this.painel()?.filaPorEtapa ?? []).map((e) => e.total)));
   protected readonly somaDasBarras = computed(() => (this.painel()?.filaPorEtapa ?? []).reduce((s, e) => s + e.total, 0));
   protected readonly somaPassaDoTotal = computed(() => this.somaDasBarras() > (this.painel()?.totalNaFila ?? 0));
   protected readonly linhasAParte = computed(() => {
@@ -154,12 +200,26 @@ export class PainelComponent implements OnInit {
       { rotulo: 'Etapa não mapeada', total: p?.etapaNaoMapeada ?? 0 },
     ];
   });
+  /** Soma das contagens exibidas (etapas e linhas especiais): a base do percentual da pizza. */
+  protected readonly somaDaPizza = computed(
+    () => this.somaDasBarras() + this.linhasAParte().reduce((s, l) => s + l.total, 0),
+  );
+  /** Etapa em destaque (foco ou ponteiro na legenda ou na fatia). */
+  protected readonly destaque = signal<number | null>(null);
+  /** Legenda: todas as etapas na ordem do catálogo (inclusive as zeradas) e depois as linhas especiais. */
+  protected readonly fatias = computed<FatiaDaPizza[]>(() => {
+    const itens = [...(this.painel()?.filaPorEtapa ?? []), ...this.linhasAParte()];
+    return montarPizza(itens);
+  });
+  protected readonly fatiasComValor = computed(() => this.fatias().filter((f) => f.total > 0));
+  protected readonly umaSoFatia = computed(() => this.fatiasComValor().length === 1);
   protected readonly resumoDaFila = computed(() => {
     const p = this.painel();
     const maior = [...(p?.filaPorEtapa ?? [])].sort((a, b) => b.total - a.total)[0];
     return (
-      `Fila por etapa: ${p?.totalNaFila ?? 0} requerimentos na fila em ${p?.filaPorEtapa.length ?? 0} etapas.` +
-      (maior && maior.total > 0 ? ` Maior fila: ${maior.rotulo}, com ${maior.total}.` : '')
+      `Fila por etapa, em pizza: ${p?.totalNaFila ?? 0} requerimentos na fila em ${p?.filaPorEtapa.length ?? 0} etapas.` +
+      (maior && maior.total > 0 ? ` Maior fila: ${maior.rotulo}, com ${maior.total}.` : '') +
+      ' Os percentuais são a participação na soma das etapas. A legenda e a tabela trazem todos os números.'
     );
   });
 
@@ -240,6 +300,14 @@ export class PainelComponent implements OnInit {
 
   protected porcentagem(valor: number, maximo: number): number {
     return Math.round((valor / maximo) * 1000) / 10;
+  }
+
+  protected percentualEmTexto(valor: number): string {
+    return valor.toFixed(1).replace('.', ',') + '%';
+  }
+
+  protected destacar(indice: number | null): void {
+    this.destaque.set(indice);
   }
 
   protected deCarga(c: CargaDoPainel): string {

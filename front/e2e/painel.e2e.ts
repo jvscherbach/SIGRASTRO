@@ -61,6 +61,19 @@ test('Administrador também abre o painel', async ({ page }) => {
   await expect(page.locator('[role="img"]')).toHaveCount(3);
 });
 
+test('fila por etapa é uma pizza com legenda de todas as etapas e percentual sobre a soma', async ({ page }) => {
+  await simularApi(page, { usuario: GESTOR });
+  await responderPainel(page, PAINEL);
+  await page.goto('/painel');
+  await expect(page.locator('svg.pizza-svg')).toHaveCount(1);
+  const legenda = page.locator('.pizza-legenda li');
+  await expect(legenda.first()).toContainText('%');
+  expect(await legenda.count()).toBeGreaterThanOrEqual(PAINEL.filaPorEtapa.length);
+  await expect(page.getByText('participação na soma das etapas').first()).toBeVisible();
+  await legenda.first().focus();
+  await expect(page.locator('svg.pizza-svg .fatia.destaque').first()).toBeVisible();
+});
+
 test('Operador não vê o item e é levado para fora da rota, sem chamar o painel', async ({ page }) => {
   const api = await simularApi(page, { usuario: OPERADOR });
   await page.goto('/painel');

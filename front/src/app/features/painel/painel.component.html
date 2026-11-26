@@ -173,15 +173,52 @@
           </div>
 
           @if (!comoTabela().fila) {
-            <div class="barras-h" role="img" [attr.aria-label]="resumoDaFila()">
-              @for (e of p.filaPorEtapa; track $index) {
-                <div class="barra-h">
-                  <span class="rotulo">{{ e.rotulo }}</span>
-                  <span class="trilho"><span class="enchimento" [style.width.%]="porcentagem(e.total, maximoDaFila())"></span></span>
-                  <span class="valor">{{ e.total }}</span>
-                </div>
-              }
-            </div>
+            @if (somaDaPizza() === 0) {
+              <p class="muted">Nenhum requerimento em andamento.</p>
+            } @else {
+              <div class="pizza">
+                <svg
+                  class="pizza-svg"
+                  viewBox="0 0 200 200"
+                  role="img"
+                  [attr.aria-label]="resumoDaFila()"
+                  preserveAspectRatio="xMidYMid meet"
+                >
+                  @if (umaSoFatia()) {
+                    <circle class="fatia" [class]="'fatia ' + fatiasComValor()[0].cor" cx="100" cy="100" r="90" />
+                  } @else {
+                    @for (f of fatiasComValor(); track f.indice) {
+                      <path
+                        [attr.d]="f.caminho"
+                        [class]="'fatia ' + f.cor"
+                        [class.destaque]="destaque() === f.indice"
+                        (mouseenter)="destacar(f.indice)"
+                        (mouseleave)="destacar(null)"
+                      />
+                    }
+                  }
+                </svg>
+                <ul class="pizza-legenda" aria-label="Legenda da fila por etapa: etapa, requerimentos e participação na soma das etapas">
+                  @for (f of fatias(); track f.indice) {
+                    <li
+                      tabindex="0"
+                      [class.destaque]="destaque() === f.indice"
+                      [class.zerada]="f.total === 0"
+                      (focus)="destacar(f.indice)"
+                      (blur)="destacar(null)"
+                      (mouseenter)="destacar(f.indice)"
+                      (mouseleave)="destacar(null)"
+                    >
+                      <i class="amostra-fatia" [class]="'amostra-fatia ' + f.cor" aria-hidden="true"></i>
+                      <span class="rotulo">{{ f.rotulo }}</span>
+                      <strong class="valor">{{ f.total }}</strong>
+                      <span class="percentual">{{ percentualEmTexto(f.percentual) }}</span>
+                    </li>
+                  }
+                </ul>
+              </div>
+              <p class="nota-historico">Percentual = participação na soma das etapas ({{ somaDaPizza() }}), não % dos requerimentos.</p>
+            }
           } @else {
             <div class="tabela-rolavel">
               <table class="painel-tabela">
@@ -199,20 +236,13 @@
             </div>
           }
 
-          @if (!comoTabela().fila) {
-            <ul class="linhas-a-parte" aria-label="Fora das barras">
-              @for (l of linhasAParte(); track l.rotulo) {
-                <li><span>{{ l.rotulo }}</span><strong>{{ l.total }}</strong></li>
-              }
-            </ul>
-          }
           @if (somaPassaDoTotal()) {
             <p class="nota-historico">
-              A soma das barras ({{ somaDasBarras() }}) passa do total na fila ({{ p.totalNaFila }}): um requerimento em
+              A soma das fatias ({{ somaDasBarras() }}) passa do total na fila ({{ p.totalNaFila }}): um requerimento em
               etapas paralelas conta uma vez em cada etapa.
             </p>
           }
-          <p class="nota-historico">Conta requerimentos, não números de processo. Só a instância principal entra: a complementação em andamento não vira barra.</p>
+          <p class="nota-historico">Conta requerimentos, não números de processo. Só a instância principal entra: a complementação em andamento não vira fatia.</p>
         </section>
 
         <!-- Gráfico 3 -->

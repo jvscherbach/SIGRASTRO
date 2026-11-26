@@ -31,6 +31,31 @@
 .barra-h .valor{min-width:3ch;text-align:right;font:700 .9375rem var(--body);font-variant-numeric:tabular-nums}
 @media (prefers-reduced-motion:no-preference){.barra-h .enchimento{transition:width .3s ease}}
 
+/* Pizza da fila por etapa (S11, bloco 8): fatias com contorno; a legenda traz número e percentual, a cor não é o único canal. */
+.pizza{display:grid;grid-template-columns:minmax(160px,260px) 1fr;gap:18px;align-items:center;min-width:0}
+.pizza-svg{width:100%;height:auto;max-width:260px;display:block;margin:0 auto}
+.pizza-svg .fatia{stroke:var(--surface);stroke-width:2}
+.pizza-svg .fatia.destaque{stroke:var(--ink);stroke-width:3}
+.pizza-svg .cor-0,.amostra-fatia.cor-0{fill:var(--trail);background:var(--trail)}
+.pizza-svg .cor-1,.amostra-fatia.cor-1{fill:var(--marker);background:var(--marker)}
+.pizza-svg .cor-2,.amostra-fatia.cor-2{fill:var(--ok);background:var(--ok)}
+.pizza-svg .cor-3,.amostra-fatia.cor-3{fill:var(--l2);background:var(--l2)}
+.pizza-svg .cor-4,.amostra-fatia.cor-4{fill:var(--slate);background:var(--slate)}
+.pizza-svg .cor-5,.amostra-fatia.cor-5{fill:var(--l1);background:var(--l1)}
+.pizza-svg .cor-6,.amostra-fatia.cor-6{fill:var(--trail-deep);background:var(--trail-deep)}
+.pizza-svg .cor-7,.amostra-fatia.cor-7{fill:var(--l3);background:var(--l3)}
+.pizza-legenda{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:.875rem;min-width:0}
+.pizza-legenda li{display:grid;grid-template-columns:14px 1fr auto auto;align-items:center;gap:8px;padding:3px 6px;border-radius:6px;min-width:0}
+.pizza-legenda li.destaque{background:var(--paper);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.pizza-legenda li:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+.pizza-legenda li.zerada .rotulo{color:var(--slate)}
+.pizza-legenda .rotulo{overflow-wrap:anywhere;min-width:0}
+.pizza-legenda .valor{text-align:right;font-variant-numeric:tabular-nums}
+.pizza-legenda .percentual{min-width:5ch;text-align:right;color:var(--slate);font-variant-numeric:tabular-nums}
+.amostra-fatia{display:inline-block;width:14px;height:14px;border-radius:3px;border:1.5px solid var(--ink)}
+@media (max-width:640px){.pizza{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:no-preference){.pizza-svg .fatia{transition:stroke-width .15s ease}}
+
 .linhas-a-parte{list-style:none;margin:6px 0 0;padding:10px 0 0;border-top:1px dashed var(--line-strong);display:grid;gap:4px;font-size:.875rem}
 .linhas-a-parte li{display:flex;justify-content:space-between;gap:12px}
 
