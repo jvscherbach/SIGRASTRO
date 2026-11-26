@@ -191,13 +191,22 @@ class CaixaAcessoVazamentoResilienciaHttpTest {
         }
     }
 
-    private static void semDadoPessoalNemChave(String texto) {
+    static final String UUID_PADRAO = "(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+
+    /** O X-Correlation-Id (UUID aleatório) pode ter 11 dígitos no último grupo: UUIDs saem antes dos padrões. */
+    static void semDadoPessoalNemChave(String original) {
+        assertThat(original).doesNotContain(CPF_A, CPF_A_DIGITOS);
+        String texto = original.replaceAll(UUID_PADRAO, "<uuid>");
         assertThat(texto).doesNotContain(CPF_A, CPF_A_DIGITOS).doesNotContainPattern("(?<![0-9])\\d{11}(?![0-9])")
                 .doesNotContainPattern("(?<![0-9])\\d{14}(?![0-9])")
                 .doesNotContainPattern("\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}")
                 .doesNotContainPattern("\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}")
                 .doesNotContainPattern("(?i)[0-9a-f]{32,}").doesNotContainIgnoringCase("chave")
                 .doesNotContain("taskAnalisar", "idDaTarefa");
+    }
+
+    static String cpfSinteticoDigitos() {
+        return CPF_A_DIGITOS;
     }
 
     // --- acesso
