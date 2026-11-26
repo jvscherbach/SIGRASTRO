@@ -1,6 +1,12 @@
 package br.gov.mt.sema.rastro.painel.api;
 
+import java.util.Optional;
+
+import br.gov.mt.sema.rastro.painel.api.dto.AnalistasDoPainelResponse;
 import br.gov.mt.sema.rastro.painel.api.dto.PainelResponse;
+import br.gov.mt.sema.rastro.shared.application.exception.ParametroInvalidoException;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import br.gov.mt.sema.rastro.painel.application.AbrirPainel;
 import br.gov.mt.sema.rastro.painel.application.SolicitarAtualizacao;
 import br.gov.mt.sema.rastro.shared.api.error.ErrorCode;
@@ -23,6 +29,10 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Painel", description = "Painel do Gestor: protocolados e concluídos no ano, fila por etapa e carga por responsável (S10)")
 public class PainelController {
 
+    private static final int TAMANHO_MAXIMO_DA_BUSCA = 100;
+    private static final int TAMANHO_MAXIMO_DA_CHAVE = 64;
+    private static final int TAMANHO_MAXIMO_DA_ETAPA = 200;
+
     private final AbrirPainel abrirPainel;
 
     public PainelController(AbrirPainel abrirPainel) {
@@ -41,6 +51,49 @@ public class PainelController {
     @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalError")
     public PainelResponse painel() {
         return PainelResponse.de(abrirPainel.abrir());
+    }
+
+    @GetMapping("/analistas")
+    @Operation(summary = "Analistas do painel com o total de cada um",
+            description = "Lista os analistas (as mesmas linhas e os mesmos totais das barras da carga por responsável), "
+                    + "a partir do instantâneo do painel, de imediato: nunca consulta o SIGA nem o Camunda. Cada um traz uma "
+                    + "chave opaca (nunca CPF), que muda a cada reinício. Com os nomes ocultos por configuração, só as "
+                    + "categorias sem nome. Só Gestor e Administrador (S11).")
+    @ApiResponse(responseCode = "200", description = "Os analistas (qualquer estado do instantâneo).")
+    @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized")
+    @ApiResponse(responseCode = "403", ref = "#/components/responses/Forbidden")
+    @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalError")
+    public AnalistasDoPainelResponse analistas() {
+        return AnalistasDoPainelResponse.de(abrirPainel.analistas());
+    }
+
+    @GetMapping("/analistas/{chave}/requerimentos")
+    @Operation(summary = "Requerimentos de um analista no painel",
+            description = "Os requerimentos do analista da chave, cada um com o interessado (só o nome), as etapas e a data "
+                    + "de protocolo. Filtros: etapa (rótulo exato, como em /api/painel/analistas) e busca (nome do "
+                    + "interessado ou número, até 100 caracteres). total é o da barra; no máximo 1000 linhas na resposta. "
+                    + "Chave desconhecida, ou de servidor com os nomes ocultos: 404. Só Gestor e Administrador.")
+    @ApiResponse(responseCode = "200", description = "Os requerimentos do analista.")
+    @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest")
+    @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized")
+    @ApiResponse(responseCode = "403", ref = "#/components/responses/Forbidden")
+    @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound")
+    @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalError")
+    public AnalistasDoPainelResponse.RequerimentosResponse requerimentosDoAnalista(@PathVariable String chave,
+            @RequestParam(required = false) String etapa, @RequestParam(required = false) String busca) {
+        abrirPainel.exigirPerfil();
+        if (chave == null || chave.length() > TAMANHO_MAXIMO_DA_CHAVE) {
+            throw new ParametroInvalidoException("chave", "Chave inválida.");
+        }
+        if (busca != null && busca.length() > TAMANHO_MAXIMO_DA_BUSCA) {
+            throw new ParametroInvalidoException("busca", "Busca com mais de " + TAMANHO_MAXIMO_DA_BUSCA + " caracteres.");
+        }
+        if (etapa != null && etapa.length() > TAMANHO_MAXIMO_DA_ETAPA) {
+            throw new ParametroInvalidoException("etapa", "Etapa inválida.");
+        }
+        Optional<String> etapaDoFiltro = etapa == null || etapa.isBlank() ? Optional.empty() : Optional.of(etapa.strip());
+        return AnalistasDoPainelResponse.RequerimentosResponse.de(
+                abrirPainel.requerimentosDoAnalista(chave, etapaDoFiltro, busca == null ? "" : busca));
     }
 
     @PostMapping("/atualizacao")

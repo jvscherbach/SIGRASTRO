@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
 import { PainelApiService } from './painel-api.service';
@@ -46,7 +47,12 @@ function painel(sobre: Partial<PainelResposta> = {}): PainelResposta {
 }
 
 describe('PainelComponent', () => {
-  let api: { obter: ReturnType<typeof vi.fn>; atualizar: ReturnType<typeof vi.fn> };
+  let api: {
+    obter: ReturnType<typeof vi.fn>;
+    atualizar: ReturnType<typeof vi.fn>;
+    analistas: ReturnType<typeof vi.fn>;
+    requerimentosDoAnalista: ReturnType<typeof vi.fn>;
+  };
   let fixture: ComponentFixture<PainelComponent>;
   let raiz: HTMLElement;
 
@@ -61,8 +67,8 @@ describe('PainelComponent', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    api = { obter: vi.fn(), atualizar: vi.fn() };
-    TestBed.configureTestingModule({ providers: [{ provide: PainelApiService, useValue: api }] });
+    api = { obter: vi.fn(), atualizar: vi.fn(), analistas: vi.fn(), requerimentosDoAnalista: vi.fn() };
+    TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: PainelApiService, useValue: api }] });
   });
 
   afterEach(() => vi.useRealTimers());
@@ -192,8 +198,65 @@ describe('PainelComponent', () => {
     ).toBe('Total 19 9');
     expect(celulas(tabelas[1])).toContain('Hídrico · Análise técnica 3');
     expect(celulas(tabelas[1])).toContain('Fora do catálogo 2');
-    expect(celulas(tabelas[2])[1]).toBe('Área técnica Área 3');
+    expect(celulas(tabelas[2])[1]).toBe('Área técnica Área 3 Ver lista');
     expect(raiz.querySelectorAll('svg.painel-svg')).toHaveLength(0);
+  });
+
+  describe('aba lateral Processos por analista (S11, bloco 9)', () => {
+    beforeEach(() => {
+      api.analistas.mockReturnValue(
+        of({
+          estado: 'PRONTO', ano: 2026, geradoEm: null, falhouEm: null, truncado: false, nomesOcultos: false,
+          analistas: [
+            { analista: 'aaaaaaaaaaaaaaaa', rotulo: 'Servidor Exemplo 01', total: 4, tipo: 'SERVIDOR' },
+            { analista: 'bbbbbbbbbbbbbbbb', rotulo: 'Área técnica', total: 3, tipo: 'AREA' },
+          ],
+          etapas: [], avisos: [],
+        }),
+      );
+      api.requerimentosDoAnalista.mockReturnValue(
+        of({
+          estado: 'PRONTO', ano: 2026, geradoEm: null, truncado: false, analista: 'bbbbbbbbbbbbbbbb', rotulo: 'Área técnica',
+          tipo: 'AREA', total: 3, quantidade: 3, limitada: false, requerimentos: [], avisos: [],
+        }),
+      );
+    });
+
+    it('fica fechada e separada do dashboard; o botão abre a lista no primeiro analista', async () => {
+      await abrir(painel());
+      expect(document.querySelector('app-painel-analistas')).toBeNull();
+      const botao = Array.from(raiz.querySelectorAll('button')).find((b) => b.textContent?.includes('Processos por analista'));
+      botao?.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(document.querySelector('app-painel-analistas')).not.toBeNull();
+      expect(api.requerimentosDoAnalista).toHaveBeenCalledWith('aaaaaaaaaaaaaaaa', '', '');
+    });
+
+    it('o clique na barra de um analista abre a aba nele (pelo rótulo e tipo da barra)', async () => {
+      await abrir(painel());
+      const barras = Array.from(raiz.querySelectorAll('.barra-h.clicavel'));
+      expect(barras).toHaveLength(5);
+      (barras[1] as HTMLElement).click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(api.requerimentosDoAnalista).toHaveBeenCalledWith('bbbbbbbbbbbbbbbb', '', '');
+    });
+
+    it('na tabela, cada linha tem o botão Ver lista e Fechar tira a aba da tela', async () => {
+      await abrir(painel());
+      Array.from(raiz.querySelectorAll('button')).filter((b) => b.textContent?.includes('Ver como tabela')).forEach((b) => b.click());
+      fixture.detectChanges();
+      const ver = Array.from(raiz.querySelectorAll('button')).filter((b) => b.textContent?.includes('Ver lista'));
+      expect(ver).toHaveLength(5);
+      ver[1].click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(api.requerimentosDoAnalista).toHaveBeenCalledWith('bbbbbbbbbbbbbbbb', '', '');
+      (document.querySelector('app-painel-analistas footer button') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      expect(document.querySelector('app-painel-analistas')).toBeNull();
+    });
   });
 
   it('nomes ocultos: mostra a nota e nenhum nome de servidor', async () => {

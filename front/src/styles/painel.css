@@ -80,3 +80,18 @@
   .painel-svg .barra.protocolados,.barra-h .enchimento{fill:var(--ink);background:var(--ink)}
   .painel-grafico{break-inside:avoid}
 }
+
+/* Aba lateral "Processos por analista" (S11, bloco 9): só tokens; 360 px sem rolagem horizontal. */
+.painel-acoes{display:flex;flex-wrap:wrap;gap:6px}
+.barra-h.clicavel{cursor:pointer;border-radius:6px}
+.barra-h.clicavel:hover .rotulo{text-decoration:underline}
+.painel-analistas-filtros{display:grid;gap:8px;margin:0 0 12px}
+.campo-rotulado{display:grid;gap:4px;min-width:0}
+.campo-rotulado > span{font-size:.8125rem;font-weight:600;color:var(--slate)}
+.campo-rotulado select{width:100%;min-width:0}
+.painel-analistas-contagem{margin:0 0 8px;font-size:.9375rem}
+.painel-analistas-lista{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.painel-analistas-lista li{display:grid;gap:2px;padding:10px 12px;border-radius:10px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--line);min-width:0}
+.painel-analistas-lista a{color:var(--ink);overflow-wrap:anywhere}
+.painel-analistas-lista a:focus-visible{outline:3px solid var(--marker);outline-offset:2px}
+.painel-analistas-lista li > *{min-width:0;overflow-wrap:anywhere}

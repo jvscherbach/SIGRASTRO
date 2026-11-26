@@ -96,6 +96,7 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
             "GET /api/requerimentos/{id}/tramitacao", "GET /api/processos/{numero}/tramitacao",
             "GET /api/requerimentos/{id}/financeiro", "GET /api/processos/{numero}/financeiro",
             "GET /api/painel", "POST /api/painel/atualizacao",
+            "GET /api/painel/analistas", "GET /api/painel/analistas/{chave}/requerimentos",
             "GET /api/caixa", "GET /api/caixa/avisos", "POST /api/caixa/avisos/visto", "POST /api/caixa/atualizar");
 
     private enum Perfil {
@@ -454,6 +455,19 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
             verificar(atualizacao, "atualização manual", p, op ? 403 : 429, op ? "PERFIL_SEM_PERMISSAO" : "ATUALIZACAO_RECENTE",
                     () -> comToken(post("/api/painel/atualizacao"), p));
         }
+        // S11, bloco 9: a lista por analista usa a mesma permissão (403 antes de ler nada).
+        for (Perfil p : Perfil.values()) {
+            boolean op = p == Perfil.OPERADOR;
+            verificar("GET /api/painel/analistas", "lista por analista", p, op ? 403 : 200,
+                    op ? "PERFIL_SEM_PERMISSAO" : null, () -> comToken(get("/api/painel/analistas"), p));
+            verificar("GET /api/painel/analistas/{chave}/requerimentos", "lista de um analista", p, op ? 403 : 404,
+                    op ? "PERFIL_SEM_PERMISSAO" : "NAO_ENCONTRADO",
+                    () -> comToken(get("/api/painel/analistas/0000000000000000/requerimentos"), p));
+        }
+        verificar("GET /api/painel/analistas", "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(get("/api/painel/analistas")));
+        verificar("GET /api/painel/analistas/{chave}/requerimentos", "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(get("/api/painel/analistas/0000000000000000/requerimentos")));
         verificar(leitura, "sem token", null, 401, "NAO_AUTENTICADO", () -> mvc.perform(get("/api/painel")));
         verificar(atualizacao, "sem token", null, 401, "NAO_AUTENTICADO",
                 () -> mvc.perform(post("/api/painel/atualizacao")));

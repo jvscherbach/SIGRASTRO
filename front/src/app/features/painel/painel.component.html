@@ -252,9 +252,14 @@
               <h2 id="g3-titulo"><app-icone nome="user" />Carga por responsável</h2>
               <p>Requerimentos na etapa atual de cada responsável (15 maiores e o resto agrupado).</p>
             </div>
-            <button type="button" class="btn sm quiet" [attr.aria-pressed]="comoTabela().carga" (click)="alternar('carga')">
-              {{ comoTabela().carga ? 'Ver como gráfico' : 'Ver como tabela' }}
-            </button>
+            <div class="painel-acoes">
+              <button type="button" class="btn sm" (click)="abrirAnalistas()">
+                <app-icone nome="user" />Processos por analista
+              </button>
+              <button type="button" class="btn sm quiet" [attr.aria-pressed]="comoTabela().carga" (click)="alternar('carga')">
+                {{ comoTabela().carga ? 'Ver como gráfico' : 'Ver como tabela' }}
+              </button>
+            </div>
           </div>
 
           @if (p.nomesOcultos) {
@@ -264,7 +269,11 @@
           @if (!comoTabela().carga) {
             <div class="barras-h" role="img" [attr.aria-label]="resumoDaCarga()">
               @for (c of p.cargaPorResponsavel; track $index) {
-                <div class="barra-h" [class.sem-nome]="semNome(c.tipo)">
+                <div
+                  class="barra-h clicavel"
+                  [class.sem-nome]="semNome(c.tipo)"
+                  (click)="abrirAnalistas({ rotulo: c.rotulo, tipo: c.tipo })"
+                >
                   <span class="rotulo"><app-icone [nome]="icone(c.tipo)" />{{ c.rotulo }}</span>
                   <span class="trilho"><span class="enchimento" [style.width.%]="porcentagem(c.total, maximoDaCarga())"></span></span>
                   <span class="valor">{{ c.total }}</span>
@@ -277,10 +286,19 @@
             <div class="tabela-rolavel">
               <table class="painel-tabela">
                 <caption class="sr-only">Carga por responsável</caption>
-                <thead><tr><th scope="col">Responsável</th><th scope="col">Tipo</th><th scope="col" class="num">Requerimentos</th></tr></thead>
+                <thead><tr><th scope="col">Responsável</th><th scope="col">Tipo</th><th scope="col" class="num">Requerimentos</th><th scope="col">Lista</th></tr></thead>
                 <tbody>
                   @for (c of p.cargaPorResponsavel; track $index) {
-                    <tr><th scope="row">{{ c.rotulo }}</th><td>{{ rotuloDoTipo[c.tipo] }}</td><td class="num">{{ c.total }}</td></tr>
+                    <tr>
+                      <th scope="row">{{ c.rotulo }}</th>
+                      <td>{{ rotuloDoTipo[c.tipo] }}</td>
+                      <td class="num">{{ c.total }}</td>
+                      <td>
+                        <button type="button" class="btn sm quiet" [attr.aria-label]="'Ver os requerimentos de ' + c.rotulo" (click)="abrirAnalistas({ rotulo: c.rotulo, tipo: c.tipo })">
+                          Ver lista
+                        </button>
+                      </td>
+                    </tr>
                   }
                 </tbody>
               </table>
@@ -291,4 +309,8 @@
       }
     }
   </app-folha-sobreposta>
+
+  @if (abaDeAnalistas()) {
+    <app-painel-analistas [escolhido]="analistaEscolhido()" (fechar)="fecharAnalistas()" />
+  }
 </section>

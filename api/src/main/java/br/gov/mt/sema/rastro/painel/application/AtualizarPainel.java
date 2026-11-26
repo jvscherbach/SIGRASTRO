@@ -1,5 +1,6 @@
 package br.gov.mt.sema.rastro.painel.application;
 
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -21,6 +22,8 @@ import br.gov.mt.sema.rastro.painel.domain.ContarFilaPorEtapa;
 import br.gov.mt.sema.rastro.painel.domain.FilaPorEtapa;
 import br.gov.mt.sema.rastro.painel.domain.InstantaneoDoPainel;
 import br.gov.mt.sema.rastro.painel.domain.LeituraDasTarefas;
+import br.gov.mt.sema.rastro.painel.domain.ListaPorResponsavel;
+import br.gov.mt.sema.rastro.painel.domain.ListarPorResponsavel;
 import br.gov.mt.sema.rastro.painel.domain.MontarSerieDoAno;
 import br.gov.mt.sema.rastro.painel.domain.RequerimentoDaBase;
 import br.gov.mt.sema.rastro.painel.domain.SerieDoAno;
@@ -55,6 +58,8 @@ public class AtualizarPainel {
     private final Executor executor;
     private final LongSupplier agoraEmNanos;
 
+    /** Sal das chaves opacas dos analistas na lista do painel (S11, bloco 9): sorteado a cada subida do processo. */
+    private final byte[] sal = sorteioDoSal();
     private final AtomicBoolean emAndamento = new AtomicBoolean();
     private volatile Instant ultimoInicio;
 
@@ -77,6 +82,12 @@ public class AtualizarPainel {
         this.relogio = relogio;
         this.executor = executor;
         this.agoraEmNanos = agoraEmNanos;
+    }
+
+    private static byte[] sorteioDoSal() {
+        byte[] sal = new byte[32];
+        new SecureRandom().nextBytes(sal);
+        return sal;
     }
 
     private static Executor executorEmSegundoPlano() {
@@ -180,7 +191,12 @@ public class AtualizarPainel {
                     "Parte das tarefas não coube na leitura: a fila por etapa e a carga por responsável ficam parciais."));
         }
         avisos.addAll(fila.avisos());
-        return InstantaneoDoPainel.pronto(ano.ano(), relogio.instant(), truncado, serie, fila, comNomes, semNomes, avisos);
+        ListaPorResponsavel listaComNomes = ListarPorResponsavel.listar(catalogo, grupos, base.requerimentos(), leitura,
+                comNomes, sal);
+        ListaPorResponsavel listaSemNomes = ListarPorResponsavel.listar(catalogo, grupos, base.requerimentos(), leitura,
+                semNomes, sal);
+        return InstantaneoDoPainel.pronto(ano.ano(), relogio.instant(), truncado, serie, fila, comNomes, semNomes, avisos,
+                listaComNomes, listaSemNomes);
     }
 
     private Duration restante(long prazo) {

@@ -7,6 +7,7 @@ import { formatarDataHora } from '../../shared/formato';
 import { FolhaSobrepostaComponent } from '../../shared/folha-sobreposta.component';
 import { IconeComponent } from '../../shared/icone.component';
 import { QuadroTopoComponent } from '../../shared/quadro-topo.component';
+import { PainelAnalistasComponent, AnalistaEscolhido } from './painel-analistas.component';
 import { PainelApiService } from './painel-api.service';
 import { CargaDoPainel, PainelResposta, TipoDeCarga } from './painel.models';
 
@@ -106,7 +107,7 @@ export const VB = { largura: 720, altura: 290, esquerda: 44, direita: 8, topo: 2
 @Component({
   selector: 'app-painel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [QuadroTopoComponent, FolhaSobrepostaComponent, IconeComponent],
+  imports: [QuadroTopoComponent, FolhaSobrepostaComponent, IconeComponent, PainelAnalistasComponent],
   templateUrl: './painel.component.html',
 })
 export class PainelComponent implements OnInit {
@@ -121,6 +122,9 @@ export class PainelComponent implements OnInit {
   /** A releitura automática esgotou os 2 minutos sem novidade. */
   protected readonly demorando = signal(false);
   protected readonly comoTabela = signal({ serie: false, fila: false, carga: false });
+  /** A aba lateral "Processos por analista" (S11, bloco 9) e o analista da barra que a abriu. */
+  protected readonly abaDeAnalistas = signal(false);
+  protected readonly analistaEscolhido = signal<AnalistaEscolhido | null>(null);
 
   protected readonly formatarDataHora = formatarDataHora;
   protected readonly meses = MESES;
@@ -292,6 +296,16 @@ export class PainelComponent implements OnInit {
         );
       },
     });
+  }
+
+  /** Abre a aba lateral "Processos por analista" (a da barra clicada, ou a primeira da lista). */
+  protected abrirAnalistas(escolhido: AnalistaEscolhido | null = null): void {
+    this.analistaEscolhido.set(escolhido);
+    this.abaDeAnalistas.set(true);
+  }
+
+  protected fecharAnalistas(): void {
+    this.abaDeAnalistas.set(false);
   }
 
   protected alternar(grafico: 'serie' | 'fila' | 'carga'): void {
