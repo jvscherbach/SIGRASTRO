@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -45,13 +46,33 @@ public class AuthController {
     @ApiResponse(responseCode = "200", description = "Sessão aberta.")
     @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest")
     @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized")
+    @ApiResponse(responseCode = "429", ref = "#/components/responses/TooManyRequests")
     @ApiResponse(responseCode = "500", ref = "#/components/responses/InternalError")
     public LoginResponse login(@Valid @RequestBody LoginRequest pedido,
-            @Parameter(hidden = true) @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String autorizacao) {
-        SessaoAberta sessao = autenticarUsuario.executar(pedido.usuario(), pedido.senha(), tokenDe(autorizacao));
+            @Parameter(hidden = true) @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String autorizacao,
+            HttpServletRequest requisicao) {
+        SessaoAberta sessao = autenticarUsuario.executar(pedido.usuario(), pedido.senha(), tokenDe(autorizacao),
+                origemDe(requisicao));
         return new LoginResponse(sessao.token(), "Bearer",
                 sessao.expiraEm().atZone(ProblemDetails.FUSO).toOffsetDateTime(),
                 UsuarioResponse.de(sessao.usuario()));
+    }
+
+    /**
+     * Origem do pedido para o limite de tentativas. Segue o que o projeto já faz (auditoria): o nginx do front acrescenta
+     * o endereço real ao final de {@code X-Forwarded-For}; o que vem antes foi escrito pelo cliente e é ignorado. Sem o
+     * cabeçalho, vale o endereço remoto.
+     */
+    static String origemDe(HttpServletRequest requisicao) {
+        String encaminhado = requisicao.getHeader("X-Forwarded-For");
+        if (encaminhado != null) {
+            String[] enderecos = encaminhado.split(",");
+            String ultimo = enderecos[enderecos.length - 1].strip();
+            if (!ultimo.isEmpty() && ultimo.length() <= 45) {
+                return ultimo;
+            }
+        }
+        return requisicao.getRemoteAddr();
     }
 
     /** Token Bearer que o pedido já trazia (sessão aberta antes do login, na troca de usuário); só informação. */

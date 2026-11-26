@@ -10,6 +10,8 @@ public enum ErrorCode {
     DOCUMENTO_SIGILOSO(HttpStatus.FORBIDDEN, "Documento sigiloso"),
     NAO_INTERESSADO(HttpStatus.FORBIDDEN, "Acesso negado"),
     NAO_ENCONTRADO(HttpStatus.NOT_FOUND, "Não encontrado"),
+    // Limite de tentativas de login (L1): a mesma resposta para login existente e inexistente.
+    MUITAS_TENTATIVAS(HttpStatus.TOO_MANY_REQUESTS, "Muitas tentativas"),
     // Administração de usuários (S5).
     LOGIN_JA_EXISTE(HttpStatus.CONFLICT, "Login já existe"),
     ULTIMO_ADMINISTRADOR(HttpStatus.CONFLICT, "Último Administrador"),

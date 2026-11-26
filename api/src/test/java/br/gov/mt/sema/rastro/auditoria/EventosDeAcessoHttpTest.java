@@ -84,11 +84,57 @@ class EventosDeAcessoHttpTest extends BaseHttpDeDocumentos {
     }
 
     @Test
-    void login_recusado_nao_registra_evento() throws Exception {
+    void login_recusado_registra_falha_sem_login_nem_senha() throws Exception {
         MockHttpServletResponse resposta = entrar("operador.demo", "senha-errada", null);
 
         assertThat(resposta.getStatus()).isEqualTo(401);
-        assertThat(novos()).isEmpty();
+        assertThat(novos()).hasSize(1);
+        EventoDeAuditoria evento = novos().get(0);
+        assertThat(evento.tipo()).isEqualTo(TipoDeEvento.LOGIN);
+        assertThat(evento.detalhe()).isEqualTo("Falha de login");
+        assertThat(evento.usuario().login()).isEqualTo("(nao-autenticado)");
+        assertThat(evento.toString()).doesNotContain("operador.demo").doesNotContain("senha-errada")
+                .doesNotContain("senha-de-teste");
+    }
+
+    @Test
+    void tres_falhas_bloqueiam_com_429_e_tempo_restante_inclusive_com_a_senha_certa() throws Exception {
+        for (int i = 0; i < 3; i++) {
+            assertThat(entrarDe("192.0.2.77", "bloqueio.teste", "senha-errada").getStatus()).isEqualTo(401);
+        }
+
+        MockHttpServletResponse bloqueada = entrarDe("192.0.2.77", "bloqueio.teste", "senha-de-teste");
+        MockHttpServletResponse inexistente = entrarDe("192.0.2.77", "nunca.existiu", "qualquer");
+        MockHttpServletResponse outraOrigem = entrarDe("192.0.2.78", "admin.demo", "senha-de-teste");
+
+        assertThat(bloqueada.getStatus()).isEqualTo(429);
+        assertThat(bloqueada.getHeader("Retry-After")).isEqualTo("900");
+        var corpo = json.readTree(bloqueada.getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        assertThat(corpo.get("errorCode").asText()).isEqualTo("MUITAS_TENTATIVAS");
+        assertThat(corpo.get("detail").asText()).isEqualTo("Muitas tentativas. Tente de novo em 15 minutos.");
+        assertThat(corpo.get("segundosRestantes").asLong()).isBetween(1L, 900L);
+        // login existente ou não, a recusa durante o bloqueio da origem/par é a mesma 429 (aqui só o par está bloqueado)
+        assertThat(inexistente.getStatus()).isEqualTo(401);
+        assertThat(outraOrigem.getStatus()).isEqualTo(200);
+        assertThat(novos().stream().map(EventoDeAuditoria::detalhe))
+                .contains("Falha de login", "Entrada bloqueada por excesso de tentativas");
+        assertThat(novos().toString()).doesNotContain("bloqueio.teste").doesNotContain("senha-de-teste");
+    }
+
+    private MockHttpServletResponse entrarDe(String origem, String usuario, String senha) throws Exception {
+        return mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .header("X-Forwarded-For", origem)
+                .content(json.writeValueAsString(Map.of("usuario", usuario, "senha", senha)))).andReturn().getResponse();
+    }
+
+    @Test
+    void falha_com_login_inexistente_gera_o_mesmo_evento() throws Exception {
+        MockHttpServletResponse resposta = entrar("login.que.nao.existe", "senha-errada", null);
+
+        assertThat(resposta.getStatus()).isEqualTo(401);
+        assertThat(novos()).hasSize(1);
+        assertThat(novos().get(0).detalhe()).isEqualTo("Falha de login");
+        assertThat(novos().get(0).usuario().login()).isEqualTo("(nao-autenticado)");
     }
 
     @Test

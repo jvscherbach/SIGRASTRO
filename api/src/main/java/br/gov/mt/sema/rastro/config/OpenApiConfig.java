@@ -37,6 +37,7 @@ public class OpenApiConfig {
                 .addResponses("BadRequest", resposta("Parâmetros inválidos (PARAMETRO_INVALIDO)."))
                 .addResponses("Unauthorized", resposta("Login ausente ou inválido (NAO_AUTENTICADO)."))
                 .addResponses("Forbidden", resposta("Sem permissão para a função (PERFIL_SEM_PERMISSAO e correlatos)."))
+                .addResponses("TooManyRequests", resposta("Muitas tentativas de login (MUITAS_TENTATIVAS); veja Retry-After."))
                 .addResponses("NotFound", resposta("Recurso inexistente (NAO_ENCONTRADO)."))
                 .addResponses("InternalError", resposta("Erro interno (ERRO_INTERNO)."));
 

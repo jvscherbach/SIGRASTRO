@@ -24,11 +24,6 @@ class AdministrarUsuariosTest {
         private final Map<String, Usuario> usuarios = new ConcurrentHashMap<>();
 
         @Override
-        public Optional<Usuario> autenticar(String login, String senha) {
-            return Optional.empty();
-        }
-
-        @Override
         public Optional<Usuario> buscarPorLogin(String login) {
             return Optional.ofNullable(usuarios.get(login));
         }

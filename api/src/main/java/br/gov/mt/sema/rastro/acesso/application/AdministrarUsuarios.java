@@ -91,7 +91,8 @@ public class AdministrarUsuarios {
             throw new RastroException(ErrorCode.ULTIMO_ADMINISTRADOR,
                     "Não é possível desativar nem rebaixar o último Administrador ativo.");
         }
-        Usuario alterado = new Usuario(atual.login(), atual.nome(), novoPerfil, atual.cpfCnpj(), novaSituacao);
+        Usuario alterado = new Usuario(atual.login(), atual.nome(), novoPerfil, atual.cpfCnpj(), novaSituacao,
+                atual.senhaHash());
         if (!alterado.equals(atual)) {
             cadastro.salvar(alterado);
         }

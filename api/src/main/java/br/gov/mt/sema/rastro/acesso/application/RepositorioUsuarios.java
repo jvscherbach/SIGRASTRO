@@ -6,9 +6,7 @@ import br.gov.mt.sema.rastro.acesso.domain.Usuario;
 
 public interface RepositorioUsuarios {
 
-    /** Devolve o usuário somente se o login existe e a senha confere. */
-    Optional<Usuario> autenticar(String login, String senha);
-
+    /** O usuário pelo login, ativo ou não. A conferência da senha é de {@link AutenticarUsuario}. */
     Optional<Usuario> buscarPorLogin(String login);
 
     /** Entrada bem-sucedida: atualiza o último acesso. */

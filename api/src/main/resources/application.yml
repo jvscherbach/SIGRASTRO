@@ -59,6 +59,13 @@ rastro:
   # Senha única dos usuários de demonstração. Vazia = login desabilitado; o valor padrão só existe no perfil local.
   demo:
     senha: ${VISTAS_DEMO_SENHA:}
+  # Login (L1): custo do PBKDF2 e limite de tentativas (em memória). Faixas em CatalogoDeParametros; exigem reinício.
+  login:
+    iteracoes: ${RASTRO_LOGIN_ITERACOES:600000}
+    tentativas: ${RASTRO_LOGIN_TENTATIVAS:3}
+    janela-minutos: ${RASTRO_LOGIN_JANELA_MINUTOS:15}
+    bloqueio-minutos: ${RASTRO_LOGIN_BLOQUEIO_MINUTOS:15}
+    limite-por-origem: ${RASTRO_LOGIN_LIMITE_POR_ORIGEM:10}
   sessao:
     duracao: PT8H
   conexoes:

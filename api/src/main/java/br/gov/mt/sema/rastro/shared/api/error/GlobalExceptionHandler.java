@@ -2,6 +2,7 @@ package br.gov.mt.sema.rastro.shared.api.error;
 
 import java.util.List;
 
+import br.gov.mt.sema.rastro.shared.application.exception.LimiteExcedidoException;
 import br.gov.mt.sema.rastro.shared.application.exception.ParametroInvalidoException;
 import br.gov.mt.sema.rastro.shared.application.exception.RastroException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,6 +41,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         if (ex instanceof ParametroInvalidoException parametro && parametro.campo() != null) {
             return resposta(invalido(ex.getMessage(), request.getRequestURI(),
                     List.of(new CampoInvalido(parametro.campo(), ex.getMessage()))));
+        }
+        if (ex instanceof LimiteExcedidoException limite) {
+            ProblemDetail problema = ProblemDetails.criar(ex.errorCode(), ex.getMessage(), request);
+            problema.setProperty("segundosRestantes", limite.segundosRestantes());
+            return ResponseEntity.status(problema.getStatus())
+                    .header(HttpHeaders.RETRY_AFTER, String.valueOf(limite.segundosRestantes()))
+                    .contentType(MediaType.APPLICATION_PROBLEM_JSON).body(problema);
         }
         return resposta(ProblemDetails.criar(ex.errorCode(), ex.getMessage(), request));
     }

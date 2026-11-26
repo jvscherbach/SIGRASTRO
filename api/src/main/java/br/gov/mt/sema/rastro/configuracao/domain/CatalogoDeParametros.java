@@ -59,6 +59,13 @@ public final class CatalogoDeParametros {
     public static final String RASTRO_CAIXA_ATUALIZACAO = "rastro.caixaAtualizacaoMinutos";
     public static final String RASTRO_CAIXA_INTERVALO_MANUAL = "rastro.caixaIntervaloMinimoManualSegundos";
 
+    /** L1, bloco 1: login (hash e limite de tentativas), todos de classe "exige reinício". */
+    public static final String LOGIN_ITERACOES = "login.iteracoes";
+    public static final String LOGIN_TENTATIVAS = "login.tentativas";
+    public static final String LOGIN_JANELA = "login.janelaMinutos";
+    public static final String LOGIN_BLOQUEIO = "login.bloqueioMinutos";
+    public static final String LOGIN_LIMITE_ORIGEM = "login.limitePorOrigem";
+
     private static final String DOSSIE = "DOSSIE";
     private static final String CONVERSAO = "CONVERSAO";
     private static final String VISUALIZACAO = "VISUALIZACAO";
@@ -116,7 +123,13 @@ public final class CatalogoDeParametros {
             inteiro(RASTRO_PAINEL_INTERVALO_MANUAL, "Painel: intervalo mínimo da atualização manual (s)", RASTRO, "rastro.painel.intervalo-minimo-manual-segundos", 120, 30, 3600, IMEDIATO),
             // S11, bloco 6. O teto de requerimentos e o tempo limite da caixa são os do painel (nenhum parâmetro novo).
             inteiro(RASTRO_CAIXA_ATUALIZACAO, "Caixa do analista: atualização automática (min)", RASTRO, "rastro.caixa.atualizacao-minutos", 10, 2, 120, IMEDIATO),
-            inteiro(RASTRO_CAIXA_INTERVALO_MANUAL, "Caixa do analista: intervalo mínimo da atualização manual (s)", RASTRO, "rastro.caixa.intervalo-minimo-manual-segundos", 60, 15, 3600, IMEDIATO));
+            inteiro(RASTRO_CAIXA_INTERVALO_MANUAL, "Caixa do analista: intervalo mínimo da atualização manual (s)", RASTRO, "rastro.caixa.intervalo-minimo-manual-segundos", 60, 15, 3600, IMEDIATO),
+            // L1, bloco 1: login. Todos exigem reinício (lidos uma vez, na subida).
+            inteiro(LOGIN_ITERACOES, "Login: custo do hash (iterações)", RASTRO, "rastro.login.iteracoes", 600000, 100000, 2000000, EXIGE_REINICIO),
+            inteiro(LOGIN_TENTATIVAS, "Login: tentativas erradas seguidas até o bloqueio", RASTRO, "rastro.login.tentativas", 3, 3, 10, EXIGE_REINICIO),
+            inteiro(LOGIN_JANELA, "Login: janela de contagem das falhas (min)", RASTRO, "rastro.login.janela-minutos", 15, 1, 120, EXIGE_REINICIO),
+            inteiro(LOGIN_BLOQUEIO, "Login: duração do bloqueio (min)", RASTRO, "rastro.login.bloqueio-minutos", 15, 1, 120, EXIGE_REINICIO),
+            inteiro(LOGIN_LIMITE_ORIGEM, "Login: falhas por origem na janela, somando todos os logins", RASTRO, "rastro.login.limite-por-origem", 10, 5, 100, EXIGE_REINICIO));
 
     private CatalogoDeParametros() {
     }
