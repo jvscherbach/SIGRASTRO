@@ -41,6 +41,10 @@ public final class DetectorDeTipoReal {
         }
         TipoDetectado porCabecalho = detectarPorCabecalho(cabecalho, extensaoDoNome);
         if (porCabecalho != null) {
+            if (porCabecalho.tipo() == TipoReal.DESCONHECIDO && comecaCom(cabecalho, OLE2)
+                    && extensaoNaoConclusiva(extensaoDoNome)) {
+                return detectarOle2PelaEstrutura(arquivo);
+            }
             return porCabecalho;
         }
         return comecaCom(cabecalho, ZIP) ? detectarZip(arquivo) : TipoDetectado.DESCONHECIDO;
@@ -85,6 +89,28 @@ public final class DetectorDeTipoReal {
             case "xls", "xlsx" -> new TipoDetectado(TipoReal.PLANILHA, extensao);
             case "doc", "docx" -> new TipoDetectado(TipoReal.TEXTO, extensao);
             default -> TipoDetectado.DESCONHECIDO;
+        };
+    }
+
+    /**
+     * Sem extensão utilizável no nome (vazia ou que não é de Office/PDF, como o "1" de "V1.1"), a família do OLE2 sai
+     * dos nomes dos fluxos. Extensão declarada de PDF (ou de outro formato) não é revista: continua sem tipo.
+     */
+    private static boolean extensaoNaoConclusiva(String extensaoDoNome) {
+        if (extensaoDoNome == null || extensaoDoNome.isBlank()) {
+            return true;
+        }
+        return switch (extensaoDoNome.toLowerCase(Locale.ROOT)) {
+            case "xls", "xlsx", "doc", "docx", "pdf" -> false;
+            default -> true;
+        };
+    }
+
+    private static TipoDetectado detectarOle2PelaEstrutura(Path arquivo) {
+        return switch (FamiliaOle2.identificar(arquivo)) {
+            case PLANILHA -> new TipoDetectado(TipoReal.PLANILHA, "xls");
+            case TEXTO -> new TipoDetectado(TipoReal.TEXTO, "doc");
+            case NAO_IDENTIFICADA -> TipoDetectado.DESCONHECIDO;
         };
     }
 

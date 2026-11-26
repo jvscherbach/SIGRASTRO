@@ -647,7 +647,7 @@ describe('GavetaDossieComponent', () => {
     });
     const falhasNaTela = () =>
       Array.from(raiz.querySelectorAll('.falhas li')).map(
-        (li) => `${li.querySelector('b')!.textContent} — ${li.querySelector('span')!.textContent}`,
+        (li) => (li.textContent ?? '').replace(/\s+/g, ' ').trim(),
       );
 
     beforeEach(() => api.andamento.mockReturnValue(of(DUAS_FALHAS)));
@@ -657,8 +657,8 @@ describe('GavetaDossieComponent', () => {
 
       expect(texto()).toContain('Documentos com problema');
       expect(falhasNaTela()).toEqual([
-        'Ofício juntado — tempo limite excedido ao obter o arquivo',
-        'Matrícula — arquivo não encontrado no repositório',
+        'Ofício juntado (ID 900118): tempo limite excedido ao obter o arquivo',
+        'Matrícula (ID 31): arquivo não encontrado no repositório',
       ]);
       expect(texto()).toContain('1 documento(s) já obtido(s) e mantido(s): não serão baixados de novo');
       expect(texto()).toContain('Aguardando sua decisão · 1/3');
@@ -666,6 +666,24 @@ describe('GavetaDossieComponent', () => {
       expect(texto()).toContain('Falhou: tempo limite excedido ao obter o arquivo');
       expect(botao('Pré-visualizar')).toBeUndefined();
       expect(botao('Baixar PDF')).toBeUndefined();
+    });
+
+    it('documentos com o mesmo nome e o mesmo motivo ficam em linhas distintas, com ID e separador', () => {
+      const motivo = 'o arquivo não é um PDF (tipo detectado: documento do Office antigo (doc, xls))';
+      api.andamento.mockReturnValue(
+        of(
+          andamento({
+            status: 'PENDENTE_DECISAO',
+            falhas: [
+              { origem: 'JUNTADA', id: '111', titulo: 'Poços R1_Teste_V1', motivo },
+              { origem: 'JUNTADA', id: '222', titulo: 'Poços R1_Teste_V1', motivo },
+            ],
+          }),
+        ),
+      );
+      abrir();
+
+      expect(falhasNaTela()).toEqual([`Poços R1_Teste_V1 (ID 111): ${motivo}`, `Poços R1_Teste_V1 (ID 222): ${motivo}`]);
     });
 
     it('os botões dizem quantos documentos a decisão afeta', () => {

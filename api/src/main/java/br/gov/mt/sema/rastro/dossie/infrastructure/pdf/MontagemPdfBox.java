@@ -159,11 +159,56 @@ class MontagemPdfBox implements MontadorDoDossie {
             nova.setRotation(pagina.getRotation());
             nova.setResources(pagina.getResources());
             soltarReferenciaAPaginaDeOrigem(nova);
+            reduzirSeMaiorQueA3(saida, nova);
             importadas++;
         }
         if (importadas != documento.paginas()) {
             throw new IllegalStateException("O documento mudou de tamanho entre a validação e a montagem");
         }
+    }
+
+    /** Maior lado (como a página é exibida) acima do qual a página é reduzida a A4 (A3 = 1190,55 pt). */
+    static final float LIMITE_DO_MAIOR_LADO = 1191f;
+
+    /**
+     * Página cujo maior lado exibido passe de A3 é reduzida para caber em A4, na mesma orientação visual, centralizada
+     * e sem distorção. Continua vetorial: o conteúdo só ganha uma matriz de escala (e um recorte pela caixa original),
+     * sem rasterizar. Anotações (links) da página reduzida são descartadas, pois ficariam desalinhadas. Até A3 nada muda.
+     */
+    private void reduzirSeMaiorQueA3(PDDocument saida, PDPage pagina) throws IOException {
+        PDRectangle caixa = pagina.getCropBox();
+        float larguraCaixa = caixa.getWidth();
+        float alturaCaixa = caixa.getHeight();
+        int rotacao = ((pagina.getRotation() % 360) + 360) % 360;
+        boolean girada = rotacao % 180 != 0;
+        float larguraExibida = girada ? alturaCaixa : larguraCaixa;
+        float alturaExibida = girada ? larguraCaixa : alturaCaixa;
+        if (Math.max(larguraExibida, alturaExibida) <= LIMITE_DO_MAIOR_LADO || larguraCaixa <= 0 || alturaCaixa <= 0) {
+            return;
+        }
+        boolean paisagem = larguraExibida >= alturaExibida;
+        float alvoLargura = paisagem ? PDRectangle.A4.getHeight() : PDRectangle.A4.getWidth();
+        float alvoAltura = paisagem ? PDRectangle.A4.getWidth() : PDRectangle.A4.getHeight();
+        // Dimensões da nova caixa no espaço sem rotação.
+        float novaLargura = girada ? alvoAltura : alvoLargura;
+        float novaAltura = girada ? alvoLargura : alvoAltura;
+        float escala = Math.min(novaLargura / larguraCaixa, novaAltura / alturaCaixa);
+        float tx = (novaLargura - larguraCaixa * escala) / 2f - caixa.getLowerLeftX() * escala;
+        float ty = (novaAltura - alturaCaixa * escala) / 2f - caixa.getLowerLeftY() * escala;
+        try (PDPageContentStream antes = new PDPageContentStream(saida, pagina, PDPageContentStream.AppendMode.PREPEND, true, false)) {
+            antes.saveGraphicsState();
+            antes.transform(new Matrix(escala, 0, 0, escala, tx, ty));
+            antes.addRect(caixa.getLowerLeftX(), caixa.getLowerLeftY(), larguraCaixa, alturaCaixa);
+            antes.clip();
+        }
+        try (PDPageContentStream depois = new PDPageContentStream(saida, pagina, PDPageContentStream.AppendMode.APPEND, true, false)) {
+            depois.restoreGraphicsState();
+        }
+        PDRectangle nova = new PDRectangle(novaLargura, novaAltura);
+        pagina.setMediaBox(nova);
+        pagina.setCropBox(nova);
+        pagina.getCOSObject().removeItem(COSName.ANNOTS);
+        log.debug("Página maior que A3 reduzida a A4 (escala {})", escala);
     }
 
     /** Formulários interativos são achatados para não colidir nomes de campo entre documentos; falha não interrompe. */

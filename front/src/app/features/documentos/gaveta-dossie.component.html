@@ -55,7 +55,7 @@
                 <p>{{ falhas().length === 1 ? 'Este documento não pôde ser obtido:' : 'Estes documentos não puderam ser obtidos:' }}</p>
                 <ul class="falhas" aria-label="Documentos com problema">
                   @for (falha of falhas(); track falha.origem + ':' + falha.id) {
-                    <li><b>{{ falha.titulo }}</b> <span>{{ falha.motivo }}</span></li>
+                    <li><b>{{ falha.titulo }}</b>&ngsp;<small class="falha-id">(ID {{ falha.id }})</small>:&ngsp;<span class="falha-motivo">{{ falha.motivo }}</span></li>
                   }
                 </ul>
               }

@@ -152,7 +152,35 @@ class ValidadorEMontadorPdfBoxTest {
     }
 
     @Test
-    void metadadosDoPdfIdentificamORastroSemDadoPessoal() throws IOException {
+    void paginaMaiorQueA3ReduzAA4NaMesmaOrientacaoEAsDemaisFicamIntactas() throws IOException {
+        List<DocumentoParaMontagem> docs = List.of(
+                doc("Gigante", 1, new PDRectangle(4000f, 3000f), 0),
+                doc("QuatroPapel", 1, PDRectangle.A4, 0),
+                doc("Tres", 1, PDRectangle.A3, 0),
+                doc("Zero", 1, new PDRectangle(2384f, 3370f), 0),
+                doc("Girada", 1, new PDRectangle(3000f, 4000f), 90));
+        Path saida = pasta.resolve("grandes.pdf");
+
+        int total = montador.montar(capa(), docs, TUDO, saida);
+
+        try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
+            assertThat(total).isEqualTo(pdf.getNumberOfPages()).isEqualTo(1 + 1 + 5);
+            float[][] esperado = {{842f, 595f, 0}, {595f, 842f, 0}, {842f, 1191f, 0}, {595f, 842f, 0}, {595f, 842f, 90}};
+            // a quinta (3000 x 4000 girada em 90) é exibida em paisagem: a caixa sem rotação fica em retrato
+            for (int i = 0; i < esperado.length; i++) {
+                PDPage pagina = pdf.getPage(2 + i);
+                assertThat((float) Math.round(pagina.getMediaBox().getWidth())).as("largura %d", i).isEqualTo(esperado[i][0]);
+                assertThat((float) Math.round(pagina.getMediaBox().getHeight())).as("altura %d", i).isEqualTo(esperado[i][1]);
+                assertThat(pagina.getRotation()).as("rotação %d", i).isEqualTo((int) esperado[i][2]);
+            }
+            // o texto segue extraível (vetorial) e a numeração aparece em todas
+            assertThat(texto(pdf, 3, 3)).contains("Gigante - pagina 1").contains("Página 3 de 7");
+            assertThat(texto(pdf, 6, 6)).contains("Zero - pagina 1").contains("Página 6 de 7");
+        }
+    }
+
+    @Test
+    void metadadosDoPdfIdentificamORastroSemDadoPessoal()throws IOException {
         Path saida = pasta.resolve("metadados.pdf");
 
         montador.montar(capa(), List.of(doc("Oficio", 1, PDRectangle.A4, 0)), TUDO, saida);

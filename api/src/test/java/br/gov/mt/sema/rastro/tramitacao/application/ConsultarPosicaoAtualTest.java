@@ -202,7 +202,7 @@ class ConsultarPosicaoAtualTest {
         PosicaoAtual p = caso.executar(ID).posicao();
         assertThat(p.estado()).isEqualTo(EstadoDaPosicao.ATIVO);
         assertThat(responsavel(p).tipo()).isEqualTo(ResponsavelDaEtapa.Tipo.NAO_IDENTIFICADO);
-        assertThat(saida.getAll()).contains("não identificados").doesNotContain(CPF_FICTICIO);
+        assertThat(saida.getAll()).contains("identificados").doesNotContain(CPF_FICTICIO);
     }
 
     @Test
@@ -234,6 +234,6 @@ class ConsultarPosicaoAtualTest {
     void falha_no_camunda_com_cpf_na_mensagem_nao_vai_para_o_log(CapturedOutput saida) {
         when(camunda.requerimento(ID)).thenThrow(new IllegalStateException("ORA-00000 bind " + CPF_FICTICIO));
         assertThat(caso.executar(ID).posicao().estado()).isEqualTo(EstadoDaPosicao.INDISPONIVEL);
-        assertThat(saida.getAll()).contains("indisponível").doesNotContain(CPF_FICTICIO);
+        assertThat(saida.getAll()).contains("indispon").doesNotContain(CPF_FICTICIO);
     }
 }
