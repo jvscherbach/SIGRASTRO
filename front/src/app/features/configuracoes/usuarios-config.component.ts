@@ -9,7 +9,7 @@ import { IconeComponent } from '../../shared/icone.component';
 import { ToastService } from '../../shared/toast.service';
 import { ConfiguracoesApiService } from './configuracoes-api.service';
 import { PERFIS_ASSINAVEIS, UsuarioConfigurado } from './configuracoes.models';
-import { mensagemDaConfiguracao } from './mensagens-config';
+import { camposInvalidos, mensagemDaConfiguracao } from './mensagens-config';
 import { NovoUsuarioComponent } from './novo-usuario.component';
 
 /** Mudança escolhida na lista e ainda não confirmada. */
@@ -49,6 +49,10 @@ export class UsuariosConfigComponent implements OnInit {
   protected readonly gravando = signal(false);
   /** Erro da última alteração recusada, na linha do usuário. */
   protected readonly erroDaLinha = signal<{ id: string; texto: string } | null>(null);
+  /** Redefinição de senha em andamento (um usuário por vez). A senha digitada nunca é guardada além do envio. */
+  protected readonly redefinindo = signal<string | null>(null);
+  protected readonly senhaNova = signal('');
+  protected readonly erroSenha = signal('');
   protected readonly eu = computed(() => this.auth.usuario()?.login ?? null);
 
   private carga: Subscription | null = null;
@@ -144,6 +148,53 @@ export class UsuariosConfigComponent implements OnInit {
         mudanca.controle.value = mudanca.valorAnterior;
         this.pendente.set(null);
         this.erroDaLinha.set({ id: mudanca.id, texto: mensagemDaConfiguracao(erro) });
+      },
+    });
+  }
+
+  // --- redefinição de senha (só o Administrador chega a esta aba)
+
+  protected abrirRedefinicao(usuario: UsuarioConfigurado): void {
+    this.cancelarMudanca();
+    this.erroDaLinha.set(null);
+    this.senhaNova.set('');
+    this.erroSenha.set('');
+    this.redefinindo.set(usuario.id);
+  }
+
+  protected cancelarRedefinicao(): void {
+    this.senhaNova.set('');
+    this.erroSenha.set('');
+    this.redefinindo.set(null);
+  }
+
+  protected digitarSenhaNova(evento: Event): void {
+    this.senhaNova.set((evento.target as HTMLInputElement).value);
+    this.erroSenha.set('');
+  }
+
+  protected confirmarRedefinicao(usuario: UsuarioConfigurado): void {
+    const senha = this.senhaNova();
+    if (this.gravando()) {
+      return;
+    }
+    if (senha.length < 12) {
+      this.erroSenha.set('A senha precisa ter pelo menos 12 caracteres.');
+      return;
+    }
+    this.gravando.set(true);
+    this.gravacao = this.api.alterarUsuario(usuario.id, { senha }).subscribe({
+      next: (atualizado) => {
+        this.gravando.set(false);
+        this.cancelarRedefinicao();
+        this.usuarios.update((lista) => lista.map((u) => (u.id === atualizado.id ? atualizado : u)));
+        this.toast.info(`Senha de ${atualizado.nome} redefinida. As sessões abertas dele foram encerradas.`);
+      },
+      error: (erro: unknown) => {
+        this.gravando.set(false);
+        this.senhaNova.set('');
+        const campos = camposInvalidos(erro);
+        this.erroSenha.set(campos['senha'] ?? mensagemDaConfiguracao(erro));
       },
     });
   }

@@ -6,8 +6,8 @@ import { AuthService } from './auth.service';
 import { LoginResposta, Usuario } from './usuario.model';
 
 const USUARIO: Usuario = {
-  login: 'gestor.demo',
-  nome: 'Gestor Demo',
+  login: 'gestor',
+  nome: 'Gestor',
   perfil: 'OPERADOR_SIGILO',
   perfilDescricao: 'Gestor',
   cpfCnpj: null,
@@ -32,11 +32,11 @@ describe('AuthService', () => {
 
   it('login guarda o token na sessionStorage e expõe o usuário', () => {
     let recebido: Usuario | undefined;
-    auth.login('gestor.demo', 'senha').subscribe((u) => (recebido = u));
+    auth.login('gestor', 'senha').subscribe((u) => (recebido = u));
 
     const req = http.expectOne('/api/auth/login');
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ usuario: 'gestor.demo', senha: 'senha' });
+    expect(req.request.body).toEqual({ usuario: 'gestor', senha: 'senha' });
     req.flush({ token: 'abc', tipo: 'Bearer', expiraEm: '2026-10-20T20:00:00-04:00', usuario: USUARIO } satisfies LoginResposta);
 
     expect(recebido).toEqual(USUARIO);

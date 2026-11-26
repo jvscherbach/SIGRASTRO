@@ -54,7 +54,7 @@ describe('DetalheComponent', () => {
         { provide: DocumentosApiService, useValue: documentosApi },
         { provide: ConsultaApiService, useValue: consultaApi },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => id } } } },
-        { provide: AuthService, useValue: { usuario: signal({ login: 'u.demo' }) } },
+        { provide: AuthService, useValue: { usuario: signal({ login: 'u-teste' }) } },
       ],
     });
     const fixture = TestBed.createComponent(DetalheComponent);
@@ -176,7 +176,7 @@ describe('DetalheComponent', () => {
       const { fixture } = criar();
 
       expect(TestBed.inject(TrilhaService).complemento()).toEqual(['Consulta', 'Processo 2825/2025']);
-      expect(JSON.parse(localStorage.getItem('rastro.recentes.u.demo')!)).toEqual([
+      expect(JSON.parse(localStorage.getItem('rastro.recentes.u-teste')!)).toEqual([
         { id: 101, rotulo: 'Processo 2825/2025', numeroRequerimento: '3331/2025', situacao: 'Em análise' },
       ]);
       fixture.destroy();

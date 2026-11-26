@@ -24,13 +24,13 @@ export const CNPJ_DA_ASSOCIACAO = '12345678000190';
 export const CNPJ_DO_OPERADOR = '98765432000100';
 
 /** Operador da demonstração: interessado do processo 9104/2026 (RN07). */
-export const OPERADOR_DA_DEMONSTRACAO: UsuarioSimulado = { ...OPERADOR, nome: 'Interessado Exemplo', login: 'interessado.demo', cpfCnpj: CNPJ_DO_OPERADOR };
-export const GESTOR_DA_DEMONSTRACAO: UsuarioSimulado = { ...GESTOR, nome: 'Gestor Demo' };
+export const OPERADOR_DA_DEMONSTRACAO: UsuarioSimulado = { ...OPERADOR, nome: 'Interessado Exemplo', login: 'interessado.exemplo', cpfCnpj: CNPJ_DO_OPERADOR };
+export const GESTOR_DA_DEMONSTRACAO: UsuarioSimulado = { ...GESTOR, nome: 'Gestor' };
 
 /** Nomes que podem aparecer em qualquer dado da demonstração (a varredura confere). */
 export const NOMES_FICTICIOS = [
-  'Gestor Demo',
-  'Admin Demo',
+  'Gestor',
+  'Administrador',
   'Interessado Exemplo',
   'Associação Residencial Vale Verde',
   'Fazenda Modelo',

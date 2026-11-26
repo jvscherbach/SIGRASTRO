@@ -343,12 +343,12 @@ input[type=checkbox]:disabled{cursor:not-allowed}
 .login-form{display:flex;align-items:center;justify-content:center;padding:40px 24px;background:var(--bg)}
 .login-card{width:min(400px,100%);background:#fff;border:1px solid var(--line);border-radius:18px;padding:28px;box-shadow:0 10px 30px #10260a10}
 .login-card h2{font-size:22px}
-.demo-users{display:grid;gap:8px;margin-top:6px}
-.demo-user{display:flex;gap:12px;align-items:center;text-align:left;background:var(--soft-2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;color:var(--ink)}
-.demo-user:hover{background:var(--soft);border-color:#c6dcb7}
-.demo-user .avatar{border-color:#bcd3ad;color:var(--forest);background:#fff}
-.demo-user b{font-size:13px;display:block}
-.demo-user small{font-size:11px;color:var(--muted)}
+.perfil-users{display:grid;gap:8px;margin-top:6px}
+.perfil-user{display:flex;gap:12px;align-items:center;text-align:left;background:var(--soft-2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;color:var(--ink)}
+.perfil-user:hover{background:var(--soft);border-color:#c6dcb7}
+.perfil-user .avatar{border-color:#bcd3ad;color:var(--forest);background:#fff}
+.perfil-user b{font-size:13px;display:block}
+.perfil-user small{font-size:11px;color:var(--muted)}
 .or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:11px;margin:18px 0}
 .or:before,.or:after{content:"";flex:1;height:1px;background:var(--line)}
 
@@ -555,7 +555,7 @@ const DOCS=[
 ];
 
 /* ---------- estado ---------- */
-const USERS={op:{nome:'Operador Demo',login:'operador.demo',doc:'12.345.678/0001-90',ini:'OD',perfil:'OPERADOR',desc:'Operador · só processos em que é o interessado'},sig:{nome:'Gestor Demo',login:'gestor.demo',ini:'GD',perfil:'OPERADOR_SIGILO',desc:'Gestor · todos os processos e sigilosos'},adm:{nome:'Admin Demo',login:'admin.demo',ini:'AD',perfil:'ADMIN',desc:'Administrador · acesso irrestrito'}};
+const USERS={op:{nome:'Operador',login:'operador',doc:'12.345.678/0001-90',ini:'OD',perfil:'OPERADOR',desc:'Operador · só processos em que é o interessado'},sig:{nome:'Gestor',login:'gestor',ini:'GD',perfil:'OPERADOR_SIGILO',desc:'Gestor · todos os processos e sigilosos'},adm:{nome:'Administrador',login:'admin',ini:'AD',perfil:'ADMIN',desc:'Administrador · acesso irrestrito'}};
 const ui={view:'login',user:null,menu:false,tipo:'REQ',form:{numero:'',doc:'',nome:''},erro:'',resultados:null,alvo:null,sel:new Set(),f:{q:'',ori:''},sort:{k:'data',dir:1},jobs:[],af:{q:'',ev:'',usr:'',per:'7',sig:false},audTipo:'doc',cfgTab:'usuarios'};
 const $=s=>document.querySelector(s);
 const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -687,9 +687,9 @@ function vLogin(){return `<section class="login"><div class="login-art"><div cla
 <h1>Todo o processo em um só documento.</h1><p>Consulte o requerimento ou o processo, escolha os documentos e gere o dossiê em PDF, em ordem cronológica.</p>
 <img class="wm" src="${$('.watermark').src}" alt="" aria-hidden="true"></div>
 <div class="login-form"><div class="login-card"><span class="eyebrow">Acesso simulado</span><h2 style="margin-top:6px">Entrar no protótipo</h2>
-<p class="muted" style="font-size:13px;margin-top:6px">Nesta versão não há autenticação real. Escolha um dos perfis de demonstração.</p>
-<div class="or">perfis de demonstração</div><div class="demo-users">
-${Object.entries(USERS).map(([k,u])=>`<button class="demo-user" onclick="login('${k}')"><span class="avatar">${u.ini}</span><span style="flex:1"><b>${e(u.nome)}</b><small>${e(u.desc)}</small></span>${icon('arrow')}</button>`).join('')}
+<p class="muted" style="font-size:13px;margin-top:6px">Maquete navegável, sem autenticação: escolha um perfil de exemplo.</p>
+<div class="or">perfis de exemplo</div><div class="perfil-users">
+${Object.entries(USERS).map(([k,u])=>`<button class="perfil-user" onclick="login('${k}')"><span class="avatar">${u.ini}</span><span style="flex:1"><b>${e(u.nome)}</b><small>${e(u.desc)}</small></span>${icon('arrow')}</button>`).join('')}
 </div><div class="note amber" style="margin-top:18px">${icon('info')}<span>Na versão definitiva, o acesso será feito com credencial institucional; o perfil define o que cada usuário pode ver.</span></div></div></div></section>`;}
 
 /* ---------- consulta ---------- */
@@ -928,11 +928,11 @@ function vDossies(){
 const ORIGEM_PADRAO=Object.fromEntries(Object.keys(ORIGEM).map(k=>[k,true]));
 const CFG={ttl:30,threads:2,tDown:60,tConv:120,origens:{...ORIGEM_PADRAO},planilha:'largura',paisagem:true,ocultas:false,sumario:true,marcadores:true,numeracao:true,retDoc:'1825',retAcesso:'365',
   usuarios:[
-    {id:1,nome:'Operador Demo',login:'operador.demo',doc:'12.345.678/0001-90',perfil:'OPERADOR',ativo:true,ultimo:null},
-    {id:2,nome:'Gestor Demo',login:'gestor.demo',perfil:'OPERADOR_SIGILO',ativo:true,ultimo:null},
-    {id:3,nome:'Admin Demo',login:'admin.demo',perfil:'ADMIN',ativo:true,ultimo:null},
-    {id:4,nome:'Requerente Demo',login:'requerente.demo',doc:'45.678.901/0001-23',perfil:'OPERADOR',ativo:true,ultimo:null},
-    {id:5,nome:'Estagiário Demo',login:'estagiario.demo',doc:'98.765.432/0001-10',perfil:'OPERADOR',ativo:false,ultimo:null}],
+    {id:1,nome:'Operador',login:'operador',doc:'12.345.678/0001-90',perfil:'OPERADOR',ativo:true,ultimo:null},
+    {id:2,nome:'Gestor',login:'gestor',perfil:'OPERADOR_SIGILO',ativo:true,ultimo:null},
+    {id:3,nome:'Administrador',login:'admin',perfil:'ADMIN',ativo:true,ultimo:null},
+    {id:4,nome:'Requerente Exemplo',login:'requerente',doc:'45.678.901/0001-23',perfil:'OPERADOR',ativo:true,ultimo:null},
+    {id:5,nome:'Estagiário Exemplo',login:'estagiario',doc:'98.765.432/0001-10',perfil:'OPERADOR',ativo:false,ultimo:null}],
   integ:{banco:{st:'ok',ms:38},api:{st:'ok',ms:212,expira:new Date(Date.now()+31*3600e3)},pessoal:{st:'ok',ms:340},taxas:{st:'off'}}};
 const PERFIS={OPERADOR:'Operador',OPERADOR_SIGILO:'Gestor',ADMIN:'Administrador'};
 const perfilNome=p=>PERFIS[p]||p;
@@ -947,13 +947,13 @@ function audit(ev,o={}){const u=o.user||{nome:ui.user.nome,perfil:ui.user.perfil
   const cu=CFG.usuarios.find(x=>x.nome===u.nome);if(cu&&(!cu.ultimo||cu.ultimo<(o.ts||new Date())))cu.ultimo=o.ts||new Date();}
 (function seed(){
   const dia=(d,h,m)=>{const t=new Date();t.setDate(t.getDate()-d);t.setHours(h,m,0,0);return t;};
-  const AN={nome:'Requerente Demo',perfil:'OPERADOR'},GD={nome:'Gestor Demo',perfil:'OPERADOR_SIGILO'},OD={nome:'Operador Demo',perfil:'OPERADOR'},AD={nome:'Admin Demo',perfil:'ADMIN'};
+  const AN={nome:'Requerente Exemplo',perfil:'OPERADOR'},GD={nome:'Gestor',perfil:'OPERADOR_SIGILO'},OD={nome:'Operador',perfil:'OPERADOR'},AD={nome:'Administrador',perfil:'ADMIN'};
   const P={rot:'Processo',num:'2825/2025'},R1={rot:'Requerimento',num:'1187/2026'},R2={rot:'Requerimento',num:'904/2026'};
   const ds=(req,f)=>DOCS.filter(d=>d.req===req&&d.situacao==='VIGENTE'&&!isGeo(d.ext)&&!ignorado(d.ext)&&f(d)).map(d=>({titulo:d.titulo,arquivo:d.arquivo,ext:d.ext,sigiloso:d.sigiloso}));
   const semSig=ds('3331/2025',d=>!d.sigiloso),comSig=ds('3331/2025',()=>true),r1=ds('1187/2026',()=>true),dec=DOCS.find(d=>d.sigiloso);
   [[AD,'LOGIN',dia(8,9,2),{det:'Entrada no sistema'}],
-   [AD,'USUARIO',dia(8,9,6),{det:'Gestor Demo: perfil Operador → Gestor',mudancas:[['Gestor Demo · perfil','Operador','Gestor']]}],
-   [AD,'USUARIO',dia(8,9,8),{det:'Estagiário Demo: usuário desativado',mudancas:[['Estagiário Demo · situação','Ativo','Inativo']]}],
+   [AD,'USUARIO',dia(8,9,6),{det:'Gestor: perfil Operador → Gestor',mudancas:[['Gestor · perfil','Operador','Gestor']]}],
+   [AD,'USUARIO',dia(8,9,8),{det:'Estagiário Exemplo: usuário desativado',mudancas:[['Estagiário Exemplo · situação','Ativo','Inativo']]}],
    [AD,'CONFIG',dia(8,9,12),{det:'Expiração do dossiê: 20 → 30 min',mudancas:[['Expiração do dossiê','20 min','30 min']]}],
    [AN,'LOGIN',dia(6,8,12),{det:'Entrada no sistema'}],[AN,'CONSULTA',dia(6,8,15),{alvo:R1,det:'Abertura do detalhe'}],
    [AN,'VISUALIZACAO',dia(6,8,17),{alvo:R1,det:'Planilha de demanda hídrica',docs:[{titulo:'Planilha de demanda hídrica',arquivo:'demanda-hidrica.xlsx',ext:'xlsx',sigiloso:false}]}],

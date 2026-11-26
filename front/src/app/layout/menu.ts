@@ -6,6 +6,8 @@ export interface ItemMenu {
   rota: string;
   /** Prefixo de URL em que o item aparece como ativo (ex.: as abas de Auditoria). Sem ele, vale a própria rota. */
   prefixoAtivo?: string;
+  /** Só o ícone na barra (o rótulo continua como nome acessível e dica): para a barra do topo não passar da largura. */
+  apenasIcone?: boolean;
   /** Permissão exigida para ver o item (RN08). Sem ela, todos veem. */
   permissao?: PermissaoDeTela;
   /** Permissão que esconde o item (o Analista, com `verCaixa`, não vê a Auditoria: a API responde 403). */
@@ -34,6 +36,10 @@ export const MENU: SecaoMenu[] = [
       { rotulo: 'Auditoria', icone: 'shield', rota: '/auditoria/documentos', prefixoAtivo: '/auditoria', ocultoComPermissao: 'verCaixa' },
       { rotulo: 'Configurações', icone: 'settings', rota: '/configuracoes', permissao: 'acessarConfiguracoes' },
     ],
+  },
+  {
+    rotulo: 'Conta',
+    itens: [{ rotulo: 'Minha conta', icone: 'user', rota: '/conta', apenasIcone: true }],
   },
 ];
 

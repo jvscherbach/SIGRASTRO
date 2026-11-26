@@ -5,6 +5,7 @@
 .nav{display:flex;gap:4px;height:100%;min-width:0}
 .nav a{display:flex;align-items:center;gap:8px;padding:0 14px;color:var(--on-ink-soft);text-decoration:none;font-weight:500;font-size:.9375rem;border-bottom:3px solid transparent;white-space:nowrap}
 .nav a:hover{color:var(--on-ink)}
+.nav a.so-icone>span{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .nav a[aria-current=page]{color:var(--on-ink);border-bottom-color:var(--marker)}
 .nav .icon,.nav svg{width:18px;height:18px;flex:none}
 .top-dir{margin-left:auto;display:flex;align-items:center;gap:16px;min-width:0}
@@ -27,6 +28,8 @@
 .ind-dispensar:hover{background:var(--on-ink-hover)}
 .ind-dispensar svg{width:14px;height:14px}
 
-@media(max-width:900px){.nav a>span{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}.top{gap:12px;padding:0 12px}.top-dir{gap:10px}}
+/* Com seis itens (Administrador + Minha conta) a barra só cabe com os rótulos escondidos a partir de 1100 px (L1). */
+@media(max-width:1100px){.nav a>span{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}.nav a{padding:0 10px}}
+@media(max-width:900px){.top{gap:12px;padding:0 12px}.top-dir{gap:10px}}
 @media(max-width:520px){.top{gap:8px}.perfil-chip,.who-nome{display:none}.nav a{padding:0 6px}.top{padding:0 8px}.top-dir{gap:6px}.who{gap:6px}.who .sair{padding:4px 2px}.ind-dossie{max-width:40vw}.ind-texto{font-size:11px}}
-@media(max-width:400px){.top{gap:4px}.nav{gap:0}.nav a{padding:0 4px}.who .avatar{width:26px;height:26px}.top .logo app-marca{gap:6px}}
+@media(max-width:400px){.top{gap:4px;padding:0 6px}.nav{gap:0}.nav a{padding:0 4px}.nav .icon,.nav svg{width:16px;height:16px}.who .avatar{display:none}.top .logo app-marca{gap:6px}}

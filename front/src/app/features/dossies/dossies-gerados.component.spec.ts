@@ -349,9 +349,9 @@ describe('DossiesGeradosComponent', () => {
     });
 
     it('Gestor: coluna "Gerado por" quando a API manda e filtro "Só os meus"', () => {
-      abrir([pedido({ geradoPor: 'Gestor Demo' })], 'OPERADOR_SIGILO');
+      abrir([pedido({ geradoPor: 'Gestor' })], 'OPERADOR_SIGILO');
       expect(raiz.querySelector('thead')!.textContent).toContain('Gerado por');
-      expect(linhas()[0].querySelector('.gerado-por')!.textContent).toContain('Gestor Demo');
+      expect(linhas()[0].querySelector('.gerado-por')!.textContent).toContain('Gestor');
 
       const caixa = raiz.querySelector<HTMLInputElement>('.somente-meus input')!;
       caixa.checked = true;

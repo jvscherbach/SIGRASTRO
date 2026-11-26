@@ -15,11 +15,15 @@ export interface NovoUsuario {
   login: string;
   cpfCnpj: string;
   perfil: string;
+  /** Senha inicial: só vai no corpo do POST; a resposta nunca a devolve. */
+  senha: string;
 }
 
 export interface AlteracaoDeUsuario {
   perfil?: string;
   ativo?: boolean;
+  /** Redefinição da senha pelo Administrador: só vai no corpo do PATCH. */
+  senha?: string;
 }
 
 export const PERFIS_ASSINAVEIS: { codigo: string; rotulo: string }[] = [

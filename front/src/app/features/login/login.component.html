@@ -5,11 +5,9 @@
   </div>
 
   <div class="login-card">
-    <span class="eyebrow">Acesso simulado</span>
-    <h2>Entrar no protótipo</h2>
-    <p class="sub">
-      Nesta versão não há autenticação real. Entre com um usuário de demonstração ou escolha um dos perfis abaixo.
-    </p>
+    <span class="eyebrow">Acesso</span>
+    <h2>Entrar</h2>
+    <p class="sub">Informe o seu usuário e a sua senha.</p>
 
     <form [formGroup]="formulario" (ngSubmit)="entrar()" novalidate>
       <div class="field">
@@ -28,23 +26,9 @@
       <button class="btn primary" type="submit" [disabled]="entrando()"><app-icone nome="arrow" />Entrar</button>
     </form>
 
-    <div class="or">perfis de demonstração</div>
-    <div class="demo-users">
-      @for (demo of usuariosDemo; track demo.login) {
-        <button type="button" class="demo-user" [disabled]="entrando()" (click)="entrarComoDemo(demo)">
-          <span class="avatar">{{ demo.iniciais }}</span>
-          <span class="dados"
-            ><b>{{ demo.nome }}</b
-            ><small>{{ demo.descricao }}</small></span
-          >
-          <app-icone nome="arrow" />
-        </button>
-      }
-    </div>
-
     <div class="note amber">
       <app-icone nome="info" /><span
-        >Na versão definitiva, o acesso será feito com credencial institucional; o perfil define o que cada usuário pode ver.</span
+        >O perfil define o que cada usuário pode ver. Quem esqueceu a senha deve procurar o Administrador.</span
       >
     </div>
   </div>

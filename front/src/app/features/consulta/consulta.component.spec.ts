@@ -16,7 +16,7 @@ import { ResultadoBusca } from './consulta.models';
 
 function usuario(perfil: Perfil): Usuario {
   return {
-    login: 'u.demo',
+    login: 'u-teste',
     nome: 'U',
     perfil,
     perfilDescricao: perfil,
@@ -490,7 +490,7 @@ describe('ConsultaComponent', () => {
     });
 
     it('mostra os recentes do usuário e abre o detalhe ao clicar', () => {
-      localStorage.setItem('rastro.recentes.u.demo', JSON.stringify([{ id: 7, rotulo: 'Processo 2825/2025' }]));
+      localStorage.setItem('rastro.recentes.u-teste', JSON.stringify([{ id: 7, rotulo: 'Processo 2825/2025' }]));
       const raiz = criar();
 
       const atalhos = raiz.querySelectorAll<HTMLButtonElement>('.tile');
@@ -501,7 +501,7 @@ describe('ConsultaComponent', () => {
     });
 
     it('os recentes formam a trilha vertical "Consultados por último"', () => {
-      localStorage.setItem('rastro.recentes.u.demo', JSON.stringify([{ id: 7, rotulo: 'Processo 2825/2025' }]));
+      localStorage.setItem('rastro.recentes.u-teste', JSON.stringify([{ id: 7, rotulo: 'Processo 2825/2025' }]));
       const raiz = criar();
 
       expect(texto(raiz)).toContain('Consultados por último');
@@ -518,7 +518,7 @@ describe('ConsultaComponent', () => {
 
     it('dois requerimentos do mesmo processo aparecem desempatados, com a situação em texto pequeno', () => {
       localStorage.setItem(
-        'rastro.recentes.u.demo',
+        'rastro.recentes.u-teste',
         JSON.stringify([
           { id: 2, rotulo: 'Processo 445/2022', numeroRequerimento: '3798/2023', situacao: 'Cancelado' },
           { id: 1, rotulo: 'Processo 445/2022', numeroRequerimento: '3391/2022', situacao: 'Concluído' },

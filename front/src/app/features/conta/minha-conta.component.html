@@ -1,0 +1,84 @@
+<section aria-label="Minha conta">
+  <app-quadro-topo sobretitulo="Conta" titulo="Minha conta" descricao="Troque a sua senha de acesso." [alto]="false" />
+
+  <app-folha-sobreposta>
+    @if (usuario(); as u) {
+      <p class="muted mc-quem">
+        Usuário <b>{{ u.login }}</b> · {{ u.perfilDescricao }}
+      </p>
+    }
+
+    <h2 id="mc-titulo">Trocar a senha</h2>
+
+    <div class="note" role="note">
+      <app-icone nome="info" />
+      <span>
+        Regras da nova senha:
+        @for (regra of politica; track regra) {
+          <span class="mc-regra">{{ regra }}</span>
+        }
+        Ao trocar, as suas outras sessões abertas são encerradas; esta continua.
+      </span>
+    </div>
+
+    @if (sucesso()) {
+      <div class="note ok mc-sucesso" role="status"><app-icone nome="check" /><span>Senha alterada. As outras sessões foram encerradas.</span></div>
+    }
+    @if (erroGeral()) {
+      <div class="alert mc-erro-geral" role="alert"><app-icone nome="alert" /><span>{{ erroGeral() }}</span></div>
+    }
+
+    <form class="mc-form" novalidate aria-labelledby="mc-titulo" (submit)="$event.preventDefault(); trocar()">
+      <div class="field">
+        <label for="mc-senhaAtual">Senha atual</label>
+        <input
+          id="mc-senhaAtual"
+          type="password"
+          autocomplete="current-password"
+          maxlength="200"
+          [attr.aria-invalid]="!!mensagemDe('senhaAtual')"
+          [attr.aria-describedby]="mensagemDe('senhaAtual') ? 'mc-senhaAtual-erro' : null"
+          (input)="digitar('senhaAtual', $event)"
+        />
+        @if (mensagemDe('senhaAtual'); as m) {
+          <small id="mc-senhaAtual-erro" class="cfg-campo-erro" role="alert">{{ m }}</small>
+        }
+      </div>
+      <div class="field">
+        <label for="mc-novaSenha">Nova senha</label>
+        <input
+          id="mc-novaSenha"
+          type="password"
+          autocomplete="new-password"
+          maxlength="200"
+          [attr.aria-invalid]="!!mensagemDe('novaSenha')"
+          [attr.aria-describedby]="mensagemDe('novaSenha') ? 'mc-novaSenha-erro' : null"
+          (input)="digitar('novaSenha', $event)"
+        />
+        @if (mensagemDe('novaSenha'); as m) {
+          <small id="mc-novaSenha-erro" class="cfg-campo-erro" role="alert">{{ m }}</small>
+        }
+      </div>
+      <div class="field">
+        <label for="mc-confirmacao">Confirmação da nova senha</label>
+        <input
+          id="mc-confirmacao"
+          type="password"
+          autocomplete="new-password"
+          maxlength="200"
+          [attr.aria-invalid]="!!mensagemDe('confirmacao')"
+          [attr.aria-describedby]="mensagemDe('confirmacao') ? 'mc-confirmacao-erro' : null"
+          (input)="digitar('confirmacao', $event)"
+        />
+        @if (mensagemDe('confirmacao'); as m) {
+          <small id="mc-confirmacao-erro" class="cfg-campo-erro" role="alert">{{ m }}</small>
+        }
+      </div>
+      <div class="mc-acoes">
+        <button type="submit" class="btn primary mc-trocar" [disabled]="enviando()">
+          {{ enviando() ? 'Trocando…' : 'Trocar senha' }}
+        </button>
+      </div>
+    </form>
+  </app-folha-sobreposta>
+</section>

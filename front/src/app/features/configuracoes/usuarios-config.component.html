@@ -3,7 +3,7 @@
     <h2><app-icone nome="user" />Usuários e perfis</h2>
     <p class="nota-historico">
       Perfil e situação são gravados na hora, com uma confirmação. Usuário inativo não entra no sistema; o histórico de
-      auditoria é mantido. Usuários incluídos ou alterados somem ao reiniciar o serviço.
+      auditoria é mantido. Usuários e senhas alterados somem ao reiniciar o serviço (voltam ao que as variáveis de ambiente definem).
     </p>
   </div>
   <button type="button" class="btn sm primary cfg-novo-usuario" (click)="abrirGaveta()">
@@ -27,6 +27,7 @@
           <th>Perfil</th>
           <th>Situação</th>
           <th>Último acesso</th>
+          <th>Senha</th>
         </tr>
       </thead>
       <tbody>
@@ -54,11 +55,34 @@
               </select>
             </td>
             <td class="nowrap" data-rotulo="Último acesso">{{ u.ultimoAcesso ? formatarDataHora(u.ultimoAcesso) : '—' }}</td>
+            <td data-rotulo="Senha">
+              <button type="button" class="btn sm quiet cfg-redefinir" [attr.aria-label]="'Redefinir senha de ' + u.nome" [disabled]="gravando()" (click)="abrirRedefinicao(u)">Redefinir senha</button>
+            </td>
           </tr>
+          @if (redefinindo() === u.id) {
+            <tr class="cfg-confirmacao cfg-redefinicao">
+              <td colspan="7">
+                <form class="cfg-confirma" novalidate [attr.aria-label]="'Redefinir a senha de ' + u.nome" (submit)="$event.preventDefault(); confirmarRedefinicao(u)">
+                  <span class="field">
+                    <label [for]="'rs-' + u.login">Nova senha de {{ u.nome }}</label>
+                    <input [id]="'rs-' + u.login" class="cfg-senha-nova" type="password" autocomplete="new-password" maxlength="200" [attr.aria-invalid]="!!erroSenha()" (input)="digitarSenhaNova($event)" />
+                    <small class="muted">De 12 a 200 caracteres, que não seja só espaços nem contenha o login.</small>
+                    @if (erroSenha()) {
+                      <small class="cfg-campo-erro" role="alert">{{ erroSenha() }}</small>
+                    }
+                  </span>
+                  <span class="row">
+                    <button type="submit" class="btn sm primary cfg-confirmar-senha" [disabled]="gravando()">{{ gravando() ? 'Gravando…' : 'Redefinir' }}</button>
+                    <button type="button" class="btn sm quiet cfg-cancelar-senha" [disabled]="gravando()" (click)="cancelarRedefinicao()">Cancelar</button>
+                  </span>
+                </form>
+              </td>
+            </tr>
+          }
           @if (pendente(); as p) {
             @if (p.id === u.id) {
               <tr class="cfg-confirmacao">
-                <td colspan="6">
+                <td colspan="7">
                   <div class="cfg-confirma" role="alertdialog" [attr.aria-label]="'Confirmar alteração de ' + u.nome">
                     <span>{{ descricaoDaMudanca(u, p) }}</span>
                     <span class="row">
@@ -75,13 +99,13 @@
           @if (erroDaLinha(); as e) {
             @if (e.id === u.id) {
               <tr class="cfg-erro-linha">
-                <td colspan="6"><div class="alert" role="alert" style="margin: 0"><app-icone nome="alert" /><span>{{ e.texto }}</span></div></td>
+                <td colspan="7"><div class="alert" role="alert" style="margin: 0"><app-icone nome="alert" /><span>{{ e.texto }}</span></div></td>
               </tr>
             }
           }
         } @empty {
           <tr>
-            <td colspan="6"><div class="empty"><h3>Nenhum usuário cadastrado</h3></div></td>
+            <td colspan="7"><div class="empty"><h3>Nenhum usuário cadastrado</h3></div></td>
           </tr>
         }
       </tbody>

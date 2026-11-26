@@ -78,7 +78,7 @@ describe('ConfiguracoesComponent: parâmetros, conexões e retenção', () => {
       imports: [ConfiguracoesComponent],
       providers: [
         { provide: ConfiguracoesApiService, useValue: api },
-        { provide: AuthService, useValue: { usuario: signal({ login: 'admin.demo' }).asReadonly() } },
+        { provide: AuthService, useValue: { usuario: signal({ login: 'admin' }).asReadonly() } },
       ],
     });
     fixture = TestBed.createComponent(ConfiguracoesComponent);

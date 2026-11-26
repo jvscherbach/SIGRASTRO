@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-import { ADMIN, ANALISTA, GESTOR, OPERADOR, simularApi } from './api-simulada';
+import { ADMIN, ANALISTA, GESTOR, OPERADOR, SENHA_DE_TESTE, simularApi } from './api-simulada';
 
 /** S11, bloco 2: o Analista cai na caixa depois do login; os demais perfis seguem na Consulta. API simulada. */
 async function entrar(page: import('@playwright/test').Page, login: string): Promise<void> {
   await page.goto('/login');
   await page.locator('#login-usuario').fill(login);
-  await page.locator('#login-senha').fill('senha-de-teste');
+  await page.locator('#login-senha').fill(SENHA_DE_TESTE);
   await page.getByRole('button', { name: 'Entrar' }).click();
 }
 
@@ -24,7 +24,7 @@ test('Analista: o login leva à Minha caixa e o menu traz o item', async ({ page
 
   await expect(page).toHaveURL(/\/caixa$/);
   await expect(page.getByRole('heading', { name: 'Minha caixa' })).toBeVisible();
-  await expect(page.locator('.top .nav a')).toHaveText(['Minha caixa', 'Consulta', 'Dossiês gerados']);
+  await expect(page.locator('.top .nav a')).toHaveText(['Minha caixa', 'Consulta', 'Dossiês gerados', 'Minha conta']);
 });
 
 test('Analista: abrir a raiz com sessão também cai na caixa', async ({ page }) => {

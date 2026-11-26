@@ -48,13 +48,13 @@ describe('ShellComponent: barra superior e navegação por perfil (RN08)', () =>
       atual.set(usuario(perfil));
       fixture.detectChanges();
       expect(itensDoMenu(raiz)).toEqual(
-        perfil === 'OPERADOR' ? ['Consulta', 'Dossiês gerados', 'Auditoria'] : ['Consulta', 'Dossiês gerados', 'Painel', 'Auditoria'],
+        perfil === 'OPERADOR' ? ['Consulta', 'Dossiês gerados', 'Auditoria', 'Minha conta'] : ['Consulta', 'Dossiês gerados', 'Painel', 'Auditoria', 'Minha conta'],
       );
     }
 
     atual.set(usuario('ADMIN'));
     fixture.detectChanges();
-    expect(itensDoMenu(raiz)).toEqual(['Consulta', 'Dossiês gerados', 'Painel', 'Auditoria', 'Configurações']);
+    expect(itensDoMenu(raiz)).toEqual(['Consulta', 'Dossiês gerados', 'Painel', 'Auditoria', 'Configurações', 'Minha conta']);
   });
 
   it('troca de usuário atualiza o menu sem recriar a tela', () => {

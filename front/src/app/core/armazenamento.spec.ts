@@ -20,11 +20,11 @@ describe('armazenamento: chave antiga vistas.* como reserva (R1, D75)', () => {
   });
 
   it('com as duas vale a nova e a antiga é apagada', () => {
-    localStorage.setItem('vistas.recentes.u.demo', '[1]');
-    localStorage.setItem('rastro.recentes.u.demo', '[2]');
+    localStorage.setItem('vistas.recentes.u-teste', '[1]');
+    localStorage.setItem('rastro.recentes.u-teste', '[2]');
 
-    expect(lerComMigracao(localStorage, 'recentes.u.demo')).toBe('[2]');
-    expect(localStorage.getItem('vistas.recentes.u.demo')).toBeNull();
+    expect(lerComMigracao(localStorage, 'recentes.u-teste')).toBe('[2]');
+    expect(localStorage.getItem('vistas.recentes.u-teste')).toBeNull();
   });
 
   it('sem nenhuma devolve null', () => {

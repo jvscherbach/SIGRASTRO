@@ -11,9 +11,9 @@ import { UsuarioConfigurado } from './configuracoes.models';
 
 function usuario(sobre: Partial<UsuarioConfigurado> = {}): UsuarioConfigurado {
   return {
-    id: 'operador.demo',
-    nome: 'Operador Demo',
-    login: 'operador.demo',
+    id: 'operador',
+    nome: 'Operador',
+    login: 'operador',
     perfil: 'OPERADOR',
     perfilRotulo: 'Operador',
     ativo: true,
@@ -23,7 +23,7 @@ function usuario(sobre: Partial<UsuarioConfigurado> = {}): UsuarioConfigurado {
   };
 }
 
-const ADMIN = usuario({ id: 'admin.demo', nome: 'Admin Demo', login: 'admin.demo', perfil: 'ADMIN', perfilRotulo: 'Administrador', cpfCnpj: null });
+const ADMIN = usuario({ id: 'admin', nome: 'Administrador', login: 'admin', perfil: 'ADMIN', perfilRotulo: 'Administrador', cpfCnpj: null });
 
 function problema(status: number, errorCode: string, detail?: string, campos?: { campo: string; mensagem: string }[]) {
   return new HttpErrorResponse({ status, error: { status, errorCode, detail, campos } });
@@ -40,7 +40,7 @@ describe('ConfiguracoesComponent', () => {
       imports: [ConfiguracoesComponent],
       providers: [
         { provide: ConfiguracoesApiService, useValue: api },
-        { provide: AuthService, useValue: { usuario: signal({ login: 'admin.demo' }).asReadonly() } },
+        { provide: AuthService, useValue: { usuario: signal({ login: 'admin' }).asReadonly() } },
       ],
     });
     toast = TestBed.inject(ToastService);
@@ -151,21 +151,21 @@ describe('ConfiguracoesComponent', () => {
       abrir();
 
       expect(raiz.querySelectorAll('tbody tr')).toHaveLength(2);
-      const op = linha('operador.demo');
+      const op = linha('operador');
       expect(op.textContent).toContain('***.456.789-**');
       expect(op.querySelector<HTMLSelectElement>('.cfg-perfil')!.value).toBe('OPERADOR');
       expect(op.querySelector<HTMLSelectElement>('.cfg-situacao')!.value).toBe('ativo');
       expect(op.textContent).toContain('21/10/2026');
-      expect(linha('admin.demo').textContent).toContain('você');
-      expect(linha('admin.demo').textContent).toContain('—');
+      expect(linha('admin').textContent).toContain('você');
+      expect(linha('admin').textContent).toContain('—');
     });
 
     it('inativo aparece esmaecido', () => {
       api.usuarios.mockReturnValue(of({ conteudo: [ADMIN, usuario({ ativo: false })], pagina: 0, tamanho: 2, totalElementos: 2, totalPaginas: 1 }));
       abrir();
 
-      expect(linha('operador.demo').classList.contains('inativo')).toBe(true);
-      expect(linha('admin.demo').classList.contains('inativo')).toBe(false);
+      expect(linha('operador').classList.contains('inativo')).toBe(true);
+      expect(linha('admin').classList.contains('inativo')).toBe(false);
     });
 
     it('erro de carga com "Tentar novamente"', () => {
@@ -183,21 +183,21 @@ describe('ConfiguracoesComponent', () => {
       api.alterarUsuario.mockReturnValue(of(usuario({ perfil: 'OPERADOR_SIGILO', perfilRotulo: 'Gestor' })));
       abrir();
 
-      escolher(linha('operador.demo').querySelector('.cfg-perfil')!, 'OPERADOR_SIGILO');
+      escolher(linha('operador').querySelector('.cfg-perfil')!, 'OPERADOR_SIGILO');
       expect(api.alterarUsuario).not.toHaveBeenCalled();
-      expect(texto()).toContain('Mudar o perfil de Operador Demo para Gestor?');
+      expect(texto()).toContain('Mudar o perfil de Operador para Gestor?');
       botao('Confirmar')!.click();
       fixture.detectChanges();
 
-      expect(api.alterarUsuario).toHaveBeenCalledWith('operador.demo', { perfil: 'OPERADOR_SIGILO' });
-      expect(linha('operador.demo').querySelector<HTMLSelectElement>('.cfg-perfil')!.value).toBe('OPERADOR_SIGILO');
+      expect(api.alterarUsuario).toHaveBeenCalledWith('operador', { perfil: 'OPERADOR_SIGILO' });
+      expect(linha('operador').querySelector<HTMLSelectElement>('.cfg-perfil')!.value).toBe('OPERADOR_SIGILO');
       expect(raiz.querySelector('.cfg-confirmacao')).toBeNull();
       expect(toast.toasts().some((t) => t.texto.includes('atualizado'))).toBe(true);
     });
 
     it('cancelar a confirmação volta o controle ao valor anterior e não grava', () => {
       abrir();
-      const select = linha('operador.demo').querySelector<HTMLSelectElement>('.cfg-perfil')!;
+      const select = linha('operador').querySelector<HTMLSelectElement>('.cfg-perfil')!;
 
       escolher(select, 'ADMIN');
       botao('Cancelar')!.click();
@@ -212,13 +212,13 @@ describe('ConfiguracoesComponent', () => {
       api.alterarUsuario.mockReturnValue(of(usuario({ ativo: false })));
       abrir();
 
-      escolher(linha('operador.demo').querySelector('.cfg-situacao')!, 'inativo');
-      expect(texto()).toContain('Desativar Operador Demo? Ele deixa de entrar no sistema.');
+      escolher(linha('operador').querySelector('.cfg-situacao')!, 'inativo');
+      expect(texto()).toContain('Desativar Operador? Ele deixa de entrar no sistema.');
       botao('Confirmar')!.click();
       fixture.detectChanges();
 
-      expect(api.alterarUsuario).toHaveBeenCalledWith('operador.demo', { ativo: false });
-      expect(linha('operador.demo').classList.contains('inativo')).toBe(true);
+      expect(api.alterarUsuario).toHaveBeenCalledWith('operador', { ativo: false });
+      expect(linha('operador').classList.contains('inativo')).toBe(true);
     });
 
     for (const [codigo, mensagem] of [
@@ -228,7 +228,7 @@ describe('ConfiguracoesComponent', () => {
       it(`${codigo}: mostra a mensagem do servidor na linha e volta ao valor anterior`, () => {
         api.alterarUsuario.mockReturnValue(throwError(() => problema(409, codigo, mensagem)));
         abrir();
-        const select = linha('admin.demo').querySelector<HTMLSelectElement>('.cfg-situacao')!;
+        const select = linha('admin').querySelector<HTMLSelectElement>('.cfg-situacao')!;
 
         escolher(select, 'inativo');
         botao('Confirmar')!.click();
@@ -245,20 +245,20 @@ describe('ConfiguracoesComponent', () => {
       api.alterarUsuario.mockReturnValue(resposta);
       abrir();
 
-      escolher(linha('operador.demo').querySelector('.cfg-perfil')!, 'ADMIN');
+      escolher(linha('operador').querySelector('.cfg-perfil')!, 'ADMIN');
       botao('Confirmar')!.click();
       fixture.detectChanges();
       botao('Gravando')!.click();
 
       expect(api.alterarUsuario).toHaveBeenCalledTimes(1);
-      expect(linha('operador.demo').querySelector<HTMLSelectElement>('.cfg-perfil')!.disabled).toBe(true);
+      expect(linha('operador').querySelector<HTMLSelectElement>('.cfg-perfil')!.disabled).toBe(true);
     });
 
     it('destruir a tela com a gravação em andamento não deixa inscrição pendurada', () => {
       const resposta = new Subject<UsuarioConfigurado>();
       api.alterarUsuario.mockReturnValue(resposta);
       abrir();
-      escolher(linha('operador.demo').querySelector('.cfg-perfil')!, 'ADMIN');
+      escolher(linha('operador').querySelector('.cfg-perfil')!, 'ADMIN');
       botao('Confirmar')!.click();
 
       fixture.destroy();
@@ -267,13 +267,66 @@ describe('ConfiguracoesComponent', () => {
     });
   });
 
+  describe('redefinição de senha', () => {
+    const SENHA = 'senha-de-teste-123';
+
+    it('o botão abre o campo de senha; sem exibir senha salva; envia só a senha e limpa depois', () => {
+      api.alterarUsuario.mockReturnValue(of(usuario()));
+      abrir();
+      botao('Redefinir senha', linha('operador'))!.click();
+      fixture.detectChanges();
+
+      const campo = raiz.querySelector<HTMLInputElement>('.cfg-senha-nova')!;
+      expect(campo.type).toBe('password');
+      expect(campo.value).toBe('');
+      digitar(campo, SENHA);
+      botao('Redefinir', raiz.querySelector('.cfg-redefinicao')!)!.click();
+      fixture.detectChanges();
+
+      expect(api.alterarUsuario).toHaveBeenCalledWith('operador', { senha: SENHA });
+      expect(raiz.querySelector('.cfg-redefinicao')).toBeNull();
+      expect(texto()).not.toContain(SENHA);
+      expect(toast.toasts().some((t) => t.texto.includes('redefinida'))).toBe(true);
+    });
+
+    it('senha curta não chega ao servidor; recusa do servidor aparece no campo e limpa o valor', () => {
+      api.alterarUsuario.mockReturnValue(throwError(() => problema(400, 'PARAMETRO_INVALIDO', undefined, [{ campo: 'senha', mensagem: 'A senha não pode conter o login.' }])));
+      abrir();
+      botao('Redefinir senha', linha('operador'))!.click();
+      fixture.detectChanges();
+      digitar(raiz.querySelector<HTMLInputElement>('.cfg-senha-nova')!, 'curta');
+      botao('Redefinir', raiz.querySelector('.cfg-redefinicao')!)!.click();
+      fixture.detectChanges();
+      expect(api.alterarUsuario).not.toHaveBeenCalled();
+      expect(raiz.querySelector('.cfg-redefinicao .cfg-campo-erro')!.textContent).toContain('pelo menos 12 caracteres');
+
+      digitar(raiz.querySelector<HTMLInputElement>('.cfg-senha-nova')!, 'operador-senha-1234');
+      botao('Redefinir', raiz.querySelector('.cfg-redefinicao')!)!.click();
+      fixture.detectChanges();
+      expect(raiz.querySelector('.cfg-redefinicao .cfg-campo-erro')!.textContent).toContain('A senha não pode conter o login.');
+      expect(raiz.querySelector('.cfg-redefinicao')).not.toBeNull();
+    });
+
+    it('cancelar fecha o campo sem chamar a API', () => {
+      abrir();
+      botao('Redefinir senha', linha('operador'))!.click();
+      fixture.detectChanges();
+      botao('Cancelar', raiz.querySelector('.cfg-redefinicao')!)!.click();
+      fixture.detectChanges();
+      expect(raiz.querySelector('.cfg-redefinicao')).toBeNull();
+      expect(api.alterarUsuario).not.toHaveBeenCalled();
+    });
+  });
+
   describe('inclusão por gaveta', () => {
-    const preencher = (nome: string, login: string, perfil: string, cpf: string) => {
+    const SENHA = 'senha-de-teste-123';
+    const preencher = (nome: string, login: string, perfil: string, cpf: string, senha = SENHA) => {
       const g = gaveta()!;
       digitar(g.querySelector<HTMLInputElement>('#nu-nome')!, nome);
       digitar(g.querySelector<HTMLInputElement>('#nu-login')!, login);
       escolher(g.querySelector<HTMLSelectElement>('#nu-perfil')!, perfil);
       digitar(g.querySelector<HTMLInputElement>('#nu-cpf')!, cpf);
+      digitar(g.querySelector<HTMLInputElement>('#nu-senha')!, senha);
     };
 
     it('abre a gaveta e fecha com Esc e clique fora, sem chamar a API', () => {
@@ -305,10 +358,10 @@ describe('ConfiguracoesComponent', () => {
       botao('Incluir usuário', gaveta()!)!.click();
       fixture.detectChanges();
 
-      expect(api.incluirUsuario).toHaveBeenCalledWith({ nome: 'Ana de Teste', login: 'ana.teste', cpfCnpj: '11144477735', perfil: 'OPERADOR' });
+      expect(api.incluirUsuario).toHaveBeenCalledWith({ nome: 'Ana de Teste', login: 'ana.teste', cpfCnpj: '11144477735', perfil: 'OPERADOR', senha: SENHA });
       expect(gaveta()).toBeNull();
       expect(Array.from(raiz.querySelectorAll('tbody tr td:first-child b')).map((b) => b.textContent)).toEqual([
-        'Admin Demo', 'Ana de Teste', 'Operador Demo',
+        'Administrador', 'Ana de Teste', 'Operador',
       ]);
       expect(raiz.textContent).not.toContain('11144477735');
       expect(toast.toasts().some((t) => t.texto.includes('incluído'))).toBe(true);
@@ -332,16 +385,36 @@ describe('ConfiguracoesComponent', () => {
       botao('Incluir usuário', gaveta()!)!.click();
       fixture.detectChanges();
       let erros = Array.from(gaveta()!.querySelectorAll('.cfg-campo-erro')).map((e) => e.textContent!.trim());
-      expect(erros).toEqual(['Informe o nome.', 'Informe o login.', 'O CPF/CNPJ é obrigatório para o Operador.']);
+      expect(erros).toEqual(['Informe o nome.', 'Informe o login.', 'O CPF/CNPJ é obrigatório para o Operador.', 'Informe a senha inicial.']);
 
       preencher('Fulano', 'a b', 'OPERADOR', '111.444.777-36');
       erros = Array.from(gaveta()!.querySelectorAll('.cfg-campo-erro')).map((e) => e.textContent!.trim());
       expect(erros).toEqual(['Use de 3 a 60 caracteres: letras, números, ponto, hífen ou sublinhado.', 'CPF/CNPJ inválido.']);
 
-      preencher('Fulano', 'ADMIN.demo', 'ADMIN', '');
+      preencher('Fulano', 'ADMIN', 'ADMIN', '');
       erros = Array.from(gaveta()!.querySelectorAll('.cfg-campo-erro')).map((e) => e.textContent!.trim());
       expect(erros).toEqual(['Já existe um usuário com este login.']);
       expect(api.incluirUsuario).not.toHaveBeenCalled();
+    });
+
+    it('senha inicial: mínimo de 12 caracteres, sem o login, e some dos campos depois do envio', () => {
+      api.incluirUsuario.mockReturnValue(of(usuario({ id: 'ana.teste', nome: 'Ana de Teste', login: 'ana.teste' })));
+      abrir();
+      botao('Incluir usuário', raiz)!.click();
+      fixture.detectChanges();
+
+      preencher('Ana de Teste', 'ana.teste', 'ADMIN', '', 'curta');
+      botao('Incluir usuário', gaveta()!)!.click();
+      fixture.detectChanges();
+      let erros = Array.from(gaveta()!.querySelectorAll('.cfg-campo-erro')).map((e) => e.textContent!.trim());
+      expect(erros).toEqual(['A senha precisa ter pelo menos 12 caracteres.']);
+
+      digitar(gaveta()!.querySelector<HTMLInputElement>('#nu-senha')!, 'xx-ana.teste-xx');
+      erros = Array.from(gaveta()!.querySelectorAll('.cfg-campo-erro')).map((e) => e.textContent!.trim());
+      expect(erros).toEqual(['A senha não pode conter o login.']);
+      expect(api.incluirUsuario).not.toHaveBeenCalled();
+      expect(gaveta()!.querySelector('#nu-senha')!.getAttribute('type')).toBe('password');
+      expect(texto()).not.toContain('xx-ana.teste-xx');
     });
 
     it('CPF/CNPJ é opcional fora do Operador', () => {
@@ -369,6 +442,9 @@ describe('ConfiguracoesComponent', () => {
       fixture.detectChanges();
       expect(gaveta()!.querySelector('.cfg-erro-geral')!.textContent).toContain('Já existe um usuário com este login.');
 
+      // a senha digitada é apagada depois de cada envio recusado: é preciso digitá-la de novo
+      expect(gaveta()!.querySelector<HTMLInputElement>('#nu-senha')!.value).toBe('');
+      digitar(gaveta()!.querySelector<HTMLInputElement>('#nu-senha')!, SENHA);
       botao('Incluir usuário', gaveta()!)!.click();
       fixture.detectChanges();
       expect(gaveta()!.querySelector('.cfg-campo-erro')!.textContent).toContain('CPF/CNPJ inválido.');

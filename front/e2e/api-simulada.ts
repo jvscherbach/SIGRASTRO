@@ -1,9 +1,9 @@
 import { Page, Route } from '@playwright/test';
 
-/** Usuário Gestor fictício devolvido por /api/auth/me. */
+/** Usuário Gestor fictício devolvido por /api/auth/me (na simulação, o Gestor existe como se o Administrador o tivesse criado). */
 export const GESTOR = {
-  login: 'gestor.demo',
-  nome: 'Gestor Demo',
+  login: 'gestor',
+  nome: 'Gestor',
   perfil: 'OPERADOR_SIGILO',
   perfilDescricao: 'Gestor',
   cpfCnpj: null,
@@ -21,8 +21,8 @@ export const GESTOR = {
 /** Operador fictício: só os processos em que é o interessado, sem sigilosos (RN07). */
 export const OPERADOR = {
   ...GESTOR,
-  login: 'operador.demo',
-  nome: 'Operador Demo',
+  login: 'operador',
+  nome: 'Operador',
   perfil: 'OPERADOR',
   perfilDescricao: 'Operador',
   cpfCnpj: '<CPF_DE_TESTE>',
@@ -32,8 +32,8 @@ export const OPERADOR = {
 /** Administrador fictício: acesso irrestrito. */
 export const ADMIN = {
   ...GESTOR,
-  login: 'admin.demo',
-  nome: 'Admin Demo',
+  login: 'admin',
+  nome: 'Administrador',
   perfil: 'ADMIN',
   perfilDescricao: 'Administrador',
   permissoes: { ...GESTOR.permissoes, verAuditoriaAcessos: true, acessarConfiguracoes: true },
@@ -42,8 +42,8 @@ export const ADMIN = {
 /** Analista fictício (S11): só a caixa de entrada; o CPF vinculado nunca sai na resposta. */
 export const ANALISTA = {
   ...GESTOR,
-  login: 'analista.exemplo01',
-  nome: 'Analista Exemplo 01',
+  login: 'analista',
+  nome: 'Analista',
   perfil: 'ANALISTA',
   perfilDescricao: 'Analista',
   permissoes: {
@@ -98,8 +98,18 @@ export const REQUERIMENTO = {
 
 export type EstadoDaBusca = 'ok' | '400' | '403' | '404' | '503' | 'rede' | 'lento';
 
+/** Como a simulação responde ao login: aceita, recusa (401, mesma mensagem para qualquer causa) ou bloqueia (429). */
+export type EstadoDoLogin = 'ok' | 'invalido' | 'bloqueado';
+
+/** Senha aceita pela simulação no login e como senha atual na troca. Valor óbvio de teste, só neste arquivo. */
+export const SENHA_DE_TESTE = 'senha-de-teste-123';
+
 export interface ApiSimulada {
   estadoDaBusca: EstadoDaBusca;
+  /** Estado do login (padrão: 'ok'). */
+  estadoDoLogin: EstadoDoLogin;
+  /** Corpos recebidos em POST /api/auth/senha (só para conferir o que a tela enviou). */
+  trocasDeSenha: { senhaAtual: string; novaSenha: string; confirmacao: string }[];
   /** Caminhos de /api chamados, na ordem. */
   chamadas: string[];
 }
@@ -113,7 +123,7 @@ function problema(status: number, errorCode: string): object {
 
 /** Entra com a sessão já aberta e responde /api/** sem back-end. */
 export async function simularApi(page: Page, opcoes: OpcoesDaSimulacao = {}): Promise<ApiSimulada> {
-  const api: ApiSimulada = { estadoDaBusca: 'ok', chamadas: [] };
+  const api: ApiSimulada = { estadoDaBusca: 'ok', estadoDoLogin: 'ok', trocasDeSenha: [], chamadas: [] };
   let usuario = opcoes.usuario ?? GESTOR;
   if (opcoes.comSessao !== false) {
     await page.addInitScript(() => sessionStorage.setItem('rastro.token', 'token-de-teste'));
@@ -123,9 +133,26 @@ export async function simularApi(page: Page, opcoes: OpcoesDaSimulacao = {}): Pr
     const url = new URL(route.request().url());
     api.chamadas.push(url.pathname);
     if (url.pathname === '/api/auth/login') {
-      const { usuario: login } = route.request().postDataJSON() as { usuario: string };
-      usuario = POR_LOGIN[login] ?? GESTOR;
+      if (api.estadoDoLogin === 'bloqueado') {
+        return route.fulfill({ status: 429, headers: { 'Retry-After': '840' }, json: { ...problema(429, 'MUITAS_TENTATIVAS'), segundosRestantes: 840 } });
+      }
+      const { usuario: login, senha } = route.request().postDataJSON() as { usuario: string; senha: string };
+      if (api.estadoDoLogin === 'invalido' || !POR_LOGIN[login] || senha !== SENHA_DE_TESTE) {
+        return route.fulfill({ status: 401, json: problema(401, 'NAO_AUTENTICADO') });
+      }
+      usuario = POR_LOGIN[login];
       return route.fulfill({ json: { token: 'token-de-teste', tipo: 'Bearer', expiraEm: '2099-01-01T00:00:00-04:00', usuario } });
+    }
+    if (url.pathname === '/api/auth/senha') {
+      const corpo = route.request().postDataJSON() as { senhaAtual: string; novaSenha: string; confirmacao: string };
+      api.trocasDeSenha.push(corpo);
+      if (corpo.senhaAtual !== SENHA_DE_TESTE) {
+        return route.fulfill({
+          status: 400,
+          json: { ...problema(400, 'PARAMETRO_INVALIDO'), campos: [{ campo: 'senhaAtual', mensagem: 'A senha atual não confere.' }] },
+        });
+      }
+      return route.fulfill({ status: 204 });
     }
     if (url.pathname === '/api/auth/logout') {
       return route.fulfill({ status: 204 });

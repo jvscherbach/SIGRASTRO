@@ -31,7 +31,17 @@ const POR_CODIGO: Record<string, string> = {
   GEOMETRIAS_GRANDES_DEMAIS:
     'As geometrias passam do limite de tamanho ou de quantidade para um único download. Nenhum arquivo foi baixado.',
   ERRO_INTERNO: 'Ocorreu um erro inesperado.',
+  MUITAS_TENTATIVAS: 'Muitas tentativas. Tente de novo em alguns minutos.',
 };
+
+/** Bloqueio temporário do login (429): o tempo restante vem em segundos e é mostrado em minutos inteiros, para cima. */
+export function mensagemDoBloqueio(segundos: number | undefined): string {
+  if (!segundos || segundos < 1) {
+    return 'Muitas tentativas. Tente de novo em instantes.';
+  }
+  const minutos = Math.ceil(segundos / 60);
+  return `Muitas tentativas. Tente de novo em ${minutos} ${minutos === 1 ? 'minuto' : 'minutos'}.`;
+}
 
 /** Texto fixo de um errorCode, para quem decide sem chamar o servidor (guarda de rota, sigiloso no modal). */
 export function mensagemDoCodigo(codigo: 'PERFIL_SEM_PERMISSAO' | 'DOCUMENTO_SIGILOSO' | 'NAO_INTERESSADO'): string {

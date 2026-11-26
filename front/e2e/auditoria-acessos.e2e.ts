@@ -9,7 +9,7 @@ function evento(id: number, tipo: string, rotulo: string, sobre: object = {}) {
     dataHora: '2026-10-21T09:00:00-04:00',
     tipo,
     rotulo,
-    usuario: { login: 'admin.demo', nome: 'Admin Demo', perfil: 'ADMIN' },
+    usuario: { login: 'admin', nome: 'Administrador', perfil: 'ADMIN' },
     idRequerimento: null,
     numeroProcesso: null,
     numeroRequerimento: null,

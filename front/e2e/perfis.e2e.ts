@@ -1,15 +1,15 @@
 import { Page, expect, test } from '@playwright/test';
 
-import { ADMIN, GESTOR, OPERADOR, UsuarioSimulado, simularApi } from './api-simulada';
+import { ADMIN, GESTOR, OPERADOR, SENHA_DE_TESTE, UsuarioSimulado, simularApi } from './api-simulada';
 
 /** RN08: menu e rotas por perfil, decididos pelas `permissoes` de /auth/me. API simulada, dados fictícios. */
 const PERFIS: { nome: string; usuario: UsuarioSimulado; menu: string[] }[] = [
-  { nome: 'Operador', usuario: OPERADOR, menu: ['Consulta', 'Dossiês gerados', 'Auditoria'] },
-  { nome: 'Gestor', usuario: GESTOR, menu: ['Consulta', 'Dossiês gerados', 'Painel', 'Auditoria'] },
+  { nome: 'Operador', usuario: OPERADOR, menu: ['Consulta', 'Dossiês gerados', 'Auditoria', 'Minha conta'] },
+  { nome: 'Gestor', usuario: GESTOR, menu: ['Consulta', 'Dossiês gerados', 'Painel', 'Auditoria', 'Minha conta'] },
   {
     nome: 'Administrador',
     usuario: ADMIN,
-    menu: ['Consulta', 'Dossiês gerados', 'Painel', 'Auditoria', 'Configurações'],
+    menu: ['Consulta', 'Dossiês gerados', 'Painel', 'Auditoria', 'Configurações', 'Minha conta'],
   },
 ];
 
@@ -17,6 +17,12 @@ const ROTAS_RESTRITAS = [
   { rota: '/configuracoes', titulo: 'Configurações' },
   { rota: '/auditoria/acessos', titulo: 'Auditoria de acessos' },
 ];
+
+async function entrarComo(page: Page, login: string): Promise<void> {
+  await page.locator('#login-usuario').fill(login);
+  await page.locator('#login-senha').fill(SENHA_DE_TESTE);
+  await page.getByRole('button', { name: 'Entrar' }).click();
+}
 
 const itensDoMenu = (page: Page) => page.locator('.top .nav a');
 
@@ -82,13 +88,13 @@ test('trocar de usuário no login atualiza o menu sem recarregar a página', asy
   await expect(page).toHaveURL(/\/login/);
   await page.evaluate(() => ((window as unknown as { semRecarga: boolean }).semRecarga = true));
 
-  await page.getByRole('button', { name: /Operador Demo/ }).click();
+  await entrarComo(page, OPERADOR.login);
   await expect(itensDoMenu(page)).toHaveText(PERFIS[0].menu);
 
   await page.getByRole('button', { name: 'Sair' }).click();
   await expect(page).toHaveURL(/\/login/);
 
-  await page.getByRole('button', { name: /Admin Demo/ }).click();
+  await entrarComo(page, ADMIN.login);
   await expect(itensDoMenu(page)).toHaveText(PERFIS[2].menu);
 
   expect(await page.evaluate(() => (window as unknown as { semRecarga?: boolean }).semRecarga)).toBe(true);

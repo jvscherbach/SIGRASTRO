@@ -31,9 +31,9 @@ interface Controle {
 async function abrir(page: Page, perfil: UsuarioSimulado, rota = '/configuracoes', sobre: Partial<Controle> = {}): Promise<Controle> {
   const c: Controle = {
     usuarios: [
-      usuario('admin.demo', 'Admin Demo', 'ADMIN', { ultimoAcesso: '2026-10-21T14:00:00Z' }),
-      usuario('gestor.demo', 'Gestor Demo', 'OPERADOR_SIGILO'),
-      usuario('operador.demo', 'Operador Demo', 'OPERADOR', { cpfCnpj: '***.456.789-**' }),
+      usuario('admin', 'Administrador', 'ADMIN', { ultimoAcesso: '2026-10-21T14:00:00Z' }),
+      usuario('gestor', 'Gestor', 'OPERADOR_SIGILO'),
+      usuario('operador', 'Operador', 'OPERADOR', { cpfCnpj: '***.456.789-**' }),
     ],
     patches: [],
     posts: [],
@@ -93,8 +93,8 @@ test('Administrador abre Configurações pelo menu: abas, faixa de memória e li
   await expect(page.getByRole('tab', { name: 'Usuários e perfis' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('.cfg-memoria')).toContainText('somem ao reiniciar o serviço');
   await expect(page.locator('tbody tr')).toHaveCount(3);
-  await expect(linha(page, 'operador.demo')).toContainText('***.456.789-**');
-  await expect(linha(page, 'admin.demo')).toContainText('você');
+  await expect(linha(page, 'operador')).toContainText('***.456.789-**');
+  await expect(linha(page, 'admin')).toContainText('você');
 });
 
 test('abas navegáveis por teclado com foco visível', async ({ page }) => {
@@ -134,19 +134,19 @@ for (const [nome, perfil] of [
 test('mudar o perfil: confirmação, PATCH só com o perfil e lista atualizada', async ({ page }) => {
   const c = await abrir(page, ADMIN);
 
-  await linha(page, 'operador.demo').getByLabel('Perfil de Operador Demo').selectOption('OPERADOR_SIGILO');
-  await expect(page.locator('.cfg-confirma')).toContainText('Mudar o perfil de Operador Demo para Gestor?');
+  await linha(page, 'operador').getByLabel('Perfil de Operador').selectOption('OPERADOR_SIGILO');
+  await expect(page.locator('.cfg-confirma')).toContainText('Mudar o perfil de Operador para Gestor?');
   expect(c.patches).toEqual([]);
   await page.getByRole('button', { name: 'Confirmar' }).click();
 
-  await expect(page.locator('.toast')).toContainText('Operador Demo atualizado');
-  expect(c.patches).toEqual([{ id: 'operador.demo', corpo: { perfil: 'OPERADOR_SIGILO' } }]);
-  await expect(linha(page, 'operador.demo').getByLabel('Perfil de Operador Demo')).toHaveValue('OPERADOR_SIGILO');
+  await expect(page.locator('.toast')).toContainText('Operador atualizado');
+  expect(c.patches).toEqual([{ id: 'operador', corpo: { perfil: 'OPERADOR_SIGILO' } }]);
+  await expect(linha(page, 'operador').getByLabel('Perfil de Operador')).toHaveValue('OPERADOR_SIGILO');
 });
 
 test('desativar fica esmaecido; cancelar a confirmação não grava', async ({ page }) => {
   const c = await abrir(page, ADMIN);
-  const situacao = linha(page, 'gestor.demo').getByLabel('Situação de Gestor Demo');
+  const situacao = linha(page, 'gestor').getByLabel('Situação de Gestor');
 
   await situacao.selectOption('inativo');
   await page.getByRole('button', { name: 'Cancelar' }).click();
@@ -155,8 +155,8 @@ test('desativar fica esmaecido; cancelar a confirmação não grava', async ({ p
 
   await situacao.selectOption('inativo');
   await page.getByRole('button', { name: 'Confirmar' }).click();
-  await expect(linha(page, 'gestor.demo')).toHaveClass(/inativo/);
-  expect(c.patches).toEqual([{ id: 'gestor.demo', corpo: { ativo: false } }]);
+  await expect(linha(page, 'gestor')).toHaveClass(/inativo/);
+  expect(c.patches).toEqual([{ id: 'gestor', corpo: { ativo: false } }]);
 });
 
 for (const [codigo, detalhe] of [
@@ -165,7 +165,7 @@ for (const [codigo, detalhe] of [
 ]) {
   test(`${codigo}: mostra a mensagem do servidor e mantém o valor`, async ({ page }) => {
     await abrir(page, ADMIN, '/configuracoes', { recusar: { codigo, detalhe } });
-    const situacao = linha(page, 'admin.demo').getByLabel('Situação de Admin Demo');
+    const situacao = linha(page, 'admin').getByLabel('Situação de Administrador');
 
     await situacao.selectOption('inativo');
     await page.getByRole('button', { name: 'Confirmar' }).click();
@@ -181,11 +181,12 @@ test('inclusão: validação local, envio só com dígitos e CPF/CNPJ mascarado 
   const gaveta = page.getByRole('dialog', { name: 'Incluir usuário' });
 
   await gaveta.getByRole('button', { name: 'Incluir usuário' }).click();
-  await expect(gaveta.locator('.cfg-campo-erro')).toHaveText(['Informe o nome.', 'Informe o login.', 'O CPF/CNPJ é obrigatório para o Operador.']);
+  await expect(gaveta.locator('.cfg-campo-erro')).toHaveText(['Informe o nome.', 'Informe o login.', 'O CPF/CNPJ é obrigatório para o Operador.', 'Informe a senha inicial.']);
 
   await gaveta.getByLabel('Nome', { exact: true }).fill('Ana de Teste');
-  await gaveta.getByLabel('Login').fill('admin.demo');
+  await gaveta.getByLabel('Login').fill('admin');
   await gaveta.getByLabel(/CPF\/CNPJ/).fill('11144477736');
+  await gaveta.getByLabel('Senha inicial').fill('senha-de-teste-123');
   await expect(gaveta.locator('.cfg-campo-erro')).toHaveText(['Já existe um usuário com este login.', 'CPF/CNPJ inválido.']);
 
   await gaveta.getByLabel('Login').fill('ana.teste');
@@ -194,7 +195,7 @@ test('inclusão: validação local, envio só com dígitos e CPF/CNPJ mascarado 
   await gaveta.getByRole('button', { name: 'Incluir usuário' }).click();
 
   await expect(gaveta).toHaveCount(0);
-  expect(c.posts).toEqual([{ nome: 'Ana de Teste', login: 'ana.teste', cpfCnpj: '11144477735', perfil: 'OPERADOR' }]);
+  expect(c.posts).toEqual([{ nome: 'Ana de Teste', login: 'ana.teste', cpfCnpj: '11144477735', perfil: 'OPERADOR', senha: 'senha-de-teste-123' }]);
   await expect(linha(page, 'ana.teste')).toContainText('***.444.777-**');
   await expect(page.locator('tbody')).not.toContainText('11144477735');
   await expect(page.locator('.toast')).toContainText('Ana de Teste incluído');

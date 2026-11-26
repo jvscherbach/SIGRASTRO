@@ -4,7 +4,7 @@
     <nav class="nav" aria-label="Principal">
       @for (secao of menu(); track secao.rotulo) {
         @for (item of secao.itens; track item.rotulo) {
-          <a [routerLink]="item.rota" [attr.aria-current]="ativo(item) ? 'page' : null">
+          <a [routerLink]="item.rota" [class.so-icone]="item.apenasIcone" [attr.title]="item.apenasIcone ? item.rotulo : null" [attr.aria-current]="ativo(item) ? 'page' : null">
             <app-icone [nome]="item.icone" /><span>{{ item.rotulo }}</span>
           </a>
         }

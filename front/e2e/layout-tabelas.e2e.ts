@@ -28,7 +28,7 @@ function evento(id: number, sobre: object = {}) {
     dataHora: '2026-10-21T09:00:00-04:00',
     tipo: 'DOSSIE',
     rotulo: 'Dossiê gerado',
-    usuario: { login: 'admin.demo', nome: 'Admin Demo', perfil: 'ADMIN' },
+    usuario: { login: 'admin', nome: 'Administrador', perfil: 'ADMIN' },
     idRequerimento: 101,
     numeroProcesso: '1/2025',
     numeroRequerimento: '2/2025',

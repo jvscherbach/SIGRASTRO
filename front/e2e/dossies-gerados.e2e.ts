@@ -66,7 +66,7 @@ async function simular(page: Page, usuario: UsuarioSimulado, lista: Lista = 'che
     if (caminho === '/api/dossies' && metodo === 'GET') {
       sim.chamadasDaLista.push(url.search);
       if (sim.lista === 'erro') return route.fulfill({ status: 500, json: { status: 500, errorCode: 'ERRO_INTERNO', detail: 'stack técnico' } });
-      const conteudo = sim.lista === 'vazia' ? [] : TODOS.map((p) => (comGeradoPor ? { ...p, geradoPor: 'Gestor Demo' } : p));
+      const conteudo = sim.lista === 'vazia' ? [] : TODOS.map((p) => (comGeradoPor ? { ...p, geradoPor: 'Gestor' } : p));
       return route.fulfill({ json: { conteudo, pagina: 0, tamanho: 20, totalElementos: conteudo.length, totalPaginas: 1 } });
     }
     if (caminho === '/api/dossies/p-pronto/arquivo') {
@@ -152,7 +152,7 @@ test('Gestor: "Gerado por" e filtro "Só os meus"', async ({ page }) => {
   await page.goto('/dossies');
 
   await expect(page.locator('thead')).toContainText('Gerado por');
-  await expect(linha(page, 'p-pronto').locator('.gerado-por')).toHaveText('Gestor Demo');
+  await expect(linha(page, 'p-pronto').locator('.gerado-por')).toHaveText('Gestor');
   await page.getByLabel('Só os meus').check();
   await expect.poll(() => sim.chamadasDaLista.at(-1)).toContain('somenteMeus=true');
 });

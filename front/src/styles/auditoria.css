@@ -93,3 +93,8 @@
 .cfg-teste .cfg-teste-mensagem{display:block;color:var(--slate);margin-top:2px}
 .cfg-limite-teste{font-size:12px;color:var(--slate);margin:4px 0 0}
 @media(max-width:640px){.cfg-numero{width:90px}.cfg-barra{bottom:8px}}
+.mc-form{display:grid;gap:14px;max-width:420px;margin-top:16px}
+.mc-quem{margin:0 0 12px}
+.mc-regra{display:block}
+.mc-sucesso,.mc-erro-geral{margin-top:12px}
+.mc-acoes{display:flex;gap:8px}

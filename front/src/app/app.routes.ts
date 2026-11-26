@@ -63,6 +63,12 @@ export const routes: Routes = [
         data: { permissao: 'verAuditoriaAcessos', crumb: ['Auditoria', 'Acessos'], grupo: 'acessos' },
       },
       {
+        path: 'conta',
+        loadComponent: () => import('./features/conta/minha-conta.component').then((m) => m.MinhaContaComponent),
+        title: 'Minha conta · SIGRASTRO',
+        data: { crumb: ['Minha conta'] },
+      },
+      {
         path: 'configuracoes',
         loadComponent: () =>
           import('./features/configuracoes/configuracoes.component').then((m) => m.ConfiguracoesComponent),

@@ -4,7 +4,7 @@
       <div>
         <span class="eyebrow">Usuários e perfis</span>
         <h2 id="novo-usuario-titulo" style="margin-top: 4px">Incluir usuário</h2>
-        <p>O usuário entra com a senha única do protótipo. O CPF/CNPJ não volta a ser exibido por inteiro.</p>
+        <p>O usuário entra com o login e a senha definidos aqui. O CPF/CNPJ não volta a ser exibido por inteiro.</p>
       </div>
       <button type="button" class="icon-btn" aria-label="Fechar" (click)="fechar.emit()"><app-icone nome="close" /></button>
     </header>
@@ -43,6 +43,14 @@
           <label for="nu-cpf">CPF/CNPJ{{ perfil() === 'OPERADOR' ? ' (obrigatório)' : perfil() === 'ANALISTA' ? ' (vínculo com o servidor)' : '' }}</label>
           <input id="nu-cpf" type="text" inputmode="numeric" autocomplete="off" placeholder="Somente números" [value]="cpfCnpj()" [attr.aria-invalid]="!!mensagemDe('cpfCnpj')" (input)="digitar('cpfCnpj', $event)" />
           @if (mensagemDe('cpfCnpj'); as m) {
+            <small class="cfg-campo-erro" role="alert">{{ m }}</small>
+          }
+        </div>
+        <div class="field full">
+          <label for="nu-senha">Senha inicial</label>
+          <input id="nu-senha" type="password" autocomplete="new-password" maxlength="200" aria-describedby="nu-senha-dica" [attr.aria-invalid]="!!mensagemDe('senha')" (input)="digitar('senha', $event)" />
+          <small id="nu-senha-dica" class="muted">De 12 a 200 caracteres, que não seja só espaços nem contenha o login.</small>
+          @if (mensagemDe('senha'); as m) {
             <small class="cfg-campo-erro" role="alert">{{ m }}</small>
           }
         </div>

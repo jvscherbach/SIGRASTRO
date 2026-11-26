@@ -9,7 +9,7 @@ import { ConfiguracoesApiService } from './configuracoes-api.service';
 import { LOGIN_VALIDO, PERFIS_ASSINAVEIS, UsuarioConfigurado } from './configuracoes.models';
 import { camposInvalidos, mensagemDaConfiguracao, recusaPorCampos } from './mensagens-config';
 
-type Campo = 'nome' | 'login' | 'cpfCnpj' | 'perfil';
+type Campo = 'nome' | 'login' | 'cpfCnpj' | 'perfil' | 'senha';
 
 /**
  * Gaveta lateral de inclusão de usuário (RF25). Valida antes de enviar (nome, login único e no formato, CPF/CNPJ com
@@ -37,6 +37,7 @@ export class NovoUsuarioComponent implements OnInit {
   protected readonly login = signal('');
   protected readonly cpfCnpj = signal('');
   protected readonly perfil = signal('OPERADOR');
+  protected readonly senha = signal('');
   protected readonly tentou = signal(false);
   protected readonly enviando = signal(false);
   protected readonly erroGeral = signal('');
@@ -60,6 +61,18 @@ export class NovoUsuarioComponent implements OnInit {
       resultado.cpfCnpj = 'O CPF/CNPJ é obrigatório para o Operador.';
     } else if (digitos && !cpfCnpjValido(digitos)) {
       resultado.cpfCnpj = 'CPF/CNPJ inválido.';
+    }
+    const senha = this.senha();
+    if (!senha) {
+      resultado.senha = 'Informe a senha inicial.';
+    } else if (senha.length < 12) {
+      resultado.senha = 'A senha precisa ter pelo menos 12 caracteres.';
+    } else if (senha.length > 200) {
+      resultado.senha = 'A senha pode ter no máximo 200 caracteres.';
+    } else if (!senha.trim()) {
+      resultado.senha = 'A senha não pode ser só espaços.';
+    } else if (login && senha.toLowerCase().includes(login)) {
+      resultado.senha = 'A senha não pode conter o login.';
     }
     return resultado;
   });
@@ -96,6 +109,9 @@ export class NovoUsuarioComponent implements OnInit {
       case 'perfil':
         this.perfil.set(valor);
         break;
+      case 'senha':
+        this.senha.set(valor);
+        break;
       case 'cpfCnpj': {
         const mascarado = mascararCpfCnpj(valor);
         this.cpfCnpj.set(mascarado);
@@ -124,14 +140,18 @@ export class NovoUsuarioComponent implements OnInit {
         login: this.login().trim().toLowerCase(),
         cpfCnpj: somenteDigitos(this.cpfCnpj()),
         perfil: this.perfil(),
+        senha: this.senha(),
       })
       .subscribe({
         next: (usuario) => {
           this.enviando.set(false);
+          this.senha.set('');
           this.incluido.emit(usuario);
         },
         error: (erro: unknown) => {
           this.enviando.set(false);
+          this.senha.set('');
+          this.anfitriao.querySelectorAll<HTMLInputElement>('input[type="password"]').forEach((c) => (c.value = ''));
           if (recusaPorCampos(erro)) {
             this.erroDoServidor.set(camposInvalidos(erro));
           } else {

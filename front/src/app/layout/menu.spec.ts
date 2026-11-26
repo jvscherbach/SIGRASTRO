@@ -17,22 +17,22 @@ function rotas(permissoes: Permissoes | undefined): string[] {
 
 describe('menuDasPermissoes (RN08)', () => {
   it('Operador não recebe Configurações', () => {
-    expect(rotas(PERMISSOES.OPERADOR)).toEqual(['/consulta', '/dossies', '/auditoria/documentos']);
+    expect(rotas(PERMISSOES.OPERADOR)).toEqual(['/consulta', '/dossies', '/auditoria/documentos', '/conta']);
   });
 
   it('Gestor recebe o Painel e não recebe Configurações', () => {
-    expect(rotas(PERMISSOES.GESTOR)).toEqual(['/consulta', '/dossies', '/painel', '/auditoria/documentos']);
+    expect(rotas(PERMISSOES.GESTOR)).toEqual(['/consulta', '/dossies', '/painel', '/auditoria/documentos', '/conta']);
   });
 
   it('Analista recebe "Minha caixa" (só ele) e não recebe Painel nem Configurações', () => {
-    expect(rotas(PERMISSOES.ANALISTA)).toEqual(['/caixa', '/consulta', '/dossies']);
+    expect(rotas(PERMISSOES.ANALISTA)).toEqual(['/caixa', '/consulta', '/dossies', '/conta']);
     for (const outro of [PERMISSOES.OPERADOR, PERMISSOES.GESTOR, PERMISSOES.ADMIN]) {
       expect(rotas(outro)).not.toContain('/caixa');
     }
   });
 
   it('Administrador vê tudo, com Auditoria como item único', () => {
-    expect(rotas(PERMISSOES.ADMIN)).toEqual(['/consulta', '/dossies', '/painel', '/auditoria/documentos', '/configuracoes']);
+    expect(rotas(PERMISSOES.ADMIN)).toEqual(['/consulta', '/dossies', '/painel', '/auditoria/documentos', '/configuracoes', '/conta']);
   });
 
   it('Auditoria é um item só, para todos os perfis', () => {
@@ -54,7 +54,7 @@ describe('menuDasPermissoes (RN08)', () => {
   });
 
   it('sem permissões, nada restrito aparece', () => {
-    expect(rotas(undefined)).toEqual(['/consulta', '/dossies', '/auditoria/documentos']);
+    expect(rotas(undefined)).toEqual(['/consulta', '/dossies', '/auditoria/documentos', '/conta']);
   });
 
   it('item restrito não leva cadeado: simplesmente não existe no menu', () => {

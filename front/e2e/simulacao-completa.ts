@@ -172,7 +172,7 @@ const DOSSIES = [
     entregaPorTicket: false,
     temArquivo: true,
     arquivoGerado: true,
-    geradoPor: 'Gestor Demo',
+    geradoPor: 'Gestor',
   },
 ];
 
@@ -181,7 +181,7 @@ const EVENTO_DE_DOCUMENTO = {
   dataHora: '2026-10-21T10:30:00-04:00',
   tipo: 'VISUALIZACAO',
   rotulo: 'Visualização',
-  usuario: { login: 'gestor.demo', nome: 'Gestor Demo', perfil: 'OPERADOR_SIGILO' },
+  usuario: { login: 'gestor', nome: 'Gestor', perfil: 'OPERADOR_SIGILO' },
   idRequerimento: 101,
   numeroProcesso: '2825/2025',
   numeroRequerimento: '3331/2025',
@@ -194,8 +194,8 @@ const EVENTO_DE_DOCUMENTO = {
 const EVENTO_DE_ACESSO = { ...EVENTO_DE_DOCUMENTO, tipo: 'LOGIN', rotulo: 'Acesso', idRequerimento: null, numeroProcesso: null, numeroRequerimento: null, arquivo: null, detalhe: null };
 
 const USUARIOS = [
-  { id: 'admin.demo', nome: 'Admin Demo', login: 'admin.demo', perfil: 'ADMIN', perfilRotulo: 'Administrador', ativo: true, ultimoAcesso: null, cpfCnpj: null },
-  { id: 'gestor.demo', nome: 'Gestor Demo', login: 'gestor.demo', perfil: 'OPERADOR_SIGILO', perfilRotulo: 'Gestor', ativo: true, ultimoAcesso: null, cpfCnpj: null },
+  { id: 'admin', nome: 'Administrador', login: 'admin', perfil: 'ADMIN', perfilRotulo: 'Administrador', ativo: true, ultimoAcesso: null, cpfCnpj: null },
+  { id: 'gestor', nome: 'Gestor', login: 'gestor', perfil: 'OPERADOR_SIGILO', perfilRotulo: 'Gestor', ativo: true, ultimoAcesso: null, cpfCnpj: null },
 ];
 
 const PARAMETROS = [
@@ -290,7 +290,7 @@ export const TELAS_PRINCIPAIS: TelaPrincipal[] = [
   { nome: 'dossies', rota: '/dossies', usuario: GESTOR, pronta: 'main table tbody tr' },
   { nome: 'auditoria-documentos', rota: '/auditoria/documentos', usuario: ADMIN, pronta: 'main table tbody tr' },
   { nome: 'auditoria-acessos', rota: '/auditoria/acessos', usuario: ADMIN, pronta: 'main table tbody tr' },
-  { nome: 'configuracoes', rota: '/configuracoes', usuario: ADMIN, pronta: 'tr[data-login="admin.demo"]' },
+  { nome: 'configuracoes', rota: '/configuracoes', usuario: ADMIN, pronta: 'tr[data-login="admin"]' },
 ];
 
 /** Abre a tela com a simulação completa e espera ela terminar de carregar (sem pedido de rede pendente). */

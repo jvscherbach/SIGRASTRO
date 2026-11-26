@@ -80,7 +80,7 @@ test.describe('3. navegação', () => {
   test('Auditoria é um item único que leva a /auditoria/documentos', async ({ page }) => {
     await simularTudo(page, { usuario: ADMIN });
     await page.goto('/consulta');
-    await expect(nav(page)).toHaveText(['Consulta', 'Dossiês gerados', 'Painel', 'Auditoria', 'Configurações']);
+    await expect(nav(page)).toHaveText(['Consulta', 'Dossiês gerados', 'Painel', 'Auditoria', 'Configurações', 'Minha conta']);
     await expect(nav(page).filter({ hasText: /Auditoria|Acessos/ })).toHaveCount(1);
 
     await nav(page).filter({ hasText: 'Auditoria' }).click();
@@ -91,14 +91,14 @@ test.describe('3. navegação', () => {
   test('Configurações só aparece com a permissão (Administrador sim, Gestor não)', async ({ page }) => {
     await simularTudo(page, { usuario: GESTOR });
     await page.goto('/consulta');
-    await expect(nav(page)).toHaveText(['Consulta', 'Dossiês gerados', 'Painel', 'Auditoria']);
+    await expect(nav(page)).toHaveText(['Consulta', 'Dossiês gerados', 'Painel', 'Auditoria', 'Minha conta']);
     await expect(nav(page).filter({ hasText: 'Configurações' })).toHaveCount(0);
   });
 
   test('Operador não vê Configurações nem a aba Acessos', async ({ page }) => {
     await simularTudo(page, { usuario: OPERADOR });
     await page.goto('/consulta');
-    await expect(nav(page)).toHaveText(['Consulta', 'Dossiês gerados', 'Auditoria']);
+    await expect(nav(page)).toHaveText(['Consulta', 'Dossiês gerados', 'Auditoria', 'Minha conta']);
     await expect(nav(page).filter({ hasText: 'Configurações' })).toHaveCount(0);
 
     await nav(page).filter({ hasText: 'Auditoria' }).click();
@@ -119,7 +119,7 @@ test.describe('3. navegação', () => {
       // o rótulo fica só para leitor de tela (oculto visualmente); o link segue com nome acessível
       const rotulo = (await item.locator(':scope > span').boundingBox())!;
       expect(rotulo.width).toBeLessThanOrEqual(1);
-      await expect(item).toHaveAccessibleName(/^(Consulta|Dossiês gerados|Painel|Auditoria|Configurações)$/);
+      await expect(item).toHaveAccessibleName(/^(Consulta|Dossiês gerados|Painel|Auditoria|Configurações|Minha conta)$/);
     }
     await expect(page.locator('.top .perfil-chip')).toBeHidden();
     await expect(page.locator('.top .who-nome')).toBeHidden();

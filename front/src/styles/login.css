@@ -12,14 +12,4 @@ body:has(.login) { background: #12302B; background-image: none; }
 .login-card form { margin-top: 16px; display: grid; gap: 12px; }
 .login-card .alert { margin-top: 0; }
 .login-card .note { margin: 18px 0 0; }
-.demo-users { display: grid; gap: 8px; margin-top: 6px; }
-.demo-user { display: flex; gap: 12px; align-items: center; text-align: left; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r); padding: 11px 12px; color: var(--ink); cursor: pointer; font: inherit; }
-.demo-user:hover { background: var(--trail-tint); border-color: var(--trail); }
-.demo-user[disabled] { opacity: .6; cursor: not-allowed; }
-.demo-user .avatar { border: 1.5px solid var(--line-strong); color: var(--trail-deep); background: var(--surface); }
-.demo-user .dados { flex: 1; min-width: 0; }
-.demo-user b { font-size: .8125rem; display: block; }
-.demo-user small { font-size: .75rem; color: var(--slate); }
-.or { display: flex; align-items: center; gap: 10px; color: var(--slate); font-size: .75rem; margin: 18px 0; }
-.or:before, .or:after { content: ""; flex: 1; height: 1px; background: var(--line); }
 @media (max-width: 520px) { .login { padding: 24px 20px 40px; } .login-card { padding: 24px 20px; } }
