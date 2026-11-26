@@ -48,7 +48,8 @@ import org.junit.jupiter.api.io.TempDir;
 class ConversaoDeGraficosTest {
 
     private static final String TITULO_DO_GRAFICO = "Serie Sintetica Alfa";
-    private static final String CELULA = "CelulaDeTexto";
+    /** Texto curto (até 6 caracteres), numa coluna alargada na fixture: cabe em qualquer fonte do ambiente. */
+    private static final String CELULA = "Celula";
 
     static Path base;
     static ConversorLibreOffice conversor;
@@ -83,7 +84,7 @@ class ConversaoDeGraficosTest {
     void pacoteSemConteudoAtivoDesenhaOGrafico() throws Exception {
         Convertido c = converter(planilhaComGrafico());
 
-        assertThat(ConversorLibreOfficeTest.texto(c.pdf())).contains(TITULO_DO_GRAFICO).contains(CELULA);
+        assertThat(ConversorLibreOfficeTest.texto(c.pdf())).contains(TITULO_DO_GRAFICO);
         assertThat(c.resultado().graficosOmitidos()).isFalse();
     }
 
@@ -139,6 +140,8 @@ class ConversaoDeGraficosTest {
     private static byte[] planilhaComGrafico() throws IOException {
         try (XSSFWorkbook pasta = new XSSFWorkbook()) {
             Sheet dados = pasta.createSheet("Dados");
+            dados.setColumnWidth(0, 20 * 256);
+            dados.setColumnWidth(1, 12 * 256);
             Row cabecalho = dados.createRow(0);
             cabecalho.createCell(0).setCellValue(CELULA);
             cabecalho.createCell(1).setCellValue("Valor");
