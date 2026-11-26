@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test;
 
 class CasosDeUsoConsultaTest {
 
-    private static final String CNPJ_DO_OPERADOR = "12.345.678/0001-90";
+    private static final String CNPJ_DO_OPERADOR = "11.222.333/0001-81";
 
     private static Requerimento requerimento(long id, String numero, String processo, String cpfCnpj) {
         return new Requerimento(id, numero, processo, null, Situacao.de("EM_ANALISE"),
@@ -207,7 +207,7 @@ class CasosDeUsoConsultaTest {
     void operadorTemARestricaoAplicadaNaConsultaDaLista() {
         buscar.executar(porNome("fulano"));
 
-        assertThat(siga.ultimoCriterio.restricaoDigitos()).isEqualTo("12345678000190");
+        assertThat(siga.ultimoCriterio.restricaoDigitos()).isEqualTo("11222333000181");
     }
 
     @Test
@@ -300,7 +300,7 @@ class CasosDeUsoConsultaTest {
         Pagina<ResumoRequerimento> pagina = buscar.executar(porNumero("PROCESSO", "445/2022"));
 
         assertThat(pagina.itens()).extracting(ResumoRequerimento::id).containsExactly(11L);
-        assertThat(siga.ultimoCriterio.restricaoDigitos()).isEqualTo("12345678000190");
+        assertThat(siga.ultimoCriterio.restricaoDigitos()).isEqualTo("11222333000181");
     }
 
     @Test

@@ -46,10 +46,10 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
     private static final String DOCS = "/api/auditoria/documentos";
     private static final String ACESSOS = "/api/auditoria/acessos";
     private static final String CNPJ_DE_OUTRO = "98.765.432/0001-10";
-    private static final String DIGITOS_DO_OPERADOR = "12345678000190";
+    private static final String DIGITOS_DO_OPERADOR = "11222333000181";
     private static final String DIGITOS_DE_OUTRO = "98765432000110";
-    private static final UsuarioDoEvento GESTOR = new UsuarioDoEvento("gestor.demo", "Gestor Demo", "Gestor");
-    private static final UsuarioDoEvento ADMIN = new UsuarioDoEvento("admin.demo", "Admin Demo", "Administrador");
+    private static final UsuarioDoEvento GESTOR = new UsuarioDoEvento("gestor", "Gestor", "Gestor");
+    private static final UsuarioDoEvento ADMIN = new UsuarioDoEvento("admin", "Administrador", "Administrador");
     private static final String TITULO_SIGILOSO = "Laudo Ambiental Reservado";
     private static final String ARQUIVO_SIGILOSO = "laudo-reservado-final.pdf";
     private static final DocumentoDoEvento SIGILOSO =
@@ -156,8 +156,8 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
         doOperador(TipoDeEvento.CONSULTA, GESTOR, e -> e);
         deOutro(TipoDeEvento.CONSULTA);
 
-        assertThat(lista(DOCS, "gestor.demo").get("totalElementos").asInt()).isEqualTo(2);
-        assertThat(lista(DOCS, "admin.demo").get("totalElementos").asInt()).isEqualTo(2);
+        assertThat(lista(DOCS, "gestor").get("totalElementos").asInt()).isEqualTo(2);
+        assertThat(lista(DOCS, "admin").get("totalElementos").asInt()).isEqualTo(2);
     }
 
     @Test
@@ -165,30 +165,30 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
         doOperador(TipoDeEvento.CONSULTA, GESTOR, e -> e);
         deOutro(TipoDeEvento.CONSULTA);
 
-        JsonNode pagina = lista(DOCS, "operador.demo");
+        JsonNode pagina = lista(DOCS, "operador");
 
         assertThat(pagina.get("totalElementos").asInt()).isEqualTo(1);
         JsonNode evento = pagina.get("conteudo").get(0);
-        assertThat(evento.get("usuario").get("login").asText()).isEqualTo("gestor.demo");
+        assertThat(evento.get("usuario").get("login").asText()).isEqualTo("gestor");
         assertThat(evento.get("idRequerimento").asInt()).isEqualTo(101);
     }
 
     @Test
     void acessos_so_para_o_administrador() throws Exception {
-        for (String usuario : List.of("operador.demo", "gestor.demo")) {
+        for (String usuario : List.of("operador", "gestor")) {
             for (String url : List.of(ACESSOS, "/api/auditoria/acessos/1", "/api/auditoria/acessos/exportacao")) {
                 MockHttpServletResponse resposta = chamar(url, usuario);
                 assertThat(resposta.getStatus()).as(url).isEqualTo(403);
                 assertThat(resposta.getContentAsString()).contains("PERFIL_SEM_PERMISSAO");
             }
         }
-        assertThat(chamar(ACESSOS, "admin.demo").getStatus()).isEqualTo(200);
+        assertThat(chamar(ACESSOS, "admin").getStatus()).isEqualTo(200);
     }
 
     @Test
     void grupo_desconhecido_e_sem_sessao() throws Exception {
-        assertThat(chamar("/api/auditoria/outro/1", "admin.demo").getStatus()).isEqualTo(404);
-        assertThat(chamar("/api/auditoria/outro/exportacao", "admin.demo").getStatus()).isEqualTo(404);
+        assertThat(chamar("/api/auditoria/outro/1", "admin").getStatus()).isEqualTo(404);
+        assertThat(chamar("/api/auditoria/outro/exportacao", "admin").getStatus()).isEqualTo(404);
         assertThat(mvc.perform(get(DOCS)).andReturn().getResponse().getStatus()).isEqualTo(401);
     }
 
@@ -198,11 +198,11 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
     void mascaramento_em_lista_detalhe_e_csv_para_o_operador() throws Exception {
         falhaSigilosa();
 
-        MockHttpServletResponse listaResposta = chamar(DOCS, "operador.demo");
+        MockHttpServletResponse listaResposta = chamar(DOCS, "operador");
         JsonNode evento = json.readTree(listaResposta.getContentAsString(StandardCharsets.UTF_8)).get("conteudo").get(0);
         long id = evento.get("id").asLong();
-        MockHttpServletResponse detalhe = chamar(DOCS + "/" + id, "operador.demo");
-        MockHttpServletResponse exportacao = chamar(DOCS + "/exportacao", "operador.demo");
+        MockHttpServletResponse detalhe = chamar(DOCS + "/" + id, "operador");
+        MockHttpServletResponse exportacao = chamar(DOCS + "/exportacao", "operador");
 
         assertThat(evento.get("sigiloso").asBoolean()).isTrue();
         for (MockHttpServletResponse resposta : List.of(listaResposta, detalhe, exportacao)) {
@@ -220,8 +220,8 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
     void gestor_ve_o_documento_sigiloso() throws Exception {
         falhaSigilosa();
 
-        JsonNode evento = lista(DOCS, "gestor.demo").get("conteudo").get(0);
-        JsonNode detalhe = lista(DOCS + "/" + evento.get("id").asLong(), "gestor.demo");
+        JsonNode evento = lista(DOCS, "gestor").get("conteudo").get(0);
+        JsonNode detalhe = lista(DOCS + "/" + evento.get("id").asLong(), "gestor");
 
         assertThat(evento.get("detalhe").asText()).contains(TITULO_SIGILOSO);
         assertThat(detalhe.get("documentos").get(0).get("nomeDoArquivo").asText()).isEqualTo(ARQUIVO_SIGILOSO);
@@ -233,20 +233,20 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
         doOperador(TipoDeEvento.VISUALIZACAO, GESTOR, e -> e.documentos(List.of(COMUM, SIGILOSO)));
 
         for (String termo : List.of("Reservado", "laudo", "reservado-final")) {
-            assertThat(lista(DOCS + "?texto=" + termo, "operador.demo").get("totalElementos").asInt()).as(termo).isZero();
-            assertThat(lista(DOCS + "?texto=" + termo, "gestor.demo").get("totalElementos").asInt()).as(termo).isEqualTo(2);
+            assertThat(lista(DOCS + "?texto=" + termo, "operador").get("totalElementos").asInt()).as(termo).isZero();
+            assertThat(lista(DOCS + "?texto=" + termo, "gestor").get("totalElementos").asInt()).as(termo).isEqualTo(2);
         }
-        assertThat(lista(DOCS + "?texto=licenca", "operador.demo").get("totalElementos").asInt()).isEqualTo(1);
+        assertThat(lista(DOCS + "?texto=licenca", "operador").get("totalElementos").asInt()).isEqualTo(1);
     }
 
     @Test
     void filtro_somente_sigilosos_e_recusado_para_o_operador() throws Exception {
         for (String url : List.of(DOCS + "?somenteSigilosos=true", DOCS + "/exportacao?somenteSigilosos=true")) {
-            MockHttpServletResponse resposta = chamar(url, "operador.demo");
+            MockHttpServletResponse resposta = chamar(url, "operador");
             assertThat(resposta.getStatus()).isEqualTo(400);
             assertThat(resposta.getContentAsString()).contains("PARAMETRO_INVALIDO", "somenteSigilosos");
         }
-        assertThat(chamar(DOCS + "?somenteSigilosos=false", "operador.demo").getStatus()).isEqualTo(200);
+        assertThat(chamar(DOCS + "?somenteSigilosos=false", "operador").getStatus()).isEqualTo(200);
     }
 
     // ---------------------------------------------------------------- filtros
@@ -259,13 +259,13 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
         relogio.avancar(Duration.ofDays(2));
         doOperador(TipoDeEvento.DOWNLOAD, GESTOR, e -> e);
 
-        assertThat(tipos(lista(DOCS + "?periodo=hoje", "gestor.demo"))).containsExactly("DOWNLOAD");
-        assertThat(tipos(lista(DOCS, "gestor.demo"))).containsExactly("DOWNLOAD", "VISUALIZACAO");
-        assertThat(tipos(lista(DOCS + "?periodo=7d", "gestor.demo"))).containsExactly("DOWNLOAD", "VISUALIZACAO");
-        assertThat(tipos(lista(DOCS + "?periodo=30d", "gestor.demo")))
+        assertThat(tipos(lista(DOCS + "?periodo=hoje", "gestor"))).containsExactly("DOWNLOAD");
+        assertThat(tipos(lista(DOCS, "gestor"))).containsExactly("DOWNLOAD", "VISUALIZACAO");
+        assertThat(tipos(lista(DOCS + "?periodo=7d", "gestor"))).containsExactly("DOWNLOAD", "VISUALIZACAO");
+        assertThat(tipos(lista(DOCS + "?periodo=30d", "gestor")))
                 .containsExactly("DOWNLOAD", "VISUALIZACAO", "CONSULTA");
-        assertThat(lista(DOCS + "?periodo=todo", "gestor.demo").get("totalElementos").asInt()).isGreaterThanOrEqualTo(3);
-        assertThat(chamar(DOCS + "?periodo=ontem", "gestor.demo").getStatus()).isEqualTo(400);
+        assertThat(lista(DOCS + "?periodo=todo", "gestor").get("totalElementos").asInt()).isGreaterThanOrEqualTo(3);
+        assertThat(chamar(DOCS + "?periodo=ontem", "gestor").getStatus()).isEqualTo(400);
     }
 
     @Test
@@ -276,7 +276,7 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
         relogio.avancar(Duration.between(agora, agora.toLocalDate().plusDays(1).atStartOfDay(agora.getZone())).plusMinutes(5));
         doOperador(TipoDeEvento.VISUALIZACAO, GESTOR, e -> e);
 
-        assertThat(tipos(lista(DOCS + "?periodo=hoje", "gestor.demo"))).containsExactly("VISUALIZACAO");
+        assertThat(tipos(lista(DOCS + "?periodo=hoje", "gestor"))).containsExactly("VISUALIZACAO");
     }
 
     @Test
@@ -285,14 +285,14 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
         doOperador(TipoDeEvento.VISUALIZACAO, ADMIN, e -> e.documentos(List.of(SIGILOSO)));
         deOutro(TipoDeEvento.DOSSIE);
 
-        assertThat(tipos(lista(DOCS, "gestor.demo"))).containsExactly("DOSSIE", "VISUALIZACAO", "CONSULTA");
-        assertThat(tipos(lista(DOCS + "?tipo=CONSULTA", "gestor.demo"))).containsExactly("CONSULTA");
-        assertThat(tipos(lista(DOCS + "?usuario=ADMIN.DEMO", "gestor.demo"))).containsExactly("VISUALIZACAO");
-        assertThat(tipos(lista(DOCS + "?somenteSigilosos=true", "gestor.demo"))).containsExactly("VISUALIZACAO");
-        assertThat(tipos(lista(DOCS + "?texto=88/2024", "gestor.demo"))).containsExactly("DOSSIE");
-        assertThat(tipos(lista(DOCS + "?texto=visualizacao", "gestor.demo"))).containsExactly("VISUALIZACAO");
-        assertThat(chamar(DOCS + "?tipo=INEXISTENTE", "gestor.demo").getStatus()).isEqualTo(400);
-        assertThat(chamar(DOCS + "?tipo=LOGIN", "gestor.demo").getStatus()).isEqualTo(400);
+        assertThat(tipos(lista(DOCS, "gestor"))).containsExactly("DOSSIE", "VISUALIZACAO", "CONSULTA");
+        assertThat(tipos(lista(DOCS + "?tipo=CONSULTA", "gestor"))).containsExactly("CONSULTA");
+        assertThat(tipos(lista(DOCS + "?usuario=ADMIN", "gestor"))).containsExactly("VISUALIZACAO");
+        assertThat(tipos(lista(DOCS + "?somenteSigilosos=true", "gestor"))).containsExactly("VISUALIZACAO");
+        assertThat(tipos(lista(DOCS + "?texto=88/2024", "gestor"))).containsExactly("DOSSIE");
+        assertThat(tipos(lista(DOCS + "?texto=visualizacao", "gestor"))).containsExactly("VISUALIZACAO");
+        assertThat(chamar(DOCS + "?tipo=INEXISTENTE", "gestor").getStatus()).isEqualTo(400);
+        assertThat(chamar(DOCS + "?tipo=LOGIN", "gestor").getStatus()).isEqualTo(400);
     }
 
     @Test
@@ -301,17 +301,17 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
             doOperador(TipoDeEvento.CONSULTA, GESTOR, e -> e);
         }
 
-        JsonNode segunda = lista(DOCS + "?pagina=1&tamanho=2", "gestor.demo");
+        JsonNode segunda = lista(DOCS + "?pagina=1&tamanho=2", "gestor");
 
         assertThat(segunda.get("conteudo")).hasSize(2);
         assertThat(segunda.get("pagina").asInt()).isEqualTo(1);
         assertThat(segunda.get("tamanho").asInt()).isEqualTo(2);
         assertThat(segunda.get("totalElementos").asInt()).isEqualTo(5);
         assertThat(segunda.get("totalPaginas").asInt()).isEqualTo(3);
-        assertThat(lista(DOCS + "?pagina=2&tamanho=2", "gestor.demo").get("conteudo")).hasSize(1);
-        assertThat(chamar(DOCS + "?tamanho=101", "gestor.demo").getStatus()).isEqualTo(400);
-        assertThat(chamar(DOCS + "?tamanho=0", "gestor.demo").getStatus()).isEqualTo(400);
-        assertThat(chamar(DOCS + "?pagina=-1", "gestor.demo").getStatus()).isEqualTo(400);
+        assertThat(lista(DOCS + "?pagina=2&tamanho=2", "gestor").get("conteudo")).hasSize(1);
+        assertThat(chamar(DOCS + "?tamanho=101", "gestor").getStatus()).isEqualTo(400);
+        assertThat(chamar(DOCS + "?tamanho=0", "gestor").getStatus()).isEqualTo(400);
+        assertThat(chamar(DOCS + "?pagina=-1", "gestor").getStatus()).isEqualTo(400);
     }
 
     @Test
@@ -320,8 +320,8 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
         doOperador(TipoDeEvento.VISUALIZACAO, ADMIN, e -> e.documentos(List.of(SIGILOSO)));
         deOutro(TipoDeEvento.DOSSIE);
 
-        JsonNode gestor = lista(DOCS + "?tipo=VISUALIZACAO", "gestor.demo").get("indicadores");
-        JsonNode operador = lista(DOCS, "operador.demo").get("indicadores");
+        JsonNode gestor = lista(DOCS + "?tipo=VISUALIZACAO", "gestor").get("indicadores");
+        JsonNode operador = lista(DOCS, "operador").get("indicadores");
 
         assertThat(gestor.get("dossiesGerados").asInt()).isEqualTo(2);
         assertThat(gestor.get("eventosComSigilosos").asInt()).isEqualTo(1);
@@ -336,8 +336,8 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
                 .alteracoes(List.of(new AlteracaoDoEvento("Perfil", "Operador", "Gestor"))).criar());
         registrar.registrar(NovoEvento.de(TipoDeEvento.LOGIN, GESTOR).criar());
 
-        JsonNode pagina = lista(ACESSOS + "?tipo=USUARIO", "admin.demo");
-        JsonNode detalhe = lista("/api/auditoria/acessos/" + pagina.get("conteudo").get(0).get("id").asLong(), "admin.demo");
+        JsonNode pagina = lista(ACESSOS + "?tipo=USUARIO", "admin");
+        JsonNode detalhe = lista("/api/auditoria/acessos/" + pagina.get("conteudo").get(0).get("id").asLong(), "admin");
         JsonNode indicadores = pagina.get("indicadores");
 
         assertThat(detalhe.get("alteracoes").get(0).get("valorNovo").asText()).isEqualTo("Gestor");
@@ -352,9 +352,9 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
     @Test
     void detalhe_com_origem_documentos_e_sem_vinculo() throws Exception {
         doOperador(TipoDeEvento.DOSSIE, GESTOR, e -> e.documentos(List.of(COMUM, SIGILOSO)));
-        long id = lista(DOCS, "gestor.demo").get("conteudo").get(0).get("id").asLong();
+        long id = lista(DOCS, "gestor").get("conteudo").get(0).get("id").asLong();
 
-        MockHttpServletResponse resposta = chamar(DOCS + "/" + id, "gestor.demo");
+        MockHttpServletResponse resposta = chamar(DOCS + "/" + id, "gestor");
 
         JsonNode detalhe = json.readTree(resposta.getContentAsString(StandardCharsets.UTF_8));
         assertThat(detalhe.get("origem").asText()).isEqualTo("198.51.100.7");
@@ -368,11 +368,11 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
     @Test
     void detalhe_de_evento_alheio_ou_de_outro_grupo_e_404() throws Exception {
         deOutro(TipoDeEvento.CONSULTA);
-        long id = lista(DOCS, "gestor.demo").get("conteudo").get(0).get("id").asLong();
+        long id = lista(DOCS, "gestor").get("conteudo").get(0).get("id").asLong();
 
-        assertThat(chamar(DOCS + "/" + id, "operador.demo").getStatus()).isEqualTo(404);
-        assertThat(chamar(ACESSOS + "/" + id, "admin.demo").getStatus()).isEqualTo(404);
-        assertThat(chamar(DOCS + "/99999999", "gestor.demo").getStatus()).isEqualTo(404);
+        assertThat(chamar(DOCS + "/" + id, "operador").getStatus()).isEqualTo(404);
+        assertThat(chamar(ACESSOS + "/" + id, "admin").getStatus()).isEqualTo(404);
+        assertThat(chamar(DOCS + "/99999999", "gestor").getStatus()).isEqualTo(404);
     }
 
     // ---------------------------------------------------------------- CSV
@@ -381,7 +381,7 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
     void csv_com_bom_cabecalho_e_cabecalhos_http() throws Exception {
         doOperador(TipoDeEvento.CONSULTA, GESTOR, e -> e);
 
-        MockHttpServletResponse resposta = chamar(DOCS + "/exportacao", "gestor.demo");
+        MockHttpServletResponse resposta = chamar(DOCS + "/exportacao", "gestor");
         byte[] bytes = resposta.getContentAsByteArray();
 
         assertThat(resposta.getStatus()).isEqualTo(200);
@@ -394,7 +394,7 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
         String[] linhas = new String(bytes, StandardCharsets.UTF_8).substring(1).split("\r\n");
         assertThat(linhas).hasSize(2);
         assertThat(linhas[0]).startsWith("\"Código\";\"Data e hora\";\"Usuário\"").contains("\"Sigiloso\"");
-        assertThat(linhas[1]).contains("\"Gestor Demo\"", "\"Consulta\"", "\"2825/2025\"", "\"Não\"");
+        assertThat(linhas[1]).contains("\"Gestor\"", "\"Consulta\"", "\"2825/2025\"", "\"Não\"");
         semDadoProtegido(resposta);
     }
 
@@ -403,7 +403,7 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
         doOperador(TipoDeEvento.CONSULTA, new UsuarioDoEvento("@x", "=1+1", "+soma"),
                 e -> e.detalhe("-2; \"aspas\" e ação").documentos(List.of()).requerimento(101L, "=HYPERLINK(1)", "@cmd"));
 
-        String conteudo = csv(DOCS + "/exportacao?texto=aspas", "gestor.demo");
+        String conteudo = csv(DOCS + "/exportacao?texto=aspas", "gestor");
 
         assertThat(conteudo).contains("\"'=1+1\"", "\"'@x\"", "\"'+soma\"", "\"'=HYPERLINK(1)\"", "\"'@cmd\"");
         assertThat(conteudo).contains("\"'-2; \"\"aspas\"\" e ação\"");
@@ -417,8 +417,8 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
             doOperador(TipoDeEvento.CONSULTA, GESTOR, e -> e);
         }
 
-        MockHttpServletResponse truncado = chamar(DOCS + "/exportacao", "gestor.demo");
-        MockHttpServletResponse doOperador = chamar(DOCS + "/exportacao?tipo=DOSSIE", "operador.demo");
+        MockHttpServletResponse truncado = chamar(DOCS + "/exportacao", "gestor");
+        MockHttpServletResponse doOperador = chamar(DOCS + "/exportacao?tipo=DOSSIE", "operador");
 
         assertThat(truncado.getHeader("X-Vistas-Truncado")).isEqualTo("true");
         assertThat(truncado.getContentAsString(StandardCharsets.UTF_8).split("\r\n")).hasSize(6);
@@ -433,11 +433,11 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
                 OrigemDocumento.DOCUMENTO_PROCESSO, "55", 101, "CHAVE-INTERNA-CSV", titulo, "formula.pdf",
                 LocalDateTime.of(2025, 4, 1, 10, 0), null, 0)));
         for (int i = 0; i < 6; i++) {
-            assertThat(chamar("/api/documentos/DOCUMENTO_PROCESSO/55/conteudo?requerimento=101", "gestor.demo").getStatus())
+            assertThat(chamar("/api/documentos/DOCUMENTO_PROCESSO/55/conteudo?requerimento=101", "gestor").getStatus())
                     .isEqualTo(200);
         }
 
-        MockHttpServletResponse resposta = chamar(DOCS + "/exportacao?tipo=VISUALIZACAO", "gestor.demo");
+        MockHttpServletResponse resposta = chamar(DOCS + "/exportacao?tipo=VISUALIZACAO", "gestor");
         byte[] bytes = resposta.getContentAsByteArray();
         String[] linhas = new String(bytes, StandardCharsets.UTF_8).substring(1).split("\r\n");
 
@@ -454,7 +454,7 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
         registrar.registrar(NovoEvento.de(TipoDeEvento.USUARIO, ADMIN)
                 .alteracoes(List.of(new AlteracaoDoEvento("Perfil", "Operador", "Gestor"))).criar());
 
-        String conteudo = csv(ACESSOS.replace("acessos", "acessos/exportacao") + "?tipo=USUARIO", "admin.demo");
+        String conteudo = csv(ACESSOS.replace("acessos", "acessos/exportacao") + "?tipo=USUARIO", "admin");
 
         assertThat(conteudo).doesNotContain("Processo", "Sigiloso").contains("Perfil: Operador -> Gestor");
     }
@@ -463,8 +463,8 @@ class ConsultaDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
     void nenhuma_resposta_traz_vinculo() throws Exception {
         doOperador(TipoDeEvento.DOSSIE, GESTOR, e -> e);
 
-        semDadoProtegido(chamar(DOCS, "gestor.demo"));
-        semDadoProtegido(chamar(DOCS + "/exportacao", "gestor.demo"));
-        semDadoProtegido(chamar(DOCS, "operador.demo"));
+        semDadoProtegido(chamar(DOCS, "gestor"));
+        semDadoProtegido(chamar(DOCS + "/exportacao", "gestor"));
+        semDadoProtegido(chamar(DOCS, "operador"));
     }
 }

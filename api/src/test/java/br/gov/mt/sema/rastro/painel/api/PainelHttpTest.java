@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.painel.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -55,7 +56,7 @@ import org.springframework.test.web.servlet.ResultActions;
  * Contrato HTTP do painel (S10, bloco 5), com o painel de verdade (contexto Spring completo) e as duas portas de leitura
  * por dublê: perfis, estados, o 429, a auditoria e o mascaramento dos nomes. Dados fictícios; ano fixo em 2026.
  */
-@SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url=", "rastro.painel.ano=2026"})
+@SpringBootTest(properties = {"rastro.datasource.siga.url=", "rastro.painel.ano=2026"})
 @AutoConfigureMockMvc
 class PainelHttpTest {
 
@@ -108,7 +109,7 @@ class PainelHttpTest {
     }
 
     private String token(String usuario) throws Exception {
-        String corpo = json.writeValueAsString(Map.of("usuario", usuario, "senha", "senha-de-teste"));
+        String corpo = json.writeValueAsString(Map.of("usuario", usuario, "senha", UsuariosDeTeste.senhaDe(usuario)));
         return "Bearer " + json.readTree(mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content(corpo)).andReturn().getResponse().getContentAsString()).get("token").asText();
     }
@@ -130,8 +131,8 @@ class PainelHttpTest {
 
     @Test
     void operadorESemLoginNaoVeemOPainelENadaEhLidoNemRegistrado() throws Exception {
-        assertThat(pedir("operador.demo", get("/api/painel")).andReturn().getResponse().getStatus()).isEqualTo(403);
-        String corpo = texto(pedir("operador.demo", post("/api/painel/atualizacao")));
+        assertThat(pedir("operador", get("/api/painel")).andReturn().getResponse().getStatus()).isEqualTo(403);
+        String corpo = texto(pedir("operador", post("/api/painel/atualizacao")));
         assertThat(corpo).contains("PERFIL_SEM_PERMISSAO");
         assertThat(mvc.perform(get("/api/painel")).andReturn().getResponse().getStatus()).isEqualTo(401);
         assertThat(mvc.perform(post("/api/painel/atualizacao")).andReturn().getResponse().getStatus()).isEqualTo(401);
@@ -144,17 +145,17 @@ class PainelHttpTest {
     @Test
     void gestorEAdministradorVeemOPainelDeImediatoAtualizamEOsNomesPodemSerOcultados() throws Exception {
         // Primeira requisição: responde na hora, ainda PREPARANDO (a leitura está presa no dublê), com o ano visível.
-        JsonNode preparando = json.readTree(texto(pedir("gestor.demo", get("/api/painel"))));
+        JsonNode preparando = json.readTree(texto(pedir("gestor", get("/api/painel"))));
         assertThat(preparando.get("estado").asText()).isEqualTo("PREPARANDO");
         assertThat(preparando.get("ano").asInt()).isEqualTo(2026);
         assertThat(preparando.get("serie")).isEmpty();
 
         // Atualização manual com uma leitura em curso: aceita, sem iniciar outra.
-        assertThat(pedir("gestor.demo", post("/api/painel/atualizacao")).andReturn().getResponse().getStatus())
+        assertThat(pedir("gestor", post("/api/painel/atualizacao")).andReturn().getResponse().getStatus())
                 .isEqualTo(202);
 
         liberar.countDown();
-        JsonNode pronto = esperarPronto("admin.demo");
+        JsonNode pronto = esperarPronto("admin");
 
         assertThat(pronto.get("ano").asInt()).isEqualTo(2026);
         assertThat(pronto.get("serie")).hasSize(12);
@@ -174,7 +175,7 @@ class PainelHttpTest {
                 .doesNotContainPattern("(?<![0-9])\\d{11}(?![0-9])").doesNotContainPattern("\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}");
 
         // A atualização acabou há pouco: 429 com o tempo que falta.
-        var recusada = pedir("gestor.demo", post("/api/painel/atualizacao")).andReturn().getResponse();
+        var recusada = pedir("gestor", post("/api/painel/atualizacao")).andReturn().getResponse();
         assertThat(recusada.getStatus()).isEqualTo(429);
         JsonNode problema = json.readTree(recusada.getContentAsString(StandardCharsets.UTF_8));
         assertThat(problema.get("errorCode").asText()).isEqualTo("ATUALIZACAO_RECENTE");
@@ -182,13 +183,13 @@ class PainelHttpTest {
         assertThat(recusada.getHeader("Retry-After")).isNotBlank();
 
         // Nomes ocultos por configuração valem já na próxima leitura (RN12): só categorias sem nome.
-        String admin = token("admin.demo");
+        String admin = token("admin");
         assertThat(mvc.perform(put("/api/configuracoes/parametros").header("Authorization", admin)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"alteracoes\":{\"rastro.mostrarNomeResponsavel\":false}}")).andReturn().getResponse()
                 .getStatus()).isEqualTo(200);
         try {
-            JsonNode oculto = json.readTree(texto(pedir("gestor.demo", get("/api/painel"))));
+            JsonNode oculto = json.readTree(texto(pedir("gestor", get("/api/painel"))));
             assertThat(oculto.get("nomesOcultos").asBoolean()).isTrue();
             assertThat(oculto.toString()).doesNotContain("Servidor Exemplo");
             assertThat(oculto.get("cargaPorResponsavel").findValuesAsText("tipo")).doesNotContain("SERVIDOR", "OUTROS");

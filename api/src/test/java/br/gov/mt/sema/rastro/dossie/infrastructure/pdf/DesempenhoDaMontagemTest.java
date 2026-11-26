@@ -133,9 +133,9 @@ class DesempenhoDaMontagemTest {
     }
 
     private static DadosDaCapa capa() {
-        return new DadosDaCapa("Processo", "2825/2025", "Associação Residencial Vale Verde", "12.345.678/0001-90",
+        return new DadosDaCapa("Processo", "2825/2025", "Associação Residencial Vale Verde", "11.222.333/0001-81",
                 "Uso de Recursos Hídricos", "Em análise", LocalDateTime.of(2025, 3, 31, 10, 12), List.of("Consumo humano"),
-                List.of("Captação"), LocalDateTime.of(2026, 10, 26, 10, 0), "Gestor Demo");
+                List.of("Captação"), LocalDateTime.of(2026, 10, 26, 10, 0), "Gestor");
     }
 
     /** Uso do heap a cada 20 ms; o maior valor é o pico de verdade (a soma dos picos por pool superestima). */

@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.consulta.api;
 
 import static org.hamcrest.Matchers.emptyOrNullString;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -31,7 +32,7 @@ class SigaForaDoArHttpTest {
         ObjectMapper json;
 
         String token() throws Exception {
-            String corpo = json.writeValueAsString(Map.of("usuario", "gestor.demo", "senha", "senha-de-teste"));
+            String corpo = json.writeValueAsString(Map.of("usuario", "gestor", "senha", UsuariosDeTeste.senhaDe("gestor")));
             String resposta = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(corpo))
                     .andReturn().getResponse().getContentAsString();
             return json.readTree(resposta).get("token").asText();
@@ -57,7 +58,7 @@ class SigaForaDoArHttpTest {
     }
 
     @Nested
-    @SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url="})
+    @SpringBootTest(properties = {"rastro.datasource.siga.url="})
     @AutoConfigureMockMvc
     class UrlVazia extends Base {
         @Test
@@ -68,7 +69,6 @@ class SigaForaDoArHttpTest {
 
     @Nested
     @SpringBootTest(properties = {
-            "rastro.demo.senha=senha-de-teste",
             "rastro.datasource.siga.url=jdbc:oracle:thin:@//127.0.0.1:1/INEXISTENTE",
             "rastro.datasource.siga.username=x",
             "rastro.datasource.siga.password=x",

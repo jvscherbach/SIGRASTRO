@@ -31,7 +31,7 @@ Não cria, não altera, não apaga, não gera dossiê, não baixa documento nem 
 - **Só `GET`** nas ferramentas; os testes conferem cada pedido feito ao SIGRASTRO simulado.
 - **Mascaramento da saída:** CPF e CNPJ (com e sem máscara, válidos ou não), e-mail, token (JWT, Bearer), cookie e `token=`/`chave=`/`senha=` em texto viram `***`; no JSON, valores de chaves como `chave`, `token`, `cookie`, `senha`, `cpfCnpj` são trocados antes de montar o texto. Vale mesmo que a API devolva isso por engano (testado injetando esses dados na resposta simulada).
 - **Erros** só com o status HTTP e o `errorCode` do `ProblemDetail`: sem URL, parâmetro, token nem corpo. Tempo limite (`RASTRO_MCP_TIMEOUT_MS`, 10 s) e tamanho máximo de resposta (1 MB).
-- **Credencial:** usuário e senha de **demonstração** por `RASTRO_MCP_USUARIO` e `RASTRO_MCP_SENHA`, do **ambiente do processo** (nunca do `.env.local`; sem valor padrão no repositório). O token de sessão fica só em memória e é renovado perto de vencer ou depois de um 401.
+- **Credencial:** usuário e senha de **verificação** por `RASTRO_MCP_USUARIO` e `RASTRO_MCP_SENHA`, do **ambiente do processo** (nunca do `.env.local`; sem valor padrão no repositório). **Decisão da L1:** o servidor usa um usuário de **perfil Operador** (o mais restrito: só vê processos do interessado vinculado) e as ferramentas só fazem `GET`, então a credencial é somente leitura nos dois sentidos; é o usuário padrão `operador` (senha igual à de `RASTRO_SENHA_OPERADOR`) ou um usuário criado pelo responsável só para a verificação, definido no ambiente local. O token de sessão fica só em memória e é renovado perto de vencer ou depois de um 401.
 - `stdout` só com o protocolo MCP; avisos em `stderr`, sem dado sensível.
 
 ## Como subir o ambiente de demonstração
@@ -43,10 +43,10 @@ Não cria, não altera, não apaga, não gera dossiê, não baixa documento nem 
    ```
 
    Confira, dentro do container e sem imprimir valores, que as variáveis externas estão vazias (`CLAUDE.md`).
-2. No terminal onde você abre o Claude Code, defina o usuário de demonstração (a senha é a `VISTAS_DEMO_SENHA` do perfil local; **não** a coloque em arquivo versionado):
+2. No terminal onde você abre o Claude Code, defina o usuário de verificação (o login e a senha que você mesmo definiu para o ambiente local, por exemplo `operador` com o valor de `RASTRO_SENHA_OPERADOR`; **não** os coloque em arquivo versionado):
 
    ```bash
-   export RASTRO_MCP_USUARIO=operador.demo
+   export RASTRO_MCP_USUARIO=operador
    export RASTRO_MCP_SENHA=...      # PowerShell: $env:RASTRO_MCP_SENHA = "..."
    ```
 3. Abra o Claude Code na raiz do projeto. Na primeira vez ele pede **aprovação** para usar o servidor `rastro` do `.mcp.json` (servidores de projeto só rodam depois que você aprova; dá para rever em `/mcp`). Aprove e peça, por exemplo, "use o MCP do SIGRASTRO para ver o estado do serviço".

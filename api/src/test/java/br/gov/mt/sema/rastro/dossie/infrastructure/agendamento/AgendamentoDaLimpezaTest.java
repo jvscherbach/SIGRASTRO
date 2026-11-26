@@ -12,7 +12,7 @@ import org.springframework.context.ApplicationContext;
 class AgendamentoDaLimpezaTest {
 
     @Nested
-    @SpringBootTest(properties = {"rastro.demo.senha=x", "rastro.datasource.siga.url=", "rastro.arquivos.url=",
+    @SpringBootTest(properties = {"rastro.datasource.siga.url=", "rastro.arquivos.url=",
             "rastro.dossie.diretorio=${java.io.tmpdir}/vistas-teste-agendamento"})
     class Ligado {
 
@@ -26,7 +26,7 @@ class AgendamentoDaLimpezaTest {
     }
 
     @Nested
-    @SpringBootTest(properties = {"rastro.demo.senha=x", "rastro.datasource.siga.url=", "rastro.arquivos.url=",
+    @SpringBootTest(properties = {"rastro.datasource.siga.url=", "rastro.arquivos.url=",
             "rastro.agendamento.enabled=false", "rastro.dossie.diretorio=${java.io.tmpdir}/vistas-teste-agendamento"})
     class Desligado {
 

@@ -70,7 +70,7 @@ export class ClienteRastro {
   /** Abre a sessão. Único pedido que não é GET. */
   async entrar() {
     if (!this.usuario || !this.senha) {
-      throw new ErroDoRastro('Defina RASTRO_MCP_USUARIO e RASTRO_MCP_SENHA (usuário de demonstração) no ambiente do servidor MCP.');
+      throw new ErroDoRastro('Defina RASTRO_MCP_USUARIO e RASTRO_MCP_SENHA (usuário de verificação, perfil Operador) no ambiente do servidor MCP.');
     }
     const resposta = await this.#pedir('POST', '/api/auth/login', {
       body: JSON.stringify({ usuario: this.usuario, senha: this.senha }),
@@ -185,7 +185,7 @@ export class ClienteRastro {
       // corpo ilegível: fica só o status
     }
     const explicacao = {
-      401: 'credencial de demonstração recusada',
+      401: 'credencial de verificação recusada',
       403: 'sem permissão',
       404: 'não encontrado',
       503: 'serviço indisponível (no modo de demonstração o SIGA não está ligado)',

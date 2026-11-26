@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.tramitacao.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -43,7 +44,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * tempo limite estourado, a posição responde 200 com {@code INDISPONIVEL} (nunca 5xx) e o detalhe do requerimento segue
  * funcionando. O limite de tempo de cada consulta real é provado em {@code CamundaPosicaoJdbcTest}.
  */
-@SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url=",
+@SpringBootTest(properties = {"rastro.datasource.siga.url=",
         "rastro.tramitacao.posicao-cache-segundos=0"})
 @AutoConfigureMockMvc
 class ResilienciaDaTramitacaoHttpTest {
@@ -75,7 +76,7 @@ class ResilienciaDaTramitacaoHttpTest {
     void preparar() {
         Requerimento r = new Requerimento(ID, "7101/2026", "7900/2022", "Requerimento de Outorga", Situacao.de("EM_ANALISE"),
                 LocalDateTime.of(2026, 3, 1, 9, 0), null,
-                new Interessado("Associação Residencial Vale Verde", "12.345.678/0001-90"),
+                new Interessado("Associação Residencial Vale Verde", "11.222.333/0001-81"),
                 "Outorga de recursos hídricos (FICTÍCIO)");
         when(siga.buscarPorId(ID)).thenReturn(Optional.of(r));
         when(tarefas.obter(anyLong())).thenReturn(TarefaAtual.indisponivel());
@@ -86,7 +87,7 @@ class ResilienciaDaTramitacaoHttpTest {
     }
 
     private String token() throws Exception {
-        String corpo = json.writeValueAsString(Map.of("usuario", "gestor.demo", "senha", "senha-de-teste"));
+        String corpo = json.writeValueAsString(Map.of("usuario", "gestor", "senha", UsuariosDeTeste.senhaDe("gestor")));
         String resposta = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(corpo))
                 .andReturn().getResponse().getContentAsString();
         return json.readTree(resposta).get("token").asText();

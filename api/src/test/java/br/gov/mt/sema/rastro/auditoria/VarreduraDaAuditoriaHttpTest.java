@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import java.io.IOException;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -118,25 +119,26 @@ class VarreduraDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
         when(pessoas.listarPessoas(anyLong())).thenReturn(List.of());
         SCORP.responderCom(troca -> troca.responder(500, SEGREDO_DO_SCORP.getBytes(StandardCharsets.UTF_8)));
 
-        obter("/api/requerimentos/101", "operador.demo");
-        obter("/api/documentos/DOCUMENTO_PROCESSO/55/conteudo?requerimento=101", "gestor.demo");
-        obter("/api/documentos/DOCUMENTO_PROCESSO/" + SIGILOSO + "/conteudo?requerimento=101", "gestor.demo");
+        obter("/api/requerimentos/101", "operador");
+        obter("/api/documentos/DOCUMENTO_PROCESSO/55/conteudo?requerimento=101", "gestor");
+        obter("/api/documentos/DOCUMENTO_PROCESSO/" + SIGILOSO + "/conteudo?requerimento=101", "gestor");
 
         String motivo = "Bearer " + TOKEN_DE_ARQUIVOS + " http://" + HOST_INTERNO + "/api/arquivo/" + CHAVE_1 + " em "
                 + diretorioTemporario() + " do CPF " + CPF + " Cookie: " + NOME_DO_COOKIE + "=" + COOKIE;
         doThrow(new FalhaNoDocumentoException(motivo, 1)).when(arquivos).baixar(eq(CHAVE_1), any(Path.class));
-        gerar("gestor.demo", COMUM, SIGILOSO);
-        String id = gerar("gestor.demo", SIGILOSO);
+        gerar("gestor", COMUM, SIGILOSO);
+        String id = gerar("gestor", SIGILOSO);
         String ticket = json.readTree(mvc.perform(post("/api/dossies/" + id + "/arquivo/ticket")
-                .header(HttpHeaders.AUTHORIZATION, bearer("gestor.demo"))).andReturn().getResponse().getContentAsString())
+                .header(HttpHeaders.AUTHORIZATION, bearer("gestor"))).andReturn().getResponse().getContentAsString())
                 .get("ticket").asText();
         assertThat(mvc.perform(get("/api/dossies/" + id + "/arquivo?disposicao=attachment&ticket=" + ticket))
                 .andReturn().getResponse().getStatus()).isEqualTo(200);
 
-        String sessaoDoAdmin = bearer("admin.demo");
+        String sessaoDoAdmin = bearer("admin");
         assertThat(mvc.perform(post("/api/configuracoes/usuarios").header(HttpHeaders.AUTHORIZATION, sessaoDoAdmin)
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("nome", "Pessoa de Teste",
-                        "login", "varredura.teste", "cpfCnpj", CPF, "perfil", "OPERADOR"))))
+                        "login", "varredura.teste", "cpfCnpj", CPF, "perfil", "OPERADOR",
+                        "senha", UsuariosDeTeste.senhaDe("varredura.teste")))))
                 .andReturn().getResponse().getStatus()).isEqualTo(201);
         assertThat(mvc.perform(patch("/api/configuracoes/usuarios/varredura.teste").header(HttpHeaders.AUTHORIZATION, sessaoDoAdmin)
                 .contentType(MediaType.APPLICATION_JSON).content("{\"perfil\":\"OPERADOR_SIGILO\"}"))
@@ -175,23 +177,23 @@ class VarreduraDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
     void nenhuma_resposta_da_auditoria_ou_das_configuracoes_traz_dado_protegido() throws Exception {
         String ticket = produzirEventos();
 
-        lerTudo("operador.demo", "documentos");
-        lerTudo("gestor.demo", "documentos");
-        lerTudo("admin.demo", "documentos");
-        lerTudo("admin.demo", "acessos");
-        guardar("/api/configuracoes/usuarios", "admin.demo");
-        guardar("/api/configuracoes/parametros", "admin.demo");
-        guardar("/api/configuracoes/conexoes", "admin.demo");
+        lerTudo("operador", "documentos");
+        lerTudo("gestor", "documentos");
+        lerTudo("admin", "documentos");
+        lerTudo("admin", "acessos");
+        guardar("/api/configuracoes/usuarios", "admin");
+        guardar("/api/configuracoes/parametros", "admin");
+        guardar("/api/configuracoes/conexoes", "admin");
 
         assertThat(respostas.size()).isGreaterThan(30);
         List<String> proibidos = new ArrayList<>(List.of(SEGREDOS));
         proibidos.addAll(List.of(ticket, COOKIE, NOME_DO_COOKIE, SEGREDO_DO_SCORP, SCORP.url(), HOST_INTERNO, CPF, CPF_DIGITOS,
-                CNPJ_DE_OUTRO, "98765432000110", CNPJ_DO_OPERADOR, "12345678000190", diretorioTemporario().toString(),
+                CNPJ_DE_OUTRO, "98765432000110", CNPJ_DO_OPERADOR, "11222333000181", diretorioTemporario().toString(),
                 diretorioTemporario().getFileName().toString(), "vinculo", "Bearer "));
         assertThat(respostas).allSatisfy((nome, resposta) -> assertThat(textoDe(resposta)).as(nome)
                 .doesNotContain(proibidos));
         for (Map.Entry<String, MockHttpServletResponse> resposta : respostas.entrySet()) {
-            if (resposta.getKey().startsWith("operador.demo")) {
+            if (resposta.getKey().startsWith("operador")) {
                 assertThat(textoDe(resposta.getValue())).as(resposta.getKey()).doesNotContain("Laudo reservado", "laudo-reservado");
             }
         }
@@ -199,10 +201,10 @@ class VarreduraDaAuditoriaHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void busca_na_auditoria_nao_acha_o_interessado_pelo_documento() throws Exception {
-        obter("/api/requerimentos/101", "gestor.demo");
+        obter("/api/requerimentos/101", "gestor");
 
-        for (String termo : List.of("12345678000190", "12.345.678/0001-90")) {
-            JsonNode pagina = json.readTree(obter("/api/auditoria/documentos?periodo=todo&texto=" + termo, "gestor.demo")
+        for (String termo : List.of("11222333000181", "11.222.333/0001-81")) {
+            JsonNode pagina = json.readTree(obter("/api/auditoria/documentos?periodo=todo&texto=" + termo, "gestor")
                     .getContentAsString(StandardCharsets.UTF_8));
             assertThat(pagina.get("totalElementos").asInt()).as(termo).isZero();
         }

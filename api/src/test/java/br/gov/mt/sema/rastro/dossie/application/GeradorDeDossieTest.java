@@ -48,7 +48,7 @@ class GeradorDeDossieTest {
     }
 
     private PedidoDeDossie pedidoDeTres() {
-        return Fakes.pedido("gestor.demo", LocalDateTime.now(relogio), 30,
+        return Fakes.pedido("gestor", LocalDateTime.now(relogio), 30,
                 Fakes.item("1", "Requerimento", "K1"), Fakes.item("2", "Oficio", "K2"), Fakes.item("3", "Laudo", "K3"));
     }
 

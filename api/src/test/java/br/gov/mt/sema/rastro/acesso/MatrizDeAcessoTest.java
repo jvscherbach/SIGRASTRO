@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.acesso;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
@@ -80,7 +81,8 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
 
     /** Endpoints cobertos por esta matriz; têm de ser exatamente os mapeamentos de /api e as linhas do docs/07. */
     static final Set<String> ENDPOINTS = Set.of(
-            "POST /api/auth/login", "GET /api/auth/me", "POST /api/auth/logout", "GET /api/estado",
+            "POST /api/auth/login", "GET /api/auth/me", "POST /api/auth/logout", "POST /api/auth/senha",
+            "GET /api/estado",
             "GET /api/busca", "GET /api/requerimentos/{id}", "GET /api/requerimentos/{id}/documentos",
             "GET /api/requerimentos/{id}/geometrias/arquivo", "GET /api/documentos/{origem}/{id}/conteudo",
             "GET /api/dossies", "POST /api/dossies", "GET /api/dossies/{id}", "GET /api/dossies/{id}/arquivo",
@@ -100,7 +102,7 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
             "GET /api/caixa", "GET /api/caixa/avisos", "POST /api/caixa/avisos/visto", "POST /api/caixa/atualizar");
 
     private enum Perfil {
-        OPERADOR("operador.demo"), GESTOR("gestor.demo"), ADMIN("admin.demo");
+        OPERADOR("operador"), GESTOR("gestor"), ADMIN("admin");
 
         final String login;
 
@@ -294,7 +296,7 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
         for (Perfil p : Perfil.values()) {
             verificar("POST /api/auth/login", "login", p, 200, null, () -> mvc.perform(post("/api/auth/login")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(json.writeValueAsString(Map.of("usuario", p.login, "senha", "senha-de-teste")))));
+                    .content(json.writeValueAsString(Map.of("usuario", p.login, "senha", UsuariosDeTeste.senhaDe(p.login))))));
             verificar("GET /api/auth/me", "me", p, 200, null, () -> comToken(get("/api/auth/me"), p));
             String descartavel = "Bearer " + token(p.login);
             verificar("POST /api/auth/logout", "logout", p, 204, null,
@@ -303,6 +305,18 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
                     () -> mvc.perform(get("/api/auth/me").header("Authorization", descartavel)));
         }
         verificar("GET /api/auth/me", "sem token", null, 401, "NAO_AUTENTICADO", () -> mvc.perform(get("/api/auth/me")));
+        // Troca da própria senha (L1): todo perfil pode; aqui a nova senha repete a atual, então nada muda (400) e as
+        // sessões dos demais cenários seguem valendo.
+        for (Perfil p : Perfil.values()) {
+            String atual = UsuariosDeTeste.senhaDe(p.login);
+            verificar("POST /api/auth/senha", "própria senha, nova igual à atual", p, 400, "PARAMETRO_INVALIDO",
+                    () -> comToken(post("/api/auth/senha").contentType(MediaType.APPLICATION_JSON)
+                            .content(json.writeValueAsString(Map.of("senhaAtual", atual, "novaSenha", atual,
+                                    "confirmacao", atual))), p));
+        }
+        verificar("POST /api/auth/senha", "sem token", null, 401, "NAO_AUTENTICADO",
+                () -> mvc.perform(post("/api/auth/senha").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"senhaAtual\":\"x\",\"novaSenha\":\"y\",\"confirmacao\":\"y\"}")));
         for (Perfil p : Perfil.values()) {
             verificar("GET /api/estado", "estado do serviço (S6)", p, 200, null, () -> comToken(get("/api/estado"), p));
         }
@@ -693,7 +707,7 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
             }
             // O Operador vê os eventos dos seus requerimentos feitos por qualquer usuário.
             JsonNode deOutroUsuario = lerJson(verificar("GET /api/auditoria/documentos", "feitos pelo Gestor", p, 200, null,
-                    () -> comToken(get("/api/auditoria/documentos?usuario=gestor.demo&tamanho=100"), p)));
+                    () -> comToken(get("/api/auditoria/documentos?usuario=gestor&tamanho=100"), p)));
             soft.assertThat(deOutroUsuario.get("totalElementos").asInt()).as("eventos do Gestor vistos por %s", p).isPositive();
             JsonNode busca = lerJson(verificar("GET /api/auditoria/documentos", "busca por título sigiloso", p, 200, null,
                     () -> comToken(get("/api/auditoria/documentos?texto=Laudo&tamanho=100"), p)));
@@ -757,7 +771,7 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
             String codigo = admin ? null : "PERFIL_SEM_PERMISSAO";
             MockHttpServletResponse lista = verificar("GET /api/configuracoes/usuarios", "lista", p, admin ? 200 : 403,
                     codigo, () -> comToken(get("/api/configuracoes/usuarios"), p));
-            soft.assertThat(lista.getContentAsString()).doesNotContain(CNPJ_DO_OPERADOR, "12345678000190");
+            soft.assertThat(lista.getContentAsString()).doesNotContain(CNPJ_DO_OPERADOR, "11222333000181");
             verificar("POST /api/configuracoes/usuarios", "corpo vazio", p, admin ? 400 : 403,
                     admin ? "PARAMETRO_INVALIDO" : codigo,
                     () -> comToken(post("/api/configuracoes/usuarios").contentType(MediaType.APPLICATION_JSON).content("{}"), p));
@@ -818,7 +832,7 @@ class MatrizDeAcessoTest extends BaseHttpDeDocumentos {
         // Consulta e dossiê mostram o interessado a quem o acessa; auditoria e configurações nunca trazem CPF/CNPJ completo.
         for (String[] registro : rotasS5) {
             soft.assertThat(registro[1]).as("resposta da auditoria ou das configurações")
-                    .doesNotContain(CNPJ_DO_OPERADOR, CNPJ_DE_OUTRO, "12345678000190", "98765432000110");
+                    .doesNotContain(CNPJ_DO_OPERADOR, CNPJ_DE_OUTRO, "11222333000181", "98765432000110");
         }
         List<String> sempre = new ArrayList<>(List.of(SEGREDOS));
         sempre.addAll(List.of(CHAVE_SCORP, "CHAVE-INTERNA", TOKEN_SCORP, PESSOA_SCORP, SCORP.url(), "127.0.0.1",

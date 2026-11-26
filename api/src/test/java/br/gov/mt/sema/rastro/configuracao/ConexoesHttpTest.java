@@ -30,7 +30,7 @@ class ConexoesHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void lista_na_ordem_da_tela_sem_credencial() throws Exception {
-        MockHttpServletResponse resposta = listar("admin.demo");
+        MockHttpServletResponse resposta = listar("admin");
 
         JsonNode conexoes = json.readTree(resposta.getContentAsString(StandardCharsets.UTF_8)).get("conexoes");
         List<String> nomes = new ArrayList<>();
@@ -47,7 +47,7 @@ class ConexoesHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void so_o_administrador() throws Exception {
-        for (String usuario : List.of("operador.demo", "gestor.demo")) {
+        for (String usuario : List.of("operador", "gestor")) {
             assertThat(listar(usuario).getContentAsString()).contains("PERFIL_SEM_PERMISSAO");
             assertThat(testar(usuario, "siga").getStatus()).isEqualTo(403);
         }
@@ -55,16 +55,16 @@ class ConexoesHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void teste_de_conexao_nao_configurada_ou_desconhecida() throws Exception {
-        JsonNode siga = json.readTree(testar("admin.demo", "siga").getContentAsString(StandardCharsets.UTF_8));
+        JsonNode siga = json.readTree(testar("admin", "siga").getContentAsString(StandardCharsets.UTF_8));
 
         assertThat(siga.get("sucesso").asBoolean()).isFalse();
         assertThat(siga.get("classificacao").asText()).isEqualTo("FALHA");
         assertThat(siga.get("tempoLimiteSegundos").asInt()).isEqualTo(15);
         assertThat(siga.has("codigoHttp")).as("sem resposta HTTP, o campo nem aparece").isFalse();
         assertThat(siga.get("mensagem").asText()).isEqualTo("Conexão não configurada.");
-        assertThat(testar("admin.demo", "desconhecida").getStatus()).isEqualTo(404);
+        assertThat(testar("admin", "desconhecida").getStatus()).isEqualTo(404);
 
-        JsonNode camunda = json.readTree(testar("admin.demo", "camunda").getContentAsString(StandardCharsets.UTF_8));
+        JsonNode camunda = json.readTree(testar("admin", "camunda").getContentAsString(StandardCharsets.UTF_8));
         assertThat(camunda.get("sucesso").asBoolean()).isFalse();
         assertThat(camunda.get("mensagem").asText()).isEqualTo("Conexão não configurada.");
         assertThat(camunda.has("codigoHttp")).isFalse();

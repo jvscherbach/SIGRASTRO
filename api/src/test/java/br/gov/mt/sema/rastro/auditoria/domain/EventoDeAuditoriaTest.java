@@ -17,7 +17,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 class EventoDeAuditoriaTest {
 
     private static final ZonedDateTime AGORA = ZonedDateTime.of(2026, 3, 10, 15, 0, 0, 0, ZoneOffset.UTC);
-    private static final UsuarioDoEvento USUARIO = new UsuarioDoEvento("gestor.demo", "Gestor Demo", "Gestor");
+    private static final UsuarioDoEvento USUARIO = new UsuarioDoEvento("gestor", "Gestor", "Gestor");
     private static final DocumentoDoEvento DOCUMENTO =
             new DocumentoDoEvento("Requerimento", "10", "Licença prévia", "licenca.pdf", false, 1);
     private static final AlteracaoDoEvento ALTERACAO = new AlteracaoDoEvento("Perfil", "Operador", "Gestor");

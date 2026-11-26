@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.financeiro.infrastructure.tramitacao;
 
 import static br.gov.mt.sema.rastro.tramitacao.application.PosicoesDeTeste.quandoLer;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
@@ -68,7 +69,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * lançamentos fictícios por dublê da porta ({@code LANCAMENTO_TAXA} é provado em {@code LancamentosDoSigaJdbcTest}).
  * Cenários no espírito do FIN03, FIN11, FIN15 e FIN16; vencimentos longe de hoje (o relógio é o do projeto).
  */
-@SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url=",
+@SpringBootTest(properties = {"rastro.datasource.siga.url=",
         "rastro.tramitacao.tramitacao-cache-segundos=0"})
 @AutoConfigureMockMvc
 class FinanceiroNaTramitacaoHttpTest {
@@ -127,7 +128,7 @@ class FinanceiroNaTramitacaoHttpTest {
         for (long id : List.of(FIN03, FIN11, FIN15, FIN16, SEM_TAXA, CAMUNDA_FORA)) {
             Requerimento r = new Requerimento(id, id + "/2026", PROCESSO, "Requerimento de Outorga",
                     Situacao.de("AGUARDANDO_PAGAMENTO_DE_TAXAS"), T0, null,
-                    new Interessado("Interessado Fictício S9", "12.345.678/0001-90"), "Outorga (FICTÍCIO)");
+                    new Interessado("Interessado Fictício S9", "11.222.333/0001-81"), "Outorga (FICTÍCIO)");
             requerimentos.add(r);
             when(siga.buscarPorId(id)).thenReturn(Optional.of(r));
             quandoLer(consultar, id, PosicoesDeTeste.ativaComServidor());
@@ -198,7 +199,7 @@ class FinanceiroNaTramitacaoHttpTest {
     }
 
     private JsonNode obter(String caminho) throws Exception {
-        String corpo = json.writeValueAsString(Map.of("usuario", "gestor.demo", "senha", "senha-de-teste"));
+        String corpo = json.writeValueAsString(Map.of("usuario", "gestor", "senha", UsuariosDeTeste.senhaDe("gestor")));
         String token = json.readTree(mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content(corpo)).andReturn().getResponse().getContentAsString()).get("token").asText();
         String resposta = mvc.perform(get(caminho).header("Authorization", "Bearer " + token))

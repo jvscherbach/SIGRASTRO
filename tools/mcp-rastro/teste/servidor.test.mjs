@@ -104,7 +104,7 @@ test('stdio de verdade: o processo do servidor fala só o protocolo no stdout e 
   const transporte = new StdioClientTransport({
     command: process.execPath,
     args: [path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'servidor.mjs')],
-    env: { ...process.env, RASTRO_MCP_URL: simulado.url, RASTRO_MCP_USUARIO: 'demo.mcp', RASTRO_MCP_SENHA: 'senha-de-teste' },
+    env: { ...process.env, RASTRO_MCP_URL: simulado.url, RASTRO_MCP_USUARIO: 'operador', RASTRO_MCP_SENHA: 'senha-de-teste-123' },
     stderr: 'pipe',
   });
   const mcp = new Client({ name: 'teste-stdio', version: '0.0.0' });

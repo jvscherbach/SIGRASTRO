@@ -21,7 +21,7 @@ class DocumentoHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void gestorRecebeItensETotaisComIdEmTextoEBloqueios() throws Exception {
-        mvc.perform(get("/api/requerimentos/101/documentos").header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/requerimentos/101/documentos").header("Authorization", bearer("gestor")))
                 .andExpect(status().isOk())
                 .andExpect(header().exists("X-Correlation-Id"))
                 .andExpect(jsonPath("$.itens", hasSize(6)))
@@ -63,7 +63,7 @@ class DocumentoHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void operadorVeOSigilosoMascaradoEBloqueado() throws Exception {
-        String corpo = mvc.perform(get("/api/requerimentos/101/documentos").header("Authorization", bearer("operador.demo")))
+        String corpo = mvc.perform(get("/api/requerimentos/101/documentos").header("Authorization", bearer("operador")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.itens[3].sigiloso").value(true))
                 .andExpect(jsonPath("$.itens[3].acessivel").value(false))
@@ -79,7 +79,7 @@ class DocumentoHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void operadorDeOutroInteressadoRecebe403ENaoLeOsDocumentos() throws Exception {
-        mvc.perform(get("/api/requerimentos/202/documentos").header("Authorization", bearer("operador.demo")))
+        mvc.perform(get("/api/requerimentos/202/documentos").header("Authorization", bearer("operador")))
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("NAO_INTERESSADO"))
@@ -90,14 +90,14 @@ class DocumentoHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void gestorListaDeQualquerInteressado() throws Exception {
-        mvc.perform(get("/api/requerimentos/202/documentos").header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/requerimentos/202/documentos").header("Authorization", bearer("gestor")))
                 .andExpect(status().isOk());
         verify(documentos).listar(202);
     }
 
     @Test
     void requerimentoInexistenteEh404() throws Exception {
-        mvc.perform(get("/api/requerimentos/404/documentos").header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/requerimentos/404/documentos").header("Authorization", bearer("gestor")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("NAO_ENCONTRADO"));
     }
@@ -112,7 +112,7 @@ class DocumentoHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void aRespostaNuncaTrazAChaveDoArquivoNemOToken() throws Exception {
-        for (String usuario : new String[] {"gestor.demo", "operador.demo", "admin.demo"}) {
+        for (String usuario : new String[] {"gestor", "operador", "admin"}) {
             String corpo = mvc.perform(get("/api/requerimentos/101/documentos").header("Authorization", bearer(usuario)))
                     .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
 

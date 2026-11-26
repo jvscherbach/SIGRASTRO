@@ -37,7 +37,7 @@ class TarefaAtualDoSigaJdbcTest {
         assertThat(tarefa.estado()).isEqualTo(TarefaAtual.Estado.ATIVA);
         assertThat(tarefa.nome()).isEqualTo("Analisar requerimento");
         assertThat(tarefa.desde()).isEqualTo(LocalDateTime.of(2025, 4, 29, 9, 14));
-        // "analista.demo" não é CPF de 11 dígitos: responsável não identificado, e o valor cru não sai.
+        // "analista.teste" não é CPF de 11 dígitos: responsável não identificado, e o valor cru não sai.
         assertThat(tarefa.responsavel()).isEqualTo(ResponsavelTarefa.naoIdentificado());
         assertThat(tarefa.fluxo()).isEqualTo("Outorga de Recursos Hídricos");
     }

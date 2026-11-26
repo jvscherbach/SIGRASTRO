@@ -74,7 +74,7 @@ class OfficeSemTipoNoPipelineTest {
     }
 
     private PedidoDeDossie pedido(ItemDoPedido... itens) {
-        return Fakes.pedido("gestor.demo", LocalDateTime.now(relogio), 30, itens);
+        return Fakes.pedido("gestor", LocalDateTime.now(relogio), 30, itens);
     }
 
     @Test

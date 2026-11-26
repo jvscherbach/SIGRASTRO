@@ -71,7 +71,7 @@ class ConversaoNoPipelineTest {
 
     /** PDF (1 página), XLSX, DOCX e PNG, nesta ordem cronológica. */
     private PedidoDeDossie pedidoMisto() {
-        return Fakes.pedido("gestor.demo", LocalDateTime.now(relogio), 30,
+        return Fakes.pedido("gestor", LocalDateTime.now(relogio), 30,
                 item("1", "Requerimento", "K-PDF", "pdf", 1),
                 item("2", "Planilha de custos", "K-XLSX", "xlsx", 2),
                 item("3", "Memorial", "K-DOCX", "docx", 3),
@@ -193,7 +193,7 @@ class ConversaoNoPipelineTest {
     @Test
     void conversorIndisponivelEFalhaDoDocumentoComMotivoProprio() {
         conversor.disponivel = false;
-        PedidoDeDossie pedido = Fakes.pedido("gestor.demo", LocalDateTime.now(relogio), 30,
+        PedidoDeDossie pedido = Fakes.pedido("gestor", LocalDateTime.now(relogio), 30,
                 item("1", "Planilha", "K-XLSX", "xlsx", 1));
 
         gerador(true).processar(pedido);
@@ -205,7 +205,7 @@ class ConversaoNoPipelineTest {
     @Test
     void compactadoETipoPeloConteudoNaoPeloNome() {
         // Um ZIP com nome de planilha e uma planilha com nome de PDF: vale o conteúdo.
-        PedidoDeDossie pedido = Fakes.pedido("gestor.demo", LocalDateTime.now(relogio), 30,
+        PedidoDeDossie pedido = Fakes.pedido("gestor", LocalDateTime.now(relogio), 30,
                 item("1", "Arquivo", "K-ZIP", "xlsx", 1), item("2", "Enganoso", "K-XLSX", "pdf", 2));
 
         gerador(true).processar(pedido);

@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.caixa.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -63,7 +64,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * visto" é provado sem Spring em {@code CaixaDoAnalistaTest} (primeiro acesso e reinício). Dados fictícios; os CPFs são
  * calculados na hora (nenhum literal no repositório).
  */
-@SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url=",
+@SpringBootTest(properties = {"rastro.datasource.siga.url=",
         "rastro.caixa.intervalo-minimo-manual-segundos=3600"})
 @AutoConfigureMockMvc
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
@@ -139,7 +140,7 @@ class CaixaAcessoVazamentoResilienciaHttpTest {
     // --- apoio
 
     private String entrar(String login) throws Exception {
-        String corpo = json.writeValueAsString(Map.of("usuario", login, "senha", "senha-de-teste"));
+        String corpo = json.writeValueAsString(Map.of("usuario", login, "senha", UsuariosDeTeste.senhaDe(login)));
         String resposta = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(corpo))
                 .andReturn().getResponse().getContentAsString();
         return "Bearer " + json.readTree(resposta).get("token").asText();
@@ -147,11 +148,11 @@ class CaixaAcessoVazamentoResilienciaHttpTest {
 
     private void cadastrarAnalista(String login, String cpf) throws Exception {
         Map<String, Object> corpo = new HashMap<>(Map.of("nome", "Analista Exemplo " + login, "login", login,
-                "perfil", "ANALISTA"));
+                "perfil", "ANALISTA", "senha", UsuariosDeTeste.senhaDe(login)));
         if (cpf != null) {
             corpo.put("cpfCnpj", cpf);
         }
-        MockHttpServletResponse r = mvc.perform(post(USUARIOS).header(HttpHeaders.AUTHORIZATION, entrar("admin.demo"))
+        MockHttpServletResponse r = mvc.perform(post(USUARIOS).header(HttpHeaders.AUTHORIZATION, entrar("admin"))
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(corpo))).andReturn().getResponse();
         assertThat(r.getStatus()).as(r.getContentAsString()).isEqualTo(201);
     }
@@ -261,12 +262,12 @@ class CaixaAcessoVazamentoResilienciaHttpTest {
             respostas.add(r.getHeaderNames().stream().map(h -> h + "=" + r.getHeaders(h)).toList().toString());
         }
         // Erros dos outros perfis e de quem tenta ler a caixa pelos parâmetros.
-        for (String usuario : List.of("operador.demo", "gestor.demo", "admin.demo")) {
+        for (String usuario : List.of("operador", "gestor", "admin")) {
             respostas.add(chamar(entrar(usuario), get("/api/caixa?analista=" + CPF_A_DIGITOS)).getContentAsString());
         }
         respostas.add(chamar(a, get("/api/caixa?analista=" + CPF_A_DIGITOS + "&cpf=" + CPF_A)).getContentAsString());
         // Lista de usuários (o CPF do Analista nunca sai, nem mascarado) e perfil.
-        respostas.add(chamar(entrar("admin.demo"), get(USUARIOS)).getContentAsString());
+        respostas.add(chamar(entrar("admin"), get(USUARIOS)).getContentAsString());
         respostas.add(chamar(a, get("/api/auth/me")).getContentAsString());
 
         respostas.forEach(CaixaAcessoVazamentoResilienciaHttpTest::semDadoPessoalNemChave);
@@ -288,7 +289,7 @@ class CaixaAcessoVazamentoResilienciaHttpTest {
         when(posse.candidatos(anyList(), any(), anyInt(), any())).thenThrow(new IllegalStateException(
                 "falha-simulada-do-camunda jdbc:oracle:thin:@servidor-interno"));
         String a = analista("analista.fora", CPF_A);
-        String gestor = entrar("gestor.demo");
+        String gestor = entrar("gestor");
 
         MockHttpServletResponse primeira = chamar(a, get("/api/caixa"));
         JsonNode indisponivel = caixaNoEstado(a, "INDISPONIVEL");
@@ -304,7 +305,7 @@ class CaixaAcessoVazamentoResilienciaHttpTest {
         assertThat(chamar(a, get("/api/auth/me")).getStatus()).isEqualTo(200);
         assertThat(chamar(gestor, get("/api/painel")).getStatus()).isEqualTo(200);
         assertThat(chamar(gestor, get("/api/estado")).getStatus()).isEqualTo(200);
-        assertThat(chamar(entrar("operador.demo"), get("/api/estado")).getStatus()).isEqualTo(200);
+        assertThat(chamar(entrar("operador"), get("/api/estado")).getStatus()).isEqualTo(200);
         assertThat(chamar(gestor, get("/api/caixa")).getStatus()).isEqualTo(403);
     }
 

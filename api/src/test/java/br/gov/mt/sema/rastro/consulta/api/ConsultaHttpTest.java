@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.consulta.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static org.hamcrest.Matchers.emptyOrNullString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
@@ -52,11 +53,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 /** Contrato HTTP da consulta. A propriedade do SIGA é forçada vazia para não depender da máquina. */
-@SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url="})
+@SpringBootTest(properties = {"rastro.datasource.siga.url="})
 @AutoConfigureMockMvc
 class ConsultaHttpTest {
 
-    private static final String CNPJ_DO_OPERADOR = "12.345.678/0001-90";
+    private static final String CNPJ_DO_OPERADOR = "11.222.333/0001-81";
 
     @Autowired
     MockMvc mvc;
@@ -92,7 +93,7 @@ class ConsultaHttpTest {
     }
 
     private String token(String usuario) throws Exception {
-        String corpo = json.writeValueAsString(Map.of("usuario", usuario, "senha", "senha-de-teste"));
+        String corpo = json.writeValueAsString(Map.of("usuario", usuario, "senha", UsuariosDeTeste.senhaDe(usuario)));
         String resposta = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(corpo))
                 .andReturn().getResponse().getContentAsString();
         return json.readTree(resposta).get("token").asText();
@@ -108,7 +109,7 @@ class ConsultaHttpTest {
     void buscaPorNumeroDevolvePaginaComIdentificacaoDeProcesso() throws Exception {
         when(siga.buscarPorNumeroDeRequerimento(any())).thenReturn(Optional.of(requerimento(101, CNPJ_DO_OPERADOR, "2825/2025")));
 
-        buscar("operador.demo", "tipo=REQUERIMENTO&numero=3331/2025")
+        buscar("operador", "tipo=REQUERIMENTO&numero=3331/2025")
                 .andExpect(status().isOk())
                 .andExpect(header().exists("X-Correlation-Id"))
                 .andExpect(jsonPath("$.conteudo", hasSize(1)))
@@ -130,7 +131,7 @@ class ConsultaHttpTest {
                 new Interessado("Interessado Exemplo LTDA", "00000000000100"), "Uso de Recursos Hídricos");
         when(siga.buscarPorNumeroDeRequerimento(any())).thenReturn(Optional.of(r));
 
-        String corpo = buscar("gestor.demo", "tipo=REQUERIMENTO&numero=3331/2025")
+        String corpo = buscar("gestor", "tipo=REQUERIMENTO&numero=3331/2025")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.conteudo[0].interessado.nome").value("Interessado Exemplo LTDA"))
                 .andExpect(jsonPath("$.conteudo[0].interessado.cpfCnpj").doesNotExist())
@@ -144,7 +145,7 @@ class ConsultaHttpTest {
         Requerimento r = requerimento(101, CNPJ_DO_OPERADOR, null);
         when(siga.buscarPorCriterios(any())).thenReturn(new Pagina<>(List.of(r.resumo()), 41, 1, 20));
 
-        buscar("operador.demo", "nome=vale&pagina=1")
+        buscar("operador", "nome=vale&pagina=1")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.conteudo", hasSize(1)))
                 .andExpect(jsonPath("$.conteudo[0].identificacao.rotulo").value("Requerimento"))
@@ -156,14 +157,14 @@ class ConsultaHttpTest {
 
         ArgumentCaptor<CriterioBusca> captor = ArgumentCaptor.forClass(CriterioBusca.class);
         verify(siga).buscarPorCriterios(captor.capture());
-        assertThat(captor.getValue().restricaoDigitos()).isEqualTo("12345678000190");
+        assertThat(captor.getValue().restricaoDigitos()).isEqualTo("11222333000181");
     }
 
     @Test
     void gestorNaoTemRestricaoNaLista() throws Exception {
         when(siga.buscarPorCriterios(any())).thenReturn(Pagina.vazia(0, 20));
 
-        buscar("gestor.demo", "nome=vale").andExpect(status().isOk()).andExpect(jsonPath("$.conteudo", hasSize(0)));
+        buscar("gestor", "nome=vale").andExpect(status().isOk()).andExpect(jsonPath("$.conteudo", hasSize(0)));
 
         ArgumentCaptor<CriterioBusca> captor = ArgumentCaptor.forClass(CriterioBusca.class);
         verify(siga).buscarPorCriterios(captor.capture());
@@ -172,7 +173,7 @@ class ConsultaHttpTest {
 
     @Test
     void semCriterioEh400ComProblemDetail() throws Exception {
-        buscar("operador.demo", "")
+        buscar("operador", "")
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("PARAMETRO_INVALIDO"))
@@ -184,7 +185,7 @@ class ConsultaHttpTest {
 
     @Test
     void numeroForaDoFormatoEh400IndicandoOCampo() throws Exception {
-        buscar("operador.demo", "tipo=PROCESSO&numero=2825")
+        buscar("operador", "tipo=PROCESSO&numero=2825")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("PARAMETRO_INVALIDO"))
                 .andExpect(jsonPath("$.campos[0].campo").value("numero"));
@@ -192,14 +193,14 @@ class ConsultaHttpTest {
 
     @Test
     void numeroSemTipoEh400() throws Exception {
-        buscar("operador.demo", "numero=2825/2025")
+        buscar("operador", "numero=2825/2025")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.campos[0].campo").value("tipo"));
     }
 
     @Test
     void paginaComTipoErradoEh400() throws Exception {
-        buscar("gestor.demo", "nome=vale&pagina=abc")
+        buscar("gestor", "nome=vale&pagina=abc")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("PARAMETRO_INVALIDO"));
     }
@@ -208,7 +209,7 @@ class ConsultaHttpTest {
     void numeroInexistenteEh404() throws Exception {
         when(siga.buscarPorCriterios(any())).thenReturn(Pagina.vazia(0, 20));
 
-        buscar("gestor.demo", "tipo=PROCESSO&numero=9/2020")
+        buscar("gestor", "tipo=PROCESSO&numero=9/2020")
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("NAO_ENCONTRADO"))
                 .andExpect(jsonPath("$.detail").value("Processo 9/2020 não encontrado."));
@@ -218,7 +219,7 @@ class ConsultaHttpTest {
     void operadorBuscandoNumeroDeOutroInteressadoEh403() throws Exception {
         when(siga.buscarPorNumeroDeRequerimento(any())).thenReturn(Optional.of(requerimento(102, "45.678.901/0001-23", null)));
 
-        buscar("operador.demo", "tipo=REQUERIMENTO&numero=1187/2026")
+        buscar("operador", "tipo=REQUERIMENTO&numero=1187/2026")
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("NAO_INTERESSADO"))
                 .andExpect(jsonPath("$.detail").value("Você não é o interessado deste processo ou requerimento."));
@@ -251,7 +252,7 @@ class ConsultaHttpTest {
     void detalheDevolveRequerimentoObjetoPrioridadeETarefaAtual() throws Exception {
         comDetalheCompleto();
 
-        mvc.perform(get("/api/requerimentos/101").header("Authorization", "Bearer " + token("gestor.demo")))
+        mvc.perform(get("/api/requerimentos/101").header("Authorization", "Bearer " + token("gestor")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(101))
                 .andExpect(jsonPath("$.identificacao.numero").value("2825/2025"))
@@ -284,12 +285,12 @@ class ConsultaHttpTest {
     void responsavelApareceParaGestorEAdminESomeDoJsonDoOperador() throws Exception {
         comDetalheCompleto();
 
-        for (String usuario : new String[] {"gestor.demo", "admin.demo"}) {
+        for (String usuario : new String[] {"gestor", "admin"}) {
             mvc.perform(get("/api/requerimentos/101").header("Authorization", "Bearer " + token(usuario)))
                     .andExpect(jsonPath("$.tarefaAtual.responsavel.nome").value("Maria Nova de Souza"));
         }
         String corpoOperador = mvc.perform(get("/api/requerimentos/101")
-                        .header("Authorization", "Bearer " + token("operador.demo")))
+                        .header("Authorization", "Bearer " + token("operador")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tarefaAtual.nome").value("Analisar requerimento"))
                 .andExpect(jsonPath("$.tarefaAtual.responsavel").doesNotExist())
@@ -301,7 +302,7 @@ class ConsultaHttpTest {
     void prioridadeSemCriteriosEhAtendimentoNormal() throws Exception {
         when(siga.buscarPorId(101)).thenReturn(Optional.of(requerimento(101, CNPJ_DO_OPERADOR, null)));
 
-        mvc.perform(get("/api/requerimentos/101").header("Authorization", "Bearer " + token("operador.demo")))
+        mvc.perform(get("/api/requerimentos/101").header("Authorization", "Bearer " + token("operador")))
                 .andExpect(jsonPath("$.prioridade.codigo").value("NORMAL"))
                 .andExpect(jsonPath("$.prioridade.descricao").value("Atendimento normal"))
                 .andExpect(jsonPath("$.prioridade.criterios", hasSize(0)))
@@ -314,7 +315,7 @@ class ConsultaHttpTest {
         when(siga.buscarPorId(101)).thenReturn(Optional.of(requerimento(101, CNPJ_DO_OPERADOR, null)));
         when(objetoEPrioridade.prioridade(101)).thenThrow(new SigaIndisponivelException());
 
-        mvc.perform(get("/api/requerimentos/101").header("Authorization", "Bearer " + token("admin.demo")))
+        mvc.perform(get("/api/requerimentos/101").header("Authorization", "Bearer " + token("admin")))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.errorCode").value("SIGA_INDISPONIVEL"));
     }
@@ -325,7 +326,7 @@ class ConsultaHttpTest {
         Requerimento b = requerimento(402, "66666666666", "445/2022");
         when(siga.buscarPorCriterios(any())).thenReturn(new Pagina<>(List.of(b.resumo(), a.resumo()), 2, 0, 20));
 
-        buscar("gestor.demo", "tipo=PROCESSO&numero=445/2022")
+        buscar("gestor", "tipo=PROCESSO&numero=445/2022")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.conteudo", hasSize(2)))
                 .andExpect(jsonPath("$.conteudo[0].id").value(402))
@@ -336,7 +337,7 @@ class ConsultaHttpTest {
     void detalheNaoExpoeChaveDeArquivoNemNomesInternosDoSiga() throws Exception {
         when(siga.buscarPorId(101)).thenReturn(Optional.of(requerimento(101, CNPJ_DO_OPERADOR, null)));
 
-        String corpo = mvc.perform(get("/api/requerimentos/101").header("Authorization", "Bearer " + token("operador.demo")))
+        String corpo = mvc.perform(get("/api/requerimentos/101").header("Authorization", "Bearer " + token("operador")))
                 .andReturn().getResponse().getContentAsString().toLowerCase();
 
         assertThat(corpo).doesNotContain("chave", "camunda", "siga2_");
@@ -346,10 +347,10 @@ class ConsultaHttpTest {
     void detalheDeOutroInteressadoEh403ParaOperadorEOkParaGestor() throws Exception {
         when(siga.buscarPorId(102)).thenReturn(Optional.of(requerimento(102, "45.678.901/0001-23", null)));
 
-        mvc.perform(get("/api/requerimentos/102").header("Authorization", "Bearer " + token("operador.demo")))
+        mvc.perform(get("/api/requerimentos/102").header("Authorization", "Bearer " + token("operador")))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("NAO_INTERESSADO"));
-        mvc.perform(get("/api/requerimentos/102").header("Authorization", "Bearer " + token("gestor.demo")))
+        mvc.perform(get("/api/requerimentos/102").header("Authorization", "Bearer " + token("gestor")))
                 .andExpect(status().isOk());
     }
 
@@ -357,14 +358,14 @@ class ConsultaHttpTest {
     void detalheInexistenteEh404() throws Exception {
         when(siga.buscarPorId(7)).thenReturn(Optional.empty());
 
-        mvc.perform(get("/api/requerimentos/7").header("Authorization", "Bearer " + token("admin.demo")))
+        mvc.perform(get("/api/requerimentos/7").header("Authorization", "Bearer " + token("admin")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("NAO_ENCONTRADO"));
     }
 
     @Test
     void idQueNaoEhNumeroEh400() throws Exception {
-        mvc.perform(get("/api/requerimentos/abc").header("Authorization", "Bearer " + token("admin.demo")))
+        mvc.perform(get("/api/requerimentos/abc").header("Authorization", "Bearer " + token("admin")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("PARAMETRO_INVALIDO"));
     }
@@ -374,7 +375,7 @@ class ConsultaHttpTest {
         when(siga.buscarPorId(101)).thenReturn(Optional.of(requerimento(101, CNPJ_DO_OPERADOR, null)));
         when(tarefas.obter(101)).thenReturn(TarefaAtual.indisponivel());
 
-        mvc.perform(get("/api/requerimentos/101").header("Authorization", "Bearer " + token("operador.demo")))
+        mvc.perform(get("/api/requerimentos/101").header("Authorization", "Bearer " + token("operador")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tarefaAtual.estado").value("INDISPONIVEL"));
     }

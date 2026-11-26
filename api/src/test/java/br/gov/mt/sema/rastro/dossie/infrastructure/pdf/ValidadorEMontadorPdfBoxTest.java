@@ -45,10 +45,10 @@ class ValidadorEMontadorPdfBoxTest {
     private final MontadorPdfBox montador = new MontadorPdfBox();
 
     private static DadosDaCapa capa() {
-        return new DadosDaCapa("Processo", "2825/2025", "Associação Residencial Vale Verde", "12.345.678/0001-90",
+        return new DadosDaCapa("Processo", "2825/2025", "Associação Residencial Vale Verde", "11.222.333/0001-81",
                 "Uso de Recursos Hídricos", "Em análise", LocalDateTime.of(2025, 3, 31, 10, 12),
                 List.of("Consumo humano", "Irrigação"), List.of("Abastecimento público - Captação"),
-                LocalDateTime.of(2026, 10, 21, 14, 30), "Gestor Demo");
+                LocalDateTime.of(2026, 10, 21, 14, 30), "Gestor");
     }
 
     private DocumentoParaMontagem doc(String titulo, int paginas, PDRectangle tamanho, int rotacao) {
@@ -201,17 +201,17 @@ class ValidadorEMontadorPdfBoxTest {
     void capaTrazOsDadosDoRequerimentoComAcentosEFonteSegura() throws IOException {
         Path saida = pasta.resolve("dossie.pdf");
         DadosDaCapa comCaracteresForaDoWinAnsi = new DadosDaCapa("Requerimento", "3331/2025", "Associação Nº 1 — Ωmega 日本",
-                "12.345.678/0001-90", "Uso de Recursos Hídricos", "Em análise", LocalDateTime.of(2025, 3, 31, 10, 12),
+                "11.222.333/0001-81", "Uso de Recursos Hídricos", "Em análise", LocalDateTime.of(2025, 3, 31, 10, 12),
                 List.of("Consumo humano", "Irrigação"), List.of("Captação º ã é ç"), LocalDateTime.of(2026, 10, 21, 14, 30),
-                "Gestor Demo");
+                "Gestor");
 
         montador.montar(comCaracteresForaDoWinAnsi, List.of(doc("Oficio", 1, PDRectangle.A4, 0)), TUDO, saida);
 
         try (PDDocument pdf = Loader.loadPDF(saida.toFile())) {
             String capaTexto = texto(pdf, 1, 1);
             assertThat(capaTexto).contains("Dossiê do Requerimento 3331/2025", "Associação", "Hídricos", "Captação º ã é ç",
-                    "12.345.678/0001-90", "31/03/2025", "Consumo humano", "Irrigação", "Documentos neste dossiê",
-                    "Gerado em 21/10/2026 às 14:30 por Gestor Demo");
+                    "11.222.333/0001-81", "31/03/2025", "Consumo humano", "Irrigação", "Documentos neste dossiê",
+                    "Gerado em 21/10/2026 às 14:30 por Gestor");
             assertThat(capaTexto).contains("?"); // Ω e os ideogramas não cabem no WinAnsi
         }
     }

@@ -72,10 +72,10 @@ class ImutabilidadeDaAuditoriaTest extends BaseHttpDeDocumentos {
 
     @Test
     void escrita_na_auditoria_e_405_mesmo_para_o_administrador_e_nao_muda_nada() throws Exception {
-        registrar.registrar(NovoEvento.de(TipoDeEvento.LOGIN, new UsuarioDoEvento("admin.demo", "Admin Demo", "Administrador")).criar());
+        registrar.registrar(NovoEvento.de(TipoDeEvento.LOGIN, new UsuarioDoEvento("admin", "Administrador", "Administrador")).criar());
         EventoDeAuditoria alvo = eventos.doPeriodo(GrupoDeEvento.ACESSOS, null, null).findFirst().orElseThrow();
         long antes = eventos.doPeriodo(GrupoDeEvento.ACESSOS, null, null).count();
-        String sessao = bearer("admin.demo");
+        String sessao = bearer("admin");
         long depoisDoLogin = antes + 1;
 
         for (HttpMethod metodo : List.of(HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH, HttpMethod.DELETE)) {
@@ -101,7 +101,7 @@ class ImutabilidadeDaAuditoriaTest extends BaseHttpDeDocumentos {
 
     @Test
     void evento_guardado_e_um_record_com_listas_que_nao_mudam() {
-        registrar.registrar(NovoEvento.de(TipoDeEvento.CONSULTA, new UsuarioDoEvento("gestor.demo", "Gestor Demo", "Gestor"))
+        registrar.registrar(NovoEvento.de(TipoDeEvento.CONSULTA, new UsuarioDoEvento("gestor", "Gestor", "Gestor"))
                 .requerimento(101L, "2825/2025", "3331/2025").documentos(List.of(
                         new DocumentoDoEvento("Requerimento", "10", "Licença", "licenca.pdf", false, 1))).criar());
         EventoDeAuditoria evento = eventos.doPeriodo(GrupoDeEvento.DOCUMENTOS, null, null).findFirst().orElseThrow();

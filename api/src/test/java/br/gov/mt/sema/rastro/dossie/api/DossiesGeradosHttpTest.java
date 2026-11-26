@@ -69,37 +69,37 @@ class DossiesGeradosHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void operadorVeSoOsSeusSemQuemGerou() throws Exception {
-        String doOperador = criar("operador.demo", "DOCUMENTO_PROCESSO", "804328");
-        criar("gestor.demo", "DOCUMENTO_PROCESSO", "804328", "COMPLEMENTACAO", "900118");
+        String doOperador = criar("operador", "DOCUMENTO_PROCESSO", "804328");
+        criar("gestor", "DOCUMENTO_PROCESSO", "804328", "COMPLEMENTACAO", "900118");
 
-        JsonNode pagina = lerJson(listar("operador.demo", "").andExpect(status().isOk())
+        JsonNode pagina = lerJson(listar("operador", "").andExpect(status().isOk())
                 .andExpect(jsonPath("$.conteudo[0].geradoPor").doesNotExist()));
 
         assertThat(ids(pagina)).containsExactly(doOperador);
         assertThat(pagina.get("totalElementos").asInt()).isEqualTo(1);
         // somenteMeus não muda nada para o Operador
-        assertThat(ids(lerJson(listar("operador.demo", "?somenteMeus=false")))).containsExactly(doOperador);
+        assertThat(ids(lerJson(listar("operador", "?somenteMeus=false")))).containsExactly(doOperador);
     }
 
     @Test
     void gestorEAdministradorVeemTodosComQuemGerouEFiltramOsSeus() throws Exception {
-        String doOperador = criar("operador.demo", "DOCUMENTO_PROCESSO", "804328");
-        String doGestor = criar("gestor.demo", "DOCUMENTO_PROCESSO", "804328");
+        String doOperador = criar("operador", "DOCUMENTO_PROCESSO", "804328");
+        String doGestor = criar("gestor", "DOCUMENTO_PROCESSO", "804328");
 
-        for (String quem : new String[] {"gestor.demo", "admin.demo"}) {
+        for (String quem : new String[] {"gestor", "admin"}) {
             JsonNode todos = lerJson(listar(quem, "").andExpect(status().isOk()));
             assertThat(ids(todos)).containsExactlyInAnyOrder(doOperador, doGestor);
             todos.get("conteudo").forEach(i -> assertThat(i.get("geradoPor").asText()).isNotBlank());
         }
-        assertThat(ids(lerJson(listar("gestor.demo", "?somenteMeus=true")))).containsExactly(doGestor);
-        assertThat(ids(lerJson(listar("admin.demo", "?somenteMeus=true")))).isEmpty();
+        assertThat(ids(lerJson(listar("gestor", "?somenteMeus=true")))).containsExactly(doGestor);
+        assertThat(ids(lerJson(listar("admin", "?somenteMeus=true")))).isEmpty();
     }
 
     @Test
     void itemTrazIdentificacaoSituacaoEContagensSemDadoDeDocumento() throws Exception {
-        String id = criar("gestor.demo", "DOCUMENTO_PROCESSO", "804328", "COMPLEMENTACAO", "900118");
+        String id = criar("gestor", "DOCUMENTO_PROCESSO", "804328", "COMPLEMENTACAO", "900118");
 
-        JsonNode item = lerJson(listar("gestor.demo", "")).at("/conteudo/0");
+        JsonNode item = lerJson(listar("gestor", "")).at("/conteudo/0");
 
         assertThat(item.get("id").asText()).isEqualTo(id);
         assertThat(item.get("idRequerimento").asLong()).isEqualTo(101);
@@ -120,48 +120,48 @@ class DossiesGeradosHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void baixadoAparecaComoBaixadoSemArquivo() throws Exception {
-        String id = criar("gestor.demo", "DOCUMENTO_PROCESSO", "804328");
+        String id = criar("gestor", "DOCUMENTO_PROCESSO", "804328");
         guardar(mvc.perform(get("/api/dossies/" + id + "/arquivo?disposicao=attachment")
-                .header("Authorization", bearer("gestor.demo")))).andExpect(status().isOk());
+                .header("Authorization", bearer("gestor")))).andExpect(status().isOk());
 
-        listar("gestor.demo", "").andExpect(jsonPath("$.conteudo[0].situacao").value("BAIXADO"))
+        listar("gestor", "").andExpect(jsonPath("$.conteudo[0].situacao").value("BAIXADO"))
                 .andExpect(jsonPath("$.conteudo[0].temArquivo").value(false))
                 .andExpect(jsonPath("$.conteudo[0].tamanhoBytes").isEmpty());
     }
 
     @Test
     void pedidoAlheioPorIdContinua404ParaOOperador() throws Exception {
-        String doGestor = criar("gestor.demo", "DOCUMENTO_PROCESSO", "804328");
+        String doGestor = criar("gestor", "DOCUMENTO_PROCESSO", "804328");
 
-        guardar(mvc.perform(get("/api/dossies/" + doGestor).header("Authorization", bearer("operador.demo"))))
+        guardar(mvc.perform(get("/api/dossies/" + doGestor).header("Authorization", bearer("operador"))))
                 .andExpect(status().isNotFound());
-        assertThat(ids(lerJson(listar("operador.demo", "")))).isEmpty();
+        assertThat(ids(lerJson(listar("operador", "")))).isEmpty();
     }
 
     @Test
     void paginacaoEParametrosInvalidos() throws Exception {
         for (int i = 0; i < 3; i++) {
-            criar("gestor.demo", "DOCUMENTO_PROCESSO", "804328");
+            criar("gestor", "DOCUMENTO_PROCESSO", "804328");
         }
 
-        listar("gestor.demo", "?pagina=1&tamanho=2").andExpect(status().isOk())
+        listar("gestor", "?pagina=1&tamanho=2").andExpect(status().isOk())
                 .andExpect(jsonPath("$.conteudo.length()").value(1))
                 .andExpect(jsonPath("$.totalElementos").value(3))
                 .andExpect(jsonPath("$.totalPaginas").value(2))
                 .andExpect(jsonPath("$.tamanho").value(2));
-        listar("gestor.demo", "?tamanho=51").andExpect(status().isBadRequest())
+        listar("gestor", "?tamanho=51").andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("PARAMETRO_INVALIDO"));
-        listar("gestor.demo", "?pagina=-1").andExpect(status().isBadRequest());
+        listar("gestor", "?pagina=-1").andExpect(status().isBadRequest());
         guardar(mvc.perform(get("/api/dossies"))).andExpect(status().isUnauthorized());
     }
 
     @Test
     void nenhumaRespostaTrazNomeDeArquivoTituloChaveOuToken() throws Exception {
-        criar("operador.demo", "DOCUMENTO_PROCESSO", "804328");
-        criar("gestor.demo", "DOCUMENTO_PROCESSO", "804328", "DOCUMENTO_PROCESSO", "804329");
-        listar("operador.demo", "");
-        listar("gestor.demo", "");
-        listar("admin.demo", "?somenteMeus=true");
+        criar("operador", "DOCUMENTO_PROCESSO", "804328");
+        criar("gestor", "DOCUMENTO_PROCESSO", "804328", "DOCUMENTO_PROCESSO", "804329");
+        listar("operador", "");
+        listar("gestor", "");
+        listar("admin", "?somenteMeus=true");
 
         String[] proibidos = {"requerimento.pdf", "Requerimento assinado", "laudo-reservado", "Laudo reservado",
                 "oficio.pdf", CHAVE_1, CHAVE_SIGILOSA, TOKEN_DE_ARQUIVOS, "CHAVE-INTERNA"};

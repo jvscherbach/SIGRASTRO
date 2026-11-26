@@ -73,7 +73,7 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void postDevolve202ComUuidEOCorpoSemNenhumSegredo() throws Exception {
-        ResultActions r = criar("gestor.demo", 101, "DOCUMENTO_PROCESSO", "804328", "COMPLEMENTACAO", "900118")
+        ResultActions r = criar("gestor", 101, "DOCUMENTO_PROCESSO", "804328", "COMPLEMENTACAO", "900118")
                 .andExpect(status().isAccepted())
                 .andExpect(header().exists("X-Correlation-Id"))
                 .andExpect(jsonPath("$.id", not(emptyOrNullString())));
@@ -87,23 +87,23 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void postAceitaOIdDoDocumentoComoNumeroNoJson() throws Exception {
-        mvc.perform(post("/api/dossies").header("Authorization", bearer("gestor.demo")).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/dossies").header("Authorization", bearer("gestor")).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"idRequerimento\":101,\"documentos\":[{\"origem\":\"DOCUMENTO_PROCESSO\",\"id\":804328}]}"))
                 .andExpect(status().isAccepted());
     }
 
     @Test
     void postComListaVaziaOuSemCamposEh400() throws Exception {
-        mvc.perform(post("/api/dossies").header("Authorization", bearer("gestor.demo")).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/dossies").header("Authorization", bearer("gestor")).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"idRequerimento\":101,\"documentos\":[]}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("PARAMETRO_INVALIDO"))
                 .andExpect(jsonPath("$.campos").isArray());
-        mvc.perform(post("/api/dossies").header("Authorization", bearer("gestor.demo")).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/dossies").header("Authorization", bearer("gestor")).contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("PARAMETRO_INVALIDO"));
-        mvc.perform(post("/api/dossies").header("Authorization", bearer("gestor.demo")).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/dossies").header("Authorization", bearer("gestor")).contentType(MediaType.APPLICATION_JSON)
                 .content("não é json"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("PARAMETRO_INVALIDO"));
@@ -112,19 +112,19 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void postComDocumentoDeOutroRequerimentoIndisponivelOuNaoPdfEh400IndicandoQual() throws Exception {
-        criar("gestor.demo", 101, "DOCUMENTO_PROCESSO", "999999").andExpect(status().isBadRequest())
+        criar("gestor", 101, "DOCUMENTO_PROCESSO", "999999").andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("PARAMETRO_INVALIDO"))
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("DOCUMENTO_PROCESSO/999999")));
-        criar("gestor.demo", 101, "DOCUMENTO_PROCESSO", "804331").andExpect(status().isBadRequest())
+        criar("gestor", 101, "DOCUMENTO_PROCESSO", "804331").andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("indisponível")));
-        criar("gestor.demo", 101, "DOCUMENTO_PROCESSO", "804330").andExpect(status().isBadRequest())
+        criar("gestor", 101, "DOCUMENTO_PROCESSO", "804330").andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("não é PDF")));
         verifyNoInteractions(arquivos);
     }
 
     @Test
     void postComSigilosoParaOperadorEh403DocumentoSigilosoSemRevelarOTitulo() throws Exception {
-        String resposta = criar("operador.demo", 101, "DOCUMENTO_PROCESSO", "804329").andExpect(status().isForbidden())
+        String resposta = criar("operador", 101, "DOCUMENTO_PROCESSO", "804329").andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("DOCUMENTO_SIGILOSO"))
                 .andReturn().getResponse().getContentAsString();
 
@@ -134,12 +134,12 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void gestorPodeIncluirSigiloso() throws Exception {
-        criar("gestor.demo", 101, "DOCUMENTO_PROCESSO", "804329").andExpect(status().isAccepted());
+        criar("gestor", 101, "DOCUMENTO_PROCESSO", "804329").andExpect(status().isAccepted());
     }
 
     @Test
     void postDeOperadorEmRequerimentoDeOutroInteressadoEh403NaoInteressado() throws Exception {
-        criar("operador.demo", 202, "DOCUMENTO_PROCESSO", "804328").andExpect(status().isForbidden())
+        criar("operador", 202, "DOCUMENTO_PROCESSO", "804328").andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("NAO_INTERESSADO"))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
         verifyNoInteractions(arquivos);
@@ -147,7 +147,7 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void postEmRequerimentoInexistenteEh404() throws Exception {
-        criar("gestor.demo", 404, "DOCUMENTO_PROCESSO", "804328").andExpect(status().isNotFound())
+        criar("gestor", 404, "DOCUMENTO_PROCESSO", "804328").andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("NAO_ENCONTRADO"));
     }
 
@@ -165,9 +165,9 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void andamentoConcluidoTrazItensProgressoEPaginas() throws Exception {
-        String id = criarComSucesso("gestor.demo");
+        String id = criarComSucesso("gestor");
 
-        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id))
                 .andExpect(jsonPath("$.status").value("CONCLUIDO"))
@@ -188,14 +188,14 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     @Test
     void andamentoPendenteQuandoAFilaAindaNaoExecutou() throws Exception {
         Mockito.doNothing().when(fila).submeter(any(Runnable.class));
-        String id = criarComSucesso("gestor.demo");
+        String id = criarComSucesso("gestor");
 
-        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("AGUARDANDO"))
                 .andExpect(jsonPath("$.processados").value(0))
                 .andExpect(jsonPath("$.itens[0].situacao").value("AGUARDANDO"));
-        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor")))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.errorCode").value("DOSSIE_SEM_ARQUIVO"));
     }
@@ -204,9 +204,9 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     void andamentoAguardandoDecisaoTrazAsFalhasComMotivoENenhumArquivo() throws Exception {
         Mockito.doThrow(new FalhaNoDocumentoException("tempo limite excedido ao obter o arquivo"))
                 .when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
-        String id = criarComSucesso("gestor.demo");
+        String id = criarComSucesso("gestor");
 
-        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
                 .andExpect(jsonPath("$.processados").value(1))
                 .andExpect(jsonPath("$.erro").doesNotExist())
@@ -219,7 +219,7 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
                 .andExpect(jsonPath("$.itens[0].motivo").doesNotExist())
                 .andExpect(jsonPath("$.itens[0].situacao").value("OK"))
                 .andExpect(jsonPath("$.itens[1].situacao").value("FALHA"));
-        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor")))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.errorCode").value("DOSSIE_SEM_ARQUIVO"));
     }
@@ -227,9 +227,9 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     @Test
     void credencialRecusadaAguardaDecisaoComCodigoESemOTokenNaResposta() throws Exception {
         Mockito.doThrow(new CredencialArquivosRecusadaException()).when(arquivos).baixar(anyString(), any(Path.class));
-        String id = criarComSucesso("gestor.demo");
+        String id = criarComSucesso("gestor");
 
-        String resposta = mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        String resposta = mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
                 .andExpect(jsonPath("$.erro.codigo").value("CREDENCIAL_ARQUIVOS_RECUSADA"))
                 .andExpect(jsonPath("$.erro.motivo").value("Token da API de arquivos expirado ou recusado: capture um novo token."))
@@ -241,9 +241,9 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     @Test
     void pdfInvalidoNoRepositorioViraFalhaDoDocumento() throws Exception {
         conteudos.put(CHAVE_1, "<html>erro</html>".getBytes(StandardCharsets.UTF_8));
-        String id = criarComSucesso("gestor.demo");
+        String id = criarComSucesso("gestor");
 
-        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
                 .andExpect(jsonPath("$.falhas[0].motivo").value("o arquivo não é um PDF (tipo detectado: texto HTML) e a conversão está desligada"))
                 .andExpect(jsonPath("$.falhas[0].id").value("804328"));
@@ -259,9 +259,9 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     @Test
     void documentoDeTipoDesconhecidoQueEPdfEntraNoDossie() throws Exception {
         comDocumentoDeTipoDesconhecido();
-        String id = idDe(criar("gestor.demo", 101, "DOCUMENTO_PROCESSO", "804328", "IMOVEL", "31").andExpect(status().isAccepted()));
+        String id = idDe(criar("gestor", 101, "DOCUMENTO_PROCESSO", "804328", "IMOVEL", "31").andExpect(status().isAccepted()));
 
-        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(jsonPath("$.status").value("CONCLUIDO"));
     }
 
@@ -269,14 +269,14 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     void documentoDeTipoDesconhecidoQueNaoEPdfFalhaSemEntregarArquivo() throws Exception {
         comDocumentoDeTipoDesconhecido();
         conteudos.put("CHAVE-INTERNA-SEM-TIPO", new byte[] {0x50, 0x4B, 0x03, 0x04, 0});
-        String id = idDe(criar("gestor.demo", 101, "DOCUMENTO_PROCESSO", "804328", "IMOVEL", "31").andExpect(status().isAccepted()));
+        String id = idDe(criar("gestor", 101, "DOCUMENTO_PROCESSO", "804328", "IMOVEL", "31").andExpect(status().isAccepted()));
 
-        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
                 .andExpect(jsonPath("$.falhas[0].origem").value("IMOVEL"))
                 .andExpect(jsonPath("$.falhas[0].motivo").value(
                         "o arquivo não é um PDF (tipo detectado: ZIP ou documento do Office (docx, xlsx))"));
-        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor")))
                 .andExpect(status().isConflict());
     }
 
@@ -293,19 +293,19 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     void tentarNovamenteResponde202EObtemSoOQueFalhou() throws Exception {
         Mockito.doThrow(new FalhaNoDocumentoException("tempo limite excedido ao obter o arquivo"))
                 .when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
-        String id = criarComSucesso("gestor.demo");
+        String id = criarComSucesso("gestor");
         Mockito.clearInvocations(arquivos);
         Mockito.doAnswer(chamada -> {
             java.nio.file.Files.write(chamada.<Path>getArgument(1), br.gov.mt.sema.rastro.testsupport.PdfsDeTeste.bytes(1, "novo"));
             return 1;
         }).when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
 
-        String resposta = continuar("gestor.demo", id, "TENTAR_NOVAMENTE").andExpect(status().isAccepted())
+        String resposta = continuar("gestor", id, "TENTAR_NOVAMENTE").andExpect(status().isAccepted())
                 .andReturn().getResponse().getContentAsString();
 
         verify(arquivos, Mockito.times(1)).baixar(anyString(), any(Path.class));
         verify(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
-        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(jsonPath("$.status").value("CONCLUIDO"))
                 .andExpect(jsonPath("$.processados").value(2))
                 .andExpect(jsonPath("$.falhas", hasSize(0)));
@@ -318,22 +318,22 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     void removerEContinuarMontaSemBaixarDeNovo() throws Exception {
         Mockito.doThrow(new FalhaNoDocumentoException("arquivo não encontrado no repositório"))
                 .when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
-        String id = criarComSucesso("gestor.demo");
+        String id = criarComSucesso("gestor");
         Mockito.clearInvocations(arquivos);
 
-        continuar("gestor.demo", id, "REMOVER_E_CONTINUAR").andExpect(status().isAccepted());
+        continuar("gestor", id, "REMOVER_E_CONTINUAR").andExpect(status().isAccepted());
 
         verify(arquivos, never()).baixar(anyString(), any(Path.class));
-        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(jsonPath("$.status").value("CONCLUIDO"))
                 .andExpect(jsonPath("$.itens[1].situacao").value("REMOVIDO"));
     }
 
     @Test
     void continuacaoSemDecisaoPendenteEh409() throws Exception {
-        String id = criarComSucesso("gestor.demo");
+        String id = criarComSucesso("gestor");
 
-        continuar("gestor.demo", id, "TENTAR_NOVAMENTE")
+        continuar("gestor", id, "TENTAR_NOVAMENTE")
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.errorCode").value("DOSSIE_SEM_DECISAO_PENDENTE"));
     }
@@ -342,9 +342,9 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     void continuacaoComAcaoInvalidaEh400() throws Exception {
         Mockito.doThrow(new FalhaNoDocumentoException("arquivo não encontrado no repositório"))
                 .when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
-        String id = criarComSucesso("gestor.demo");
+        String id = criarComSucesso("gestor");
 
-        continuar("gestor.demo", id, "REINICIAR")
+        continuar("gestor", id, "REINICIAR")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("PARAMETRO_INVALIDO"));
     }
@@ -353,35 +353,35 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     void continuacaoDePedidoDeOutroUsuarioEh404ParaOperador() throws Exception {
         Mockito.doThrow(new FalhaNoDocumentoException("arquivo não encontrado no repositório"))
                 .when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
-        String id = criarComSucesso("gestor.demo");
+        String id = criarComSucesso("gestor");
 
-        continuar("operador.demo", id, "TENTAR_NOVAMENTE")
+        continuar("operador", id, "TENTAR_NOVAMENTE")
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("NAO_ENCONTRADO"));
-        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"));
     }
 
     @Test
     void pedidoDeOutroUsuarioNaoExisteParaOperadorMasGestorVe() throws Exception {
-        String idDoGestor = criarComSucesso("gestor.demo");
+        String idDoGestor = criarComSucesso("gestor");
 
-        mvc.perform(get("/api/dossies/" + idDoGestor).header("Authorization", bearer("operador.demo")))
+        mvc.perform(get("/api/dossies/" + idDoGestor).header("Authorization", bearer("operador")))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.errorCode").value("NAO_ENCONTRADO"));
-        mvc.perform(get("/api/dossies/" + idDoGestor + "/arquivo").header("Authorization", bearer("operador.demo")))
+        mvc.perform(get("/api/dossies/" + idDoGestor + "/arquivo").header("Authorization", bearer("operador")))
                 .andExpect(status().isNotFound());
-        mvc.perform(delete("/api/dossies/" + idDoGestor).header("Authorization", bearer("operador.demo")))
+        mvc.perform(delete("/api/dossies/" + idDoGestor).header("Authorization", bearer("operador")))
                 .andExpect(status().isNotFound());
 
-        String idDoOperador = idDe(criar("operador.demo", 101, "COMPLEMENTACAO", "900118").andExpect(status().isAccepted()));
-        mvc.perform(get("/api/dossies/" + idDoOperador).header("Authorization", bearer("operador.demo"))).andExpect(status().isOk());
-        mvc.perform(get("/api/dossies/" + idDoOperador).header("Authorization", bearer("gestor.demo"))).andExpect(status().isOk());
-        mvc.perform(get("/api/dossies/" + idDoOperador).header("Authorization", bearer("admin.demo"))).andExpect(status().isOk());
+        String idDoOperador = idDe(criar("operador", 101, "COMPLEMENTACAO", "900118").andExpect(status().isAccepted()));
+        mvc.perform(get("/api/dossies/" + idDoOperador).header("Authorization", bearer("operador"))).andExpect(status().isOk());
+        mvc.perform(get("/api/dossies/" + idDoOperador).header("Authorization", bearer("gestor"))).andExpect(status().isOk());
+        mvc.perform(get("/api/dossies/" + idDoOperador).header("Authorization", bearer("admin"))).andExpect(status().isOk());
     }
 
     @Test
     void idInexistenteEh404() throws Exception {
-        mvc.perform(get("/api/dossies/" + UUID.randomUUID()).header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + UUID.randomUUID()).header("Authorization", bearer("gestor")))
                 .andExpect(status().isNotFound());
     }
 
@@ -389,10 +389,10 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void arquivoInlineDevolvePdfComONomeDoRf18EMantemOArquivo() throws Exception {
-        String id = criarComSucesso("gestor.demo");
+        String id = criarComSucesso("gestor");
 
         MvcResult resultado = mvc.perform(get("/api/dossies/" + id + "/arquivo?disposicao=inline")
-                .header("Authorization", bearer("gestor.demo")))
+                .header("Authorization", bearer("gestor")))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
                 .andExpect(header().string("Content-Disposition", startsWith("inline")))
@@ -404,15 +404,15 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
         assertThat(new String(pdf, 0, 5, StandardCharsets.ISO_8859_1)).isEqualTo("%PDF-");
         assertThat(resultado.getResponse().getContentLength()).isEqualTo(pdf.length);
         // inline não consome o arquivo: pode ser lido de novo
-        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor")))
                 .andExpect(status().isOk());
     }
 
     @Test
     void pdfDoOperadorRegistraOsNaoIncluidosComMotivoSemRevelarOSigilosoNemChaves() throws Exception {
-        String id = idDe(criar("operador.demo", 101, "DOCUMENTO_PROCESSO", "804328").andExpect(status().isAccepted()));
+        String id = idDe(criar("operador", 101, "DOCUMENTO_PROCESSO", "804328").andExpect(status().isAccepted()));
 
-        byte[] pdf = mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("operador.demo")))
+        byte[] pdf = mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("operador")))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
 
         try (org.apache.pdfbox.pdmodel.PDDocument documento = org.apache.pdfbox.Loader.loadPDF(pdf)) {
@@ -442,8 +442,8 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void ticketBaixaSemCabecalhoDeSessaoUmaVezSoEDepoisOArquivoSome() throws Exception {
-        String id = criarComSucesso("gestor.demo");
-        String ticket = emitirTicket("gestor.demo", id);
+        String id = criarComSucesso("gestor");
+        String ticket = emitirTicket("gestor", id);
 
         MvcResult resultado = mvc.perform(get("/api/dossies/" + id + "/arquivo")
                         .param("disposicao", "attachment").param("ticket", ticket))
@@ -460,15 +460,15 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
         mvc.perform(get("/api/dossies/" + id + "/arquivo").param("disposicao", "attachment").param("ticket", ticket))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("TICKET_INVALIDO"));
-        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor")))
                 .andExpect(status().isGone());
     }
 
     @Test
     void ticketDeOutroPedidoOuInventadoEh403ESemTicketContinuaExigindoSessao() throws Exception {
-        String primeiro = criarComSucesso("gestor.demo");
-        String segundo = criarComSucesso("gestor.demo");
-        String ticket = emitirTicket("gestor.demo", primeiro);
+        String primeiro = criarComSucesso("gestor");
+        String segundo = criarComSucesso("gestor");
+        String ticket = emitirTicket("gestor", primeiro);
 
         mvc.perform(get("/api/dossies/" + segundo + "/arquivo").param("disposicao", "attachment").param("ticket", ticket))
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.errorCode").value("TICKET_INVALIDO"));
@@ -480,18 +480,18 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void ticketApresentadoComASessaoDeOutroUsuarioEh403() throws Exception {
-        String id = criarComSucesso("gestor.demo");
-        String ticket = emitirTicket("gestor.demo", id);
+        String id = criarComSucesso("gestor");
+        String ticket = emitirTicket("gestor", id);
 
-        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("admin.demo"))
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("admin"))
                         .param("disposicao", "attachment").param("ticket", ticket))
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.errorCode").value("TICKET_INVALIDO"));
     }
 
     @Test
     void ticketSoServeParaAttachment() throws Exception {
-        String id = criarComSucesso("gestor.demo");
-        String ticket = emitirTicket("gestor.demo", id);
+        String id = criarComSucesso("gestor");
+        String ticket = emitirTicket("gestor", id);
 
         mvc.perform(get("/api/dossies/" + id + "/arquivo").param("disposicao", "inline").param("ticket", ticket))
                 .andExpect(status().isBadRequest());
@@ -499,9 +499,9 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void operadorNaoEmiteTicketDePedidoAlheio() throws Exception {
-        String id = criarComSucesso("gestor.demo");
+        String id = criarComSucesso("gestor");
 
-        mvc.perform(post("/api/dossies/" + id + "/arquivo/ticket").header("Authorization", bearer("operador.demo")))
+        mvc.perform(post("/api/dossies/" + id + "/arquivo/ticket").header("Authorization", bearer("operador")))
                 .andExpect(status().isNotFound());
         mvc.perform(post("/api/dossies/" + id + "/arquivo/ticket"))
                 .andExpect(status().isUnauthorized());
@@ -509,10 +509,10 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void oTicketSoApareceNaRespostaDoProprioPost() throws Exception {
-        String id = criarComSucesso("gestor.demo");
-        String ticket = emitirTicket("gestor.demo", id);
+        String id = criarComSucesso("gestor");
+        String ticket = emitirTicket("gestor", id);
 
-        String andamento = mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        String andamento = mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(jsonPath("$.entregaPorTicket").value(false))
                 .andExpect(jsonPath("$.tamanhoBytes").isNumber())
                 .andReturn().getResponse().getContentAsString();
@@ -530,26 +530,26 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void arquivoAttachmentBaixaUmaVezEDepoisEh410() throws Exception {
-        String id = criarComSucesso("gestor.demo");
+        String id = criarComSucesso("gestor");
 
-        mvc.perform(get("/api/dossies/" + id + "/arquivo?disposicao=attachment").header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id + "/arquivo?disposicao=attachment").header("Authorization", bearer("gestor")))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", startsWith("attachment")))
                 .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("dossie-processo-2825-2025.pdf")));
 
-        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor")))
                 .andExpect(status().isGone())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("DOSSIE_EXPIRADO"));
-        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(jsonPath("$.status").value("EXPIRADO"));
     }
 
     @Test
     void disposicaoInvalidaEh400() throws Exception {
-        String id = criarComSucesso("gestor.demo");
+        String id = criarComSucesso("gestor");
 
-        mvc.perform(get("/api/dossies/" + id + "/arquivo?disposicao=outra").header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id + "/arquivo?disposicao=outra").header("Authorization", bearer("gestor")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("PARAMETRO_INVALIDO"));
     }
@@ -558,16 +558,16 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void deleteDescartaOArquivoECancela() throws Exception {
-        String id = criarComSucesso("gestor.demo");
+        String id = criarComSucesso("gestor");
 
-        mvc.perform(delete("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        mvc.perform(delete("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(status().isNoContent());
 
-        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(jsonPath("$.status").value("CANCELADO"));
-        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor")))
                 .andExpect(status().isConflict());
-        mvc.perform(delete("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        mvc.perform(delete("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(status().isNoContent());
     }
 
@@ -577,18 +577,18 @@ class DossieHttpTest extends BaseHttpDeDocumentos {
     void nenhumaRespostaDeDossieTrazChaveOuToken() throws Exception {
         Mockito.doThrow(new FalhaNoDocumentoException("arquivo não encontrado no repositório"))
                 .when(arquivos).baixar(Mockito.eq(CHAVE_2), any(Path.class));
-        String bom = criarComSucesso("gestor.demo");
-        String ok = idDe(criar("gestor.demo", 101, "DOCUMENTO_PROCESSO", "804328").andExpect(status().isAccepted()));
+        String bom = criarComSucesso("gestor");
+        String ok = idDe(criar("gestor", 101, "DOCUMENTO_PROCESSO", "804328").andExpect(status().isAccepted()));
 
         String[] rotas = {"/api/dossies/" + bom, "/api/dossies/" + ok};
         for (String rota : rotas) {
-            String corpoDaResposta = mvc.perform(get(rota).header("Authorization", bearer("gestor.demo")))
+            String corpoDaResposta = mvc.perform(get(rota).header("Authorization", bearer("gestor")))
                     .andReturn().getResponse().getContentAsString();
             for (String segredo : SEGREDOS) {
                 assertThat(corpoDaResposta).doesNotContain(segredo);
             }
         }
-        String erro = criar("gestor.demo", 101, "DOCUMENTO_PROCESSO", "999999").andReturn().getResponse().getContentAsString();
+        String erro = criar("gestor", 101, "DOCUMENTO_PROCESSO", "999999").andReturn().getResponse().getContentAsString();
         for (String segredo : SEGREDOS) {
             assertThat(erro).doesNotContain(segredo);
         }

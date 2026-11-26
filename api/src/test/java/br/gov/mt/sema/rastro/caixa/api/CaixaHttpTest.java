@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.caixa.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -54,7 +55,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * atualização manual, a auditoria sem dado pessoal e a ausência de CPF e de chave em qualquer resposta. Dados fictícios; os
  * CPFs abaixo são de exemplo (válidos só no dígito, o cadastro exige) e jamais de uma pessoa.
  */
-@SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url=",
+@SpringBootTest(properties = {"rastro.datasource.siga.url=",
         "rastro.caixa.intervalo-minimo-manual-segundos=3600"})
 @AutoConfigureMockMvc
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
@@ -161,7 +162,7 @@ class CaixaHttpTest {
     // --- apoio
 
     private String entrar(String login) throws Exception {
-        String corpo = json.writeValueAsString(Map.of("usuario", login, "senha", "senha-de-teste"));
+        String corpo = json.writeValueAsString(Map.of("usuario", login, "senha", UsuariosDeTeste.senhaDe(login)));
         String resposta = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(corpo))
                 .andReturn().getResponse().getContentAsString();
         return "Bearer " + json.readTree(resposta).get("token").asText();
@@ -169,11 +170,11 @@ class CaixaHttpTest {
 
     private String analista(String login, String cpf) throws Exception {
         Map<String, Object> corpo = new java.util.HashMap<>(Map.of("nome", "Analista Exemplo " + login, "login", login,
-                "perfil", "ANALISTA"));
+                "perfil", "ANALISTA", "senha", UsuariosDeTeste.senhaDe(login)));
         if (cpf != null) {
             corpo.put("cpfCnpj", cpf);
         }
-        MockHttpServletResponse r = mvc.perform(post(USUARIOS).header(HttpHeaders.AUTHORIZATION, entrar("admin.demo"))
+        MockHttpServletResponse r = mvc.perform(post(USUARIOS).header(HttpHeaders.AUTHORIZATION, entrar("admin"))
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(corpo))).andReturn().getResponse();
         assertThat(r.getStatus()).as(r.getContentAsString()).isEqualTo(201);
         return entrar(login);
@@ -226,7 +227,7 @@ class CaixaHttpTest {
     @Test
     void operadorGestorEAdministradorLevam403AntesDeQualquerLeituraENadaEhRegistrado() throws Exception {
         String corpoDoVisto = json.writeValueAsString(Map.of("ids", List.of(1)));
-        for (String usuario : List.of("operador.demo", "gestor.demo", "admin.demo")) {
+        for (String usuario : List.of("operador", "gestor", "admin")) {
             String sessao = entrar(usuario);
             for (var req : List.of(get("/api/caixa"), get("/api/caixa?ordem=INVALIDA"), get("/api/caixa/avisos"),
                     post("/api/caixa/atualizar"),
@@ -383,7 +384,7 @@ class CaixaHttpTest {
         chamar(a, get("/api/caixa?ordem=ALEATORIA"));
         chamar(a, post("/api/caixa/atualizar"));
         chamar(a, post("/api/caixa/avisos/visto").contentType(MediaType.APPLICATION_JSON).content("{\"ids\":[1]}"));
-        String operador = entrar("operador.demo");
+        String operador = entrar("operador");
         chamar(operador, get("/api/caixa"));
 
         List<NovoEvento> eventos = eventosDaCaixa();

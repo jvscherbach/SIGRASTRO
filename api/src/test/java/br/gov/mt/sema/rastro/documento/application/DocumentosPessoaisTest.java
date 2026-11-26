@@ -44,7 +44,7 @@ import org.junit.jupiter.api.Test;
 /** Documentos pessoais do SCORP na lista do requerimento (S4, bloco 5). SIGA e SCORP falsos, dados fictícios. */
 class DocumentosPessoaisTest {
 
-    private static final String CNPJ_DO_OPERADOR = "12.345.678/0001-90";
+    private static final String CNPJ_DO_OPERADOR = "11.222.333/0001-81";
     private static final LocalDateTime D = LocalDateTime.of(2025, 4, 1, 10, 0);
     private static final String INTERESSADO = "CORP-INT";
     private static final String REPRESENTANTE = "CORP-RL";
@@ -90,7 +90,7 @@ class DocumentosPessoaisTest {
 
     @BeforeEach
     void preparar() {
-        usuario = new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true);
+        usuario = new Usuario("gestor", "Gestor", Perfil.OPERADOR_SIGILO, null, true);
         UsuarioAtual atual = new UsuarioAtual() {
             @Override
             public Usuario obter() {
@@ -246,7 +246,7 @@ class DocumentosPessoaisTest {
 
     @Test
     void operadorDeOutroInteressadoNaoChegaAoScorp() {
-        usuario = new Usuario("operador.demo", "Operador Demo", Perfil.OPERADOR, CNPJ_DO_OPERADOR, true);
+        usuario = new Usuario("operador", "Operador", Perfil.OPERADOR, CNPJ_DO_OPERADOR, true);
 
         assertThatThrownBy(() -> listar.executar(202)).isInstanceOf(NaoInteressadoException.class);
         assertThat(pessoasLidas).isEmpty();
@@ -313,8 +313,8 @@ class DocumentosPessoaisTest {
     }
 
     private static List<Usuario> usuarios() {
-        return List.of(new Usuario("operador.demo", "Operador Demo", Perfil.OPERADOR, CNPJ_DO_OPERADOR, true),
-                new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true),
-                new Usuario("admin.demo", "Admin Demo", Perfil.ADMIN, null, true));
+        return List.of(new Usuario("operador", "Operador", Perfil.OPERADOR, CNPJ_DO_OPERADOR, true),
+                new Usuario("gestor", "Gestor", Perfil.OPERADOR_SIGILO, null, true),
+                new Usuario("admin", "Administrador", Perfil.ADMIN, null, true));
     }
 }

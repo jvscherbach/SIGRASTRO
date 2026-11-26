@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.financeiro.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -60,7 +61,7 @@ import org.springframework.test.web.servlet.ResultActions;
  * lançamentos fictícios por dublê da porta (o SQL é provado em {@code LancamentosDoSigaJdbcTest}). Cenários no espírito
  * do FIN01, FIN03, FIN05, FIN07, FIN10 e FIN13; vencimentos longe de hoje (o relógio é o do projeto).
  */
-@SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url=",
+@SpringBootTest(properties = {"rastro.datasource.siga.url=",
         "rastro.tramitacao.tramitacao-cache-segundos=0"})
 @AutoConfigureMockMvc
 class FinanceiroHttpTest {
@@ -73,7 +74,7 @@ class FinanceiroHttpTest {
     private static final long BANCO_FORA = 9020;
     private static final long DE_OUTRO = 9021;
     private static final String PROCESSO = "9900/2026";
-    private static final String CNPJ_DO_OPERADOR = "12.345.678/0001-90";
+    private static final String CNPJ_DO_OPERADOR = "11.222.333/0001-81";
     private static final String CPF_DE_OUTRO = "000.000.000-91";
     private static final LocalDate VENCEU = LocalDate.of(2020, 1, 10);
     private static final LocalDate VENCE = LocalDate.of(2099, 12, 31);
@@ -173,7 +174,7 @@ class FinanceiroHttpTest {
     }
 
     private ResultActions obter(String usuario, String caminho) throws Exception {
-        String corpo = json.writeValueAsString(Map.of("usuario", usuario, "senha", "senha-de-teste"));
+        String corpo = json.writeValueAsString(Map.of("usuario", usuario, "senha", UsuariosDeTeste.senhaDe(usuario)));
         String token = json.readTree(mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content(corpo)).andReturn().getResponse().getContentAsString()).get("token").asText();
         return mvc.perform(get(caminho).header("Authorization", "Bearer " + token));
@@ -203,7 +204,7 @@ class FinanceiroHttpTest {
 
     @Test
     void gestorVeATaxaPagaComDarDatasEValoresMasNenhumIdNemDiagnostico() throws Exception {
-        String corpo = texto(obter("gestor.demo", "/api/requerimentos/" + PAGA + "/financeiro")
+        String corpo = texto(obter("gestor", "/api/requerimentos/" + PAGA + "/financeiro")
                 .andExpect(status().isOk()));
         JsonNode r = json.readTree(corpo);
         assertThat(r.get("estado").asText()).isEqualTo("ATIVO");
@@ -232,7 +233,7 @@ class FinanceiroHttpTest {
 
     @Test
     void taxaVencidaPorDataMantemASituacaoDoSigaEAcrescentaOAviso() throws Exception {
-        JsonNode r = ok("gestor.demo", "/api/requerimentos/" + VENCIDA_POR_DATA + "/financeiro");
+        JsonNode r = ok("gestor", "/api/requerimentos/" + VENCIDA_POR_DATA + "/financeiro");
         assertThat(r.get("resumo").asText()).isEqualTo("VENCIDO");
         JsonNode l = r.get("lancamentos").get(0);
         assertThat(l.get("situacao").asText()).isEqualTo("AGUARDANDO_PAGAMENTO");
@@ -244,7 +245,7 @@ class FinanceiroHttpTest {
 
     @Test
     void isentoTemUmaEntradaComDataDoLancamentoESemDarNemRotuloDeTaxa() throws Exception {
-        JsonNode r = ok("gestor.demo", "/api/requerimentos/" + ISENTA + "/financeiro");
+        JsonNode r = ok("gestor", "/api/requerimentos/" + ISENTA + "/financeiro");
         assertThat(r.get("resumo").asText()).isEqualTo("ISENTO");
         assertThat(r.get("isencoes")).hasSize(1);
         JsonNode i = r.get("isencoes").get(0);
@@ -261,7 +262,7 @@ class FinanceiroHttpTest {
 
     @Test
     void semLancamentoEhSemTaxa() throws Exception {
-        JsonNode r = ok("gestor.demo", "/api/requerimentos/" + SEM_TAXA + "/financeiro");
+        JsonNode r = ok("gestor", "/api/requerimentos/" + SEM_TAXA + "/financeiro");
         assertThat(r.get("estado").asText()).isEqualTo("ATIVO");
         assertThat(r.get("resumo").asText()).isEqualTo("SEM_TAXA");
         assertThat(r.get("lancamentos")).isEmpty();
@@ -270,7 +271,7 @@ class FinanceiroHttpTest {
 
     @Test
     void ignoradosNaoAparecemParaGestorNemOperadorEAdministradorVeOsContadosPorMotivo() throws Exception {
-        for (String usuario : List.of("gestor.demo", "operador.demo")) {
+        for (String usuario : List.of("gestor", "operador")) {
             String corpo = texto(obter(usuario, "/api/requerimentos/" + FALSO_E_VALIDO + "/financeiro")
                     .andExpect(status().isOk()));
             JsonNode r = json.readTree(corpo);
@@ -279,14 +280,14 @@ class FinanceiroHttpTest {
             assertThat(corpo).doesNotContain("FALSO_SEM_DAR").doesNotContain("RUIDO_ISENTO_AGUARDANDO")
                     .doesNotContain("ignorados");
         }
-        JsonNode admin = ok("admin.demo", "/api/requerimentos/" + FALSO_E_VALIDO + "/financeiro");
+        JsonNode admin = ok("admin", "/api/requerimentos/" + FALSO_E_VALIDO + "/financeiro");
         assertThat(admin.get("ignoradosPorMotivo").get("FALSO_SEM_DAR").asInt()).isEqualTo(1);
         assertThat(admin.get("ignoradosPorMotivo").get("RUIDO_ISENTO_AGUARDANDO").asInt()).isEqualTo(1);
     }
 
     @Test
     void administradorVeIdsTecnicosEOsCamposDeDiagnostico() throws Exception {
-        JsonNode r = ok("admin.demo", "/api/requerimentos/" + ISENTA + "/financeiro");
+        JsonNode r = ok("admin", "/api/requerimentos/" + ISENTA + "/financeiro");
         JsonNode l = r.get("lancamentos").get(0);
         assertThat(l.get("idTecnico").asLong()).isEqualTo(3L);
         assertThat(l.get("statusProcessado").asText()).isEqualTo("N");
@@ -300,7 +301,7 @@ class FinanceiroHttpTest {
 
     @Test
     void bancoForaDoArEh200ComIndisponivelERegistraAConsulta() throws Exception {
-        String corpo = texto(obter("gestor.demo", "/api/requerimentos/" + BANCO_FORA + "/financeiro")
+        String corpo = texto(obter("gestor", "/api/requerimentos/" + BANCO_FORA + "/financeiro")
                 .andExpect(status().isOk()));
         JsonNode r = json.readTree(corpo);
         assertThat(r.get("estado").asText()).isEqualTo("INDISPONIVEL");
@@ -314,8 +315,8 @@ class FinanceiroHttpTest {
 
     @Test
     void operadorLeSoOQueEDele() throws Exception {
-        ok("operador.demo", "/api/requerimentos/" + PAGA + "/financeiro");
-        obter("operador.demo", "/api/requerimentos/" + DE_OUTRO + "/financeiro")
+        ok("operador", "/api/requerimentos/" + PAGA + "/financeiro");
+        obter("operador", "/api/requerimentos/" + DE_OUTRO + "/financeiro")
                 .andExpect(status().isForbidden())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.errorCode")
                         .value("NAO_INTERESSADO"));
@@ -324,7 +325,7 @@ class FinanceiroHttpTest {
 
     @Test
     void requerimentoInexistenteEh404SemLerNemRegistrar() throws Exception {
-        for (String usuario : List.of("operador.demo", "gestor.demo", "admin.demo")) {
+        for (String usuario : List.of("operador", "gestor", "admin")) {
             obter(usuario, "/api/requerimentos/404/financeiro").andExpect(status().isNotFound());
         }
         verify(lancamentos, never()).lerDoRequerimento(404L);
@@ -342,9 +343,9 @@ class FinanceiroHttpTest {
 
     @Test
     void processoDevolveUmHistoricoPorRequerimentoVisivelEOperadorSoVeOsSeus() throws Exception {
-        JsonNode gestor = ok("gestor.demo", "/api/processos/9900-2026/financeiro");
+        JsonNode gestor = ok("gestor", "/api/processos/9900-2026/financeiro");
         assertThat(gestor).hasSize(requerimentos.size());
-        JsonNode operador = ok("operador.demo", "/api/processos/9900-2026/financeiro");
+        JsonNode operador = ok("operador", "/api/processos/9900-2026/financeiro");
         assertThat(operador).hasSize(requerimentos.size() - 1);
         operador.forEach(r -> assertThat(r.get("idRequerimento").asLong()).isNotEqualTo(DE_OUTRO));
         // Um banco fora do ar num requerimento não derruba a lista.
@@ -362,13 +363,13 @@ class FinanceiroHttpTest {
 
     @Test
     void registraFinanceiroComUsuarioENumerosSemValorNemDarNemCpf() throws Exception {
-        ok("gestor.demo", "/api/requerimentos/" + PAGA + "/financeiro");
+        ok("gestor", "/api/requerimentos/" + PAGA + "/financeiro");
 
         List<NovoEvento> eventos = eventosFinanceiros();
         assertThat(eventos).hasSize(1);
         NovoEvento e = eventos.getFirst();
         assertThat(e.tipo().grupo().name()).isEqualTo("DOCUMENTOS");
-        assertThat(e.usuario().login()).isEqualTo("gestor.demo");
+        assertThat(e.usuario().login()).isEqualTo("gestor");
         assertThat(e.idRequerimento()).isEqualTo(PAGA);
         assertThat(e.numeroRequerimento()).isEqualTo(PAGA + "/2026");
         assertThat(e.numeroProcesso()).isEqualTo(PROCESSO);
@@ -379,7 +380,7 @@ class FinanceiroHttpTest {
 
     @Test
     void acessoNegadoNaoRegistra() throws Exception {
-        obter("operador.demo", "/api/requerimentos/" + DE_OUTRO + "/financeiro").andExpect(status().isForbidden());
+        obter("operador", "/api/requerimentos/" + DE_OUTRO + "/financeiro").andExpect(status().isForbidden());
         assertThat(eventosFinanceiros()).isEmpty();
     }
 }

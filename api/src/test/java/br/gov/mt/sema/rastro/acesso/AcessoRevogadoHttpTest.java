@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import java.nio.charset.StandardCharsets;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,15 +44,16 @@ class AcessoRevogadoHttpTest extends BaseHttpDeDocumentos {
 
     private String incluir(String perfil) throws Exception {
         String login = "revogado.teste" + SEQUENCIA.incrementAndGet();
-        assertThat(mvc.perform(post(USUARIOS).header(HttpHeaders.AUTHORIZATION, bearer("admin.demo"))
+        assertThat(mvc.perform(post(USUARIOS).header(HttpHeaders.AUTHORIZATION, bearer("admin"))
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(
-                        Map.of("nome", "Pessoa de Teste", "login", login, "cpfCnpj", CPF, "perfil", perfil))))
+                        Map.of("nome", "Pessoa de Teste", "login", login, "cpfCnpj", CPF, "perfil", perfil,
+                                "senha", UsuariosDeTeste.senhaDe(login)))))
                 .andReturn().getResponse().getStatus()).isEqualTo(201);
         return login;
     }
 
     private void alterar(String login, Map<String, ?> corpo) throws Exception {
-        assertThat(mvc.perform(patch(USUARIOS + "/" + login).header(HttpHeaders.AUTHORIZATION, bearer("admin.demo"))
+        assertThat(mvc.perform(patch(USUARIOS + "/" + login).header(HttpHeaders.AUTHORIZATION, bearer("admin"))
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(corpo)))
                 .andReturn().getResponse().getStatus()).isEqualTo(200);
     }
@@ -141,7 +143,7 @@ class AcessoRevogadoHttpTest extends BaseHttpDeDocumentos {
     @Test
     void ticket_de_pedido_de_outro_usuario_cai_quando_quem_o_pediu_e_rebaixado() throws Exception {
         String login = incluir("OPERADOR_SIGILO");
-        String id = gerar(bearer("gestor.demo"), 101, COMUM, SIGILOSO);
+        String id = gerar(bearer("gestor"), 101, COMUM, SIGILOSO);
         String ticket = ticket(bearer(login), id);
 
         alterar(login, Map.of("perfil", "OPERADOR"));

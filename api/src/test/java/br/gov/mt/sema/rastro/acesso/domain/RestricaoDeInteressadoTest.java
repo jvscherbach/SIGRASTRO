@@ -12,12 +12,12 @@ class RestricaoDeInteressadoTest {
 
     @Test
     void operadorSoPermiteOMesmoCpfCnpjComOuSemMascara() {
-        RestricaoDeInteressado restricao = RestricaoDeInteressado.de(usuario(Perfil.OPERADOR, "12.345.678/0001-90"));
+        RestricaoDeInteressado restricao = RestricaoDeInteressado.de(usuario(Perfil.OPERADOR, "11.222.333/0001-81"));
 
         assertThat(restricao.restrita()).isTrue();
-        assertThat(restricao.digitos()).isEqualTo("12345678000190");
-        assertThat(restricao.permite("12345678000190")).isTrue();
-        assertThat(restricao.permite("12.345.678/0001-90")).isTrue();
+        assertThat(restricao.digitos()).isEqualTo("11222333000181");
+        assertThat(restricao.permite("11222333000181")).isTrue();
+        assertThat(restricao.permite("11.222.333/0001-81")).isTrue();
         assertThat(restricao.permite("45.678.901/0001-23")).isFalse();
         assertThat(restricao.permite(null)).isFalse();
     }
@@ -28,7 +28,7 @@ class RestricaoDeInteressadoTest {
             RestricaoDeInteressado restricao = RestricaoDeInteressado.de(usuario(Perfil.OPERADOR, vazio));
 
             assertThat(restricao.semAcessoAlgum()).as("[" + vazio + "]").isTrue();
-            assertThat(restricao.permite("12345678000190")).isFalse();
+            assertThat(restricao.permite("11222333000181")).isFalse();
             assertThat(restricao.permite(null)).isFalse();
         }
     }
@@ -40,7 +40,7 @@ class RestricaoDeInteressadoTest {
 
             assertThat(restricao.restrita()).isFalse();
             assertThat(restricao.semAcessoAlgum()).isFalse();
-            assertThat(restricao.permite("12345678000190")).isTrue();
+            assertThat(restricao.permite("11222333000181")).isTrue();
             assertThat(restricao.permite(null)).isTrue();
         }
     }

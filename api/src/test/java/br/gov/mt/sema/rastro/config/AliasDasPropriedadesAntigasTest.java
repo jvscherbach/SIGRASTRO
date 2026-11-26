@@ -40,11 +40,11 @@ class AliasDasPropriedadesAntigasTest {
 
     @Test
     void antigaSozinhaContinuaValendoEAvisaSemOValor() {
-        StandardEnvironment ambiente = ambienteCom(Map.of("vistas.demo.senha", VALOR_SECRETO));
+        StandardEnvironment ambiente = ambienteCom(Map.of("vistas.arquivos.token", VALOR_SECRETO));
 
-        assertThat(ambiente.getProperty("rastro.demo.senha")).isEqualTo(VALOR_SECRETO);
+        assertThat(ambiente.getProperty("rastro.arquivos.token")).isEqualTo(VALOR_SECRETO);
         assertThat(avisos).singleElement().asString()
-                .contains("vistas.demo.senha", "rastro.demo.senha", "depreciada")
+                .contains("vistas.arquivos.token", "rastro.arquivos.token", "depreciada")
                 .doesNotContain(VALOR_SECRETO);
     }
 
@@ -79,15 +79,15 @@ class AliasDasPropriedadesAntigasTest {
 
     @Test
     void variavelDeAmbienteComNomeAntigoNaoViraAliasNemAviso() {
-        // VISTAS_DEMO_SENHA continua sendo lida pelo placeholder do application.yml; não é a propriedade antiga.
+        // VISTAS_ARQUIVOS_TOKEN continua sendo lida pelo placeholder do application.yml; não é a propriedade antiga.
         StandardEnvironment ambiente = new StandardEnvironment();
         ambiente.getPropertySources().addFirst(new SystemEnvironmentPropertySource("ambienteDeTeste",
-                Map.of("VISTAS_DEMO_SENHA", VALOR_SECRETO)));
+                Map.of("VISTAS_ARQUIVOS_TOKEN", VALOR_SECRETO)));
         ambiente.getPropertySources().addLast(new MapPropertySource("yml",
-                Map.of("rastro.demo.senha", "${VISTAS_DEMO_SENHA:}")));
+                Map.of("rastro.arquivos.token", "${VISTAS_ARQUIVOS_TOKEN:}")));
         alias.postProcessEnvironment(ambiente, new SpringApplication());
 
-        assertThat(ambiente.getProperty("rastro.demo.senha")).isEqualTo(VALOR_SECRETO);
+        assertThat(ambiente.getProperty("rastro.arquivos.token")).isEqualTo(VALOR_SECRETO);
         assertThat(avisos).isEmpty();
     }
 

@@ -46,12 +46,12 @@ import org.springframework.test.web.servlet.MockMvc;
  * Base dos testes HTTP de documentos e dossiê: SIGA e API de arquivos falsos (nenhum sistema real), geração síncrona
  * e pasta temporária própria. As chaves e o token abaixo são marcadores que NUNCA podem aparecer numa resposta.
  */
-@SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url=",
+@SpringBootTest(properties = {"rastro.datasource.siga.url=",
         "rastro.arquivos.url=", "rastro.arquivos.token=TOKEN-ARQUIVOS-DE-TESTE", "rastro.dossie.espaco-minimo-mb=0"})
 @AutoConfigureMockMvc
 public abstract class BaseHttpDeDocumentos {
 
-    public static final String CNPJ_DO_OPERADOR = "12.345.678/0001-90";
+    public static final String CNPJ_DO_OPERADOR = "11.222.333/0001-81";
     public static final String TOKEN_DE_ARQUIVOS = "TOKEN-ARQUIVOS-DE-TESTE";
     public static final String CHAVE_1 = "CHAVE-INTERNA-0001";
     public static final String CHAVE_2 = "CHAVE-INTERNA-0002";
@@ -148,7 +148,7 @@ public abstract class BaseHttpDeDocumentos {
     }
 
     protected String token(String usuario) throws Exception {
-        String corpo = json.writeValueAsString(Map.of("usuario", usuario, "senha", "senha-de-teste"));
+        String corpo = json.writeValueAsString(Map.of("usuario", usuario, "senha", UsuariosDeTeste.senhaDe(usuario)));
         String resposta = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON).content(corpo)).andReturn().getResponse().getContentAsString();
         return json.readTree(resposta).get("token").asText();

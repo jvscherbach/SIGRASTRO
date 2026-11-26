@@ -25,7 +25,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  */
 class PoliticaDeAcessoTest {
 
-    private static final String CNPJ_DO_OPERADOR = "12.345.678/0001-90";
+    private static final String CNPJ_DO_OPERADOR = "11.222.333/0001-81";
     private static final String CNPJ_DE_OUTRO = "98.765.432/0001-10";
 
     private Usuario usuario;
@@ -43,10 +43,10 @@ class PoliticaDeAcessoTest {
 
     private static Usuario usuario(Perfil perfil) {
         return switch (perfil) {
-            case OPERADOR -> new Usuario("operador.demo", "Operador Demo", perfil, CNPJ_DO_OPERADOR, true);
-            case OPERADOR_SIGILO -> new Usuario("gestor.demo", "Gestor Demo", perfil, null, true);
+            case OPERADOR -> new Usuario("operador", "Operador", perfil, CNPJ_DO_OPERADOR, true);
+            case OPERADOR_SIGILO -> new Usuario("gestor", "Gestor", perfil, null, true);
             case ANALISTA -> new Usuario("analista.exemplo", "Analista Exemplo 01", perfil, "000.000.000-01", true);
-            case ADMIN -> new Usuario("admin.demo", "Admin Demo", perfil, null, true);
+            case ADMIN -> new Usuario("admin", "Administrador", perfil, null, true);
         };
     }
 
@@ -136,11 +136,11 @@ class PoliticaDeAcessoTest {
 
     @Test
     void operadorSemCpfCnpjNaoAcessaNadaNemOProprioPedido() {
-        usuario = new Usuario("operador.demo", "Operador Demo", Perfil.OPERADOR, " ", true);
+        usuario = new Usuario("operador", "Operador", Perfil.OPERADOR, " ", true);
 
         assertThat(politica.podeAcessarRequerimento(usuario, CNPJ_DO_OPERADOR)).isFalse();
         assertThat(politica.podeAcessarRequerimento(usuario, null)).isFalse();
-        assertThat(politica.podeAcessarPedido(new PedidoDeUsuario("operador.demo", CNPJ_DO_OPERADOR))).isFalse();
+        assertThat(politica.podeAcessarPedido(new PedidoDeUsuario("operador", CNPJ_DO_OPERADOR))).isFalse();
         assertThat(politica.restricaoDoUsuarioAtual().semAcessoAlgum()).isTrue();
     }
 
@@ -155,23 +155,23 @@ class PoliticaDeAcessoTest {
     void cpfCnpjComparadoSoPelosDigitos() {
         usuario = usuario(Perfil.OPERADOR);
 
-        assertThat(politica.podeAcessarRequerimento(usuario, "12345678000190")).isTrue();
-        assertThat(politica.podeAcessarPedido(new PedidoDeUsuario("operador.demo", "12345678000190"))).isTrue();
+        assertThat(politica.podeAcessarRequerimento(usuario, "11222333000181")).isTrue();
+        assertThat(politica.podeAcessarPedido(new PedidoDeUsuario("operador", "11222333000181"))).isTrue();
     }
 
     @Test
     void operadorDonoComOutroCpfCnpjPerdeOAcessoAoPedido() {
         // Reforço do bloco 1: o pedido guarda o interessado; se o vínculo do usuário mudar, o pedido some para ele.
-        usuario = new Usuario("operador.demo", "Operador Demo", Perfil.OPERADOR, CNPJ_DE_OUTRO, true);
+        usuario = new Usuario("operador", "Operador", Perfil.OPERADOR, CNPJ_DE_OUTRO, true);
 
-        assertThat(politica.podeAcessarPedido(new PedidoDeUsuario("operador.demo", CNPJ_DO_OPERADOR))).isFalse();
+        assertThat(politica.podeAcessarPedido(new PedidoDeUsuario("operador", CNPJ_DO_OPERADOR))).isFalse();
     }
 
     @Test
     void restricaoDoUsuarioAtualSoParaOperador() {
         usuario = usuario(Perfil.OPERADOR);
         assertThat(politica.restricaoDoUsuarioAtual().restrita()).isTrue();
-        assertThat(politica.restricaoDoUsuarioAtual().digitos()).isEqualTo("12345678000190");
+        assertThat(politica.restricaoDoUsuarioAtual().digitos()).isEqualTo("11222333000181");
         usuario = usuario(Perfil.OPERADOR_SIGILO);
         assertThat(politica.restricaoDoUsuarioAtual().restrita()).isFalse();
         usuario = usuario(Perfil.ADMIN);

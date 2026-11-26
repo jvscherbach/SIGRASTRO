@@ -32,7 +32,7 @@ class GerirConexoesTest {
     private static final UsuarioAtual USUARIO = new UsuarioAtual() {
         @Override
         public Usuario obter() {
-            return new Usuario("admin.demo", "Admin Demo", Perfil.ADMIN, null, true);
+            return new Usuario("admin", "Administrador", Perfil.ADMIN, null, true);
         }
 
         @Override

@@ -114,28 +114,28 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void matrizDePerfisDoDocumentoComum() throws Exception {
-        for (String usuario : new String[] {"operador.demo", "gestor.demo", "admin.demo"}) {
+        for (String usuario : new String[] {"operador", "gestor", "admin"}) {
             pedir(usuario, "DOCUMENTO_PROCESSO", "804328", 101, "pdf").andExpect(status().isOk());
         }
     }
 
     @Test
     void matrizDePerfisDoDocumentoSigiloso() throws Exception {
-        pedir("operador.demo", "DOCUMENTO_PROCESSO", "804329", 101, "pdf")
+        pedir("operador", "DOCUMENTO_PROCESSO", "804329", 101, "pdf")
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("DOCUMENTO_SIGILOSO"));
-        pedir("operador.demo", "DOCUMENTO_PROCESSO", "804329", 101, "original")
+        pedir("operador", "DOCUMENTO_PROCESSO", "804329", 101, "original")
                 .andExpect(status().isForbidden());
         verify(arquivos, never()).baixar(anyString(), any(Path.class));
 
-        for (String usuario : new String[] {"gestor.demo", "admin.demo"}) {
+        for (String usuario : new String[] {"gestor", "admin"}) {
             pedir(usuario, "DOCUMENTO_PROCESSO", "804329", 101, "pdf").andExpect(status().isOk());
         }
     }
 
     @Test
     void operadorDeOutroInteressadoRecebe403SemLerNadaDoRepositorio() throws Exception {
-        pedir("operador.demo", "DOCUMENTO_PROCESSO", "804328", 202, "pdf")
+        pedir("operador", "DOCUMENTO_PROCESSO", "804328", 202, "pdf")
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("NAO_INTERESSADO"));
         verify(documentos, never()).listar(202);
@@ -145,16 +145,16 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
     @Test
     void origemEIdQueNaoPertencemAoRequerimentoSao404() throws Exception {
         // 900118 existe, mas na origem COMPLEMENTACAO: os ids se repetem entre origens.
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "900118", 101, "pdf")
+        pedir("gestor", "DOCUMENTO_PROCESSO", "900118", 101, "pdf")
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.errorCode").value("NAO_ENCONTRADO"));
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "999999", 101, "pdf").andExpect(status().isNotFound());
-        pedir("gestor.demo", "ORIGEM_INVENTADA", "804328", 101, "pdf").andExpect(status().isNotFound());
+        pedir("gestor", "DOCUMENTO_PROCESSO", "999999", 101, "pdf").andExpect(status().isNotFound());
+        pedir("gestor", "ORIGEM_INVENTADA", "804328", 101, "pdf").andExpect(status().isNotFound());
         // documento do requerimento 101 pedido como se fosse do 202
         when(documentos.listar(202)).thenReturn(List.of());
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804328", 202, "pdf").andExpect(status().isNotFound());
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804328", 404, "pdf").andExpect(status().isNotFound());
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804328", 202, "pdf").andExpect(status().isNotFound());
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804328", 404, "pdf").andExpect(status().isNotFound());
         // indisponível (chave "0")
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804331", 101, "pdf").andExpect(status().isNotFound());
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804331", 101, "pdf").andExpect(status().isNotFound());
         verify(arquivos, never()).baixar(anyString(), any(Path.class));
     }
 
@@ -162,10 +162,10 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
     void semTokenEh401EParametrosInvalidosSao400() throws Exception {
         mvc.perform(get("/api/documentos/DOCUMENTO_PROCESSO/804328/conteudo?requerimento=101"))
                 .andExpect(status().isUnauthorized());
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804328", 101, "docx")
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804328", 101, "docx")
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errorCode").value("PARAMETRO_INVALIDO"));
         guardar(mvc.perform(get("/api/documentos/DOCUMENTO_PROCESSO/804328/conteudo")
-                .header("Authorization", bearer("gestor.demo"))))
+                .header("Authorization", bearer("gestor"))))
                 .andExpect(status().isBadRequest());
     }
 
@@ -175,7 +175,7 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
     void pdfDeUmPdfVemComoEstaInline() throws Exception {
         byte[] pdf = PdfsDeTeste.bytes(3, "original em PDF");
         conteudos.put(CHAVE_1, pdf);
-        MockHttpServletResponse resposta = pedir("operador.demo", "DOCUMENTO_PROCESSO", "804328", 101, "pdf")
+        MockHttpServletResponse resposta = pedir("operador", "DOCUMENTO_PROCESSO", "804328", 101, "pdf")
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))
@@ -190,7 +190,7 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void pdfDeXlsxEDocxConverteComOConversorDoDossie() throws Exception {
-        MockHttpServletResponse planilha = pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804330", 101, "pdf")
+        MockHttpServletResponse planilha = pedir("gestor", "DOCUMENTO_PROCESSO", "804330", 101, "pdf")
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
                 .andExpect(header().string("X-Vistas-Convertido-De", "XLSX"))
@@ -198,7 +198,7 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
         assertThat(planilha.getHeader("Content-Disposition")).startsWith("inline").contains("calculo.pdf");
         assertThat(new String(planilha.getContentAsByteArray(), 0, 5, StandardCharsets.US_ASCII)).isEqualTo("%PDF-");
 
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804340", 101, "pdf")
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804340", 101, "pdf")
                 .andExpect(status().isOk())
                 .andExpect(header().string("X-Vistas-Convertido-De", "DOCX"));
 
@@ -211,7 +211,7 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void pdfDeImagemUsaOConversorDeImagens() throws Exception {
-        MockHttpServletResponse resposta = pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804341", 101, "pdf")
+        MockHttpServletResponse resposta = pedir("gestor", "DOCUMENTO_PROCESSO", "804341", 101, "pdf")
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
                 .andExpect(header().string("X-Vistas-Convertido-De", "PNG"))
@@ -222,7 +222,7 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void originalDeHtmlVaiComoDownloadNuncaInline() throws Exception {
-        MockHttpServletResponse resposta = pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804342", 101, "original")
+        MockHttpServletResponse resposta = pedir("gestor", "DOCUMENTO_PROCESSO", "804342", 101, "original")
                 .andExpect(status().isOk())
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))
                 .andReturn().getResponse();
@@ -232,31 +232,31 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void originalDePdfEImagemPodemSerExibidos() throws Exception {
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804341", 101, "original")
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804341", 101, "original")
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.IMAGE_PNG))
                 .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.startsWith("inline")));
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804330", 101, "original")
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804330", 101, "original")
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.startsWith("attachment")));
     }
 
     @Test
     void tipoSemConversaoEh415() throws Exception {
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804343", 101, "pdf")
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804343", 101, "pdf")
                 .andExpect(status().isUnsupportedMediaType())
                 .andExpect(jsonPath("$.errorCode").value("FORMATO_NAO_SUPORTADO"))
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("não tem conversão")));
         // compactado com nome de PDF
         conteudos.put(CHAVE_ESTRANHO, zip("dados/qualquer.txt"));
         cache.esvaziar();
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804343", 101, "pdf")
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804343", 101, "pdf")
                 .andExpect(status().isUnsupportedMediaType());
     }
 
     @Test
     void nomeHostilViraNomeSeguro() throws Exception {
-        String disposicao = pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804344", 101, "original")
+        String disposicao = pedir("gestor", "DOCUMENTO_PROCESSO", "804344", 101, "original")
                 .andExpect(status().isOk()).andReturn().getResponse().getHeader("Content-Disposition");
         assertThat(disposicao).doesNotContain("\r", "\n", "../", "etc/");
         assertThat(disposicao).contains("filename=");
@@ -268,21 +268,21 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
     void falhasDeObtencaoViramProblemDetailComCodigo() throws Exception {
         doThrow(new FalhaNoDocumentoException("arquivo não encontrado no repositório"))
                 .when(arquivos).baixar(eq(CHAVE_1), any(Path.class));
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804328", 101, "pdf")
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804328", 101, "pdf")
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.errorCode").value("NAO_ENCONTRADO"));
 
         doThrow(new FalhaNoDocumentoException("tempo limite excedido ao obter o arquivo"))
                 .when(arquivos).baixar(eq(CHAVE_2), any(Path.class));
-        pedir("gestor.demo", "COMPLEMENTACAO", "900118", 101, "pdf")
+        pedir("gestor", "COMPLEMENTACAO", "900118", 101, "pdf")
                 .andExpect(status().isGatewayTimeout()).andExpect(jsonPath("$.errorCode").value("TEMPO_LIMITE_EXCEDIDO"));
 
         doThrow(new CredencialArquivosRecusadaException()).when(arquivos).baixar(eq(CHAVE_SIGILOSA), any(Path.class));
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804329", 101, "pdf")
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804329", 101, "pdf")
                 .andExpect(status().isBadGateway()).andExpect(jsonPath("$.errorCode").value("CREDENCIAL_ARQUIVOS_RECUSADA"));
 
         doThrow(new FalhaNoDocumentoException("repositório de arquivos indisponível"))
                 .when(arquivos).baixar(eq(CHAVE_DOCX), any(Path.class));
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804340", 101, "pdf")
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804340", 101, "pdf")
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.errorCode").value("REPOSITORIO_DE_ARQUIVOS_INDISPONIVEL"));
         // Falha não deixa nada no cache.
@@ -292,21 +292,21 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
     @Test
     void falhasDeConversaoViramProblemDetailComCodigo() throws Exception {
         doThrow(new FalhaDeConversaoException(Motivo.PROTEGIDO_POR_SENHA)).when(conversor).converter(any(), any(), any(), any());
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804330", 101, "pdf")
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804330", 101, "pdf")
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.errorCode").value("DOCUMENTO_PROTEGIDO_POR_SENHA"))
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("protegido por senha")));
 
         doThrow(new FalhaDeConversaoException(Motivo.CORROMPIDO)).when(conversor).converter(any(), any(), any(), any());
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804330", 101, "pdf")
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804330", 101, "pdf")
                 .andExpect(jsonPath("$.errorCode").value("DOCUMENTO_CORROMPIDO"));
 
         doThrow(new FalhaDeConversaoException(Motivo.TEMPO_LIMITE)).when(conversor).converter(any(), any(), any(), any());
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804330", 101, "pdf")
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804330", 101, "pdf")
                 .andExpect(status().isGatewayTimeout()).andExpect(jsonPath("$.errorCode").value("TEMPO_LIMITE_EXCEDIDO"));
 
         when(conversor.disponivel()).thenReturn(false);
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804330", 101, "pdf")
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804330", 101, "pdf")
                 .andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.errorCode").value("CONVERSOR_INDISPONIVEL"));
         // O original obtido fica no cache: a nova tentativa não baixa de novo.
         verify(arquivos, times(1)).baixar(eq(CHAVE_PLANILHA), any(Path.class));
@@ -316,29 +316,29 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void segundaChamadaUsaOCacheMasConfereOAcessoDeNovo() throws Exception {
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804330", 101, "pdf").andExpect(status().isOk());
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804330", 101, "pdf").andExpect(status().isOk());
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804330", 101, "pdf").andExpect(status().isOk());
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804330", 101, "pdf").andExpect(status().isOk());
         verify(arquivos, times(1)).baixar(eq(CHAVE_PLANILHA), any(Path.class));
         verify(conversor, times(1)).converter(any(), any(), any(), any());
         verify(documentos, times(2)).listar(101);
 
         // Sigiloso já em cache pelo Gestor: o Operador continua barrado.
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804329", 101, "pdf").andExpect(status().isOk());
-        pedir("operador.demo", "DOCUMENTO_PROCESSO", "804329", 101, "pdf")
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804329", 101, "pdf").andExpect(status().isOk());
+        pedir("operador", "DOCUMENTO_PROCESSO", "804329", 101, "pdf")
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.errorCode").value("DOCUMENTO_SIGILOSO"));
         // E o operador de outro interessado não chega ao cache.
-        pedir("operador.demo", "DOCUMENTO_PROCESSO", "804330", 202, "pdf")
+        pedir("operador", "DOCUMENTO_PROCESSO", "804330", 202, "pdf")
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.errorCode").value("NAO_INTERESSADO"));
     }
 
     @Test
     void depoisDoTtlBaixaEConverteDeNovo() throws Exception {
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804330", 101, "pdf").andExpect(status().isOk());
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804330", 101, "pdf").andExpect(status().isOk());
         FileTime antigo = FileTime.from(Instant.now().minusSeconds(parametros.ttlMinutos() * 60L + 5));
         for (Path arquivo : arquivosNoCache()) {
             Files.setLastModifiedTime(arquivo, antigo);
         }
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804330", 101, "pdf").andExpect(status().isOk());
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804330", 101, "pdf").andExpect(status().isOk());
         verify(arquivos, times(2)).baixar(eq(CHAVE_PLANILHA), any(Path.class));
         verify(conversor, times(2)).converter(any(), any(), any(), any());
     }
@@ -355,7 +355,7 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
             Files.write((Path) chamada.getArgument(2), PdfsDeTeste.bytes(1, "convertido"));
             return new ResultadoDaConversao(1, 0);
         }).when(conversor).converter(any(), any(), any(), any());
-        String autorizacao = bearer("gestor.demo");
+        String autorizacao = bearer("gestor");
         AtomicReference<Integer> statusDaPrimeira = new AtomicReference<>();
         Thread primeira = new Thread(() -> {
             try {
@@ -368,7 +368,7 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
         primeira.start();
         try {
             assertThat(convertendo.await(30, TimeUnit.SECONDS)).isTrue();
-            pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804340", 101, "pdf")
+            pedir("gestor", "DOCUMENTO_PROCESSO", "804340", 101, "pdf")
                     .andExpect(status().isTooManyRequests())
                     .andExpect(jsonPath("$.errorCode").value("MUITAS_CONVERSOES"));
         } finally {
@@ -377,14 +377,14 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
         }
         assertThat(statusDaPrimeira.get()).isEqualTo(200);
         // PDF não passa pela fila de conversões.
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804328", 101, "pdf").andExpect(status().isOk());
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804328", 101, "pdf").andExpect(status().isOk());
     }
 
     // --- RNF09 ---
 
     @Test
     void nenhumaRespostaTrazAChaveDoArquivoNemOToken() throws Exception {
-        for (String usuario : new String[] {"gestor.demo", "operador.demo"}) {
+        for (String usuario : new String[] {"gestor", "operador"}) {
             for (String[] doc : new String[][] {{"DOCUMENTO_PROCESSO", "804328"}, {"DOCUMENTO_PROCESSO", "804329"},
                     {"DOCUMENTO_PROCESSO", "804330"}, {"DOCUMENTO_PROCESSO", "804341"}, {"DOCUMENTO_PROCESSO", "804342"},
                     {"DOCUMENTO_PROCESSO", "804343"}, {"DOCUMENTO_PROCESSO", "804331"}, {"COMPLEMENTACAO", "900118"}}) {
@@ -396,9 +396,9 @@ class ConteudoHttpTest extends BaseHttpDeDocumentos {
         doThrow(new FalhaNoDocumentoException("arquivo não encontrado no repositório"))
                 .when(arquivos).baixar(anyString(), any(Path.class));
         cache.esvaziar();
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804328", 101, "pdf");
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804328", 101, "pdf");
         doThrow(new CredencialArquivosRecusadaException()).when(arquivos).baixar(anyString(), any(Path.class));
-        pedir("gestor.demo", "DOCUMENTO_PROCESSO", "804328", 101, "pdf");
+        pedir("gestor", "DOCUMENTO_PROCESSO", "804328", 101, "pdf");
 
         assertThat(respostas).hasSizeGreaterThan(30);
         for (MockHttpServletResponse resposta : respostas) {

@@ -79,7 +79,7 @@ class SemEspacoNaGeracaoTest {
     }
 
     private PedidoDeDossie pedidoDeTres() {
-        return Fakes.pedido("gestor.demo", LocalDateTime.now(relogio), 30,
+        return Fakes.pedido("gestor", LocalDateTime.now(relogio), 30,
                 Fakes.item("1", "Requerimento", "K1"), Fakes.item("2", "Oficio", "K2"), Fakes.item("3", "Laudo", "K3"));
     }
 
@@ -158,7 +158,7 @@ class SemEspacoNaGeracaoTest {
         conversor.aoConverter = () -> {
             throw new FalhaDeConversaoException(FalhaDeConversaoException.Motivo.CORROMPIDO, new IOException(WINDOWS));
         };
-        PedidoDeDossie pedido = Fakes.pedido("gestor.demo", LocalDateTime.now(relogio), 30,
+        PedidoDeDossie pedido = Fakes.pedido("gestor", LocalDateTime.now(relogio), 30,
                 Fakes.item("1", "Requerimento", "K1"),
                 new ItemDoPedido("DOCUMENTO_PROCESSO", "Documento do processo", "2", "Planilha",
                         LocalDateTime.of(2025, 4, 2, 10, 0), "K-XLSX", 1, "xlsx"));
@@ -175,7 +175,7 @@ class SemEspacoNaGeracaoTest {
             espaco.livre = GeradorDeDossie.LIMIAR_DE_DISCO_CHEIO - 1;
             throw new FalhaDeConversaoException(FalhaDeConversaoException.Motivo.CORROMPIDO);
         };
-        PedidoDeDossie pedido = Fakes.pedido("gestor.demo", LocalDateTime.now(relogio), 30,
+        PedidoDeDossie pedido = Fakes.pedido("gestor", LocalDateTime.now(relogio), 30,
                 new ItemDoPedido("DOCUMENTO_PROCESSO", "Documento do processo", "1", "Planilha",
                         LocalDateTime.of(2025, 4, 1, 10, 0), "K-XLSX", 0, "xlsx"));
         parametros.espacoMinimoMb = 0;
@@ -189,7 +189,7 @@ class SemEspacoNaGeracaoTest {
     void documentoCorrompidoComEspacoSobrandoContinuaFalhaDoDocumentoAguardandoDecisao() {
         arquivos.comportamentos.put("K-XLSX", destino -> escrever(destino, ooxml("xl/workbook.xml")));
         conversor.falhas.put("xlsx", FalhaDeConversaoException.Motivo.CORROMPIDO);
-        PedidoDeDossie pedido = Fakes.pedido("gestor.demo", LocalDateTime.now(relogio), 30,
+        PedidoDeDossie pedido = Fakes.pedido("gestor", LocalDateTime.now(relogio), 30,
                 Fakes.item("1", "Requerimento", "K1"),
                 new ItemDoPedido("DOCUMENTO_PROCESSO", "Documento do processo", "2", "Planilha",
                         LocalDateTime.of(2025, 4, 2, 10, 0), "K-XLSX", 1, "xlsx"));

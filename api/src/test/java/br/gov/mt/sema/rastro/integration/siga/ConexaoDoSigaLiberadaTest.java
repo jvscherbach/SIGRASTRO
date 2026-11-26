@@ -76,7 +76,7 @@ class ConexaoDoSigaLiberadaTest {
         UsuarioAtual atual = new UsuarioAtual() {
             @Override
             public Usuario obter() {
-                return new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true);
+                return new Usuario("gestor", "Gestor", Perfil.OPERADOR_SIGILO, null, true);
             }
 
             @Override

@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.financeiro.api;
 
 import static br.gov.mt.sema.rastro.tramitacao.application.PosicoesDeTeste.quandoLer;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
@@ -51,7 +52,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * estourado) ou fora → {@code INDISPONIVEL} (200), nunca 5xx; o financeiro fora não muda a posição, a tramitação nem os
  * documentos; e o inverso: Camunda fora, tramitação quebrada ou documentos fora não mudam o financeiro.
  */
-@SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url=",
+@SpringBootTest(properties = {"rastro.datasource.siga.url=",
         "rastro.tramitacao.tramitacao-cache-segundos=0", "rastro.tramitacao.posicao-cache-segundos=0"})
 @AutoConfigureMockMvc
 class IndependenciaDoFinanceiroHttpTest {
@@ -93,7 +94,7 @@ class IndependenciaDoFinanceiroHttpTest {
     void preparar() {
         reset(siga, documentos, consultar, montar, registrar, lancamentos);
         Requerimento r = new Requerimento(ID, ID + "/2026", "9901/2026", "Requerimento de Outorga",
-                Situacao.de("EM_ANALISE"), EMISSAO, null, new Interessado("Interessado Fictício S9", "12.345.678/0001-90"),
+                Situacao.de("EM_ANALISE"), EMISSAO, null, new Interessado("Interessado Fictício S9", "11.222.333/0001-81"),
                 "Outorga (FICTÍCIO)");
         when(siga.buscarPorId(ID)).thenReturn(Optional.of(r));
         when(siga.buscarPorCriterios(any())).thenReturn(new br.gov.mt.sema.rastro.consulta.domain.Pagina<>(
@@ -109,7 +110,7 @@ class IndependenciaDoFinanceiroHttpTest {
     }
 
     private String token() throws Exception {
-        String corpo = json.writeValueAsString(Map.of("usuario", "gestor.demo", "senha", "senha-de-teste"));
+        String corpo = json.writeValueAsString(Map.of("usuario", "gestor", "senha", UsuariosDeTeste.senhaDe("gestor")));
         return json.readTree(mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(corpo))
                 .andReturn().getResponse().getContentAsString()).get("token").asText();
     }

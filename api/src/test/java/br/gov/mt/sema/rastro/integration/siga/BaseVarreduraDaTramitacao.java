@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.integration.siga;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
@@ -40,7 +41,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * arquivo e token. Sem sistema externo real: só o Oracle 23 Free do Testcontainers.
  */
 @Testcontainers(disabledWithoutDocker = true)
-@SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.tramitacao.posicao-cache-segundos=0"})
+@SpringBootTest(properties = {"rastro.tramitacao.posicao-cache-segundos=0"})
 @AutoConfigureMockMvc
 @ExtendWith(OutputCaptureExtension.class)
 abstract class BaseVarreduraDaTramitacao {
@@ -50,9 +51,9 @@ abstract class BaseVarreduraDaTramitacao {
     static final String PROCESSO_DO_OPERADOR = "7905/2026";
     /** Pessoa do recorte da S1 com o CNPJ de demonstração do Operador ({@code 02-dados.sql}). */
     private static final long PESSOA_DO_OPERADOR = 1;
-    static final String OPERADOR = "operador.demo";
-    static final String GESTOR = "gestor.demo";
-    static final String ADMIN = "admin.demo";
+    static final String OPERADOR = "operador";
+    static final String GESTOR = "gestor";
+    static final String ADMIN = "admin";
     static final List<String> PERFIS = List.of(OPERADOR, GESTOR, ADMIN);
 
     private static final Pattern CPF_SOLTO = Pattern.compile("(?<![0-9])\\d{11}(?![0-9])");
@@ -145,7 +146,7 @@ abstract class BaseVarreduraDaTramitacao {
         if (guardado != null) {
             return guardado;
         }
-        String corpo = json.writeValueAsString(Map.of("usuario", usuario, "senha", "senha-de-teste"));
+        String corpo = json.writeValueAsString(Map.of("usuario", usuario, "senha", UsuariosDeTeste.senhaDe(usuario)));
         String resposta = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(corpo))
                 .andReturn().getResponse().getContentAsString();
         String token = json.readTree(resposta).get("token").asText();
@@ -183,7 +184,7 @@ abstract class BaseVarreduraDaTramitacao {
     static void varrerLog(SoftAssertions soft, String log) {
         soft.assertThat(log).as("log: CPF fictício").doesNotContainPattern("(?<![0-9])000000000\\d{2}(?![0-9])");
         soft.assertThat(log).as("log: CPF fictício com máscara").doesNotContain("000.000.000-");
-        soft.assertThat(log).as("log: CNPJ do Operador").doesNotContain("12345678000190", "12.345.678/0001-90");
+        soft.assertThat(log).as("log: CNPJ do Operador").doesNotContain("11222333000181", "11.222.333/0001-81");
         soft.assertThat(log).as("log: nome de servidor").doesNotContain("Servidor Exemplo");
     }
 }

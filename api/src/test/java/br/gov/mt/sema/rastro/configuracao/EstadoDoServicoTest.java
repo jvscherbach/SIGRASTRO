@@ -32,7 +32,7 @@ class EstadoDoServicoTest extends BaseHttpDeDocumentos {
     void rota_exige_sessao_e_nao_traz_endereco() throws Exception {
         mvc.perform(get("/api/estado")).andExpect(status().isUnauthorized());
 
-        String corpo = mvc.perform(get("/api/estado").header(HttpHeaders.AUTHORIZATION, bearer("operador.demo")))
+        String corpo = mvc.perform(get("/api/estado").header(HttpHeaders.AUTHORIZATION, bearer("operador")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
                 .andExpect(jsonPath("$.modo").value("padrao"))

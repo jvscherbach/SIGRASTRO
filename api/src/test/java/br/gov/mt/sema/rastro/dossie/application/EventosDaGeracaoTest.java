@@ -40,7 +40,7 @@ class EventosDaGeracaoTest {
     }
 
     private PedidoDeDossie pedido() {
-        return Fakes.pedido("gestor.demo", LocalDateTime.of(2026, 10, 21, 10, 0), 30, Fakes.item("1", "Documento", "CHAVE-1"));
+        return Fakes.pedido("gestor", LocalDateTime.of(2026, 10, 21, 10, 0), 30, Fakes.item("1", "Documento", "CHAVE-1"));
     }
 
     @Test
@@ -59,7 +59,7 @@ class EventosDaGeracaoTest {
         assertThat(registrados).extracting(NovoEvento::tipo).containsExactly(TipoDeEvento.FALHA);
         assertThat(registrados.get(0).documentos()).isEmpty();
         assertThat(registrados.get(0).detalhe()).contains("página inválida");
-        assertThat(registrados.get(0).usuario().login()).isEqualTo("gestor.demo");
+        assertThat(registrados.get(0).usuario().login()).isEqualTo("gestor");
     }
 
     @Test

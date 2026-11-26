@@ -24,7 +24,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 class RegistradorDeEventosTest {
 
     private static final NovoEvento LOGIN =
-            NovoEvento.de(TipoDeEvento.LOGIN, new UsuarioDoEvento("gestor.demo", "Gestor Demo", "Gestor")).criar();
+            NovoEvento.de(TipoDeEvento.LOGIN, new UsuarioDoEvento("gestor", "Gestor", "Gestor")).criar();
 
     private static class RepositorioFalso implements RepositorioDeEventos {
 
@@ -61,13 +61,13 @@ class RegistradorDeEventosTest {
         RegistrarEvento registrar = new RegistradorDeEventos(new RepositorioFalso() {
             @Override
             public EventoDeAuditoria incluir(NovoEvento evento) {
-                throw new IllegalStateException("gestor.demo dado-do-evento");
+                throw new IllegalStateException("gestor dado-do-evento");
             }
         });
 
         assertThatCode(() -> registrar.registrar(LOGIN)).doesNotThrowAnyException();
 
-        assertThat(saida).contains("Falha ao registrar evento de auditoria").doesNotContain("dado-do-evento", "gestor.demo");
+        assertThat(saida).contains("Falha ao registrar evento de auditoria").doesNotContain("dado-do-evento", "gestor");
     }
 
     @Test

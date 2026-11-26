@@ -64,7 +64,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  * <pre>./mvnw -Dtestes.excluidos= -Dgroups=desempenho -Dtest=DesempenhoDaConversaoTest -DargLine=-Xmx768m test</pre>
  */
 @Tag("desempenho")
-@SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url=", "rastro.arquivos.url="})
+@SpringBootTest(properties = {"rastro.datasource.siga.url=", "rastro.arquivos.url="})
 class DesempenhoDaConversaoTest {
 
     private static final long MB = 1024L * 1024L;
@@ -526,9 +526,9 @@ class DesempenhoDaConversaoTest {
     }
 
     private static DadosDaCapa capa() {
-        return new DadosDaCapa("Processo", "2825/2025", "Associação Residencial Vale Verde", "12.345.678/0001-90",
+        return new DadosDaCapa("Processo", "2825/2025", "Associação Residencial Vale Verde", "11.222.333/0001-81",
                 "Uso de Recursos Hídricos", "Em análise", LocalDateTime.of(2025, 3, 31, 10, 12), List.of("Consumo humano"),
-                List.of("Captação"), LocalDateTime.of(2026, 10, 27, 10, 0), "Gestor Demo");
+                List.of("Captação"), LocalDateTime.of(2026, 10, 27, 10, 0), "Gestor");
     }
 
     private static long tamanho(Path arquivo) {

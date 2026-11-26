@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.dossie.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
@@ -52,7 +53,7 @@ class SistemasExternosForaDoArHttpTest {
         ObjectMapper json;
 
         String bearer() throws Exception {
-            String corpo = json.writeValueAsString(Map.of("usuario", "gestor.demo", "senha", "senha-de-teste"));
+            String corpo = json.writeValueAsString(Map.of("usuario", "gestor", "senha", UsuariosDeTeste.senhaDe("gestor")));
             String resposta = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(corpo))
                     .andReturn().getResponse().getContentAsString();
             return "Bearer " + json.readTree(resposta).get("token").asText();
@@ -60,7 +61,7 @@ class SistemasExternosForaDoArHttpTest {
     }
 
     @Nested
-    @SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url=", "rastro.arquivos.url=",
+    @SpringBootTest(properties = {"rastro.datasource.siga.url=", "rastro.arquivos.url=",
             "rastro.dossie.diretorio=${java.io.tmpdir}/vistas-teste-externos", "rastro.dossie.espaco-minimo-mb=0"})
     @AutoConfigureMockMvc
     class TudoVazio extends Base {
@@ -80,7 +81,7 @@ class SistemasExternosForaDoArHttpTest {
     }
 
     @Nested
-    @SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url=", "rastro.arquivos.url=",
+    @SpringBootTest(properties = {"rastro.datasource.siga.url=", "rastro.arquivos.url=",
             "rastro.arquivos.token=", "rastro.dossie.diretorio=${java.io.tmpdir}/vistas-teste-externos", "rastro.dossie.espaco-minimo-mb=0"})
     @AutoConfigureMockMvc
     class SoAApiDeArquivosVazia extends Base {
@@ -104,7 +105,7 @@ class SistemasExternosForaDoArHttpTest {
             when(objetoEPrioridade.prioridade(anyLong())).thenReturn(PrioridadeAtendimento.de(List.of()));
             when(siga.buscarPorId(101)).thenReturn(Optional.of(new Requerimento(101, "3331/2025", "2825/2025", null,
                     Situacao.de("EM_ANALISE"), LocalDateTime.of(2025, 3, 31, 10, 12), null,
-                    new Interessado("Associação Residencial Vale Verde", "12345678000190"), "Uso de Recursos Hídricos")));
+                    new Interessado("Associação Residencial Vale Verde", "11222333000181"), "Uso de Recursos Hídricos")));
             when(documentos.listar(101)).thenReturn(List.of(Documento.deLinha(OrigemDocumento.COMPLEMENTACAO, "1", 101, "K1",
                     "Ofício", "oficio.pdf", LocalDateTime.of(2025, 4, 1, 10, 0), null, 0)));
             String autorizacao = bearer();

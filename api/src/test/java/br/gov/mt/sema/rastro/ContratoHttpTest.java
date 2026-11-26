@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro;
 
 import static org.hamcrest.Matchers.hasSize;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.emptyOrNullString;
@@ -21,7 +22,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-@SpringBootTest(properties = "rastro.demo.senha=senha-de-teste")
+@SpringBootTest
 @AutoConfigureMockMvc
 class ContratoHttpTest {
 
@@ -35,12 +36,12 @@ class ContratoHttpTest {
 
     @Test
     void loginValidoDevolveTokenEPerfil() throws Exception {
-        login("operador.demo", "senha-de-teste")
+        login("operador", UsuariosDeTeste.senhaDe("operador"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token", not(emptyOrNullString())))
                 .andExpect(jsonPath("$.tipo").value("Bearer"))
                 .andExpect(jsonPath("$.usuario.perfil").value("OPERADOR"))
-                .andExpect(jsonPath("$.usuario.cpfCnpj").value("12.345.678/0001-90"))
+                .andExpect(jsonPath("$.usuario.cpfCnpj").value("11222333000181"))
                 .andExpect(jsonPath("$.usuario.permissoes.restritoAoInteressado").value(true))
                 .andExpect(jsonPath("$.usuario.permissoes.verResponsavelTarefa").value(false))
                 .andExpect(jsonPath("$.usuario.permissoes.verPainel").value(false))
@@ -50,7 +51,7 @@ class ContratoHttpTest {
 
     @Test
     void loginComSenhaErradaDevolve401EmProblemDetail() throws Exception {
-        login("operador.demo", "errada")
+        login("operador", "errada")
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("NAO_AUTENTICADO"))
@@ -62,7 +63,7 @@ class ContratoHttpTest {
 
     @Test
     void loginComUsuarioInexistenteDevolve401() throws Exception {
-        login("ninguem", "senha-de-teste")
+        login("ninguem", UsuariosDeTeste.senhaDe("ninguem"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.errorCode").value("NAO_AUTENTICADO"));
     }
@@ -103,14 +104,14 @@ class ContratoHttpTest {
 
     @Test
     void meComTokenDevolveOUsuarioEEcoaOCorrelationIdRecebido() throws Exception {
-        String token = tokenDe("admin.demo");
+        String token = tokenDe("admin");
 
         mvc.perform(get("/api/auth/me")
                         .header("Authorization", "Bearer " + token)
                         .header("X-Correlation-Id", "teste-123"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("X-Correlation-Id", "teste-123"))
-                .andExpect(jsonPath("$.login").value("admin.demo"))
+                .andExpect(jsonPath("$.login").value("admin"))
                 .andExpect(jsonPath("$.perfil").value("ADMIN"))
                 .andExpect(jsonPath("$.permissoes.acessarConfiguracoes").value(true))
                 .andExpect(jsonPath("$.permissoes.verResponsavelTarefa").value(true))
@@ -127,7 +128,7 @@ class ContratoHttpTest {
 
     @Test
     void rotaInexistenteAutenticadaDevolve404() throws Exception {
-        String token = tokenDe("gestor.demo");
+        String token = tokenDe("gestor");
 
         mvc.perform(get("/api/nao-existe").header("Authorization", "Bearer " + token))
                 .andExpect(status().isNotFound())
@@ -139,7 +140,7 @@ class ContratoHttpTest {
 
     @Test
     void metodoNaoPermitidoDevolve405EmProblemDetail() throws Exception {
-        String token = tokenDe("gestor.demo");
+        String token = tokenDe("gestor");
 
         mvc.perform(get("/api/auth/logout").header("Authorization", "Bearer " + token))
                 .andExpect(status().isMethodNotAllowed())
@@ -150,7 +151,7 @@ class ContratoHttpTest {
 
     @Test
     void logoutInvalidaOToken() throws Exception {
-        String token = tokenDe("operador.demo");
+        String token = tokenDe("operador");
 
         mvc.perform(post("/api/auth/logout").header("Authorization", "Bearer " + token))
                 .andExpect(status().isNoContent());
@@ -171,7 +172,7 @@ class ContratoHttpTest {
     }
 
     private String tokenDe(String usuario) throws Exception {
-        String resposta = login(usuario, "senha-de-teste").andReturn().getResponse().getContentAsString();
+        String resposta = login(usuario, UsuariosDeTeste.senhaDe(usuario)).andReturn().getResponse().getContentAsString();
         JsonNode no = json.readTree(resposta);
         return no.get("token").asText();
     }

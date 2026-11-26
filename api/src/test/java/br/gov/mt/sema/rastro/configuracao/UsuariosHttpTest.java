@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.configuracao;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -51,8 +52,10 @@ class UsuariosHttpTest extends BaseHttpDeDocumentos {
     }
 
     private MockHttpServletResponse incluir(String usuario, Map<String, ?> corpo) throws Exception {
+        Map<String, Object> comSenha = new HashMap<>(corpo);
+        comSenha.putIfAbsent("senha", UsuariosDeTeste.senhaDe(String.valueOf(corpo.get("login")).trim().toLowerCase()));
         return mvc.perform(post(USUARIOS).header(HttpHeaders.AUTHORIZATION, bearer(usuario))
-                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(corpo)))
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(comSenha)))
                 .andReturn().getResponse();
     }
 
@@ -64,14 +67,14 @@ class UsuariosHttpTest extends BaseHttpDeDocumentos {
 
     private String incluirOperador() throws Exception {
         String login = novoLogin();
-        assertThat(incluir("admin.demo", Map.of("nome", "Usuária de Teste", "login", login, "cpfCnpj", CPF,
+        assertThat(incluir("admin", Map.of("nome", "Usuária de Teste", "login", login, "cpfCnpj", CPF,
                 "perfil", "OPERADOR")).getStatus()).isEqualTo(201);
         return login;
     }
 
     private String incluirGestor() throws Exception {
         String login = novoLogin();
-        assertThat(incluir("admin.demo", Map.of("nome", "Gestora de Teste", "login", login, "perfil", "OPERADOR_SIGILO"))
+        assertThat(incluir("admin", Map.of("nome", "Gestora de Teste", "login", login, "perfil", "OPERADOR_SIGILO"))
                 .getStatus()).isEqualTo(201);
         return login;
     }
@@ -98,35 +101,35 @@ class UsuariosHttpTest extends BaseHttpDeDocumentos {
     @Test
     void so_o_administrador() throws Exception {
         Map<String, Object> corpo = Map.of("nome", "X", "login", novoLogin(), "perfil", "ADMIN");
-        for (String usuario : List.of("operador.demo", "gestor.demo")) {
+        for (String usuario : List.of("operador", "gestor")) {
             erro(listar(usuario), 403, "PERFIL_SEM_PERMISSAO");
             erro(incluir(usuario, corpo), 403, "PERFIL_SEM_PERMISSAO");
-            erro(alterar(usuario, "gestor.demo", Map.of("ativo", false)), 403, "PERFIL_SEM_PERMISSAO");
+            erro(alterar(usuario, "gestor", Map.of("ativo", false)), 403, "PERFIL_SEM_PERMISSAO");
         }
-        assertThat(listar("admin.demo").getStatus()).isEqualTo(200);
+        assertThat(listar("admin").getStatus()).isEqualTo(200);
         assertThat(mvc.perform(get(USUARIOS)).andReturn().getResponse().getStatus()).isEqualTo(401);
     }
 
     @Test
     void lista_com_campos_e_cpf_cnpj_mascarado() throws Exception {
-        MockHttpServletResponse resposta = listar("admin.demo");
+        MockHttpServletResponse resposta = listar("admin");
 
-        JsonNode operador = noUsuario(resposta, "operador.demo");
-        assertThat(operador.get("id").asText()).isEqualTo("operador.demo");
+        JsonNode operador = noUsuario(resposta, "operador");
+        assertThat(operador.get("id").asText()).isEqualTo("operador");
         assertThat(operador.get("perfil").asText()).isEqualTo("OPERADOR");
         assertThat(operador.get("perfilRotulo").asText()).isEqualTo("Operador");
         assertThat(operador.get("ativo").asBoolean()).isTrue();
-        assertThat(operador.get("cpfCnpj").asText()).isEqualTo("**.345.678/****-**");
-        assertThat(noUsuario(resposta, "gestor.demo").get("cpfCnpj").isNull()).isTrue();
-        assertThat(noUsuario(resposta, "admin.demo").get("ultimoAcesso").isNull()).isFalse();
-        assertThat(resposta.getContentAsString()).doesNotContain("12345678000190", CNPJ_DO_OPERADOR);
+        assertThat(operador.get("cpfCnpj").asText()).isEqualTo("**.222.333/****-**");
+        assertThat(noUsuario(resposta, "gestor").get("cpfCnpj").isNull()).isTrue();
+        assertThat(noUsuario(resposta, "admin").get("ultimoAcesso").isNull()).isFalse();
+        assertThat(resposta.getContentAsString()).doesNotContain("11222333000181", CNPJ_DO_OPERADOR);
     }
 
     @Test
     void inclusao_valida_normaliza_o_login_guarda_mascarado_e_gera_evento_sem_documento() throws Exception {
         String login = novoLogin();
 
-        MockHttpServletResponse resposta = incluir("admin.demo", Map.of("nome", " Usuária de Teste ",
+        MockHttpServletResponse resposta = incluir("admin", Map.of("nome", " Usuária de Teste ",
                 "login", "  " + login.toUpperCase() + " ", "cpfCnpj", CPF, "perfil", "OPERADOR"));
 
         assertThat(resposta.getStatus()).isEqualTo(201);
@@ -138,16 +141,16 @@ class UsuariosHttpTest extends BaseHttpDeDocumentos {
                 .doesNotContain(CPF, CPF_DIGITOS);
         assertThat(eventosDe(login)).hasSize(1);
         EventoDeAuditoria evento = eventosDe(login).get(0);
-        assertThat(evento.usuario().login()).isEqualTo("admin.demo");
+        assertThat(evento.usuario().login()).isEqualTo("admin");
         assertThat(evento.alteracoes()).extracting(AlteracaoDoEvento::item)
-                .containsExactly("Inclusão", "Nome", "Login", "Perfil", "Situação");
+                .containsExactly("Inclusão", "Senha", "Nome", "Login", "Perfil", "Situação");
         assertThat(evento.alteracoes().get(0).valorNovo()).isEqualTo("incluído");
         assertThat(evento.toString()).doesNotContain(CPF, CPF_DIGITOS, "444.777");
     }
 
     @Test
     void cnpj_valido_e_gestor_sem_documento_entram() throws Exception {
-        assertThat(incluir("admin.demo", Map.of("nome", "Empresa", "login", novoLogin(), "cpfCnpj", CNPJ,
+        assertThat(incluir("admin", Map.of("nome", "Empresa", "login", novoLogin(), "cpfCnpj", CNPJ,
                 "perfil", "OPERADOR")).getStatus()).isEqualTo(201);
         incluirGestor();
     }
@@ -161,7 +164,7 @@ class UsuariosHttpTest extends BaseHttpDeDocumentos {
                 new String[] {"cpfCnpj", "111.444.777-36"}, new String[] {"cpfCnpj", ""}, new String[] {"perfil", "CHEFE"})) {
             Map<String, Object> corpo = new HashMap<>(valido);
             corpo.put(caso[0], caso[1]);
-            MockHttpServletResponse resposta = incluir("admin.demo", corpo);
+            MockHttpServletResponse resposta = incluir("admin", corpo);
             erro(resposta, 400, "PARAMETRO_INVALIDO");
             assertThat(resposta.getContentAsString()).contains(caso[0]).doesNotContain("111.444.777-36");
         }
@@ -172,15 +175,15 @@ class UsuariosHttpTest extends BaseHttpDeDocumentos {
     void login_repetido() throws Exception {
         String login = incluirOperador();
 
-        erro(incluir("admin.demo", Map.of("nome", "Outro", "login", login, "cpfCnpj", CPF, "perfil", "OPERADOR")), 409,
+        erro(incluir("admin", Map.of("nome", "Outro", "login", login, "cpfCnpj", CPF, "perfil", "OPERADOR")), 409,
                 "LOGIN_JA_EXISTE");
-        erro(incluir("admin.demo", Map.of("nome", "Outro", "login", "OPERADOR.DEMO", "cpfCnpj", CPF, "perfil", "OPERADOR")),
+        erro(incluir("admin", Map.of("nome", "Outro", "login", "OPERADOR", "cpfCnpj", CPF, "perfil", "OPERADOR")),
                 409, "LOGIN_JA_EXISTE");
         assertThat(eventosDe(login)).hasSize(1);
     }
 
     @Test
-    void usuario_incluido_entra_com_a_senha_do_prototipo() throws Exception {
+    void usuario_incluido_entra_com_a_senha_definida_na_inclusao() throws Exception {
         assertThat(mvc.perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, bearer(incluirOperador())))
                 .andReturn().getResponse().getStatus()).isEqualTo(200);
     }
@@ -189,7 +192,7 @@ class UsuariosHttpTest extends BaseHttpDeDocumentos {
     void alteracao_gera_um_evento_com_antes_e_depois() throws Exception {
         String login = incluirGestor();
 
-        MockHttpServletResponse resposta = alterar("admin.demo", login, Map.of("perfil", "ADMIN", "ativo", false));
+        MockHttpServletResponse resposta = alterar("admin", login, Map.of("perfil", "ADMIN", "ativo", false));
 
         assertThat(resposta.getStatus()).isEqualTo(200);
         assertThat(eventosDe(login)).hasSize(2);
@@ -202,54 +205,54 @@ class UsuariosHttpTest extends BaseHttpDeDocumentos {
     void sem_mudanca_real_nao_gera_evento() throws Exception {
         String login = incluirGestor();
 
-        assertThat(alterar("admin.demo", login, Map.of("perfil", "OPERADOR_SIGILO", "ativo", true)).getStatus()).isEqualTo(200);
+        assertThat(alterar("admin", login, Map.of("perfil", "OPERADOR_SIGILO", "ativo", true)).getStatus()).isEqualTo(200);
 
         assertThat(eventosDe(login)).hasSize(1);
     }
 
     @Test
     void alterar_usuario_inexistente_ou_com_dado_invalido() throws Exception {
-        erro(alterar("admin.demo", "nao.existe", Map.of("ativo", false)), 404, "NAO_ENCONTRADO");
-        erro(alterar("admin.demo", incluirGestor(), Map.of("perfil", "CHEFE")), 400, "PARAMETRO_INVALIDO");
+        erro(alterar("admin", "nao.existe", Map.of("ativo", false)), 404, "NAO_ENCONTRADO");
+        erro(alterar("admin", incluirGestor(), Map.of("perfil", "CHEFE")), 400, "PARAMETRO_INVALIDO");
     }
 
     @Test
     void operador_precisa_de_documento_mesmo_na_alteracao() throws Exception {
-        erro(alterar("admin.demo", incluirGestor(), Map.of("perfil", "OPERADOR")), 400, "PARAMETRO_INVALIDO");
+        erro(alterar("admin", incluirGestor(), Map.of("perfil", "OPERADOR")), 400, "PARAMETRO_INVALIDO");
     }
 
     @Test
     void nao_rebaixa_o_ultimo_administrador() throws Exception {
-        erro(alterar("admin.demo", "admin.demo", Map.of("perfil", "OPERADOR_SIGILO")), 409, "ULTIMO_ADMINISTRADOR");
+        erro(alterar("admin", "admin", Map.of("perfil", "OPERADOR_SIGILO")), 409, "ULTIMO_ADMINISTRADOR");
     }
 
     @Test
     void nao_desativa_o_proprio_usuario() throws Exception {
         String segundo = incluirGestor();
-        alterar("admin.demo", segundo, Map.of("perfil", "ADMIN"));
+        alterar("admin", segundo, Map.of("perfil", "ADMIN"));
 
-        erro(alterar("admin.demo", "admin.demo", Map.of("ativo", false)), 409, "PROPRIO_USUARIO");
+        erro(alterar("admin", "admin", Map.of("ativo", false)), 409, "PROPRIO_USUARIO");
 
-        alterar("admin.demo", segundo, Map.of("ativo", false));
+        alterar("admin", segundo, Map.of("ativo", false));
     }
 
     @Test
     void com_dois_administradores_um_pode_se_rebaixar() throws Exception {
         String segundo = incluirGestor();
-        alterar("admin.demo", segundo, Map.of("perfil", "ADMIN"));
+        alterar("admin", segundo, Map.of("perfil", "ADMIN"));
 
         assertThat(alterar(segundo, segundo, Map.of("perfil", "OPERADOR_SIGILO")).getStatus()).isEqualTo(200);
 
-        erro(alterar("admin.demo", "admin.demo", Map.of("perfil", "OPERADOR_SIGILO")), 409, "ULTIMO_ADMINISTRADOR");
+        erro(alterar("admin", "admin", Map.of("perfil", "OPERADOR_SIGILO")), 409, "ULTIMO_ADMINISTRADOR");
     }
 
     @Test
     void usuario_inativo_nao_entra_com_a_mensagem_de_credencial_invalida() throws Exception {
         String login = incluirGestor();
-        alterar("admin.demo", login, Map.of("ativo", false));
+        alterar("admin", login, Map.of("ativo", false));
 
-        MockHttpServletResponse inativo = entrar(login, "senha-de-teste");
-        MockHttpServletResponse senhaErrada = entrar("gestor.demo", "senha-errada");
+        MockHttpServletResponse inativo = entrar(login, UsuariosDeTeste.senhaDe(login));
+        MockHttpServletResponse senhaErrada = entrar("gestor", "senha-errada");
 
         assertThat(inativo.getStatus()).isEqualTo(401);
         assertThat(detalhe(inativo)).isEqualTo(detalhe(senhaErrada));
@@ -272,11 +275,11 @@ class UsuariosHttpTest extends BaseHttpDeDocumentos {
         assertThat(mvc.perform(get("/api/auditoria/acessos").header(HttpHeaders.AUTHORIZATION, sessao))
                 .andReturn().getResponse().getStatus()).isEqualTo(403);
 
-        alterar("admin.demo", login, Map.of("perfil", "ADMIN"));
+        alterar("admin", login, Map.of("perfil", "ADMIN"));
 
         assertThat(mvc.perform(get("/api/auditoria/acessos").header(HttpHeaders.AUTHORIZATION, sessao))
                 .andReturn().getResponse().getStatus()).isEqualTo(200);
-        alterar("admin.demo", login, Map.of("ativo", false));
+        alterar("admin", login, Map.of("ativo", false));
     }
 
     @Test
@@ -284,7 +287,7 @@ class UsuariosHttpTest extends BaseHttpDeDocumentos {
         String login = incluirGestor();
         String sessao = bearer(login);
 
-        alterar("admin.demo", login, Map.of("ativo", false));
+        alterar("admin", login, Map.of("ativo", false));
 
         assertThat(mvc.perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, sessao))
                 .andReturn().getResponse().getStatus()).isEqualTo(401);
@@ -293,11 +296,11 @@ class UsuariosHttpTest extends BaseHttpDeDocumentos {
     @Test
     void reativar_devolve_o_acesso_e_o_historico_fica() throws Exception {
         String login = incluirGestor();
-        alterar("admin.demo", login, Map.of("ativo", false));
+        alterar("admin", login, Map.of("ativo", false));
 
-        assertThat(alterar("admin.demo", login, Map.of("ativo", true)).getStatus()).isEqualTo(200);
+        assertThat(alterar("admin", login, Map.of("ativo", true)).getStatus()).isEqualTo(200);
 
-        assertThat(entrar(login, "senha-de-teste").getStatus()).isEqualTo(200);
+        assertThat(entrar(login, UsuariosDeTeste.senhaDe(login)).getStatus()).isEqualTo(200);
         assertThat(eventosDe(login)).hasSize(3);
     }
 }

@@ -39,7 +39,7 @@ import org.junit.jupiter.api.Test;
 
 class CasosDeUsoDocumentoTest {
 
-    private static final String CNPJ_DO_OPERADOR = "12.345.678/0001-90";
+    private static final String CNPJ_DO_OPERADOR = "11.222.333/0001-81";
     private static final LocalDateTime D1 = LocalDateTime.of(2025, 4, 1, 10, 0);
     private static final LocalDateTime D2 = LocalDateTime.of(2025, 4, 2, 10, 0);
     private static final LocalDateTime D3 = LocalDateTime.of(2025, 4, 3, 10, 0);
@@ -54,7 +54,7 @@ class CasosDeUsoDocumentoTest {
 
     @BeforeEach
     void preparar() {
-        usuario = new Usuario("operador.demo", "Operador Demo", Perfil.OPERADOR, CNPJ_DO_OPERADOR, true);
+        usuario = new Usuario("operador", "Operador", Perfil.OPERADOR, CNPJ_DO_OPERADOR, true);
         UsuarioAtual atual = new UsuarioAtual() {
             @Override
             public Usuario obter() {
@@ -99,7 +99,7 @@ class CasosDeUsoDocumentoTest {
     }
 
     private void comoGestor() {
-        usuario = new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true);
+        usuario = new Usuario("gestor", "Gestor", Perfil.OPERADOR_SIGILO, null, true);
     }
 
     // --- listagem

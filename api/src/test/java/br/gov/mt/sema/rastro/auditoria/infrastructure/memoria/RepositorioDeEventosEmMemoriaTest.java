@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test;
 class RepositorioDeEventosEmMemoriaTest {
 
     private static final Instant INICIO = Instant.parse("2026-03-10T15:00:00Z");
-    private static final UsuarioDoEvento USUARIO = new UsuarioDoEvento("gestor.demo", "Gestor Demo", "Gestor");
+    private static final UsuarioDoEvento USUARIO = new UsuarioDoEvento("gestor", "Gestor", "Gestor");
 
     private static class RelogioControlado extends Clock {
 

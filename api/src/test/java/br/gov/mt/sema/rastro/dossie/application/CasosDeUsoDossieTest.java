@@ -96,7 +96,7 @@ class CasosDeUsoDossieTest {
 
     @BeforeEach
     void preparar() {
-        usuario = new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true);
+        usuario = new Usuario("gestor", "Gestor", Perfil.OPERADOR_SIGILO, null, true);
         UsuarioAtual atual = new UsuarioAtual() {
             @Override
             public Usuario obter() {
@@ -134,7 +134,7 @@ class CasosDeUsoDossieTest {
 
         Requerimento requerimento = new Requerimento(101, "3331/2025", "2825/2025", "Requerimento de Outorga",
                 Situacao.de("EM_ANALISE"), LocalDateTime.of(2025, 3, 31, 10, 12), null,
-                new Interessado("Associação Residencial Vale Verde", "12345678000190"), "Uso de Recursos Hídricos");
+                new Interessado("Associação Residencial Vale Verde", "11222333000181"), "Uso de Recursos Hídricos");
         ObjetoDoRequerimento objeto = new ObjetoDoRequerimento(List.of("Consumo humano", "Irrigação"),
                 List.of(new FinalidadeAtividade("Abastecimento público", "Captação"), new FinalidadeAtividade("Agricultura", null)),
                 List.of(), new AtividadeLicenciamento("Mineração", "Extração de areia"));
@@ -169,7 +169,7 @@ class CasosDeUsoDossieTest {
         assertThat(UUID.fromString(id)).isNotNull();
         PedidoDeDossie pedido = repositorio.buscar(id).orElseThrow();
         assertThat(pedido.status()).isEqualTo(StatusDossie.AGUARDANDO);
-        assertThat(pedido.login()).isEqualTo("gestor.demo");
+        assertThat(pedido.login()).isEqualTo("gestor");
         assertThat(pedido.itens()).extracting(i -> i.origem() + "/" + i.id() + ":" + i.titulo())
                 .containsExactly("DOCUMENTO_PROCESSO/1:r.pdf", "COMPLEMENTACAO/2:oficio.pdf");
         assertThat(pedido.itens().get(0).chaveDoArquivo()).isEqualTo("K1");
@@ -186,13 +186,13 @@ class CasosDeUsoDossieTest {
 
         assertThat(pedido.capa().titulo()).isEqualTo("Dossiê do Processo 2825/2025");
         assertThat(pedido.capa().nomeDoArquivo()).isEqualTo("dossie-processo-2825-2025.pdf");
-        assertThat(pedido.capa().cpfCnpj()).isEqualTo("12.345.678/0001-90");
+        assertThat(pedido.capa().cpfCnpj()).isEqualTo("11.222.333/0001-81");
         assertThat(pedido.capa().interessado()).isEqualTo("Associação Residencial Vale Verde");
         assertThat(pedido.capa().situacao()).isEqualTo("Em análise");
         assertThat(pedido.capa().objetivos()).containsExactly("Consumo humano", "Irrigação");
         assertThat(pedido.capa().atividades()).containsExactly("Abastecimento público - Captação", "Agricultura",
                 "Extração de areia");
-        assertThat(pedido.capa().usuario()).isEqualTo("Gestor Demo");
+        assertThat(pedido.capa().usuario()).isEqualTo("Gestor");
     }
 
     @Test
@@ -247,7 +247,7 @@ class CasosDeUsoDossieTest {
 
     @Test
     void soQuemCriouEGestorEAdminAcessamOPedido() {
-        usuario = new Usuario("operador.demo", "Operador Demo", Perfil.OPERADOR, "12.345.678/0001-90", true);
+        usuario = new Usuario("operador", "Operador", Perfil.OPERADOR, "11.222.333/0001-81", true);
         String idDoOperador = criar.executar(101, refs());
         usuario = new Usuario("outro.operador", "Outro", Perfil.OPERADOR, "98.765.432/0001-10", true);
 
@@ -255,11 +255,11 @@ class CasosDeUsoDossieTest {
         assertThatThrownBy(() -> obterArquivo.executar(idDoOperador)).isInstanceOf(RecursoNaoEncontradoException.class);
         assertThatThrownBy(() -> cancelar.executar(idDoOperador)).isInstanceOf(RecursoNaoEncontradoException.class);
 
-        usuario = new Usuario("operador.demo", "Operador Demo", Perfil.OPERADOR, "12.345.678/0001-90", true);
+        usuario = new Usuario("operador", "Operador", Perfil.OPERADOR, "11.222.333/0001-81", true);
         assertThat(consultar.executar(idDoOperador).status()).isEqualTo(StatusDossie.CONCLUIDO);
-        usuario = new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true);
+        usuario = new Usuario("gestor", "Gestor", Perfil.OPERADOR_SIGILO, null, true);
         assertThat(consultar.executar(idDoOperador).status()).isEqualTo(StatusDossie.CONCLUIDO);
-        usuario = new Usuario("admin.demo", "Admin", Perfil.ADMIN, null, true);
+        usuario = new Usuario("admin", "Admin", Perfil.ADMIN, null, true);
         assertThat(consultar.executar(idDoOperador).status()).isEqualTo(StatusDossie.CONCLUIDO);
     }
 
@@ -409,7 +409,7 @@ class CasosDeUsoDossieTest {
                 .containsKey(br.gov.mt.sema.rastro.dossie.domain.TicketDeDownload.resumo(emitido.ticket()));
         assertThat(tickets.guardados.values()).allSatisfy(t -> {
             assertThat(t.idPedido()).isEqualTo(pedido.id());
-            assertThat(t.login()).isEqualTo("gestor.demo");
+            assertThat(t.login()).isEqualTo("gestor");
         });
         assertThat(emitido.toString()).doesNotContain(emitido.ticket());
     }
@@ -454,7 +454,7 @@ class CasosDeUsoDossieTest {
     void ticketApresentadoPorOutroUsuarioAutenticadoEhInvalido() {
         PedidoDeDossie pedido = criarPedido();
         String ticket = emitirTicket.executar(pedido.id()).ticket();
-        usuario = new Usuario("admin.demo", "Admin", Perfil.ADMIN, null, true);
+        usuario = new Usuario("admin", "Admin", Perfil.ADMIN, null, true);
 
         assertThatThrownBy(() -> obterArquivo.executarPorTicket(pedido.id(), ticket))
                 .isInstanceOf(TicketInvalidoException.class);
@@ -493,7 +493,7 @@ class CasosDeUsoDossieTest {
         obterArquivo.concluirDownload(arquivo);
 
         assertThat(pasta.resolve(pedido.id())).doesNotExist();
-        usuario = new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true);
+        usuario = new Usuario("gestor", "Gestor", Perfil.OPERADOR_SIGILO, null, true);
         assertThatThrownBy(() -> emitirTicket.executar(pedido.id())).isInstanceOf(DossieExpiradoException.class);
     }
 
@@ -896,7 +896,7 @@ class CasosDeUsoDossieTest {
 
     @Test
     void soQuemCriouGestorEAdminDecidem() {
-        usuario = new Usuario("operador.demo", "Operador Demo", Perfil.OPERADOR, "12.345.678/0001-90", true);
+        usuario = new Usuario("operador", "Operador", Perfil.OPERADOR, "11.222.333/0001-81", true);
         PedidoDeDossie pedido = pedidoComFalhasEm3E7();
 
         usuario = new Usuario("outro.operador", "Outro", Perfil.OPERADOR, "98.765.432/0001-10", true);
@@ -904,19 +904,19 @@ class CasosDeUsoDossieTest {
                 .isInstanceOf(RecursoNaoEncontradoException.class);
         assertThat(pedido.status()).isEqualTo(StatusDossie.PENDENTE_DECISAO);
 
-        usuario = new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true);
+        usuario = new Usuario("gestor", "Gestor", Perfil.OPERADOR_SIGILO, null, true);
         continuar.executar(pedido.id(), "REMOVER_E_CONTINUAR");
         assertThat(pedido.status()).isEqualTo(StatusDossie.CONCLUIDO);
     }
 
     // --- "Dossiês gerados" (S4, bloco 7)
 
-    private static final Usuario OPERADOR = new Usuario("operador.demo", "Operador Demo", Perfil.OPERADOR,
-            "12.345.678/0001-90", true);
+    private static final Usuario OPERADOR = new Usuario("operador", "Operador", Perfil.OPERADOR,
+            "11.222.333/0001-81", true);
     private static final Usuario OUTRO_OPERADOR = new Usuario("outro.operador", "Outro", Perfil.OPERADOR,
-            "12.345.678/0001-90", true);
-    private static final Usuario GESTOR = new Usuario("gestor.demo", "Gestor Demo", Perfil.OPERADOR_SIGILO, null, true);
-    private static final Usuario ADMIN = new Usuario("admin.demo", "Admin", Perfil.ADMIN, null, true);
+            "11.222.333/0001-81", true);
+    private static final Usuario GESTOR = new Usuario("gestor", "Gestor", Perfil.OPERADOR_SIGILO, null, true);
+    private static final Usuario ADMIN = new Usuario("admin", "Admin", Perfil.ADMIN, null, true);
 
     private String criarComo(Usuario quem) {
         usuario = quem;
@@ -956,14 +956,14 @@ class CasosDeUsoDossieTest {
                 .satisfies(d -> assertThat(d.geradoPor()).isNull());
         usuario = GESTOR;
         assertThat(listarDossies.executar(false, null, null).itens()).singleElement()
-                .satisfies(d -> assertThat(d.geradoPor()).isEqualTo("Operador Demo"));
+                .satisfies(d -> assertThat(d.geradoPor()).isEqualTo("Operador"));
     }
 
     @Test
     void operadorQueDeixouDeSerOInteressadoNaoVeOProprioPedido() {
         criarComo(OPERADOR);
 
-        assertThat(idsListados(new Usuario("operador.demo", "Operador Demo", Perfil.OPERADOR, "98.765.432/0001-10",
+        assertThat(idsListados(new Usuario("operador", "Operador", Perfil.OPERADOR, "98.765.432/0001-10",
                 true), false)).isEmpty();
     }
 

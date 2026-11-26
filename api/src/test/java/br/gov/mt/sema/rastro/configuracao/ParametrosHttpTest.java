@@ -79,13 +79,13 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
         for (JsonNode parametro : lista.get("parametros")) {
             if (parametro.get("sobreposto").asBoolean()) {
                 mvc.perform(delete(PARAMETROS + "/" + parametro.get("nome").asText())
-                        .header(HttpHeaders.AUTHORIZATION, bearer("admin.demo")));
+                        .header(HttpHeaders.AUTHORIZATION, bearer("admin")));
             }
         }
     }
 
     private String chamarParametros() throws Exception {
-        return mvc.perform(get(PARAMETROS).header(HttpHeaders.AUTHORIZATION, bearer("admin.demo"))).andReturn().getResponse()
+        return mvc.perform(get(PARAMETROS).header(HttpHeaders.AUTHORIZATION, bearer("admin"))).andReturn().getResponse()
                 .getContentAsString(StandardCharsets.UTF_8);
     }
 
@@ -144,7 +144,7 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void so_o_administrador() throws Exception {
-        for (String usuario : List.of("operador.demo", "gestor.demo")) {
+        for (String usuario : List.of("operador", "gestor")) {
             String sessao = bearer(usuario);
             assertThat(mvc.perform(get(PARAMETROS).header(HttpHeaders.AUTHORIZATION, sessao)).andReturn().getResponse()
                     .getContentAsString()).contains("PERFIL_SEM_PERMISSAO");
@@ -157,24 +157,24 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void valida_as_faixas() throws Exception {
-        invalido(salvar("admin.demo", Map.of("dossie.ttlMinutos", 4)), "dossie.ttlMinutos");
-        invalido(salvar("admin.demo", Map.of("dossie.ttlMinutos", 241)), "dossie.ttlMinutos");
-        invalido(salvar("admin.demo", Map.of("dossie.threads", 9)), "dossie.threads");
-        invalido(salvar("admin.demo", Map.of("conexoes.downloadTimeoutSegundos", 9)), "conexoes.downloadTimeoutSegundos");
-        invalido(salvar("admin.demo", Map.of("auditoria.retencaoDocumentosAnos", 3)), "auditoria.retencaoDocumentosAnos");
-        invalido(salvar("admin.demo", Map.of("conversao.planilhaModo", "OUTRO")), "conversao.planilhaModo");
-        invalido(salvar("admin.demo", Map.of("dossie.sumario", "talvez")), "dossie.sumario");
-        invalido(salvar("admin.demo", Map.of("dossie.ttlMinutos", "abc")), "dossie.ttlMinutos");
+        invalido(salvar("admin", Map.of("dossie.ttlMinutos", 4)), "dossie.ttlMinutos");
+        invalido(salvar("admin", Map.of("dossie.ttlMinutos", 241)), "dossie.ttlMinutos");
+        invalido(salvar("admin", Map.of("dossie.threads", 9)), "dossie.threads");
+        invalido(salvar("admin", Map.of("conexoes.downloadTimeoutSegundos", 9)), "conexoes.downloadTimeoutSegundos");
+        invalido(salvar("admin", Map.of("auditoria.retencaoDocumentosAnos", 3)), "auditoria.retencaoDocumentosAnos");
+        invalido(salvar("admin", Map.of("conversao.planilhaModo", "OUTRO")), "conversao.planilhaModo");
+        invalido(salvar("admin", Map.of("dossie.sumario", "talvez")), "dossie.sumario");
+        invalido(salvar("admin", Map.of("dossie.ttlMinutos", "abc")), "dossie.ttlMinutos");
         Map<String, Object> nulo = new LinkedHashMap<>();
         nulo.put("dossie.ttlMinutos", null);
-        invalido(salvar("admin.demo", nulo), "dossie.ttlMinutos");
+        invalido(salvar("admin", nulo), "dossie.ttlMinutos");
     }
 
     @Test
     void recusa_parametro_desconhecido_e_os_que_nao_sao_editaveis() throws Exception {
         for (String nome : List.of("nao.existe", "rastro.scorp.sigilo-padrao", "SCORP_SIGILO_PADRAO", "LICENCIAMENTO_API_TOKEN",
                 "rastro.arquivos.url")) {
-            invalido(salvar("admin.demo", Map.of(nome, "true")), nome);
+            invalido(salvar("admin", Map.of(nome, "true")), nome);
         }
     }
 
@@ -186,7 +186,7 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
         alteracoes.put("visualizacao.ttlMinutos", 20);
         alteracoes.put("dossie.ttlMinutos", 1);
 
-        invalido(salvar("admin.demo", alteracoes), "dossie.ttlMinutos");
+        invalido(salvar("admin", alteracoes), "dossie.ttlMinutos");
 
         assertThat(dossie.sumario()).isTrue();
         assertThat(visualizacao.ttlMinutos()).isEqualTo(10);
@@ -201,11 +201,11 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
         alteracoes.put("conversao.planilhaModo", "PAGINA_POR_ABA");
         alteracoes.put("dossie.threads", 3);
 
-        assertThat(salvar("admin.demo", alteracoes).getStatus()).isEqualTo(200);
+        assertThat(salvar("admin", alteracoes).getStatus()).isEqualTo(200);
 
         List<EventoDeAuditoria> novos = eventosConfigDepoisDe(antes);
         assertThat(novos).hasSize(1);
-        assertThat(novos.get(0).usuario().login()).isEqualTo("admin.demo");
+        assertThat(novos.get(0).usuario().login()).isEqualTo("admin");
         assertThat(novos.get(0).alteracoes()).containsExactly(
                 new AlteracaoDoEvento("Expiração do dossiê (min)", "30", "60"),
                 new AlteracaoDoEvento("Planilhas", "LARGURA", "PAGINA_POR_ABA"),
@@ -216,8 +216,8 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
     void sem_mudanca_real_nao_gera_evento() throws Exception {
         long antes = ultimoId();
 
-        assertThat(salvar("admin.demo", Map.of("dossie.ttlMinutos", 30, "dossie.sumario", true)).getStatus()).isEqualTo(200);
-        assertThat(salvar("admin.demo", Map.of()).getStatus()).isEqualTo(200);
+        assertThat(salvar("admin", Map.of("dossie.ttlMinutos", 30, "dossie.sumario", true)).getStatus()).isEqualTo(200);
+        assertThat(salvar("admin", Map.of()).getStatus()).isEqualTo(200);
 
         assertThat(eventosConfigDepoisDe(antes)).isEmpty();
         assertThat(parametro("dossie.ttlMinutos").get("sobreposto").asBoolean()).isFalse();
@@ -225,7 +225,7 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void imediato_vale_na_proxima_leitura() throws Exception {
-        salvar("admin.demo", Map.of("visualizacao.ttlMinutos", 20, "visualizacao.cacheMaxMb", 700,
+        salvar("admin", Map.of("visualizacao.ttlMinutos", 20, "visualizacao.cacheMaxMb", 700,
                 "auditoria.retencaoAcessosAnos", 2, "dossie.origem.complementacao", false, "dossie.origem.scorp", false));
 
         assertThat(visualizacao.ttlMinutos()).isEqualTo(20);
@@ -243,13 +243,13 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
             adiadas.add(chamada.getArgument(0));
             return null;
         }).when(fila).submeter(any(Runnable.class));
-        String sessao = bearer("gestor.demo");
+        String sessao = bearer("gestor");
         String corpo = "{\"idRequerimento\":101,\"documentos\":[{\"origem\":\"DOCUMENTO_PROCESSO\",\"id\":\"804328\"}]}";
         String antigo = json.readTree(mvc.perform(post("/api/dossies").header(HttpHeaders.AUTHORIZATION, sessao)
                 .contentType(MediaType.APPLICATION_JSON).content(corpo)).andReturn().getResponse().getContentAsString())
                 .get("id").asText();
 
-        salvar("admin.demo", Map.of("dossie.ttlMinutos", 240));
+        salvar("admin", Map.of("dossie.ttlMinutos", 240));
         adiadas.get(0).run();
 
         assertThat(dossie.ttlMinutos()).isEqualTo(240);
@@ -270,7 +270,7 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void exige_reinicio_fica_pendente_e_nao_muda_o_valor_em_vigor() throws Exception {
-        salvar("admin.demo", Map.of("dossie.threads", 5, "conversao.processos", 3));
+        salvar("admin", Map.of("dossie.threads", 5, "conversao.processos", 3));
 
         JsonNode threads = parametro("dossie.threads");
         assertThat(threads.get("valor").asText()).isEqualTo("5");
@@ -282,10 +282,10 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void delete_volta_ao_padrao_com_evento() throws Exception {
-        salvar("admin.demo", Map.of("dossie.ttlMinutos", 60));
+        salvar("admin", Map.of("dossie.ttlMinutos", 60));
         long antes = ultimoId();
 
-        assertThat(mvc.perform(delete(PARAMETROS + "/dossie.ttlMinutos").header(HttpHeaders.AUTHORIZATION, bearer("admin.demo")))
+        assertThat(mvc.perform(delete(PARAMETROS + "/dossie.ttlMinutos").header(HttpHeaders.AUTHORIZATION, bearer("admin")))
                 .andReturn().getResponse().getStatus()).isEqualTo(200);
 
         assertThat(dossie.ttlMinutos()).isEqualTo(30);
@@ -298,7 +298,7 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
     @Test
     void delete_sem_sobreposicao_nao_gera_evento_e_desconhecido_e_404() throws Exception {
         long antes = ultimoId();
-        String sessao = bearer("admin.demo");
+        String sessao = bearer("admin");
 
         assertThat(mvc.perform(delete(PARAMETROS + "/dossie.ttlMinutos").header(HttpHeaders.AUTHORIZATION, sessao))
                 .andReturn().getResponse().getStatus()).isEqualTo(200);
@@ -335,7 +335,7 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
         alteracoes.put("rastro.posicoesSimultaneas", 6);
         alteracoes.put("rastro.camundaTimeoutSegundos", 20);
 
-        assertThat(salvar("admin.demo", alteracoes).getStatus()).isEqualTo(200);
+        assertThat(salvar("admin", alteracoes).getStatus()).isEqualTo(200);
 
         List<EventoDeAuditoria> novos = eventosConfigDepoisDe(antes);
         assertThat(novos).hasSize(1);
@@ -351,17 +351,17 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
         assertThat(rastro.posicoesSimultaneas()).isEqualTo(6);
         assertThat(rastro.camundaTimeoutSegundos()).isEqualTo(20);
         assertThat(json.readTree(mvc.perform(get("/api/tramitacao/parametros")
-                        .header(HttpHeaders.AUTHORIZATION, bearer("operador.demo"))).andReturn().getResponse()
+                        .header(HttpHeaders.AUTHORIZATION, bearer("operador"))).andReturn().getResponse()
                 .getContentAsString()).get("posicoesSimultaneas").asInt()).isEqualTo(6);
     }
 
     @Test
     void rastro_faixas_e_o_operador_nao_altera() throws Exception {
-        invalido(salvar("admin.demo", Map.of("rastro.posicoesSimultaneas", 0)), "rastro.posicoesSimultaneas");
-        invalido(salvar("admin.demo", Map.of("rastro.camundaTimeoutSegundos", 121)), "rastro.camundaTimeoutSegundos");
-        invalido(salvar("admin.demo", Map.of("rastro.mostrarNomeResponsavel", "talvez")), "rastro.mostrarNomeResponsavel");
+        invalido(salvar("admin", Map.of("rastro.posicoesSimultaneas", 0)), "rastro.posicoesSimultaneas");
+        invalido(salvar("admin", Map.of("rastro.camundaTimeoutSegundos", 121)), "rastro.camundaTimeoutSegundos");
+        invalido(salvar("admin", Map.of("rastro.mostrarNomeResponsavel", "talvez")), "rastro.mostrarNomeResponsavel");
 
-        for (String usuario : List.of("operador.demo", "gestor.demo")) {
+        for (String usuario : List.of("operador", "gestor")) {
             MockHttpServletResponse resposta = salvar(usuario, Map.of("rastro.posicoesSimultaneas", 6));
             assertThat(resposta.getStatus()).isEqualTo(403);
             assertThat(resposta.getContentAsString()).contains("PERFIL_SEM_PERMISSAO");
@@ -396,7 +396,7 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
         alteracoes.put("rastro.financeiroLimiteLancamentos", 50);
         alteracoes.put("rastro.financeiroTimeoutSegundos", 30);
 
-        assertThat(salvar("admin.demo", alteracoes).getStatus()).isEqualTo(200);
+        assertThat(salvar("admin", alteracoes).getStatus()).isEqualTo(200);
 
         List<EventoDeAuditoria> novos = eventosConfigDepoisDe(antes);
         assertThat(novos).hasSize(1);
@@ -409,18 +409,18 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
         assertThat(financeiro.consultaTimeoutSegundos()).isEqualTo(30);
         // Voltar ao padrão restaura o ambiente.
         assertThat(mvc.perform(delete(PARAMETROS + "/rastro.mostrarValores")
-                .header(HttpHeaders.AUTHORIZATION, bearer("admin.demo"))).andReturn().getResponse().getStatus()).isEqualTo(200);
+                .header(HttpHeaders.AUTHORIZATION, bearer("admin"))).andReturn().getResponse().getStatus()).isEqualTo(200);
         assertThat(financeiro.mostrarValores()).isTrue();
     }
 
     @Test
     void financeiro_faixas_e_so_o_administrador_altera() throws Exception {
-        invalido(salvar("admin.demo", Map.of("rastro.financeiroLimiteLancamentos", 0)), "rastro.financeiroLimiteLancamentos");
-        invalido(salvar("admin.demo", Map.of("rastro.financeiroLimiteLancamentos", 1001)), "rastro.financeiroLimiteLancamentos");
-        invalido(salvar("admin.demo", Map.of("rastro.financeiroTimeoutSegundos", 121)), "rastro.financeiroTimeoutSegundos");
-        invalido(salvar("admin.demo", Map.of("rastro.mostrarValores", "talvez")), "rastro.mostrarValores");
+        invalido(salvar("admin", Map.of("rastro.financeiroLimiteLancamentos", 0)), "rastro.financeiroLimiteLancamentos");
+        invalido(salvar("admin", Map.of("rastro.financeiroLimiteLancamentos", 1001)), "rastro.financeiroLimiteLancamentos");
+        invalido(salvar("admin", Map.of("rastro.financeiroTimeoutSegundos", 121)), "rastro.financeiroTimeoutSegundos");
+        invalido(salvar("admin", Map.of("rastro.mostrarValores", "talvez")), "rastro.mostrarValores");
 
-        for (String usuario : List.of("operador.demo", "gestor.demo")) {
+        for (String usuario : List.of("operador", "gestor")) {
             MockHttpServletResponse resposta = salvar(usuario, Map.of("rastro.mostrarValores", false));
             assertThat(resposta.getStatus()).as(usuario).isEqualTo(403);
             assertThat(resposta.getContentAsString()).contains("PERFIL_SEM_PERMISSAO");
@@ -466,11 +466,11 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
         assertThat(parametro("rastro.caixaAtualizacaoMinutos").get("maximo").asInt()).isEqualTo(120);
         assertThat(parametro("rastro.caixaIntervaloMinimoManualSegundos").get("minimo").asInt()).isEqualTo(15);
         assertThat(parametro("rastro.caixaIntervaloMinimoManualSegundos").get("maximo").asInt()).isEqualTo(3600);
-        invalido(salvar("admin.demo", Map.of("rastro.caixaAtualizacaoMinutos", 1)), "rastro.caixaAtualizacaoMinutos");
-        invalido(salvar("admin.demo", Map.of("rastro.caixaAtualizacaoMinutos", 121)), "rastro.caixaAtualizacaoMinutos");
-        invalido(salvar("admin.demo", Map.of("rastro.caixaIntervaloMinimoManualSegundos", 14)),
+        invalido(salvar("admin", Map.of("rastro.caixaAtualizacaoMinutos", 1)), "rastro.caixaAtualizacaoMinutos");
+        invalido(salvar("admin", Map.of("rastro.caixaAtualizacaoMinutos", 121)), "rastro.caixaAtualizacaoMinutos");
+        invalido(salvar("admin", Map.of("rastro.caixaIntervaloMinimoManualSegundos", 14)),
                 "rastro.caixaIntervaloMinimoManualSegundos");
-        invalido(salvar("admin.demo", Map.of("rastro.caixaIntervaloMinimoManualSegundos", 3601)),
+        invalido(salvar("admin", Map.of("rastro.caixaIntervaloMinimoManualSegundos", 3601)),
                 "rastro.caixaIntervaloMinimoManualSegundos");
     }
 
@@ -482,7 +482,7 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
         alteracoes.put("rastro.painelAtualizacaoMinutos", 10);
         alteracoes.put("rastro.painelLimiteRequerimentos", 500);
 
-        assertThat(salvar("admin.demo", alteracoes).getStatus()).isEqualTo(200);
+        assertThat(salvar("admin", alteracoes).getStatus()).isEqualTo(200);
 
         List<EventoDeAuditoria> novos = eventosConfigDepoisDe(antes);
         assertThat(novos).hasSize(1);
@@ -494,28 +494,28 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
         assertThat(painel.atualizacaoMinutos()).isEqualTo(10);
         assertThat(painel.limiteRequerimentos()).isEqualTo(500);
         assertThat(mvc.perform(delete(PARAMETROS + "/rastro.painelAno")
-                .header(HttpHeaders.AUTHORIZATION, bearer("admin.demo"))).andReturn().getResponse().getStatus()).isEqualTo(200);
+                .header(HttpHeaders.AUTHORIZATION, bearer("admin"))).andReturn().getResponse().getStatus()).isEqualTo(200);
         assertThat(painel.ano()).isZero();
     }
 
     @Test
     void painel_faixas_e_so_o_administrador_altera() throws Exception {
-        invalido(salvar("admin.demo", Map.of("rastro.painelAno", 1999)), "rastro.painelAno");
-        invalido(salvar("admin.demo", Map.of("rastro.painelAno", 2101)), "rastro.painelAno");
-        invalido(salvar("admin.demo", Map.of("rastro.painelAtualizacaoMinutos", 4)), "rastro.painelAtualizacaoMinutos");
-        invalido(salvar("admin.demo", Map.of("rastro.painelAtualizacaoMinutos", 1441)), "rastro.painelAtualizacaoMinutos");
-        invalido(salvar("admin.demo", Map.of("rastro.painelLimiteRequerimentos", 99)), "rastro.painelLimiteRequerimentos");
-        invalido(salvar("admin.demo", Map.of("rastro.painelLimiteRequerimentos", 20001)), "rastro.painelLimiteRequerimentos");
-        invalido(salvar("admin.demo", Map.of("rastro.painelTimeoutSegundos", 9)), "rastro.painelTimeoutSegundos");
-        invalido(salvar("admin.demo", Map.of("rastro.painelTimeoutSegundos", 301)), "rastro.painelTimeoutSegundos");
-        invalido(salvar("admin.demo", Map.of("rastro.painelIntervaloMinimoManualSegundos", 29)),
+        invalido(salvar("admin", Map.of("rastro.painelAno", 1999)), "rastro.painelAno");
+        invalido(salvar("admin", Map.of("rastro.painelAno", 2101)), "rastro.painelAno");
+        invalido(salvar("admin", Map.of("rastro.painelAtualizacaoMinutos", 4)), "rastro.painelAtualizacaoMinutos");
+        invalido(salvar("admin", Map.of("rastro.painelAtualizacaoMinutos", 1441)), "rastro.painelAtualizacaoMinutos");
+        invalido(salvar("admin", Map.of("rastro.painelLimiteRequerimentos", 99)), "rastro.painelLimiteRequerimentos");
+        invalido(salvar("admin", Map.of("rastro.painelLimiteRequerimentos", 20001)), "rastro.painelLimiteRequerimentos");
+        invalido(salvar("admin", Map.of("rastro.painelTimeoutSegundos", 9)), "rastro.painelTimeoutSegundos");
+        invalido(salvar("admin", Map.of("rastro.painelTimeoutSegundos", 301)), "rastro.painelTimeoutSegundos");
+        invalido(salvar("admin", Map.of("rastro.painelIntervaloMinimoManualSegundos", 29)),
                 "rastro.painelIntervaloMinimoManualSegundos");
-        invalido(salvar("admin.demo", Map.of("rastro.painelIntervaloMinimoManualSegundos", 3601)),
+        invalido(salvar("admin", Map.of("rastro.painelIntervaloMinimoManualSegundos", 3601)),
                 "rastro.painelIntervaloMinimoManualSegundos");
-        assertThat(salvar("admin.demo", Map.of("rastro.painelAno", 0)).getStatus()).isEqualTo(200);
-        assertThat(salvar("admin.demo", Map.of("rastro.painelAno", 2000)).getStatus()).isEqualTo(200);
+        assertThat(salvar("admin", Map.of("rastro.painelAno", 0)).getStatus()).isEqualTo(200);
+        assertThat(salvar("admin", Map.of("rastro.painelAno", 2000)).getStatus()).isEqualTo(200);
 
-        for (String usuario : List.of("operador.demo", "gestor.demo")) {
+        for (String usuario : List.of("operador", "gestor")) {
             MockHttpServletResponse resposta = salvar(usuario, Map.of("rastro.painelAno", 2025));
             assertThat(resposta.getStatus()).as(usuario).isEqualTo(403);
             assertThat(resposta.getContentAsString()).contains("PERFIL_SEM_PERMISSAO");
@@ -525,9 +525,9 @@ class ParametrosHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void salvar_o_valor_do_padrao_tira_a_sobreposicao() throws Exception {
-        salvar("admin.demo", Map.of("dossie.ttlMinutos", 60));
+        salvar("admin", Map.of("dossie.ttlMinutos", 60));
 
-        salvar("admin.demo", Map.of("dossie.ttlMinutos", 30));
+        salvar("admin", Map.of("dossie.ttlMinutos", 30));
 
         assertThat(parametro("dossie.ttlMinutos").get("sobreposto").asBoolean()).isFalse();
     }

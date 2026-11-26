@@ -59,7 +59,7 @@ class ArmazenamentoHttpTest extends BaseHttpDeDocumentos {
     }
 
     private String criarComSucesso() throws Exception {
-        String corpo = criar("gestor.demo").andExpect(status().isAccepted()).andReturn().getResponse().getContentAsString();
+        String corpo = criar("gestor").andExpect(status().isAccepted()).andReturn().getResponse().getContentAsString();
         return json.readTree(corpo).get("id").asText();
     }
 
@@ -77,7 +77,7 @@ class ArmazenamentoHttpTest extends BaseHttpDeDocumentos {
         long antes = totalDePedidos();
         when(espaco.livreEmBytes(any(Path.class))).thenReturn(500 * MB - 1);
 
-        ResultActions resposta = criar("gestor.demo")
+        ResultActions resposta = criar("gestor")
                 .andExpect(status().isInsufficientStorage())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("ARMAZENAMENTO_INSUFICIENTE"))
@@ -89,7 +89,7 @@ class ArmazenamentoHttpTest extends BaseHttpDeDocumentos {
     }
 
     private long totalDePedidos() throws Exception {
-        String corpo = mvc.perform(get("/api/dossies").header("Authorization", bearer("gestor.demo"))
+        String corpo = mvc.perform(get("/api/dossies").header("Authorization", bearer("gestor"))
                 .param("somenteMeus", "true")).andReturn().getResponse().getContentAsString();
         return json.readTree(corpo).get("totalElementos").asLong();
     }
@@ -100,16 +100,16 @@ class ArmazenamentoHttpTest extends BaseHttpDeDocumentos {
 
         String id = criarComSucesso();
 
-        semCaminho(mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        semCaminho(mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(jsonPath("$.status").value("FALHA"))
                 .andExpect(jsonPath("$.erro.codigo").value("ARMAZENAMENTO_INSUFICIENTE"))
                 .andExpect(jsonPath("$.erro.motivo").value(ArmazenamentoInsuficienteException.MENSAGEM_DO_DOSSIE))
                 .andExpect(jsonPath("$.tamanhoBytes").doesNotExist()));
         mvc.perform(get("/api/dossies/" + id + "/arquivo").param("disposicao", "attachment")
-                        .header("Authorization", bearer("gestor.demo")))
+                        .header("Authorization", bearer("gestor")))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.errorCode").value("DOSSIE_SEM_ARQUIVO"));
-        mvc.perform(get("/api/dossies").header("Authorization", bearer("gestor.demo")).param("somenteMeus", "true"))
+        mvc.perform(get("/api/dossies").header("Authorization", bearer("gestor")).param("somenteMeus", "true"))
                 .andExpect(jsonPath("$.conteudo[0].situacao").value("FALHA"))
                 .andExpect(jsonPath("$.conteudo[0].falha.codigo").value("ARMAZENAMENTO_INSUFICIENTE"))
                 .andExpect(jsonPath("$.conteudo[0].temArquivo").value(false));
@@ -122,11 +122,11 @@ class ArmazenamentoHttpTest extends BaseHttpDeDocumentos {
         Files.delete(diretorioTemporario().resolve(id).resolve("dossie.pdf"));
 
         semCaminho(mvc.perform(get("/api/dossies/" + id + "/arquivo").param("disposicao", "attachment")
-                        .header("Authorization", bearer("gestor.demo")))
+                        .header("Authorization", bearer("gestor")))
                 .andExpect(status().isGone())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("DOSSIE_ARQUIVO_AUSENTE")));
-        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor.demo")))
+        mvc.perform(get("/api/dossies/" + id).header("Authorization", bearer("gestor")))
                 .andExpect(jsonPath("$.status").value("FALHA"))
                 .andExpect(jsonPath("$.erro.codigo").value("DOSSIE_ARQUIVO_AUSENTE"));
     }
@@ -136,7 +136,7 @@ class ArmazenamentoHttpTest extends BaseHttpDeDocumentos {
         String id = criarComSucesso();
         Files.write(diretorioTemporario().resolve(id).resolve("dossie.pdf"), "%PDF-1.7 cortado".getBytes());
 
-        semCaminho(mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor.demo")))
+        semCaminho(mvc.perform(get("/api/dossies/" + id + "/arquivo").header("Authorization", bearer("gestor")))
                 .andExpect(status().isInternalServerError())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("DOSSIE_ARQUIVO_INVALIDO")));
@@ -148,7 +148,7 @@ class ArmazenamentoHttpTest extends BaseHttpDeDocumentos {
         String id = criarComSucesso();
         Files.delete(diretorioTemporario().resolve(id).resolve("dossie.pdf"));
 
-        mvc.perform(post("/api/dossies/" + id + "/arquivo/ticket").header("Authorization", bearer("gestor.demo")))
+        mvc.perform(post("/api/dossies/" + id + "/arquivo/ticket").header("Authorization", bearer("gestor")))
                 .andExpect(status().isGone())
                 .andExpect(jsonPath("$.errorCode").value("DOSSIE_ARQUIVO_AUSENTE"));
     }

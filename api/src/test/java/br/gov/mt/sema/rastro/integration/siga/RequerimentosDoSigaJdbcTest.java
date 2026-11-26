@@ -54,7 +54,7 @@ class RequerimentosDoSigaJdbcTest {
         assertThat(r.abertura()).isEqualTo(LocalDateTime.of(2025, 3, 31, 10, 12));
         assertThat(r.atualizacao()).isEqualTo(LocalDateTime.of(2025, 4, 29, 9, 14));
         assertThat(r.interessado().nome()).isEqualTo("Associação Residencial Vale Verde");
-        assertThat(r.interessado().cpfCnpj()).isEqualTo("12345678000190");
+        assertThat(r.interessado().cpfCnpj()).isEqualTo("11222333000181");
         assertThat(r.tipoProcesso()).isEqualTo("Uso de Recursos Hídricos");
         assertThat(r.tipoRequerimento()).isEqualTo("Requerimento de Outorga");
     }
@@ -85,9 +85,9 @@ class RequerimentosDoSigaJdbcTest {
 
         assertThat(siga.buscarPorCriterios(porProcesso.comRestricao("55555555555")).itens())
                 .extracting(ResumoRequerimento::id).containsExactly(401L);
-        assertThat(siga.buscarPorCriterios(porProcesso.comRestricao("12345678000190")).total()).isZero();
+        assertThat(siga.buscarPorCriterios(porProcesso.comRestricao("11222333000181")).total()).isZero();
         // Verificação de existência usada pelo caso de uso para decidir entre 403 e 404.
-        assertThat(siga.buscarPorCriterios(porProcesso.comRestricao("12345678000190").soParaVerificarExistencia())
+        assertThat(siga.buscarPorCriterios(porProcesso.comRestricao("11222333000181").soParaVerificarExistencia())
                 .total()).isEqualTo(2);
     }
 
@@ -160,8 +160,8 @@ class RequerimentosDoSigaJdbcTest {
 
     @Test
     void listaPaginadaTrazTotalEOrdemPorAberturaDecrescente() {
-        CriterioBusca primeira = CriterioBusca.de(null, null, "12.345.678/0001-90", null, 0, 10);
-        CriterioBusca ultima = CriterioBusca.de(null, null, "12.345.678/0001-90", null, 2, 10);
+        CriterioBusca primeira = CriterioBusca.de(null, null, "11.222.333/0001-81", null, 0, 10);
+        CriterioBusca ultima = CriterioBusca.de(null, null, "11.222.333/0001-81", null, 2, 10);
 
         Pagina<ResumoRequerimento> p0 = siga.buscarPorCriterios(primeira);
         Pagina<ResumoRequerimento> p2 = siga.buscarPorCriterios(ultima);
@@ -177,7 +177,7 @@ class RequerimentosDoSigaJdbcTest {
     @Test
     void numeroEOutrosCriteriosCombinam() {
         Pagina<ResumoRequerimento> acha = siga.buscarPorCriterios(
-                criterio("REQUERIMENTO", "3331/2025", "12.345.678/0001-90", null));
+                criterio("REQUERIMENTO", "3331/2025", "11.222.333/0001-81", null));
         Pagina<ResumoRequerimento> naoAcha = siga.buscarPorCriterios(
                 criterio("PROCESSO", "2825/2025", "45678901000123", null));
 
@@ -188,7 +188,7 @@ class RequerimentosDoSigaJdbcTest {
     @Test
     void restricaoDeInteressadoEAplicadaNoSqlEOTotalJaVemFiltrado() {
         CriterioBusca livre = criterio(null, null, null, "vale");
-        CriterioBusca doDono = livre.comRestricao("12345678000190");
+        CriterioBusca doDono = livre.comRestricao("11222333000181");
         CriterioBusca deOutro = livre.comRestricao("45678901000123");
 
         assertThat(siga.buscarPorCriterios(livre).total()).isEqualTo(26);
@@ -200,7 +200,7 @@ class RequerimentosDoSigaJdbcTest {
 
     @Test
     void restricaoNaoVazaRequerimentosDeOutrosInteressadosNemComCriterioLargo() {
-        CriterioBusca porNomeLargo = criterio(null, null, null, "ltda").comRestricao("12345678000190");
+        CriterioBusca porNomeLargo = criterio(null, null, null, "ltda").comRestricao("11222333000181");
 
         assertThat(siga.buscarPorCriterios(porNomeLargo).total()).isZero();
     }

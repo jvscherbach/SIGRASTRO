@@ -85,7 +85,7 @@ class RegraDoResponsavelTest {
 
     @Test
     void cpf_sem_servidor_e_valor_que_nao_e_cpf_viram_nao_identificado() {
-        for (String assignee : List.of(SEM_SERVIDOR, "analista.demo")) {
+        for (String assignee : List.of(SEM_SERVIDOR, "analista.teste")) {
             ResponsavelDaEtapa r = resolver(ponto(etapa(TipoDeEtapa.TAREFA_HUMANA, PapelDoResponsavel.ANALISTA, false),
                     List.of(tarefa(assignee))));
             assertThat(r.tipo()).isEqualTo(Tipo.NAO_IDENTIFICADO);
@@ -182,7 +182,7 @@ class RegraDoResponsavelTest {
     void so_cpf_de_11_digitos_vai_para_a_consulta_sem_repeticao() {
         List<ElementoDaPosicao> pontos = List.of(
                 ponto(etapa(TipoDeEtapa.TAREFA_HUMANA, PapelDoResponsavel.ANALISTA, false),
-                        List.of(tarefa(cpf(1)), tarefa(cpf(1)), tarefa("analista.demo"), tarefa(null))));
+                        List.of(tarefa(cpf(1)), tarefa(cpf(1)), tarefa("analista.teste"), tarefa(null))));
         assertThat(RegraDoResponsavel.paraConsultar(pontos)).containsExactly(id(cpf(1)));
     }
 

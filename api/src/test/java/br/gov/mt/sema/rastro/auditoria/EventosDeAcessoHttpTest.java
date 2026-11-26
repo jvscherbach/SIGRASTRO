@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.auditoria;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -60,14 +61,14 @@ class EventosDeAcessoHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void login_bem_sucedido_registra_um_LOGIN_com_retrato_e_origem() throws Exception {
-        MockHttpServletResponse resposta = entrar("operador.demo", "senha-de-teste", null);
+        MockHttpServletResponse resposta = entrar("operador", UsuariosDeTeste.senhaDe("operador"), null);
 
         assertThat(resposta.getStatus()).isEqualTo(200);
         assertThat(novos()).hasSize(1);
         EventoDeAuditoria evento = novos().get(0);
         assertThat(evento.tipo()).isEqualTo(TipoDeEvento.LOGIN);
-        assertThat(evento.usuario().login()).isEqualTo("operador.demo");
-        assertThat(evento.usuario().nome()).isEqualTo("Operador Demo");
+        assertThat(evento.usuario().login()).isEqualTo("operador");
+        assertThat(evento.usuario().nome()).isEqualTo("Operador");
         assertThat(evento.usuario().perfil()).isEqualTo("Operador");
         assertThat(evento.origem()).isEqualTo("198.51.100.7");
         assertThat(evento.correlationId()).isNotBlank();
@@ -76,7 +77,7 @@ class EventosDeAcessoHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void a_resposta_do_login_nao_muda_e_nao_traz_nada_da_auditoria() throws Exception {
-        MockHttpServletResponse resposta = entrar("gestor.demo", "senha-de-teste", null);
+        MockHttpServletResponse resposta = entrar("gestor", UsuariosDeTeste.senhaDe("gestor"), null);
 
         var corpo = json.readTree(resposta.getContentAsString());
         assertThat(corpo.fieldNames()).toIterable().containsExactlyInAnyOrder("token", "tipo", "expiraEm", "usuario");
@@ -85,7 +86,7 @@ class EventosDeAcessoHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void login_recusado_registra_falha_sem_login_nem_senha() throws Exception {
-        MockHttpServletResponse resposta = entrar("operador.demo", "senha-errada", null);
+        MockHttpServletResponse resposta = entrar("operador", "senha-errada", null);
 
         assertThat(resposta.getStatus()).isEqualTo(401);
         assertThat(novos()).hasSize(1);
@@ -93,7 +94,7 @@ class EventosDeAcessoHttpTest extends BaseHttpDeDocumentos {
         assertThat(evento.tipo()).isEqualTo(TipoDeEvento.LOGIN);
         assertThat(evento.detalhe()).isEqualTo("Falha de login");
         assertThat(evento.usuario().login()).isEqualTo("(nao-autenticado)");
-        assertThat(evento.toString()).doesNotContain("operador.demo").doesNotContain("senha-errada")
+        assertThat(evento.toString()).doesNotContain("operador").doesNotContain("senha-errada")
                 .doesNotContain("senha-de-teste");
     }
 
@@ -103,9 +104,9 @@ class EventosDeAcessoHttpTest extends BaseHttpDeDocumentos {
             assertThat(entrarDe("192.0.2.77", "bloqueio.teste", "senha-errada").getStatus()).isEqualTo(401);
         }
 
-        MockHttpServletResponse bloqueada = entrarDe("192.0.2.77", "bloqueio.teste", "senha-de-teste");
+        MockHttpServletResponse bloqueada = entrarDe("192.0.2.77", "bloqueio.teste", UsuariosDeTeste.senhaDe("bloqueio.teste"));
         MockHttpServletResponse inexistente = entrarDe("192.0.2.77", "nunca.existiu", "qualquer");
-        MockHttpServletResponse outraOrigem = entrarDe("192.0.2.78", "admin.demo", "senha-de-teste");
+        MockHttpServletResponse outraOrigem = entrarDe("192.0.2.78", "admin", UsuariosDeTeste.senhaDe("admin"));
 
         assertThat(bloqueada.getStatus()).isEqualTo(429);
         assertThat(bloqueada.getHeader("Retry-After")).isEqualTo("900");
@@ -139,26 +140,26 @@ class EventosDeAcessoHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void troca_para_outro_perfil_com_sessao_aberta_registra_LOGIN_e_PERFIL_em_nome_de_quem_entrou() throws Exception {
-        String sessaoDoOperador = bearer("operador.demo");
+        String sessaoDoOperador = bearer("operador");
         long antes = todos().stream().mapToLong(EventoDeAuditoria::id).max().orElse(0);
 
-        MockHttpServletResponse resposta = entrar("admin.demo", "senha-de-teste", sessaoDoOperador);
+        MockHttpServletResponse resposta = entrar("admin", UsuariosDeTeste.senhaDe("admin"), sessaoDoOperador);
 
         assertThat(resposta.getStatus()).isEqualTo(200);
         List<EventoDeAuditoria> depois = todos().stream().filter(e -> e.id() > antes)
                 .sorted(Comparator.comparingLong(EventoDeAuditoria::id)).toList();
         assertThat(depois).extracting(EventoDeAuditoria::tipo).containsExactly(TipoDeEvento.LOGIN, TipoDeEvento.PERFIL);
-        assertThat(depois).allSatisfy(e -> assertThat(e.usuario().login()).isEqualTo("admin.demo"));
+        assertThat(depois).allSatisfy(e -> assertThat(e.usuario().login()).isEqualTo("admin"));
         assertThat(depois.get(1).detalhe()).isEqualTo("Perfil novo: Administrador");
     }
 
     @Test
     void entrar_de_novo_com_o_mesmo_perfil_ou_com_token_invalido_so_registra_LOGIN() throws Exception {
-        String sessao = bearer("gestor.demo");
+        String sessao = bearer("gestor");
         long antes = todos().stream().mapToLong(EventoDeAuditoria::id).max().orElse(0);
 
-        entrar("gestor.demo", "senha-de-teste", sessao);
-        entrar("operador.demo", "senha-de-teste", "Bearer token-que-nao-existe");
+        entrar("gestor", UsuariosDeTeste.senhaDe("gestor"), sessao);
+        entrar("operador", UsuariosDeTeste.senhaDe("operador"), "Bearer token-que-nao-existe");
 
         List<EventoDeAuditoria> depois = todos().stream().filter(e -> e.id() > antes).toList();
         assertThat(depois).extracting(EventoDeAuditoria::tipo).containsOnly(TipoDeEvento.LOGIN).hasSize(2);
@@ -168,7 +169,7 @@ class EventosDeAcessoHttpTest extends BaseHttpDeDocumentos {
     void falha_do_repositorio_de_auditoria_nao_derruba_o_login() throws Exception {
         doThrow(new IllegalStateException("falha simulada")).when(eventos).incluir(org.mockito.ArgumentMatchers.any(NovoEvento.class));
 
-        MockHttpServletResponse resposta = entrar("operador.demo", "senha-de-teste", null);
+        MockHttpServletResponse resposta = entrar("operador", UsuariosDeTeste.senhaDe("operador"), null);
 
         assertThat(resposta.getStatus()).isEqualTo(200);
         assertThat(json.readTree(resposta.getContentAsString()).get("token").asText()).isNotBlank();

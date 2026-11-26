@@ -202,7 +202,7 @@ Variáveis de ambiente, fora da tela:
 |---|---|---|---|
 | `RASTRO_MODO` | serviço (`api`) | `padrao` | `demonstracao` declara o modo em `GET /api/estado`, **só** se SIGA, API de arquivos e SCORP estiverem vazios. O `compose.verificacao.yaml` liga |
 | `RASTRO_MCP_URL` | servidor MCP (ambiente do processo do Claude Code) | `http://localhost:8080` (porta do front no `compose.local.yaml`) | base do SIGRASTRO local; host diferente de `localhost`, `127.0.0.1` e `host.docker.internal` é recusado |
-| `RASTRO_MCP_USUARIO` / `RASTRO_MCP_SENHA` | servidor MCP | sem padrão | credencial de verificação definida por variável do processo; nunca lida do `.env.local` (o usuário de verificação é definido no bloco 5 da L1) |
+| `RASTRO_MCP_USUARIO` / `RASTRO_MCP_SENHA` | servidor MCP | sem padrão | credencial de verificação definida por variável do processo; nunca lida do `.env.local` (usuário de verificação de perfil Operador, somente leitura; ver `docs/claude-code/mcp.md`) |
 | `RASTRO_MCP_TIMEOUT_MS` | servidor MCP | 10000 | tempo limite de cada pedido ao SIGRASTRO |
 
 ### Auditoria

@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.tramitacao.api;
 
 import static br.gov.mt.sema.rastro.tramitacao.application.PosicoesDeTeste.SERVIDOR_01;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static br.gov.mt.sema.rastro.tramitacao.application.PosicoesDeTeste.SERVIDOR_02;
 import static br.gov.mt.sema.rastro.tramitacao.application.TramitacoesDeTeste.IDS_TECNICOS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,12 +59,12 @@ import org.springframework.test.web.servlet.ResultActions;
  * sai para cada perfil, o evento de auditoria "histórico" e a ausência de CPF e de ids técnicos para quem não é
  * Administrador.
  */
-@SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url=",
+@SpringBootTest(properties = {"rastro.datasource.siga.url=",
         "rastro.tramitacao.tramitacao-cache-segundos=0"})
 @AutoConfigureMockMvc
 class TramitacaoCompletaHttpTest {
 
-    private static final String CNPJ_DO_OPERADOR = "12.345.678/0001-90";
+    private static final String CNPJ_DO_OPERADOR = "11.222.333/0001-81";
     private static final String CPF_DE_OUTRO = "000.000.000-91";
     private static final String PROCESSO = "7900/2022";
     private static final String PROCESSO_SO_DE_OUTRO = "7901/2022";
@@ -131,7 +132,7 @@ class TramitacaoCompletaHttpTest {
     }
 
     private String token(String usuario) throws Exception {
-        String corpo = json.writeValueAsString(Map.of("usuario", usuario, "senha", "senha-de-teste"));
+        String corpo = json.writeValueAsString(Map.of("usuario", usuario, "senha", UsuariosDeTeste.senhaDe(usuario)));
         String resposta = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(corpo))
                 .andReturn().getResponse().getContentAsString();
         return json.readTree(resposta).get("token").asText();
@@ -165,7 +166,7 @@ class TramitacaoCompletaHttpTest {
 
     @Test
     void gestorVeOCaminhoComVoltasMotivoQuemEsteveParticipantesAtosECorrecao() throws Exception {
-        String texto = corpo(obter("gestor.demo", "/api/requerimentos/7101/tramitacao")
+        String texto = corpo(obter("gestor", "/api/requerimentos/7101/tramitacao")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.idRequerimento").value(7101))
                 .andExpect(jsonPath("$.numeroRequerimento").value("7101/2026"))
@@ -222,20 +223,20 @@ class TramitacaoCompletaHttpTest {
 
     @Test
     void administradorRecebeOsIdsTecnicosEODiagnostico() throws Exception {
-        obter("admin.demo", "/api/requerimentos/7101/tramitacao")
+        obter("admin", "/api/requerimentos/7101/tramitacao")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.passagens[0].idTecnico").value("taskCadastrarRequerimento"))
                 .andExpect(jsonPath("$.passagens[3].idTecnico").value("taskAnalisarRequerimento"))
                 .andExpect(jsonPath("$.passagens[3].repeticoes").value(1))
                 .andExpect(jsonPath("$.idsNaoMapeados[0]").value("taskFicticiaNaoMapeada"))
                 .andExpect(jsonPath("$.diagnosticos[0]").value("ROTA_DIVERGE_DO_STATUS"));
-        obter("admin.demo", "/api/requerimentos/7102/tramitacao")
+        obter("admin", "/api/requerimentos/7102/tramitacao")
                 .andExpect(jsonPath("$.final.idTecnico").value("Event_0h1oige"));
     }
 
     @Test
     void operadorDoInteressadoVePapelMasNaoONomeDoServidorEmPassagensEParticipantes() throws Exception {
-        String texto = corpo(obter("operador.demo", "/api/requerimentos/7101/tramitacao")
+        String texto = corpo(obter("operador", "/api/requerimentos/7101/tramitacao")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.passagens[1].responsaveis[0].nome").value(nullValue()))
                 .andExpect(jsonPath("$.passagens[1].responsaveis[0].papel").value("Conferidor"))
@@ -248,7 +249,7 @@ class TramitacaoCompletaHttpTest {
 
     @Test
     void finalComBolaPretaEOAvisoSemIdTecnicoParaOGestor() throws Exception {
-        String texto = corpo(obter("gestor.demo", "/api/requerimentos/7102/tramitacao")
+        String texto = corpo(obter("gestor", "/api/requerimentos/7102/tramitacao")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("ENCERRADO"))
                 .andExpect(jsonPath("$.final.rotulo").value("Encerrado por taxa não paga no prazo"))
@@ -262,7 +263,7 @@ class TramitacaoCompletaHttpTest {
 
     @Test
     void verificacaoDaRevisaoEConcluidoSemBolaPretaEHistoricoTruncadoTemAviso() throws Exception {
-        obter("gestor.demo", "/api/requerimentos/7103/tramitacao")
+        obter("gestor", "/api/requerimentos/7103/tramitacao")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.final.rotulo").value("Concluído"))
                 .andExpect(jsonPath("$.final.tipo").value("CONCLUIDO_NA_VERIFICACAO"))
@@ -276,7 +277,7 @@ class TramitacaoCompletaHttpTest {
     @Test
     void planoBVemMarcadoComoAproximadoSemResponsavelEComSelo() throws Exception {
         when(montar.montar(7101)).thenReturn(TramitacoesDeTeste.planoB());
-        String texto = corpo(obter("operador.demo", "/api/requerimentos/7101/tramitacao")
+        String texto = corpo(obter("operador", "/api/requerimentos/7101/tramitacao")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("SEM_INSTANCIA"))
                 .andExpect(jsonPath("$.aproximado").value(true))
@@ -297,7 +298,7 @@ class TramitacaoCompletaHttpTest {
     @Test
     void camundaIndisponivelENaoSuportadoSao200ComOEstadoSemPlanoB() throws Exception {
         when(montar.montar(7101)).thenReturn(TramitacoesDeTeste.indisponivel());
-        obter("operador.demo", "/api/requerimentos/7101/tramitacao")
+        obter("operador", "/api/requerimentos/7101/tramitacao")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("INDISPONIVEL"))
                 .andExpect(jsonPath("$.aproximado").value(false))
@@ -308,7 +309,7 @@ class TramitacaoCompletaHttpTest {
         assertThat(eventosDeTramitacao()).hasSize(1);
 
         when(montar.montar(7101)).thenReturn(TramitacoesDeTeste.naoSuportado());
-        obter("gestor.demo", "/api/requerimentos/7101/tramitacao")
+        obter("gestor", "/api/requerimentos/7101/tramitacao")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("NAO_SUPORTADO"))
                 .andExpect(jsonPath("$.modelo").value(nullValue()))
@@ -319,7 +320,7 @@ class TramitacaoCompletaHttpTest {
 
     @Test
     void operadorDeOutroInteressadoRecebe403SemMontarNemRegistrar() throws Exception {
-        obter("operador.demo", "/api/requerimentos/7102/tramitacao")
+        obter("operador", "/api/requerimentos/7102/tramitacao")
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("NAO_INTERESSADO"));
         verify(montar, never()).montar(anyLong());
@@ -328,7 +329,7 @@ class TramitacaoCompletaHttpTest {
 
     @Test
     void requerimentoInexistenteEh404SemMontarNemRegistrar() throws Exception {
-        for (String usuario : List.of("operador.demo", "gestor.demo", "admin.demo")) {
+        for (String usuario : List.of("operador", "gestor", "admin")) {
             obter(usuario, "/api/requerimentos/404/tramitacao")
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.errorCode").value("NAO_ENCONTRADO"));
@@ -349,13 +350,13 @@ class TramitacaoCompletaHttpTest {
 
     @Test
     void registraTramitacaoComDetalheHistoricoSemResponsavelNemCpfNemIdTecnico() throws Exception {
-        obter("gestor.demo", "/api/requerimentos/7101/tramitacao").andExpect(status().isOk());
+        obter("gestor", "/api/requerimentos/7101/tramitacao").andExpect(status().isOk());
 
         List<NovoEvento> eventos = eventosDeTramitacao();
         assertThat(eventos).hasSize(1);
         NovoEvento e = eventos.getFirst();
         assertThat(e.tipo().grupo().name()).isEqualTo("DOCUMENTOS");
-        assertThat(e.usuario().login()).isEqualTo("gestor.demo");
+        assertThat(e.usuario().login()).isEqualTo("gestor");
         assertThat(e.idRequerimento()).isEqualTo(7101L);
         assertThat(e.numeroRequerimento()).isEqualTo("7101/2026");
         assertThat(e.numeroProcesso()).isEqualTo(PROCESSO);
@@ -371,7 +372,7 @@ class TramitacaoCompletaHttpTest {
 
     @Test
     void processoDevolveUmaTramitacaoPorRequerimentoVinculado() throws Exception {
-        String texto = corpo(obter("gestor.demo", "/api/processos/7900-2022/tramitacao")
+        String texto = corpo(obter("gestor", "/api/processos/7900-2022/tramitacao")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].idRequerimento").value(7101))
@@ -384,24 +385,24 @@ class TramitacaoCompletaHttpTest {
 
     @Test
     void processoParaOOperadorSoTrazOsDeleENenhumDeleEh403() throws Exception {
-        String texto = corpo(obter("operador.demo", "/api/processos/7900-2022/tramitacao")
+        String texto = corpo(obter("operador", "/api/processos/7900-2022/tramitacao")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].idRequerimento").value(7101)));
         assertThat(texto).doesNotContain(SERVIDOR_01);
         verify(montar, never()).montar(7102);
 
-        obter("operador.demo", "/api/processos/7901-2022/tramitacao")
+        obter("operador", "/api/processos/7901-2022/tramitacao")
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("NAO_INTERESSADO"));
     }
 
     @Test
     void processoInexistenteEh404EFormatoInvalidoEh400() throws Exception {
-        obter("gestor.demo", "/api/processos/1-1999/tramitacao")
+        obter("gestor", "/api/processos/1-1999/tramitacao")
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("NAO_ENCONTRADO"));
-        obter("gestor.demo", "/api/processos/abc/tramitacao")
+        obter("gestor", "/api/processos/abc/tramitacao")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("PARAMETRO_INVALIDO"));
         assertThat(eventosDeTramitacao()).isEmpty();

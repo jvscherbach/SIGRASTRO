@@ -107,7 +107,7 @@ class ScorpHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void listaTrazOrigemPessoalComOPapelSemAvisos() throws Exception {
-        JsonNode corpo = lerJson(listar("gestor.demo").andExpect(status().isOk()));
+        JsonNode corpo = lerJson(listar("gestor").andExpect(status().isOk()));
 
         List<JsonNode> pessoais = new ArrayList<>();
         corpo.get("itens").forEach(i -> {
@@ -132,7 +132,7 @@ class ScorpHttpTest extends BaseHttpDeDocumentos {
         statusPorPessoa.put(PESSOA_INTERESSADO, 404);
         statusPorPessoa.put(PESSOA_TECNICO, 401);
 
-        JsonNode corpo = lerJson(listar("gestor.demo").andExpect(status().isOk()));
+        JsonNode corpo = lerJson(listar("gestor").andExpect(status().isOk()));
 
         assertThat(corpo.get("avisos")).hasSize(1);
         assertThat(corpo.at("/avisos/0/codigo").asText()).isEqualTo("SCORP_INDISPONIVEL");
@@ -146,7 +146,7 @@ class ScorpHttpTest extends BaseHttpDeDocumentos {
     void falhaParcialAvisaComCodigoProprio() throws Exception {
         statusPorPessoa.put(PESSOA_TECNICO, 404);
 
-        listar("gestor.demo").andExpect(status().isOk())
+        listar("gestor").andExpect(status().isOk())
                 .andExpect(jsonPath("$.avisos.length()").value(1))
                 .andExpect(jsonPath("$.avisos[0].codigo").value("SCORP_PARCIAL"))
                 .andExpect(jsonPath("$.itens.length()").value(7));
@@ -154,7 +154,7 @@ class ScorpHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void operadorDeOutroInteressadoNaoChegaAoScorp() throws Exception {
-        guardar(mvc.perform(get("/api/requerimentos/202/documentos").header("Authorization", bearer("operador.demo"))))
+        guardar(mvc.perform(get("/api/requerimentos/202/documentos").header("Authorization", bearer("operador"))))
                 .andExpect(status().isForbidden());
         verify(pessoas, never()).listarPessoas(anyLong());
         assertThat(chamadas).isEmpty();
@@ -165,7 +165,7 @@ class ScorpHttpTest extends BaseHttpDeDocumentos {
         String id = idPessoal("RG do interessado");
 
         guardar(mvc.perform(get("/api/documentos/SCORP/" + id + "/conteudo?requerimento=101")
-                .header("Authorization", bearer("operador.demo"))))
+                .header("Authorization", bearer("operador"))))
                 .andExpect(status().isOk());
         verify(arquivos).baixar(eq(CHAVE_RG), any(Path.class));
     }
@@ -174,12 +174,12 @@ class ScorpHttpTest extends BaseHttpDeDocumentos {
     void dossieComDocumentoPessoalSaiComOrigemPessoalNoSumario() throws Exception {
         String id = idPessoal("RG do interessado");
 
-        String pedido = criar("gestor.demo", "SCORP", id, "DOCUMENTO_PROCESSO", "804328");
-        guardar(mvc.perform(get("/api/dossies/" + pedido).header("Authorization", bearer("gestor.demo"))))
+        String pedido = criar("gestor", "SCORP", id, "DOCUMENTO_PROCESSO", "804328");
+        guardar(mvc.perform(get("/api/dossies/" + pedido).header("Authorization", bearer("gestor"))))
                 .andExpect(jsonPath("$.status").value("CONCLUIDO"))
                 .andExpect(jsonPath("$.itens[0].origem").value("SCORP"));
         byte[] pdf = guardar(mvc.perform(get("/api/dossies/" + pedido + "/arquivo?disposicao=inline")
-                .header("Authorization", bearer("gestor.demo")))).andExpect(status().isOk())
+                .header("Authorization", bearer("gestor")))).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsByteArray();
         try (org.apache.pdfbox.pdmodel.PDDocument documento = org.apache.pdfbox.Loader.loadPDF(pdf)) {
             String texto = new org.apache.pdfbox.text.PDFTextStripper().getText(documento);
@@ -194,8 +194,8 @@ class ScorpHttpTest extends BaseHttpDeDocumentos {
                 .when(arquivos).baixar(eq(CHAVE_ART), any(Path.class));
         String id = idPessoal("ART do responsável");
 
-        String pedido = criar("gestor.demo", "SCORP", id);
-        guardar(mvc.perform(get("/api/dossies/" + pedido).header("Authorization", bearer("gestor.demo"))))
+        String pedido = criar("gestor", "SCORP", id);
+        guardar(mvc.perform(get("/api/dossies/" + pedido).header("Authorization", bearer("gestor"))))
                 .andExpect(jsonPath("$.status").value("PENDENTE_DECISAO"))
                 .andExpect(jsonPath("$.falhas[0].origem").value("SCORP"))
                 .andExpect(jsonPath("$.falhas[0].motivo").value("arquivo não encontrado no repositório"));
@@ -206,7 +206,7 @@ class ScorpHttpTest extends BaseHttpDeDocumentos {
         String id = idPessoal("RG do interessado");
         statusPorPessoa.put(PESSOA_INTERESSADO, 404);
 
-        guardar(mvc.perform(post("/api/dossies").header("Authorization", bearer("gestor.demo"))
+        guardar(mvc.perform(post("/api/dossies").header("Authorization", bearer("gestor"))
                 .contentType(MediaType.APPLICATION_JSON).content(corpo("SCORP", id))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("o SCORP não respondeu agora")));
@@ -215,13 +215,13 @@ class ScorpHttpTest extends BaseHttpDeDocumentos {
 
     @Test
     void nenhumaRespostaTrazTokenChaveUrlOuPessoaDoScorp() throws Exception {
-        listar("gestor.demo");
-        listar("operador.demo");
+        listar("gestor");
+        listar("operador");
         statusPorPessoa.put(PESSOA_TECNICO, 401);
-        listar("gestor.demo");
+        listar("gestor");
         String id = idPessoal("RG do interessado");
-        String pedido = criar("gestor.demo", "SCORP", id);
-        guardar(mvc.perform(get("/api/dossies/" + pedido).header("Authorization", bearer("gestor.demo"))));
+        String pedido = criar("gestor", "SCORP", id);
+        guardar(mvc.perform(get("/api/dossies/" + pedido).header("Authorization", bearer("gestor"))));
 
         List<String> proibidos = new ArrayList<>(List.of(SEGREDOS));
         proibidos.addAll(Set.of(CHAVE_RG, CHAVE_ART, PESSOA_INTERESSADO, PESSOA_TECNICO, SCORP.url(), "127.0.0.1",
@@ -246,7 +246,7 @@ class ScorpHttpTest extends BaseHttpDeDocumentos {
 
     private String idPessoal(String titulo) throws Exception {
         JsonNode corpo = json.readTree(mvc.perform(get("/api/requerimentos/101/documentos")
-                .header("Authorization", bearer("gestor.demo"))).andReturn().getResponse()
+                .header("Authorization", bearer("gestor"))).andReturn().getResponse()
                 .getContentAsString(StandardCharsets.UTF_8));
         for (JsonNode item : corpo.get("itens")) {
             if (item.get("origem").asText().equals("SCORP") && item.get("titulo").asText().equals(titulo)) {

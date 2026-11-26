@@ -1,6 +1,7 @@
 package br.gov.mt.sema.rastro.painel.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import br.gov.mt.sema.rastro.testsupport.UsuariosDeTeste;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -53,7 +54,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * Lista de requerimentos por analista do painel (S11, bloco 9), pelo contexto completo e as duas portas de leitura por
  * dublê: a soma da lista é a da barra, os nomes ocultos, o 403 antes de qualquer leitura e nenhum CPF. Dados fictícios.
  */
-@SpringBootTest(properties = {"rastro.demo.senha=senha-de-teste", "rastro.datasource.siga.url=", "rastro.painel.ano=2026"})
+@SpringBootTest(properties = {"rastro.datasource.siga.url=", "rastro.painel.ano=2026"})
 @AutoConfigureMockMvc
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class PainelAnalistasHttpTest {
@@ -108,7 +109,7 @@ class PainelAnalistasHttpTest {
     }
 
     private String token(String usuario) throws Exception {
-        String corpo = json.writeValueAsString(Map.of("usuario", usuario, "senha", "senha-de-teste"));
+        String corpo = json.writeValueAsString(Map.of("usuario", usuario, "senha", UsuariosDeTeste.senhaDe(usuario)));
         return "Bearer " + json.readTree(mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content(corpo)).andReturn().getResponse().getContentAsString()).get("token").asText();
     }
@@ -145,12 +146,12 @@ class PainelAnalistasHttpTest {
 
     @Test
     void operadorEAnalistaEmSessaoOu401NaoLeemNadaEOForbiddenVemAntesDoBadRequest() throws Exception {
-        assertThat(pedir("operador.demo", get("/api/painel/analistas")).andReturn().getResponse().getStatus())
+        assertThat(pedir("operador", get("/api/painel/analistas")).andReturn().getResponse().getStatus())
                 .isEqualTo(403);
-        String corpo = texto(pedir("operador.demo", get("/api/painel/analistas/abc/requerimentos")));
+        String corpo = texto(pedir("operador", get("/api/painel/analistas/abc/requerimentos")));
         assertThat(corpo).contains("PERFIL_SEM_PERMISSAO");
         // 403 antes de validar o filtro (busca enorme)
-        assertThat(pedir("operador.demo", get("/api/painel/analistas/abc/requerimentos").param("busca", "x".repeat(500)))
+        assertThat(pedir("operador", get("/api/painel/analistas/abc/requerimentos").param("busca", "x".repeat(500)))
                 .andReturn().getResponse().getStatus()).isEqualTo(403);
         assertThat(mvc.perform(get("/api/painel/analistas")).andReturn().getResponse().getStatus()).isEqualTo(401);
         assertThat(mvc.perform(get("/api/painel/analistas/abc/requerimentos")).andReturn().getResponse().getStatus())
@@ -163,8 +164,8 @@ class PainelAnalistasHttpTest {
     @Test
     void listaDeAnalistasBateComAsBarrasERequerimentosDoAnalistaTemFiltros() throws Exception {
         JsonNode painel = null;
-        JsonNode analistas = analistasProntos("gestor.demo");
-        painel = json.readTree(texto(pedir("gestor.demo", get("/api/painel"))));
+        JsonNode analistas = analistasProntos("gestor");
+        painel = json.readTree(texto(pedir("gestor", get("/api/painel"))));
 
         // os totais são os das barras da carga por responsável
         for (JsonNode barra : painel.get("cargaPorResponsavel")) {
@@ -182,7 +183,7 @@ class PainelAnalistasHttpTest {
         assertThat(analistas.get("nomesOcultos").asBoolean()).isFalse();
 
         String chave1 = analistaDe(analistas, SERVIDOR_1);
-        JsonNode todos = json.readTree(texto(pedir("admin.demo", get("/api/painel/analistas/" + chave1 + "/requerimentos"))));
+        JsonNode todos = json.readTree(texto(pedir("admin", get("/api/painel/analistas/" + chave1 + "/requerimentos"))));
         assertThat(todos.get("total").asLong()).isEqualTo(2);
         assertThat(todos.get("quantidade").asInt()).isEqualTo(2);
         assertThat(todos.get("requerimentos")).hasSize(2);
@@ -192,14 +193,14 @@ class PainelAnalistasHttpTest {
         assertThat(todos.get("requerimentos").get(0).get("etapas")).isNotEmpty();
 
         // busca sem acento e sem diferenciar maiúsculas
-        JsonNode busca = json.readTree(texto(pedir("gestor.demo",
+        JsonNode busca = json.readTree(texto(pedir("gestor",
                 get("/api/painel/analistas/" + chave1 + "/requerimentos").param("busca", "acai"))));
         assertThat(busca.get("quantidade").asInt()).isEqualTo(1);
         assertThat(busca.get("total").asLong()).isEqualTo(2);
 
         // filtro por etapa (rótulo exato, o da lista de etapas e da primeira requisição)
         String etapa = todos.get("requerimentos").get(0).get("etapas").get(0).asText();
-        JsonNode porEtapa = json.readTree(texto(pedir("gestor.demo",
+        JsonNode porEtapa = json.readTree(texto(pedir("gestor",
                 get("/api/painel/analistas/" + chave1 + "/requerimentos").param("etapa", etapa))));
         assertThat(porEtapa.get("quantidade").asInt()).isEqualTo(1);
 
@@ -209,39 +210,39 @@ class PainelAnalistasHttpTest {
 
     @Test
     void chaveDesconhecidaE404ComentarioSemDetalheInternoEBuscaGrandeE400() throws Exception {
-        analistasProntos("gestor.demo");
+        analistasProntos("gestor");
 
-        var inexistente = pedir("gestor.demo", get("/api/painel/analistas/0000000000000000/requerimentos"))
+        var inexistente = pedir("gestor", get("/api/painel/analistas/0000000000000000/requerimentos"))
                 .andReturn().getResponse();
         assertThat(inexistente.getStatus()).isEqualTo(404);
         assertThat(json.readTree(inexistente.getContentAsString(StandardCharsets.UTF_8)).get("errorCode").asText())
                 .isEqualTo("NAO_ENCONTRADO");
-        assertThat(pedir("gestor.demo", get("/api/painel/analistas/abc/requerimentos").param("busca", "x".repeat(101)))
+        assertThat(pedir("gestor", get("/api/painel/analistas/abc/requerimentos").param("busca", "x".repeat(101)))
                 .andReturn().getResponse().getStatus()).isEqualTo(400);
     }
 
     @Test
     void nomesOcultosNaoRevelamNomeNemDeixamAlcancarUmServidor() throws Exception {
-        JsonNode comNomes = analistasProntos("gestor.demo");
+        JsonNode comNomes = analistasProntos("gestor");
         String chaveDoServidor = analistaDe(comNomes, SERVIDOR_1);
-        String admin = token("admin.demo");
+        String admin = token("admin");
         assertThat(mvc.perform(put("/api/configuracoes/parametros").header("Authorization", admin)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"alteracoes\":{\"rastro.mostrarNomeResponsavel\":false}}")).andReturn().getResponse()
                 .getStatus()).isEqualTo(200);
         try {
-            JsonNode oculto = json.readTree(texto(pedir("gestor.demo", get("/api/painel/analistas"))));
+            JsonNode oculto = json.readTree(texto(pedir("gestor", get("/api/painel/analistas"))));
             assertThat(oculto.get("nomesOcultos").asBoolean()).isTrue();
             assertThat(oculto.toString()).doesNotContain("Servidor Exemplo");
             assertThat(oculto.get("analistas").findValuesAsText("tipo")).doesNotContain("SERVIDOR", "OUTROS");
             assertThat(oculto.get("avisos").findValuesAsText("codigo")).contains("NOMES_OCULTOS");
 
             // a chave de um servidor (obtida antes) já não leva a lugar nenhum
-            assertThat(pedir("gestor.demo", get("/api/painel/analistas/" + chaveDoServidor + "/requerimentos"))
+            assertThat(pedir("gestor", get("/api/painel/analistas/" + chaveDoServidor + "/requerimentos"))
                     .andReturn().getResponse().getStatus()).isEqualTo(404);
             // a categoria sem nome segue com lista, sem nome de servidor
             String semNome = oculto.get("analistas").get(0).get("analista").asText();
-            String lista = texto(pedir("gestor.demo", get("/api/painel/analistas/" + semNome + "/requerimentos")));
+            String lista = texto(pedir("gestor", get("/api/painel/analistas/" + semNome + "/requerimentos")));
             assertThat(lista).doesNotContain("Servidor Exemplo");
         } finally {
             mvc.perform(delete("/api/configuracoes/parametros/rastro.mostrarNomeResponsavel").header("Authorization", admin));
@@ -250,8 +251,8 @@ class PainelAnalistasHttpTest {
 
     @Test
     void nenhumCpfNemIdTecnicoNasRespostas() throws Exception {
-        JsonNode analistas = analistasProntos("gestor.demo");
-        String corpo = analistas.toString() + texto(pedir("gestor.demo", get("/api/painel/analistas/"
+        JsonNode analistas = analistasProntos("gestor");
+        String corpo = analistas.toString() + texto(pedir("gestor", get("/api/painel/analistas/"
                 + analistaDe(analistas, SERVIDOR_1) + "/requerimentos")));
 
         assertThat(corpo).doesNotContainPattern("(?<![0-9])\\d{11}(?![0-9])")
