@@ -12,7 +12,7 @@ O **SIGRASTRO** é um serviço externo ao SIGA Licenciamento. Seu primeiro módu
 
 Hoje o projeto é um **protótipo de validação**: o objetivo é provar que os problemas da "Vista do Processo" atual têm solução (processos que não geram a vista e planilhas que ficam fora do PDF). Estão prontas as sprints **S0 a S4**:
 
-- o login simulado com três perfis, cada um com o seu menu;
+- o login com usuário e senha próprios, sem usuário de demonstração: três usuários padrão criados pelas variáveis de ambiente e o Gestor criado pelo Administrador; cada perfil tem o seu menu, e cada usuário pode trocar a própria senha em "Minha conta";
 - a busca de requerimento ou processo, com os dados e a tarefa atual;
 - a lista de todos os documentos, inclusive os pessoais do SCORP;
 - o dossiê em PDF, com planilhas, textos e imagens convertidos;
@@ -108,7 +108,7 @@ PowerShell:
 Copy-Item .env.local.example .env.local
 ```
 
-O `.env.local` guarda as configurações do seu computador e **não é enviado para o Git**. **Nenhuma variável precisa ser preenchida** para o sistema subir e o login funcionar. Para a consulta mostrar dados reais é preciso preencher as variáveis do banco do SIGA (`SIGA_DB_*`); veja "Conectar ao banco do SIGA" mais abaixo.
+O `.env.local` guarda as configurações do seu computador e **não é enviado para o Git**. O sistema **sobe** sem nenhuma variável preenchida, mas **para entrar é preciso definir ao menos uma senha de usuário padrão** (`RASTRO_SENHA_OPERADOR`, `RASTRO_SENHA_ANALISTA` ou `RASTRO_SENHA_ADMIN`; veja o passo 6). Para a consulta mostrar dados reais é preciso preencher as variáveis do banco do SIGA (`SIGA_DB_*`); veja "Conectar ao banco do SIGA" mais abaixo.
 
 ### 3. Suba o sistema
 
@@ -142,23 +142,33 @@ Procure a linha `Started RastroApplication`.
 | Saúde da API | http://localhost:8081/actuator/health | `{"status":"UP", ...}` |
 | Documentação da API (OpenAPI) | http://localhost:8081/swagger-ui.html | A página do Swagger com os endpoints `/api/auth/*` |
 
-### 6. Entre com um usuário de demonstração
+### 6. Entre com um usuário padrão
 
-Na tela de login, clique em um dos perfis (entra com um clique) ou digite usuário e senha.
+Os usuários padrão são criados quando o serviço sobe, a partir do `.env.local`. Defina no `.env.local` as senhas que você quer (**mínimo 12 caracteres**, **sem valor de exemplo**, e **diferentes entre si**; as três são lidas do arquivo, nunca do código):
 
-| Usuário | Perfil | O que vê no menu | Senha de demonstração |
+```
+RASTRO_SENHA_OPERADOR=
+RASTRO_SENHA_ANALISTA=
+RASTRO_SENHA_ADMIN=
+```
+
+Preencha os valores depois do sinal de igual, sem espaço no início da linha. Se uma senha estiver vazia, fraca ou repetida, o usuário correspondente **não é criado** e o aviso aparece no log da `api` (só o nome da variável, nunca o valor). Rode o passo 3 de novo depois de preencher.
+
+Na tela de login, digite o usuário e a senha definidos acima:
+
+| Usuário | Perfil | O que vê no menu | Senha (variável) |
 |---|---|---|---|
-| `operador.demo` | Operador | Consulta, Dossiês gerados, Auditoria › Documentos. Só acessa processos em que é o interessado. | `vistas-demo` |
-| `gestor.demo` | Gestor (`OPERADOR_SIGILO`) | O mesmo menu do Operador, mas acessa todos os processos e os documentos sigilosos. | `vistas-demo` |
-| `admin.demo` | Administrador | Tudo: inclui Auditoria › Acessos e Configurações. | `vistas-demo` |
+| `operador` | Operador | Consulta, Dossiês gerados, Auditoria › Documentos. Só acessa processos em que é o interessado. | `RASTRO_SENHA_OPERADOR` |
+| `analista` | Analista | A caixa de tarefas. Precisa do CPF/CNPJ em `RASTRO_ANALISTA_CPF` para ver as tarefas atribuídas a ela. | `RASTRO_SENHA_ANALISTA` |
+| `admin` | Administrador | Tudo: inclui Auditoria › Acessos e Configurações. | `RASTRO_SENHA_ADMIN` |
 
-Essa senha é só para demonstração e só vale no perfil `local`. Para trocar, defina `VISTAS_DEMO_SENHA` no `.env.local` e rode o passo 3 de novo (o clique rápido da tela de login deixa de funcionar; digite usuário e senha).
+O **Gestor** (`OPERADOR_SIGILO`, acessa todos os processos e os documentos sigilosos) **não é usuário padrão**: o `admin` o cria em **Configurações › Usuários**. Quem entra pode trocar a própria senha em **Minha conta**. Depois de três erros seguidos de senha para o mesmo usuário vindo da mesma origem, a entrada fica bloqueada por 15 minutos (o contador fica em memória e zera ao reiniciar o serviço).
 
 Depois de entrar, abra **Consulta**. Sem o banco do SIGA configurado, qualquer busca mostra "O banco do SIGA está indisponível no momento." (é o esperado, veja a próxima seção). Com a conexão configurada, a tela de consulta funciona assim:
 
 - escolha **Requerimento** ou **Processo** e digite o número no formato `N/AAAA` (ex.: `3331/2025`); se houver um único resultado, o detalhe abre direto;
 - ou informe o **CPF/CNPJ** e/ou parte do **nome** do interessado (mínimo 3 letras) para ver uma lista com paginação;
-- o perfil **Operador** só enxerga processos em que ele é o interessado (o CPF/CNPJ do usuário de demonstração é fictício, então ele não verá dados reais);
+- o perfil **Operador** só enxerga processos em que o interessado é o CPF/CNPJ de `RASTRO_OPERADOR_CPF_CNPJ` (sem essa variável, o usuário `operador` não é criado);
 - as consultas que você abriu aparecem em "Consultados recentemente".
 
 Se você digitar na barra de endereço uma página que o seu perfil não usa (por exemplo `http://localhost:8080/configuracoes` como Operador), o sistema avisa e volta para a Consulta.
@@ -259,7 +269,7 @@ O roteiro de homologação com dados reais é o [docs/homologacao/S4-roteiro-hom
 
 **Configurações (só Administrador).** Usuários e perfis (com as proteções do último Administrador e do próprio usuário), parâmetros do dossiê, da conversão, da visualização e da auditoria, e conexões com teste. Cada parâmetro mostra se vale já, na próxima geração ou só depois de reiniciar. As alterações de parâmetros ficam pendentes e saem juntas em **Salvar alterações** (um único evento na auditoria). Credenciais não aparecem nem são editáveis.
 
-> **Tudo em memória.** Eventos, usuários incluídos e parâmetros alterados pela tela **somem ao reiniciar o serviço**; volta o que está nas variáveis de ambiente e os três usuários de demonstração. O registro permanente é da versão definitiva (schema próprio).
+> **Tudo em memória.** Eventos, usuários incluídos e parâmetros alterados pela tela **somem ao reiniciar o serviço**; volta o que está nas variáveis de ambiente (os usuários padrão, com as senhas de `RASTRO_SENHA_*`); senhas trocadas pela tela e o Gestor criado em Configurações não sobrevivem ao reinício. O registro permanente é da versão definitiva (schema próprio).
 
 O roteiro de homologação com dados reais é o [docs/homologacao/S5-roteiro-homologacao.md](docs/homologacao/S5-roteiro-homologacao.md).
 
@@ -307,7 +317,7 @@ O `npm ci` instala as dependências (1 a 2 minutos na primeira vez). O `npm star
 
 O arquivo `front/proxy.conf.json` faz o `ng serve` encaminhar tudo que começa com `/api` para a API em `http://localhost:8081`. Se você subir a API em outra porta, mude o `target` desse arquivo para a mesma porta e reinicie o `npm start`.
 
-Entre com `operador.demo`, `gestor.demo` ou `admin.demo` (senha `vistas-demo`, igual ao Tutorial 1). Para parar, use `Ctrl + C` em cada terminal.
+Entre com `operador`, `analista` ou `admin`, com as senhas que você definiu em `RASTRO_SENHA_*` no passo 6 do Tutorial 1 (a API que atende este modo é a do Tutorial 1, subida com o mesmo `.env.local`). Para parar, use `Ctrl + C` em cada terminal.
 
 ## Rodar os testes
 

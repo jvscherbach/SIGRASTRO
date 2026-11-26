@@ -41,7 +41,7 @@ Repita o comando trocando `SIGA_DB_URL` por `LICENCIAMENTO_API_URL` e `SCORP_API
 
 - [ ] OK / [ ] Falhou — observação:
 
-Resultado esperado: `api` e `front` em execução; abra `http://localhost:8080`. Usuários de demonstração na tela de login: `operador.demo`, `gestor.demo` e `admin.demo`. O Operador não deve ver o item **Painel** no menu; o Gestor e o Administrador devem ver.
+Resultado esperado: `api` e `front` em execução; abra `http://localhost:8080`. Usuários de demonstração anteriores à L1 (hoje o login é `operador`, `analista` ou `admin`, com senhas em variáveis; o Gestor é criado pelo `admin`). O Operador não deve ver o item **Painel** no menu; o Gestor e o Administrador devem ver.
 
 **Situação do ambiente de tela:** a população fictícia existe **só no Oracle de teste** (ver R66 em [`docs/10`](../10-pendencias-e-riscos.md)), e o ambiente com SIGA fictício para abri-la na tela ainda **não existe**. Por isso a coluna **Tela** fica `Não executado` até haver esse ambiente; a coluna **Prova automática** diz o que os testes já provam. Quem marcar `OK` na tela precisa tê-la aberto de fato.
 
@@ -98,8 +98,8 @@ Marque a Prova automática da seção 2 com os testes da tabela; a tela só entr
 
 | Passo | O que fazer | O que a tela deve mostrar | Prova automática | Tela | Resultado |
 |---|---|---|---|---|---|
-| E1 | Entrar com `operador.demo` | Sem o item **Painel** no menu; a rota `/painel` leva de volta à Consulta, com o aviso de perfil | `painel.e2e.ts` e `perfis.e2e.ts`; `PainelHttpTest` (403) | Não executado (R66) | [ ] OK / [ ] Falhou — observação: |
-| E2 | Entrar com `gestor.demo` (e `admin.demo`) | Item **Painel** na seção Gestão; cabeçalho com "Ano de 2026 (requerimentos protocolados no ano)", "Dados de dd/mm/aaaa hh:mm" e próxima atualização | `painel.component.spec.ts`; `MatrizDeAcessoTest` | Não executado (R66) | [ ] OK / [ ] Falhou — observação: |
+| E1 | Entrar com `operador` | Sem o item **Painel** no menu; a rota `/painel` leva de volta à Consulta, com o aviso de perfil | `painel.e2e.ts` e `perfis.e2e.ts`; `PainelHttpTest` (403) | Não executado (R66) | [ ] OK / [ ] Falhou — observação: |
+| E2 | Entrar com o Gestor (e `admin`) | Item **Painel** na seção Gestão; cabeçalho com "Ano de 2026 (requerimentos protocolados no ano)", "Dados de dd/mm/aaaa hh:mm" e próxima atualização | `painel.component.spec.ts`; `MatrizDeAcessoTest` | Não executado (R66) | [ ] OK / [ ] Falhou — observação: |
 | E3 | Primeira abertura depois de subir o sistema | Selo `PREPARANDO`, sem gráficos; a tela relê sozinha a cada 5 s, por até 2 minutos; depois mostra "A leitura está demorando" e o botão | `painel.e2e.ts`; `AtualizarPainelTest` (uma só leitura com 20 requisições simultâneas) | Não executado (R66) | [ ] OK / [ ] Falhou — observação: |
 | E4 | Clicar em **Atualizar agora** logo depois de uma atualização | `429`: "Tente de novo em N segundos", com o tempo que falta; sem atualização nova | `PainelHttpTest`; `painel.e2e.ts` (429) | Não executado (R66) | [ ] OK / [ ] Falhou — observação: |
 | E5 | Clicar em **Atualizar agora** depois do intervalo mínimo | `202`; a tela relê até a data dos dados mudar | `AtualizarPainelTest` (manual recusada antes e aceita depois) | Não executado (R66) | [ ] OK / [ ] Falhou — observação: |

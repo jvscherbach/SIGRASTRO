@@ -22,3 +22,4 @@ Cada sprint é implementada a partir de um prompt `.md` desta pasta. A ordem e o
 | [S10](S10-painel-do-gestor.md) | Painel do Gestor: três gráficos (protocolados × concluídos, fila por etapa, carga por responsável) sobre um instantâneo em memória; 9 blocos |
 | [S11](S11-caixa-do-analista-e-lista-por-analista.md) | Caixa de entrada do analista (perfil Analista, posse, aviso de recebimento), nome do interessado, aba lateral "Processos por analista" e pizza da fila por etapa; 11 blocos (SONNET e HAIKU) |
 | [A1](A1-commit-automatico-orquestracao.md) | Commit automático por bloco e orquestração com quatro agentes |
+| [L1](L1-consolidar-login.md) | Consolidar o login: sem usuários de demonstração, três usuários padrão por variável de ambiente, senha com hash, limite de tentativas, redefinição e troca de senha; 7 blocos (SONNET e HAIKU) |

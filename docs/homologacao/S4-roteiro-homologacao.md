@@ -34,9 +34,9 @@ Resultado esperado: as quatro linhas com `vazia`. Abra `http://localhost:8080` e
 
 | Usuário | Itens do menu esperados | OK? |
 |---|---|---|
-| `operador.demo` (Operador) | Consulta, Dossiês gerados, Auditoria › Documentos | [ ] |
-| `gestor.demo` (Gestor) | Consulta, Dossiês gerados, Auditoria › Documentos | [ ] |
-| `admin.demo` (Administrador) | os anteriores mais Auditoria › Acessos e Configurações | [ ] |
+| `operador` (Operador; usuário de demonstração da época, hoje criado por variável) | Consulta, Dossiês gerados, Auditoria › Documentos | [ ] |
+| o Gestor (Gestor; criado pelo `admin`) | Consulta, Dossiês gerados, Auditoria › Documentos | [ ] |
+| `admin` (Administrador) | os anteriores mais Auditoria › Acessos e Configurações | [ ] |
 
 Para cada um, confira também:
 
@@ -146,7 +146,7 @@ Resultado esperado: `SCORP ligado` e `sigilo padrão: false` (o padrão, até o 
 
 ## 3. Documentos pessoais na lista e diferença com a Vista do SIGA (P21)
 
-Entre como `gestor.demo`. Abra o processo citado em P21 ([`docs/10`](../10-pendencias-e-riscos.md)), o outro processo de 2022 da mesma pendência e os 3 casos de [`casos-de-teste.md`](../casos-de-teste.md). Para cada um, abra também a **Vista do Processo** do SIGA (lista de documentos) para comparar.
+Entre como o Gestor. Abra o processo citado em P21 ([`docs/10`](../10-pendencias-e-riscos.md)), o outro processo de 2022 da mesma pendência e os 3 casos de [`casos-de-teste.md`](../casos-de-teste.md). Para cada um, abra também a **Vista do Processo** do SIGA (lista de documentos) para comparar.
 
 | Item | Esperado | OK? |
 |---|---|---|
@@ -223,7 +223,7 @@ Escolha um requerimento real que tenha SHP, KML ou KMZ (o Gestor vê a seção *
 
 Medição: tempo ______ s · tamanho ______ MB · arquivos ______.
 
-**Sigilosas para o Operador.** Se o requerimento tiver geometria sigilosa, ou para testar com o perfil Operador, troque o CPF/CNPJ do `operador.demo` como no passo 6 (só na sua máquina, sem commitar) e confira:
+**Sigilosas para o Operador.** Se o requerimento tiver geometria sigilosa, ou para testar com o perfil Operador, troque o CPF/CNPJ do `operador` como no passo 6 (só na sua máquina, sem commitar) e confira:
 
 | Item | Esperado | OK? |
 |---|---|---|
@@ -235,7 +235,7 @@ Medição: tempo ______ s · tamanho ______ MB · arquivos ______.
 
 ## 6. Perfis contra a matriz
 
-O `operador.demo` tem o CNPJ fictício `12.345.678/0001-90`. Para testar o Operador com um interessado real, **só na sua máquina e sem commitar**, troque o CPF/CNPJ dele em `api/src/main/java/br/gov/mt/sema/vistas/acesso/infrastructure/memoria/RepositorioUsuariosEmMemoria.java` pelo de um interessado de teste (`<CNPJ_DE_TESTE>`) e suba com `--build`. **Desfaça a troca no fim** e confira com `git diff` que o arquivo voltou ao original.
+O `operador` da época (de demonstração, hoje criado por variável) tinha o CNPJ fictício `12.345.678/0001-90`. Para testar o Operador com um interessado real, **só na sua máquina e sem commitar**, troque o CPF/CNPJ dele em `api/src/main/java/br/gov/mt/sema/vistas/acesso/infrastructure/memoria/RepositorioUsuariosEmMemoria.java` pelo de um interessado de teste (`<CNPJ_DE_TESTE>`) e suba com `--build`. **Desfaça a troca no fim** e confira com `git diff` que o arquivo voltou ao original.
 
 Use: um requerimento **do** interessado de teste (com um documento sigiloso, se houver) e um requerimento de **outro** interessado. Antes, como Gestor, gere um dossiê de qualquer requerimento, para ter um "dossiê de outro usuário". Confira cada resposta contra a tabela "Perfis e permissões" de [`docs/12`](../12-configuracoes.md) e a "Matriz de acesso por endpoint" de [`docs/07`](../07-api.md#matriz-de-acesso-por-endpoint). Para as linhas de API, abra a URL no navegador com a sessão do perfil, ou veja a resposta em DevTools › Rede.
 

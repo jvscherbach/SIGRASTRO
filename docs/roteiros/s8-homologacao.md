@@ -36,7 +36,7 @@ docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml -f co
 
 Repita o comando trocando `SIGA_DB_URL` por `LICENCIAMENTO_API_URL` e `SCORP_API_URL`.
 
-Resultado esperado: `api` e `front` em execução; abra `http://localhost:8080`. Usuários de demonstração na tela de login: `operador.demo`, `gestor.demo` e `admin.demo`.
+Resultado esperado: `api` e `front` em execução; abra `http://localhost:8080`. Usuários de demonstração anteriores à L1 (hoje o login é `operador`, `analista` ou `admin`, com senhas em variáveis; o Gestor é criado pelo `admin`).
 
 - [ ] OK / [ ] Falhou — observação:
 
@@ -129,8 +129,8 @@ Selo fixo em **todos** os três: **"Histórico aproximado: este requerimento é 
 | `NAO_SUPORTADO` (Trifásico ou LAS): "Fluxo ainda não suportado pelo Rastro." | Abrir o requerimento de tipo fora do catálogo | `TramitacaoCompletaHttpTest` | `Não executado` | [ ] OK / [ ] Falhou |
 | `HISTORICO_TRUNCADO`: o que coube, com o aviso de atenção | Instância acima do limite (3.000 linhas) | `ReconstruirCaminhoComFixturesTest` (limite de 3 linhas) | `Não executado` | [ ] OK / [ ] Falhou |
 | Falha da tramitação **não** derruba "Onde está agora" nem os documentos, e o inverso | Repetir com a tramitação indisponível | `TramitacaoHttpTest`, testes de independência do front | `Não executado` | [ ] OK / [ ] Falhou |
-| Operador sem nome do responsável em passagens, participantes e fluxograma; papel continua | Entrar como `operador.demo` | `VarreduraDaTramitacaoHttpTest`, `VarreduraSemNomeDoResponsavelHttpTest`, `tramitacao.e2e.ts` (P39 por perfil) | `Não executado` | [ ] OK / [ ] Falhou |
-| Administrador vê ids técnicos e o diagnóstico; Gestor e Operador não | Entrar como `admin.demo` e comparar com `gestor.demo` | `TramitacaoCompletaHttpTest`, `VarreduraDaTramitacaoHttpTest` | `Não executado` | [ ] OK / [ ] Falhou |
+| Operador sem nome do responsável em passagens, participantes e fluxograma; papel continua | Entrar como `operador` | `VarreduraDaTramitacaoHttpTest`, `VarreduraSemNomeDoResponsavelHttpTest`, `tramitacao.e2e.ts` (P39 por perfil) | `Não executado` | [ ] OK / [ ] Falhou |
+| Administrador vê ids técnicos e o diagnóstico; Gestor e Operador não | Entrar como `admin` e comparar com o Gestor | `TramitacaoCompletaHttpTest`, `VarreduraDaTramitacaoHttpTest` | `Não executado` | [ ] OK / [ ] Falhou |
 | Nenhuma tela de consulta mostra a palavra "Camunda" (P39), para nenhum perfil | Percorrer busca e detalhe com cada perfil e procurar o termo (a aba Conexões é só do Administrador) | `tramitacao.e2e.ts` (P39 por perfil), `TramitacaoHttpTest` | `Não executado` | [ ] OK / [ ] Falhou |
 | P38: a posição de H12 mostra "Concluído" com o selo "Processo concluído" e "Concluído desde …", sem a etapa "Verificação da revisão do processo" como em andamento | Abrir H12 (linha H12 da seção 1.1 do [roteiro da S7](s7-homologacao.md)) | `TramitacaoHttpTest` (P38 por perfil), `PosicoesDeTeste.naVerificacaoDaRevisao` | `Não executado` | [ ] OK / [ ] Falhou |
 | Impressão em preto e branco (botão "Imprimir tramitação") | Imprimir um HC com a tela em escala de cinza | `tramitacao.e2e.ts` (impressão por `emulateMedia`) | `Não executado` | [ ] OK / [ ] Falhou |

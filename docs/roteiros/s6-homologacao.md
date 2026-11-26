@@ -29,7 +29,7 @@ docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml up -d
 docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml ps
 ```
 
-Resultado esperado: `api` e `front` em execução; abra `http://localhost:8080`. Os usuários de demonstração têm o clique rápido na tela de login: `operador.demo`, `gestor.demo` e `admin.demo`.
+Resultado esperado: `api` e `front` em execução; abra `http://localhost:8080`. Usuários de demonstração anteriores à L1 (hoje o login é `operador`, `analista` ou `admin`, com senhas em variáveis; o Gestor é criado pelo `admin`).
 
 Escolha antes de começar (anote só os marcadores):
 
@@ -45,7 +45,7 @@ Escolha antes de começar (anote só os marcadores):
 
 ### 1.1 Nome do arquivo × tipo (bloco 1)
 
-Entre como `gestor.demo` e abra o requerimento com planilha. Compare com a lista da **Vista do SIGA** para o mesmo requerimento.
+Entre como o Gestor (criado pelo `admin`) e abra o requerimento com planilha. Compare com a lista da **Vista do SIGA** para o mesmo requerimento.
 
 | Onde | Esperado | OK? |
 |---|---|---|
@@ -64,7 +64,7 @@ Entre como `gestor.demo` e abra o requerimento com planilha. Compare com a lista
 
 ### 1.2 Usuários e perfis e coluna Detalhe (bloco 2)
 
-Entre como `admin.demo`. Repita em **1280**, **768** e **360 px** (ferramentas do desenvolvedor do navegador, modo dispositivo).
+Entre como `admin`. Repita em **1280**, **768** e **360 px** (ferramentas do desenvolvedor do navegador, modo dispositivo).
 
 | Tela | Esperado | OK? |
 |---|---|---|
@@ -113,7 +113,7 @@ Entre como `admin.demo`. Repita em **1280**, **768** e **360 px** (ferramentas d
 
 ### 1.4 Teste de conexão sem falso alarme (bloco 4)
 
-Entre como `admin.demo`, com o sistema real de desenvolvimento ligado, e abra Configurações › **Conexões**. Clique em **Testar conexão** em cada uma.
+Entre como `admin`, com o sistema real de desenvolvimento ligado, e abra Configurações › **Conexões**. Clique em **Testar conexão** em cada uma.
 
 | Conexão | Esperado | OK? |
 |---|---|---|

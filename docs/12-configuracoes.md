@@ -30,6 +30,8 @@ Tela acessível apenas ao perfil Administrador. Toda alteração gera evento na 
 | Pedido de dossiê de outro usuário | — | ✓ | ✓ | 404 `NAO_ENCONTRADO` (não revela que existe) |
 | Ver pedidos de outros usuários e "quem gerou" em "Dossiês gerados" | — | ✓ | ✓ | só os próprios; o campo `geradoPor` não existe |
 | Geometria sigilosa (lista e ZIP) | — | ✓ | ✓ | omitida, só a contagem `geometriasOmitidas` |
+| Trocar a **própria** senha (`POST /api/auth/senha`; todos os perfis, inclusive o Analista) | ✓ | ✓ | ✓ | 401 sem sessão, antes de qualquer leitura; senha atual errada: 401; bloqueio: 429 |
+| Definir ou **redefinir a senha de outro** usuário (inclusão e `PATCH` com `senha`) | — | — | ✓ | 403 `PERFIL_SEM_PERMISSAO`; a redefinição encerra as sessões do usuário afetado |
 
 A matriz completa, endpoint por endpoint, está em [07 — API](07-api.md#matriz-de-acesso-por-endpoint).
 

@@ -70,7 +70,7 @@ Pacote raiz `br.gov.mt.sema.vistas`:
 **Módulo `acesso`** (login simulado, em memória)
 - `domain`: `Perfil` (`OPERADOR`, `OPERADOR_SIGILO`, `ADMIN`) com as permissões da matriz de `docs/12-configuracoes.md` (métodos de consulta como `podeVerSigilosos()`, `podeVerAuditoriaAcessos()`, `podeAcessarConfiguracoes()`, `restritoAoInteressado()`); `Usuario` (login, nome, perfil, CPF/CNPJ, ativo).
 - `application`: casos de uso `AutenticarUsuario` (login + senha → sessão) e `ObterUsuarioAtual`; portas `RepositorioUsuarios` e `RepositorioSessoes`.
-- `infrastructure.memoria`: os três usuários de demonstração do protótipo (`operador.demo` com CPF/CNPJ `12.345.678/0001-90`, `gestor.demo`, `admin.demo`), senha de demonstração única definida em propriedade (`vistas.demo.senha`, valor padrão só no perfil `local`); sessões com token opaco aleatório (`SecureRandom`, 32 bytes, Base64 URL) e expiração de 8 h.
+- `infrastructure.memoria`: os três usuários de demonstração do protótipo da época (`operador` com CPF/CNPJ `12.345.678/0001-90`, o Gestor e `admin`; hoje removidos na L1), com senha de demonstração única definida em propriedade (valor padrão só no perfil `local`; removida na L1); sessões com token opaco aleatório (`SecureRandom`, 32 bytes, Base64 URL) e expiração de 8 h.
 - `api`: `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`, com DTOs em `acesso.api.dto` e Bean Validation.
 - Filtro de autenticação simulada (no próprio módulo, em `acesso.api`): exige `Authorization: Bearer <token>` em `/api/**`, exceto `POST /api/auth/login`; sem token ou com token inválido → 401 `NAO_AUTENTICADO` no formato `ProblemDetail`. Health e OpenAPI ficam fora do filtro. O usuário autenticado fica disponível por um contrato do módulo `acesso` (ex.: `UsuarioAtual`), para os outros módulos nas próximas sprints.
 
@@ -109,7 +109,7 @@ Angular na versão estável mais recente, com componentes standalone e roteament
   - Guards: autenticado e por perfil.
 - `layout/`: shell com barra lateral e topo, responsivo como no protótipo (barra recolhível; em telas pequenas, menu sobreposto).
 - `shared/`: toast e os componentes visuais básicos que as telas desta sprint usarem (ex.: quadro do topo com a ilustração, folha branca sobreposta).
-- `features/login/`: tela de login igual à do protótipo, incluindo a ilustração de chapadas com curvas de nível (porte a função `cenaLogin()` do protótipo para um componente que gera o SVG). Os três perfis de demonstração entram com um clique, chamando `POST /api/auth/login`.
+- `features/login/`: tela de login igual à do protótipo, incluindo a ilustração de chapadas com curvas de nível (porte a função `cenaLogin()` do protótipo para um componente que gera o SVG). Os três perfis de demonstração da época entravam com um clique, chamando `POST /api/auth/login`.
 - Rotas protegidas com página "em construção" no padrão visual (quadro do topo + folha sobreposta), indicando a sprint em que cada uma será entregue:
   - `/consulta` (S1), `/dossies` (S4), `/auditoria/documentos` (S5), `/auditoria/acessos` (S5, só Administrador), `/configuracoes` (S5, só Administrador).
 - Menu por perfil conforme **RN08**: itens que o perfil não usa **não são renderizados** (no app real, "Acessos" e "Configurações" não aparecem para quem não é Administrador; o cadeado do protótipo era só demonstração). O guard também bloqueia o acesso direto pela URL.

@@ -28,7 +28,8 @@ O banco do SIGA **nunca** entra no Compose: é sempre externo, acessado por rede
 | `SIGA_DB_URL`, `SIGA_DB_USER`, `SIGA_DB_PASSWORD` | Leitura do banco do SIGA |
 | `SIGA_DB_POOL_MAX` | Tamanho máximo do pool de leitura do SIGA (padrão 2 na fase inicial) |
 | `SIGA_DB_CONN_TIMEOUT_MS`, `SIGA_DB_READ_TIMEOUT_MS`, `SIGA_DB_MAX_LIFETIME_MS` | Timeout de conexão (5000), de leitura do driver (30000) e vida máxima da conexão (1500000), em ms |
-| `VISTAS_DEMO_SENHA` | Senha única dos usuários de demonstração; o padrão (`vistas-demo`) só existe no perfil `local` |
+| `RASTRO_SENHA_OPERADOR`, `RASTRO_SENHA_ANALISTA`, `RASTRO_SENHA_ADMIN` | Senhas dos usuários padrão `operador`, `analista` e `admin` (sem padrão; mínimo 12 caracteres; ausente ou fraca = usuário não criado). Detalhes em `docs/12` |
+| `RASTRO_OPERADOR_CPF_CNPJ`, `RASTRO_ANALISTA_CPF` | CPF/CNPJ do interessado do `operador` e CPF do `analista` (sem padrão; valores reais só no `.env.local`) |
 | `VISTAS_DOSSIE_DIRETORIO` | Diretório temporário dos dossiês (padrão `/var/tmp/vistas`) |
 | `VISTAS_DB_POOL_MAX` | Tamanho máximo do pool do schema próprio (padrão 3 na fase inicial) |
 | `AGENDAMENTO_ENABLED` | Liga as tarefas agendadas (padrão `true`) |

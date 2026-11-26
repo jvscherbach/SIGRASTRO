@@ -41,13 +41,13 @@ Escolha antes de começar (anote só os marcadores):
 | Requerimento de **outro interessado**, que o Operador não pode abrir | |
 | Requerimento **com planilha larga e alta** (a pior que você conhecer, para o passo 5.4) | |
 
-Os usuários de demonstração têm o clique rápido na tela de login: `operador.demo` (Operador), `gestor.demo` (Gestor) e `admin.demo` (Administrador). Para que o Operador veja seus processos, o CPF/CNPJ dele precisa ser o do interessado do requerimento escolhido (ajuste no cadastro de demonstração, se for o caso).
+Usuários de demonstração anteriores à L1 (hoje o login é `operador` (Operador), `analista` ou `admin` (Administrador), com senhas em variáveis; o Gestor é criado pelo `admin`). Para que o Operador veja seus processos, o CPF/CNPJ dele precisa ser o do interessado do requerimento escolhido (ajuste no cadastro, se for o caso).
 
 - [ ] OK / [ ] Falhou — observação:
 
 ## 1. Geração em segundo plano
 
-Entre como `gestor.demo`.
+Entre como o Gestor.
 
 ### 1.1 Fechar a gaveta durante a geração
 
@@ -92,14 +92,14 @@ Provoque uma falha como no roteiro da S2.2 (por exemplo, invalide o token da API
 
 ## 2. Auditoria de documentos
 
-Faça as ações abaixo com **cada perfil** (`operador.demo`, `gestor.demo`, `admin.demo`), sempre sobre `<ID_DO_REQUERIMENTO>` (o do interessado do Operador, com documento sigiloso):
+Faça as ações abaixo com **cada perfil** (`operador`, o Gestor e `admin`), sempre sobre `<ID_DO_REQUERIMENTO>` (o do interessado do Operador, com documento sigiloso):
 
 1. abrir o detalhe do requerimento;
 2. **Visualizar** um documento comum e, quando o perfil puder, um sigiloso;
 3. gerar um dossiê e baixar o PDF;
 4. baixar as geometrias.
 
-Depois entre como `admin.demo` e abra **Auditoria › Documentos** (período "Últimos 7 dias").
+Depois entre como `admin` e abra **Auditoria › Documentos** (período "Últimos 7 dias").
 
 | Evento esperado | Quando | Conferir | OK? |
 |---|---|---|---|
@@ -140,20 +140,20 @@ Clique em **Exportar CSV** (com o filtro "Somente sigilosos" e depois sem filtro
 
 | Item | Como conferir | Esperado | OK? |
 |---|---|---|---|
-| Operador vê o dos seus processos, de qualquer usuário | gere um dossiê do `<ID_DO_REQUERIMENTO>` como `gestor.demo`; entre como `operador.demo` e abra Auditoria › Documentos | aparecem os eventos feitos pelo Gestor sobre o requerimento dele; o texto da tela diz "Você vê os eventos dos seus processos..." | [ ] |
-| Operador não vê o de outro interessado | faça uma consulta do requerimento de outro interessado como `gestor.demo` | **nenhum** evento dele aparece para o Operador, nem nos indicadores | [ ] |
+| Operador vê o dos seus processos, de qualquer usuário | gere um dossiê do `<ID_DO_REQUERIMENTO>` como o Gestor; entre como `operador` e abra Auditoria › Documentos | aparecem os eventos feitos pelo Gestor sobre o requerimento dele; o texto da tela diz "Você vê os eventos dos seus processos..." | [ ] |
+| Operador não vê o de outro interessado | faça uma consulta do requerimento de outro interessado como o Gestor | **nenhum** evento dele aparece para o Operador, nem nos indicadores | [ ] |
 | Sigiloso mascarado | procure, como Operador, o evento do documento sigiloso | aparece "Documento sigiloso", **sem nome de arquivo** nem extensão, na lista, no detalhe e no CSV | [ ] |
 | Busca não revela sigiloso | como Operador, busque pelo **título** e pelo **nome do arquivo** do documento sigiloso | a busca **não encontra** o evento | [ ] |
 | Sem "somente sigilosos" | tela do Operador | o filtro não é oferecido | [ ] |
 | Gestor e Administrador | mesma lista | veem **todos** os eventos, com os nomes dos sigilosos, e têm "Somente sigilosos" | [ ] |
-| Acessos só do Administrador | menu de cada perfil | **Auditoria › Acessos** só para o `admin.demo`; como Operador e Gestor, digitar `http://localhost:8080/auditoria/acessos` avisa "Seu perfil não tem permissão..." e volta à Consulta, sem chamada a `/api/auditoria` na aba Rede | [ ] |
-| Auditoria de acessos | como `admin.demo`, abra Auditoria › Acessos | veja "Acesso" (login), "Troca de perfil" (entre com um perfil diferente do da sessão aberta) e, depois do passo 4, "Usuário alterado" | [ ] |
+| Acessos só do Administrador | menu de cada perfil | **Auditoria › Acessos** só para o `admin`; como Operador e Gestor, digitar `http://localhost:8080/auditoria/acessos` avisa "Seu perfil não tem permissão..." e volta à Consulta, sem chamada a `/api/auditoria` na aba Rede | [ ] |
+| Auditoria de acessos | como `admin`, abra Auditoria › Acessos | veja "Acesso" (login), "Troca de perfil" (entre com um perfil diferente do da sessão aberta) e, depois do passo 4, "Usuário alterado" | [ ] |
 
 - [ ] OK / [ ] Falhou — observação:
 
 ## 4. Usuários e perfis
 
-Entre como `admin.demo` e abra **Configurações › Usuários e perfis**.
+Entre como `admin` e abra **Configurações › Usuários e perfis**.
 
 | Passo | Esperado | OK? |
 |---|---|---|
@@ -163,9 +163,9 @@ Entre como `admin.demo` e abra **Configurações › Usuários e perfis**.
 | Incluir um Operador válido (login `teste.operador`, CPF/CNPJ de teste válido) | aparece na lista; o CPF/CNPJ vem **mascarado** (`***.456.789-**`), nunca completo | [ ] |
 | Mudar o perfil de `teste.operador` para Gestor | pergunta "Mudar o perfil...?", ao confirmar grava e avisa | [ ] |
 | Desativar `teste.operador` | pergunta, confirma, a linha fica esmaecida | [ ] |
-| Último Administrador | tente rebaixar ou desativar o `admin.demo` (se for o único ativo) | recusa com a mensagem do servidor; o valor volta | [ ] |
-| Próprio usuário | como `admin.demo`, tente se desativar (com outro Administrador ativo cadastrado) | recusa: "Não é possível desativar o próprio usuário." | [ ] |
-| Entrar com o usuário recém-incluído | **Sair** e entre com `teste.operador` e a senha única (`VISTAS_DEMO_SENHA`) enquanto ele está ativo | entra e vê o menu do perfil dele | [ ] |
+| Último Administrador | tente rebaixar ou desativar o `admin` (se for o único ativo) | recusa com a mensagem do servidor; o valor volta | [ ] |
+| Próprio usuário | como `admin`, tente se desativar (com outro Administrador ativo cadastrado) | recusa: "Não é possível desativar o próprio usuário." | [ ] |
+| Entrar com o usuário recém-incluído | **Sair** e entre com `teste.operador` e a senha definida para ele na tela (a senha única de demonstração da época foi removida na L1) enquanto ele está ativo | entra e vê o menu do perfil dele | [ ] |
 | Entrar com o desativado | desative-o de novo e tente entrar | falha com a mensagem de credencial inválida, **sem dizer que está inativo** | [ ] |
 | Sessão aberta | com `teste.operador` logado em outra janela anônima, mude o perfil dele | na **próxima ação** a janela já vale com o perfil novo (ou perde o acesso, se desativado), sem sair | [ ] |
 | Eventos | Auditoria › Acessos, tipo "Usuário alterado" | **um evento por alteração**, com antes e depois (perfil e situação); a inclusão registra "incluído" e **não** traz CPF/CNPJ | [ ] |
@@ -175,7 +175,7 @@ Entre como `admin.demo` e abra **Configurações › Usuários e perfis**.
 
 ## 5. Parâmetros
 
-Ainda como `admin.demo`, em **Configurações**.
+Ainda como `admin`, em **Configurações**.
 
 ### 5.1 Salvar e o evento único
 
@@ -253,7 +253,7 @@ Anote antes: quantos eventos há em Auditoria › Documentos e Acessos, e as alt
 docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml restart api
 ```
 
-Aguarde o serviço voltar (a tela de login volta a responder) e entre de novo como `admin.demo`.
+Aguarde o serviço voltar (a tela de login volta a responder) e entre de novo como `admin`.
 
 | Item | Esperado (comportamento documentado, não é falha) | OK? |
 |---|---|---|

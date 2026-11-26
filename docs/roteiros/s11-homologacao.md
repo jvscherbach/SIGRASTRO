@@ -44,7 +44,7 @@ Repita o comando trocando `SIGA_DB_URL` por `LICENCIAMENTO_API_URL` e `SCORP_API
 
 - [ ] OK / [ ] Falhou — observação:
 
-Resultado esperado: `api` e `front` em execução; abra `http://localhost:8080`. Usuários de demonstração na tela de login: `operador.demo`, `gestor.demo` e `admin.demo` (o back-end **não** traz usuário de demonstração Analista; ver seção 2).
+Resultado esperado: `api` e `front` em execução; abra `http://localhost:8080`. Usuários de demonstração anteriores à L1 (hoje o login é `operador`, `analista` ou `admin`, com senhas em variáveis; o Gestor é criado pelo `admin`) (o back-end **não** traz usuário de demonstração Analista; ver seção 2).
 
 **Situação do ambiente de tela (NÃO CONFIRMADO):** a população fictícia da caixa existe **só no Oracle de teste**. Não há, documentado, um ambiente com SIGA fictício que a mostre na tela. Por isso a coluna **Resultado** fica `Não executado` até haver esse ambiente; a prova automática de cada linha está na tabela da seção 3 (`CaixaDoAnalistaTest`, `CaixaHttpTest` e o e2e). Quem marcar `OK` precisa ter visto o resultado na tela de fato.
 
@@ -66,7 +66,7 @@ Resultado esperado: `api` e `front` em execução; abra `http://localhost:8080`.
 
 O back-end não traz usuário de demonstração Analista (desvio do bloco 2, registrado em [`docs/progresso/s11.md`](../progresso/s11.md)). Para homologar a caixa:
 
-1. Entre como `admin.demo`, abra **Configurações** › **Usuários e perfis** e cadastre um usuário com o perfil **Analista**.
+1. Entre como `admin`, abra **Configurações** › **Usuários e perfis** e cadastre um usuário com o perfil **Analista**.
 2. No campo CPF, use o **CPF do servidor** que aparece no Camunda real, ou deixe em branco para testar o caso sem vínculo. O CPF nunca sai em tela, log, erro ou auditoria; se ele aparecer, pare e registre.
 3. Entre com esse usuário: o login leva para **Minha caixa**; os demais perfis continuam na Consulta.
 
@@ -139,7 +139,7 @@ Use o analista A1 da seção 3 (ou o de sua preferência, com os cenários equiv
 
 ## 5. Painel do Gestor: aba lateral "Processos por analista"
 
-Entre como `gestor.demo` (ou `admin.demo`). Ajuste o ano do painel para 2027 ou 2028 (seção 0).
+Entre como o Gestor (ou `admin`). Ajuste o ano do painel para 2027 ou 2028 (seção 0).
 
 - [ ] **Abrir a aba:** pelo botão **Processos por analista** ou pelo botão **Ver lista** da tabela da carga por responsável; o clique na barra de um analista também abre (só mouse; o teclado usa o botão). OK / Falhou — observação:
 - [ ] **Soma bate com a barra:** para cada analista, o "N requerimentos (o total da barra)" é igual ao total da barra do gráfico 3 (a tabela equivalente, "Ver como tabela", serve de conferência). OK / Falhou — observação:

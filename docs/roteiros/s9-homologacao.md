@@ -38,7 +38,7 @@ docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml -f co
 
 Repita o comando trocando `SIGA_DB_URL` por `LICENCIAMENTO_API_URL` e `SCORP_API_URL`.
 
-Resultado esperado: `api` e `front` em execução; abra `http://localhost:8080`. Usuários de demonstração na tela de login: `operador.demo`, `gestor.demo` e `admin.demo`.
+Resultado esperado: `api` e `front` em execução; abra `http://localhost:8080`. Usuários de demonstração anteriores à L1 (hoje o login é `operador`, `analista` ou `admin`, com senhas em variáveis; o Gestor é criado pelo `admin`).
 
 - [ ] OK / [ ] Falhou — observação:
 
@@ -93,14 +93,14 @@ Resultado esperado: `api` e `front` em execução; abra `http://localhost:8080`.
 
 | Verificação | Como conferir | Prova automática | Tela | Resultado |
 |---|---|---|---|---|
-| Operador vê a mesma seção, **sem** campos de Administrador (id de lançamento, diagnóstico, status de processamento) | Entrar como `operador.demo`, abrir o 9011 | `financeiro.e2e.ts` (Operador), `VarreduraDoFinanceiroHttpTest` | `Não executado` | [ ] OK / [ ] Falhou |
+| Operador vê a mesma seção, **sem** campos de Administrador (id de lançamento, diagnóstico, status de processamento) | Entrar como `operador`, abrir o 9011 | `financeiro.e2e.ts` (Operador), `VarreduraDoFinanceiroHttpTest` | `Não executado` | [ ] OK / [ ] Falhou |
 | Parâmetro de valores desligado (`RASTRO_MOSTRAR_VALORES=false`): sem colunas Valor e Desconto, sem "R$" na seção, DAR continua | Abrir o 9001 com o parâmetro desligado (só no ambiente de teste) | `financeiro.e2e.ts` (valores desligados), `VarreduraSemValoresHttpTest`, `FinanceiroResponseTest` | `Não executado` | [ ] OK / [ ] Falhou |
 | `INDISPONIVEL`: aviso neutro "Não foi possível consultar as taxas agora. O restante da página não foi afetado.", botão **Tentar novamente** (que lê de novo) | Derrubar o banco de leitura no ambiente de teste | `financeiro.e2e.ts` (INDISPONIVEL), `IndependenciaDoFinanceiroHttpTest` | `Não executado` | [ ] OK / [ ] Falhou |
 | Independência: financeiro fora não afeta tramitação nem documentos, e o inverso | Repetir com a tramitação indisponível e com o financeiro indisponível | `financeiro.e2e.ts` (independência), `IndependenciaDoFinanceiroHttpTest` | `Não executado` | [ ] OK / [ ] Falhou |
-| Aba **Rastro** das Configurações: três parâmetros (mostrar valores, limite de lançamentos, tempo limite), com faixa e padrão, **sem credencial** | Entrar como `admin.demo` e abrir Configurações, aba Rastro | `configuracoes-financeiro.e2e.ts` (aba Rastro), `ParametrosHttpTest` | `Não executado` | [ ] OK / [ ] Falhou |
+| Aba **Rastro** das Configurações: três parâmetros (mostrar valores, limite de lançamentos, tempo limite), com faixa e padrão, **sem credencial** | Entrar como `admin` e abrir Configurações, aba Rastro | `configuracoes-financeiro.e2e.ts` (aba Rastro), `ParametrosHttpTest` | `Não executado` | [ ] OK / [ ] Falhou |
 | Alterar um parâmetro gera **um** evento `CONFIG` com antes e depois | Salvar uma alteração e conferir a auditoria (sem valor de DAR) | `configuracoes-financeiro.e2e.ts` (PUT único), `ParametrosHttpTest` | `Não executado` | [ ] OK / [ ] Falhou |
 | Diagnóstico do Administrador (somente leitura): ignorados por motivo e origem da data da isenção, sem valor, DAR, id de lançamento nem CPF | Informar o id interno do 9005 (ou do 9006) no diagnóstico | `configuracoes-financeiro.e2e.ts` (diagnóstico), `diagnostico-financeiro.component.spec.ts` | `Não executado` | [ ] OK / [ ] Falhou |
-| Operador e Gestor sem a seção de parâmetros (403 `PERFIL_SEM_PERMISSAO`) | Entrar como `operador.demo` e `gestor.demo` e abrir a aba Rastro | `configuracoes-financeiro.e2e.ts` (Operador), `ParametrosHttpTest` | `Não executado` | [ ] OK / [ ] Falhou |
+| Operador e Gestor sem a seção de parâmetros (403 `PERFIL_SEM_PERMISSAO`) | Entrar como `operador` e como o Gestor e abrir a aba Rastro | `configuracoes-financeiro.e2e.ts` (Operador), `ParametrosHttpTest` | `Não executado` | [ ] OK / [ ] Falhou |
 | Impressão em preto e branco: o selo "Taxa vencida" se distingue por borda e texto | Imprimir o 9015 com a tela em escala de cinza | `financeiro-tramitacao.e2e.ts` (impressão) | `Não executado` | [ ] OK / [ ] Falhou |
 | Celular de 360 px: lista em cartões, sem rolagem horizontal da página, com e sem aviso | Abrir o 9011 e o 9003 em 360 px | `financeiro.e2e.ts` (360 px), `financeiro-tramitacao.e2e.ts` (360 px), `configuracoes-financeiro.e2e.ts` (360 px) | `Não executado` | [ ] OK / [ ] Falhou |
 | Nenhum CPF, `CHAVE_GED`, token nem id interno (para não Administrador) em tela, resposta, log ou auditoria | Percorrer as telas dos três perfis e procurar os termos | `VarreduraDoFinanceiroHttpTest`, `financeiro.component.spec.ts` | `Não executado` | [ ] OK / [ ] Falhou |

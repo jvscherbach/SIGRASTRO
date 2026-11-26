@@ -37,7 +37,7 @@ docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml -f co
 
 Repita o comando trocando `SIGA_DB_URL` por `LICENCIAMENTO_API_URL` e `SCORP_API_URL`.
 
-Resultado esperado: `api` e `front` em execução; abra `http://localhost:8080`. Usuários de demonstração na tela de login: `operador.demo`, `gestor.demo` e `admin.demo`.
+Resultado esperado: `api` e `front` em execução; abra `http://localhost:8080`. Usuários de demonstração anteriores à L1 (hoje o login é `operador`, `analista` ou `admin`, com senhas em variáveis; o Gestor é criado pelo `admin`).
 
 Anote antes de começar (só os marcadores):
 
@@ -133,7 +133,7 @@ Quando o Rastro e o Camunda divergirem, vale o Camunda (regra da S7). Quando a s
 
 ## 4. Aba Rastro, parâmetros e teste de conexão
 
-Entre como `admin.demo` (só o Administrador vê a aba Rastro; `gestor.demo` e `operador.demo` recebem `PERFIL_SEM_PERMISSAO`).
+Entre como `admin` (só o Administrador vê a aba Rastro; o Gestor e o `operador` recebem `PERFIL_SEM_PERMISSAO`).
 
 ### 4.1 Desligar o nome do responsável e ver o evento na auditoria
 
@@ -141,7 +141,7 @@ Entre como `admin.demo` (só o Administrador vê a aba Rastro; `gestor.demo` e `
 |---|---|---|
 | Configurações › **Rastro** › desligue **"Mostrar o nome do responsável"** › **Salvar alterações** | a barra fixa mostra o salvamento; a tela não exibe credenciais | [ ] |
 | Abra um requerimento com tarefa de servidor (ou o `<ID_DO_REQUERIMENTO_1>`) em "Onde está agora" | com quem aparece **só a área ou o papel** ("Atribuição de requerimentos…", "Chefia", "Analista"); **nenhum nome de servidor** | [ ] |
-| Mesma consulta como `gestor.demo` | também sem nome (o parâmetro vale para Gestor e Administrador) | [ ] |
+| Mesma consulta como o Gestor | também sem nome (o parâmetro vale para Gestor e Administrador) | [ ] |
 | Auditoria › **Acessos** (Administrador): procure o evento **`CONFIG`** ("Configuração alterada") | um evento com a lista de mudanças **antes e depois** (o nome do responsável: `true` → `false`) | [ ] |
 | Ligue o parâmetro de volta e salve | o nome volta a aparecer na próxima leitura, e um novo evento `CONFIG` registra a volta | [ ] |
 
@@ -189,7 +189,7 @@ Restaure o valor padrão (4) ao terminar.
 |---|---|---|
 | Abra o detalhe de um requerimento de `<PROCESSO_DE_TESTE>` | a seção **"Outros requerimentos deste processo"** lista os demais (sem o próprio), cada um com a posição resumida | [ ] |
 | Um dos requerimentos do processo falha (ou não tem histórico) | mostra "Não foi possível consultar" ou "Sem histórico detalhado" **só nele**; os demais seguem | [ ] |
-| Como `operador.demo` com um processo que tem requerimento de outro interessado | o Operador só vê os dele (RN07), sem erro na tela | [ ] |
+| Como `operador` com um processo que tem requerimento de outro interessado | o Operador só vê os dele (RN07), sem erro na tela | [ ] |
 | Busca por processo com **"Mostrar etapa atual"** ligado | cada linha da página mostra a etapa; o botão fica "pressionado" (`aria-pressed`); desligado por padrão | [ ] |
 | Teclado | o botão "Mostrar etapa atual" e o "Ver posição completa" são alcançados por Tab e acionados por Enter/Espaço | [ ] |
 | Celular (modo dispositivo, 360 px) | sem rolagem horizontal da página | [ ] |

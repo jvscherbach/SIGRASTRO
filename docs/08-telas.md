@@ -6,11 +6,14 @@ A referência visual vigente é o **protótipo do SIGRASTRO** (`design/sigrastro
 
 **Shell novo (R2, bloco 6; nome visível SIGRASTRO, D90).** A barra superior substitui o menu lateral: faixa sticky de 56px, fundo `--ink`, à esquerda a marca (`<app-marca>`, link para `/consulta`, rótulo "SIGRASTRO, início"), no meio a navegação horizontal (ícone e rótulo; item ativo com sublinhado `--marker` e `aria-current="page"`) e à direita o indicador de geração do dossiê, o selo do perfil, o nome, o avatar com iniciais e "Sair" (direto, sem menu suspenso). O conteúdo ocupa a largura total. Saíram o menu lateral, o botão de recolher, o véu mobile, a marca d'água do brasão, o rodapé "SEMA · Mato Grosso" e a trilha textual do topo. **Auditoria é um item único** (`/auditoria/documentos`, ativo em todo `/auditoria/*`); as visões "Documentos" e "Acessos" viram abas dentro da tela no bloco 12 (a aba Acessos só com `verAuditoriaAcessos`). Em até 900px a navegação mostra só os ícones (o rótulo continua para leitor de tela, oculto só visualmente; R2, bloco 15); em até 520px somem o selo do perfil e o nome. As permissões (RN08) seguem as do `menu.ts`.
 
-## 1. Login (simulado)
+## 1. Login
 
-- Usuário e senha.
-- Três usuários fixos de demonstração, um por perfil: `operador.demo` (`OPERADOR`), `gestor.demo` (`OPERADOR_SIGILO`, o Gestor) e `admin.demo` (`ADMIN`). Cada um entra com um clique, e também é possível digitar usuário e senha.
-- Indicação visível de que o acesso é simulado.
+- Usuário e senha. Sem usuário de demonstração, sem botão de entrada rápida e sem dica de usuários existentes; o campo de senha nunca é preenchido sozinho.
+- Usuários padrão: `operador`, `analista` e `admin` (senhas nas variáveis `RASTRO_SENHA_*`); o Gestor é criado pelo `admin` em Configurações › Usuários.
+- Credencial inválida: "Usuário ou senha inválidos." (a senha digitada é apagada).
+- Bloqueio temporário (429): mensagem com o tempo restante em minutos; até a senha certa é recusada durante o bloqueio.
+- **Minha conta** (todos os perfis, item de menu com o nome acessível "Minha conta"): troca da própria senha (atual, nova e confirmação), com a política de senha visível (12 a 200 caracteres, não pode ser igual ao login nem à senha atual).
+- Em **Configurações › Usuários**, o Administrador informa a senha inicial ao incluir e pode usar "Redefinir senha" em cada usuário; a senha nunca aparece depois de salva.
 - **Visual (R2, bloco 8):** fundo de uma cor só (`#12302B`, sem curvas de nível), tudo centralizado em coluna: `<app-marca>` grande (escudo `clamp(96px,16vh,140px)`, nome `clamp(2.2rem,6vw,3.4rem)`), a frase "Acompanhamento de processos de licenciamento ambiental" e a caixa branca de `min(440px,100%)`. Sem brasão, sem cena e sem "(protótipo)" na marca; o aviso de acesso simulado dentro da caixa permanece. Em 390 px as margens são de 20 px e não há rolagem horizontal.
 - **Menu e telas por perfil (RN08, S4):** o menu é montado a partir das `permissoes` de `/auth/me` (não do nome do perfil): `verAuditoriaAcessos` libera "Auditoria › Acessos" e `acessarConfiguracoes` libera "Configurações". Resultado por perfil:
 

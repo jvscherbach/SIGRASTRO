@@ -278,7 +278,10 @@ class CaixaAcessoVazamentoResilienciaHttpTest {
         // Auditoria: nenhum evento, de nenhum tipo, carrega o CPF ou lista de processos.
         ArgumentCaptor<NovoEvento> eventos = ArgumentCaptor.forClass(NovoEvento.class);
         verify(registrar, atLeast(1)).registrar(eventos.capture());
-        assertThat(eventos.getAllValues()).allSatisfy(e -> assertThat(e.toString()).doesNotContain(CPF_A, CPF_A_DIGITOS)
+        // O correlationId é um UUID aleatório (técnico, não é dado pessoal): sem ele, um trecho de 11 dígitos do UUID
+        // não vira falso positivo de CPF.
+        assertThat(eventos.getAllValues()).allSatisfy(e -> assertThat(e.toString().replaceAll("correlationId=[^,]*", ""))
+                .doesNotContain(CPF_A, CPF_A_DIGITOS)
                 .doesNotContainPattern("(?<![0-9])\\d{11}(?![0-9])").doesNotContain("18001", "18002"));
     }
 

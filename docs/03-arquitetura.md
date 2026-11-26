@@ -42,7 +42,7 @@ Monólito modular por domínio. Regras completas em [13 — Padrões técnicos](
 
 | Pacote | Responsabilidade |
 |---|---|
-| `acesso` | Usuários, perfis, vínculo do interessado, login (simulado no protótipo) |
+| `acesso` | Usuários, perfis, vínculo do interessado, login (usuário e senha, hash PBKDF2, limite de tentativas; L1) |
 | `consulta` | Busca de requerimento/processo, dados de exibição, situação e tarefa atual |
 | `documento` | Agregação dos documentos, vigência, sigilo, deduplicação, geometrias, conteúdo para visualização |
 | `dossie` | Fila de geração, conversão, montagem do PDF, capa, sumário, expiração, regra "nada incompleto sem decisão" (RN09) e continuação |
@@ -89,7 +89,7 @@ O arquivo `.env.local` não é versionado e é opcional na Sprint 0 e 1 (a `api`
 | `SIGA_DB_USER` / `SIGA_DB_PASSWORD` | Usuário somente leitura (`VISTAS_LEITURA_SIGA`) |
 | `SIGA_DB_POOL_MAX` | Tamanho máximo do pool de leitura (padrão 2 na fase inicial) |
 | `SIGA_DB_CONN_TIMEOUT_MS` / `SIGA_DB_READ_TIMEOUT_MS` / `SIGA_DB_MAX_LIFETIME_MS` | Timeout de conexão (5000), de leitura do driver (30000) e vida máxima da conexão (1500000), em ms |
-| `VISTAS_DEMO_SENHA` | Senha única dos usuários de demonstração (padrão `vistas-demo` só no perfil `local`) |
+| `RASTRO_SENHA_OPERADOR`, `RASTRO_SENHA_ANALISTA`, `RASTRO_SENHA_ADMIN` | Senhas dos usuários padrão `operador`, `analista` e `admin` (L1); sem padrão, mínimo 12 caracteres; veja `docs/12` |
 | `VISTAS_DB_POOL_MAX` | Tamanho máximo do pool do schema próprio (padrão 3 na fase inicial) |
 | `AGENDAMENTO_ENABLED` | Liga as tarefas agendadas (padrão `true`) |
 | `VISTAS_DB_URL` / `VISTAS_DB_USER` / `VISTAS_DB_PASSWORD` | Schema próprio (somente na versão definitiva) |

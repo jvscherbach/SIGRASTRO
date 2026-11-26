@@ -6,19 +6,19 @@ Prefixo: `/api`. JSON, exceto onde indicado. Todas as rotas, menos o login, exig
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/auth/login` | Login simulado. Corpo `{ "usuario": "...", "senha": "..." }`. Retorna token (opaco, válido por 8 h), `tipo` `Bearer`, `expiraEm` e o usuário (perfil `OPERADOR`, `OPERADOR_SIGILO` ou `ADMIN`). 401 `NAO_AUTENTICADO` se usuário ou senha estiverem errados; 400 se faltar campo. Não exige token. |
+| `POST` | `/auth/login` | Login com usuário e senha (senha guardada só como hash PBKDF2; L1). Corpo `{ "usuario": "...", "senha": "..." }`. Retorna token (opaco, válido por 8 h), `tipo` `Bearer`, `expiraEm` e o usuário (perfil `OPERADOR`, `OPERADOR_SIGILO` ou `ADMIN`). 401 `NAO_AUTENTICADO` se usuário ou senha estiverem errados (ou o usuário estiver desativado: a mesma mensagem "Usuário ou senha inválidos."); 400 se faltar campo; 429 `MUITAS_TENTATIVAS` no bloqueio (3 erros do par usuário + origem bloqueiam por 15 min; 10 falhas por origem em 15 min), com `Retry-After` e o tempo restante, sem dizer se o login existe. Não exige token. |
 | `GET` | `/auth/me` | Usuário e perfil atuais, com as permissões do perfil. |
 | `POST` | `/auth/logout` | Encerra a sessão atual (204). |
 | `POST` | `/auth/senha` | Troca a própria senha: `{senhaAtual, novaSenha, confirmacao}` (204). Todo perfil troca a própria; limite de tentativas como o do login (429); encerra as outras sessões do usuário. |
 
-Usuários de demonstração (senha única `vistas-demo` no perfil `local`; configurável por `VISTAS_DEMO_SENHA`): `operador.demo` (`OPERADOR`, CNPJ `12.345.678/0001-90`), `gestor.demo` (`OPERADOR_SIGILO`) e `admin.demo` (`ADMIN`).
+Usuários padrão (L1): `operador` (`OPERADOR`, senha em `RASTRO_SENHA_OPERADOR`), `analista` (perfil Analista, senha em `RASTRO_SENHA_ANALISTA`) e `admin` (`ADMIN`, senha em `RASTRO_SENHA_ADMIN`). São criados na subida a partir do ambiente, sem senha no repositório. O Gestor (`OPERADOR_SIGILO`) não é usuário padrão: o Administrador o cria em Configurações. Não há usuário de demonstração.
 
 Resposta de `GET /auth/me` (e o campo `usuario` do login):
 
 ```json
 {
-  "login": "operador.demo",
-  "nome": "Operador Demo",
+  "login": "operador",
+  "nome": "Operador",
   "perfil": "OPERADOR",
   "perfilDescricao": "Operador",
   "cpfCnpj": "12.345.678/0001-90",
@@ -432,7 +432,7 @@ Para continuar, o cliente usa `POST /dossies/{id}/continuacao` (acima), **não**
   "entregaPorTicket": false,
   "temArquivo": true,
   "arquivoGerado": true,
-  "geradoPor": "Gestor Demo"
+  "geradoPor": "Gestor"
 }
 ```
 
